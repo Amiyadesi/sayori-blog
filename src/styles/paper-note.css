@@ -1,0 +1,534 @@
+/* Shared paper-note system
+   Keep notebook texture light, readable, and reusable across pages/components */
+
+:root {
+  --paper-bg: #fffdf8;
+  --paper-bg-soft: #fffaf0;
+  --paper-bg-strong: #fff6e4;
+  --paper-text: rgba(24, 18, 14, 0.86);
+  --paper-muted: rgba(24, 18, 14, 0.56);
+  --paper-edge: rgba(126, 104, 81, 0.18);
+  --paper-edge-strong: rgba(126, 104, 81, 0.26);
+  --paper-line: rgba(111, 158, 189, 0.14);
+  --paper-line-soft: rgba(111, 158, 189, 0.09);
+  --paper-line-gap: 31px;
+  --paper-line-offset: 15px;
+  --paper-radius: 6px 9px 7px 10px;
+  --paper-shadow: 0 14px 28px rgba(39, 33, 25, 0.07), 0 2px 5px rgba(39, 33, 25, 0.05);
+  --paper-shadow-hover: 0 18px 34px rgba(39, 33, 25, 0.1), 0 3px 8px rgba(39, 33, 25, 0.06);
+  --paper-shadow-flat: 0 7px 18px rgba(39, 33, 25, 0.045);
+  --paper-overlay: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.62),
+      rgba(255, 255, 255, 0.38)
+    ),
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.6), transparent 42%);
+  --paper-line-image: repeating-linear-gradient(
+    180deg,
+    transparent,
+    transparent calc(var(--paper-line-gap) - 1px),
+    var(--paper-line) calc(var(--paper-line-gap) - 1px),
+    var(--paper-line) var(--paper-line-gap)
+  );
+  --tape-yellow: rgba(255, 240, 197, 0.62);
+  --tape-blue: rgba(182, 213, 250, 0.48);
+  --tape-pink: rgba(248, 197, 214, 0.48);
+  --pin-red: #d76a72;
+  --pin-red-dark: #ff8b95;
+  --hand-font: "ZenMaruGothic-Medium", "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Segoe Print", cursive;
+  --paper-tear-mask: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.96) 0%,
+    rgba(255, 255, 255, 0.4) 28%,
+    transparent 64%
+  );
+  --paper-tear-glow: rgba(212, 112, 182, 0.24);
+}
+
+:root.dark {
+  --paper-bg: rgba(33, 28, 22, 0.94);
+  --paper-bg-soft: rgba(37, 31, 24, 0.93);
+  --paper-bg-strong: rgba(43, 35, 26, 0.95);
+  --paper-text: rgba(255, 243, 236, 0.9);
+  --paper-muted: rgba(255, 233, 223, 0.6);
+  --paper-edge: rgba(225, 191, 171, 0.16);
+  --paper-edge-strong: rgba(225, 191, 171, 0.24);
+  --paper-line: rgba(142, 183, 211, 0.18);
+  --paper-line-soft: rgba(142, 183, 211, 0.12);
+  --paper-shadow: 0 16px 34px rgba(0, 0, 0, 0.34), 0 3px 10px rgba(0, 0, 0, 0.2);
+  --paper-shadow-hover: 0 20px 40px rgba(0, 0, 0, 0.42), 0 4px 12px rgba(0, 0, 0, 0.24);
+  --paper-shadow-flat: 0 8px 22px rgba(0, 0, 0, 0.22);
+  --paper-overlay: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.055),
+      rgba(255, 255, 255, 0.02)
+    ),
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.06), transparent 40%);
+  --paper-tear-mask: linear-gradient(
+    90deg,
+    rgba(21, 18, 15, 0.96) 0%,
+    rgba(21, 18, 15, 0.44) 28%,
+    transparent 64%
+  );
+  --paper-tear-glow: rgba(245, 158, 211, 0.24);
+}
+
+.hand-font,
+.paper-hand,
+.paper-note .paper-hand,
+.paper-note .paper-kicker,
+.paper-note .paper-meta,
+.paper-note .paper-title,
+.paper-note .paper-label {
+  font-family: var(--hand-font);
+}
+
+.paper-note {
+  position: relative;
+  color: var(--paper-text);
+  background-color: var(--paper-bg);
+  background-image: var(--paper-overlay), var(--paper-line-image);
+  background-position: 0 0, 0 var(--paper-line-offset);
+  border: 1px solid var(--paper-edge);
+  border-radius: var(--paper-radius);
+  box-shadow: var(--paper-shadow);
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease,
+    opacity 180ms ease,
+    filter 180ms ease;
+  isolation: isolate;
+}
+
+.paper-note.card-base {
+  overflow: visible;
+  background-color: var(--paper-bg);
+}
+
+.paper-note:hover {
+  box-shadow: var(--paper-shadow-hover);
+}
+
+.paper-note[data-paper-tear]:not(.is-torn):hover {
+  border-color: color-mix(in srgb, var(--primary) 34%, var(--paper-edge-strong));
+  box-shadow:
+    0 0 0 2px var(--paper-tear-glow),
+    0 18px 38px rgba(129, 70, 112, 0.12),
+    var(--paper-shadow-hover);
+  filter: saturate(1.04);
+}
+
+.paper-note .paper-title,
+.paper-note .paper-kicker,
+.paper-note .paper-label,
+.paper-note time,
+.paper-note .tk-time,
+.paper-note .tk-tag,
+.paper-note .tk-nick,
+.paper-note .tk-extra {
+  font-family: var(--hand-font);
+}
+
+.paper-note .paper-body-font,
+.paper-note .markdown-content,
+.paper-note .custom-md,
+.paper-note article,
+.paper-note .essay-content {
+  font-family: inherit;
+}
+
+.paper-note-plain {
+  background-image: var(--paper-overlay);
+}
+
+.paper-note-lined {
+  background-image: var(--paper-overlay), var(--paper-line-image);
+}
+
+.paper-note-sticky {
+  background-color: var(--paper-bg-strong);
+  border-color: var(--paper-edge-strong);
+}
+
+.paper-note-pinned::after,
+.paper-pin::after {
+  content: "";
+  position: absolute;
+  top: -7px;
+  right: 1.15rem;
+  width: 13px;
+  height: 13px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 35% 35%, #ffd7db 0%, var(--pin-red) 58%, #a44148 100%);
+  box-shadow: 0 2px 4px rgba(33, 20, 20, 0.24), inset 0 -1px 2px rgba(0, 0, 0, 0.2);
+  z-index: 3;
+}
+
+:root.dark .paper-note-pinned::after,
+:root.dark .paper-pin::after {
+  background: radial-gradient(circle at 35% 35%, #ffd0d5 0%, var(--pin-red-dark) 58%, #d14f5b 100%);
+}
+
+.paper-note-taped::before,
+.paper-tape::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  width: clamp(54px, 26%, 94px);
+  height: 21px;
+  transform: translateX(-50%) rotate(-2deg);
+  border-radius: 2px;
+  background: linear-gradient(
+    135deg,
+    var(--tape-yellow) 0%,
+    rgba(255, 245, 217, 0.48) 52%,
+    var(--tape-yellow) 100%
+  );
+  box-shadow: 0 1px 2px rgba(35, 28, 24, 0.08);
+  opacity: 0.95;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.paper-tape-blue::before {
+  background: linear-gradient(
+    135deg,
+    var(--tape-blue) 0%,
+    rgba(203, 226, 255, 0.42) 50%,
+    var(--tape-blue) 100%
+  );
+}
+
+.paper-tape-pink::before {
+  background: linear-gradient(
+    135deg,
+    var(--tape-pink) 0%,
+    rgba(255, 224, 235, 0.42) 50%,
+    var(--tape-pink) 100%
+  );
+}
+
+.paper-list > :nth-child(6n + 1),
+.paper-stack > :nth-child(6n + 1) {
+  --paper-tilt: -0.9deg;
+}
+
+.paper-list > :nth-child(6n + 2),
+.paper-stack > :nth-child(6n + 2) {
+  --paper-tilt: 0.55deg;
+}
+
+.paper-list > :nth-child(6n + 3),
+.paper-stack > :nth-child(6n + 3) {
+  --paper-tilt: -0.45deg;
+}
+
+.paper-list > :nth-child(6n + 4),
+.paper-stack > :nth-child(6n + 4) {
+  --paper-tilt: 1deg;
+}
+
+.paper-list > :nth-child(6n + 5),
+.paper-stack > :nth-child(6n + 5) {
+  --paper-tilt: -0.35deg;
+}
+
+.paper-list > :nth-child(6n + 6),
+.paper-stack > :nth-child(6n + 6) {
+  --paper-tilt: 0.7deg;
+}
+
+.paper-list > .paper-note,
+.paper-stack > .paper-note,
+.paper-note.paper-tilted {
+  transform: rotate(var(--paper-tilt, 0deg));
+}
+
+.paper-list > .paper-note:hover,
+.paper-stack > .paper-note:hover,
+.paper-note.paper-tilted:hover {
+  transform: rotate(0deg) translateY(-2px);
+  z-index: 4;
+}
+
+.paper-note[data-paper-tear]:not(.is-torn):hover,
+.paper-list > .paper-note[data-paper-tear]:not(.is-torn):hover,
+.paper-stack > .paper-note[data-paper-tear]:not(.is-torn):hover,
+.paper-note.paper-tilted[data-paper-tear]:not(.is-torn):hover {
+  transform: rotate(0deg) translateY(-3px);
+}
+
+.paper-title-underline {
+  position: relative;
+  display: inline-block;
+}
+
+.paper-title-underline::after {
+  content: "";
+  position: absolute;
+  left: -0.18em;
+  right: -0.14em;
+  bottom: 0.06em;
+  height: 0.45em;
+  background: rgba(246, 184, 198, 0.42);
+  border-radius: 0.4em;
+  transform: rotate(-0.6deg);
+  z-index: -1;
+}
+
+:root.dark .paper-title-underline::after {
+  background: rgba(255, 146, 197, 0.2);
+}
+
+.paper-note-surface {
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
+.paper-note-surface > .paper-note {
+  min-height: 100%;
+}
+
+body.wallpaper-transparent .paper-note,
+.wallpaper-transparent .paper-note {
+  background-color: color-mix(in srgb, var(--paper-bg) 87%, transparent) !important;
+  backdrop-filter: blur(10px) saturate(1.02);
+  -webkit-backdrop-filter: blur(10px) saturate(1.02);
+}
+
+body.wallpaper-transparent .paper-note-plain,
+.wallpaper-transparent .paper-note-plain {
+  background-color: color-mix(in srgb, var(--paper-bg-soft) 82%, transparent) !important;
+}
+
+.paper-restore-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.paper-restore-bar[hidden] {
+  display: none !important;
+}
+
+.paper-restore-button {
+  border: 1px solid var(--paper-edge);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--paper-bg) 92%, white 8%);
+  color: var(--paper-text);
+  font-family: var(--hand-font);
+  font-size: 0.82rem;
+  line-height: 1;
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+  box-shadow: var(--paper-shadow-flat);
+  transition:
+    transform 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease;
+}
+
+.paper-restore-button:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--primary) 32%, var(--paper-edge));
+  background: color-mix(in srgb, var(--paper-bg) 80%, var(--primary) 8%);
+}
+
+.paper-restore-button:active {
+  transform: translateY(0);
+}
+
+.paper-note [data-paper-tear-trigger] {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--paper-muted);
+  font-family: var(--hand-font);
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.15rem;
+  transition:
+    transform 160ms ease,
+    color 160ms ease,
+    opacity 160ms ease;
+}
+
+.paper-note [data-paper-tear-trigger]:hover {
+  color: var(--primary);
+  transform: rotate(-10deg) scale(1.04);
+}
+
+.paper-note [data-paper-tear-trigger][hidden] {
+  display: none !important;
+}
+
+.paper-note > .paper-note-auto-tear-trigger {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 6;
+  width: clamp(54px, 26%, 94px);
+  height: 1.5rem;
+  transform: translateX(-50%) rotate(-2deg);
+  border-radius: 2px;
+  opacity: 0;
+}
+
+.paper-note[data-paper-tear]:not(.is-torn) > .paper-note-auto-tear-trigger:hover {
+  opacity: 0.2;
+  background: color-mix(in srgb, var(--primary) 20%, white 80%);
+}
+
+.paper-note > .paper-note-auto-tear-trigger:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--primary);
+  outline-offset: 0.16rem;
+  background: color-mix(in srgb, var(--tape-yellow) 76%, white 24%);
+}
+
+.paper-note[data-paper-tear] {
+  --paper-tear-progress: 0;
+}
+
+.paper-note[data-paper-tear]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--paper-tear-mask);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.paper-note.is-tearing {
+  animation: paper-tear-away 460ms cubic-bezier(0.3, 0.9, 0.4, 1) forwards;
+}
+
+.paper-note.is-tearing::after {
+  animation: paper-tear-scrape 460ms ease forwards;
+}
+
+.paper-note.is-torn {
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  user-select: none !important;
+}
+
+.paper-note-tear-ghost {
+  box-sizing: border-box;
+  opacity: 1;
+  overflow: visible !important;
+  transform-origin: 50% 8%;
+  will-change: transform, opacity, filter;
+}
+
+.paper-note-tear-ghost::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: 7;
+  background:
+    linear-gradient(100deg, transparent 0 38%, rgba(255, 255, 255, 0.72) 47%, transparent 57%),
+    var(--paper-tear-mask);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.paper-note-tear-ghost.is-paper-tearing-drop {
+  animation: paper-tear-drop 920ms cubic-bezier(0.18, 0.74, 0.32, 1) forwards;
+}
+
+.paper-note-tear-ghost.is-paper-tearing-soft {
+  animation: paper-tear-soft 760ms cubic-bezier(0.22, 0.9, 0.42, 1) forwards;
+}
+
+.paper-note-tear-ghost.is-paper-tearing-drop::after,
+.paper-note-tear-ghost.is-paper-tearing-soft::after {
+  animation: paper-tear-scrape 640ms ease forwards;
+}
+
+@keyframes paper-tear-away {
+  0% {
+    opacity: 1;
+    transform: rotate(var(--paper-tilt, 0deg)) translate3d(0, 0, 0) scale(1);
+    filter: saturate(1);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(calc(var(--paper-tilt, 0deg) - 4deg)) translate3d(42px, -16px, 0) scale(0.94);
+    filter: saturate(0.85);
+  }
+}
+
+@keyframes paper-tear-drop {
+  0% {
+    opacity: 1;
+    transform: rotate(var(--paper-tilt, 0deg)) translate3d(0, 0, 0) scale(1);
+    filter: saturate(1.06) drop-shadow(0 16px 20px rgba(63, 38, 52, 0.18));
+  }
+  22% {
+    opacity: 1;
+    transform: rotate(calc(var(--paper-tilt, 0deg) + 2deg)) translate3d(0, -18px, 0) scale(1.025);
+    filter: saturate(1.12) drop-shadow(0 24px 26px rgba(63, 38, 52, 0.22));
+  }
+  48% {
+    opacity: 0.9;
+    transform: rotate(calc(var(--paper-tear-rotation, 28deg) * 0.55)) translate3d(calc(var(--paper-tear-drift, 80px) * 0.35), 42px, 0) scale(0.98);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--paper-tear-rotation, 28deg)) translate3d(var(--paper-tear-drift, 80px), var(--paper-tear-fall, 520px), 0) scale(0.86);
+    filter: saturate(0.76) drop-shadow(0 30px 26px rgba(63, 38, 52, 0.08));
+  }
+}
+
+@keyframes paper-tear-soft {
+  0% {
+    opacity: 1;
+    transform: rotate(var(--paper-tilt, 0deg)) translate3d(0, 0, 0) scale(1);
+  }
+  38% {
+    opacity: 0.92;
+    transform: rotate(calc(var(--paper-tear-rotation, 14deg) * 0.45)) translate3d(24px, -20px, 0) scale(0.98);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--paper-tear-rotation, 14deg)) translate3d(var(--paper-tear-drift, 72px), 120px, 0) scale(0.9);
+  }
+}
+
+@keyframes paper-tear-scrape {
+  0% {
+    opacity: 0;
+    transform: translateX(-24%);
+  }
+  30% {
+    opacity: 0.75;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(68%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paper-note,
+  .paper-note:hover,
+  .paper-note.is-tearing,
+  .paper-note.is-tearing::after,
+  .paper-note-tear-ghost,
+  .paper-note-tear-ghost::after,
+  .paper-restore-button,
+  .paper-note [data-paper-tear-trigger] {
+    transition: none !important;
+    animation: none !important;
+  }
+}

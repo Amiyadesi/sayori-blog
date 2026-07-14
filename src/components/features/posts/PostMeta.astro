@@ -1,0 +1,404 @@
+---
+import { Icon } from "astro-icon/components";
+
+import I18nKey from "../../../i18n/i18nKey";
+import { i18n } from "../../../i18n/translation";
+import { formatDateToYYYYMMDD } from "../../../utils/date-utils";
+import { getTagUrl } from "../../../utils/url-utils";
+import { PublishedDate } from "./atoms";
+import { Category } from "./atoms";
+import { WordCount } from "./atoms";
+import { ReadingTime } from "./atoms";
+import { EncryptedBadge } from "./atoms";
+
+interface Props {
+	published: Date;
+	updated?: Date;
+	category?: string;
+	tags?: string[];
+	hideUpdateDate?: boolean;
+	hideTagsForMobile?: boolean;
+	isHome?: boolean;
+	className?: string;
+	id?: string;
+	showOnlyBasicMeta?: boolean;
+	words?: number;
+	minutes?: number;
+	showWordCount?: boolean;
+	showReadingTime?: boolean;
+	showEncrypted?: boolean;
+	createdDate?: Date;
+	lastEditedDate?: Date;
+	updateCount?: number;
+	commentPath?: string;
+	likePath?: string;
+	author?: string;
+	hideCategory?: boolean;
+	hideTags?: boolean;
+	hideHistory?: boolean;
+}
+
+const {
+	published,
+	updated,
+	category,
+	tags,
+	hideUpdateDate,
+	hideTagsForMobile,
+	isHome,
+	className = "",
+	id,
+	showOnlyBasicMeta = false,
+	words,
+	minutes,
+	showWordCount = false,
+	showReadingTime = false,
+	showEncrypted = false,
+	createdDate,
+	lastEditedDate,
+	updateCount,
+	commentPath,
+	likePath,
+	author,
+	hideCategory = false,
+	hideTags = false,
+	hideHistory = false,
+} = Astro.props;
+
+const inferredUpdateCount =
+	createdDate && lastEditedDate
+		? updateCount ??
+			(lastEditedDate.getTime() !== createdDate.getTime() ? 1 : 0)
+		: undefined;
+---
+
+<div
+	class:list={[
+		"flex flex-wrap text-neutral-500 dark:text-neutral-400 items-center gap-4 gap-x-4 gap-y-2",
+		className,
+	]}
+>
+    <PublishedDate date={published} />
+
+    {!hideUpdateDate && updated && updated.getTime() !== published.getTime() && (
+        <div class="flex items-center">
+            <div class="meta-icon">
+                <Icon name="material-symbols:edit-calendar-outline-rounded" class="text-xl"></Icon>
+            </div>
+            <span class="text-50 text-sm font-medium">{formatDateToYYYYMMDD(updated)}</span>
+        </div>
+    )}
+
+    {!hideCategory && <Category category={category} />}
+
+    {showWordCount && words && (
+        <WordCount words={words} />
+    )}
+
+    {showReadingTime && minutes && (
+        <ReadingTime minutes={minutes} />
+    )}
+
+    {!showOnlyBasicMeta && !hideTags && (
+        <div class:list={["items-start min-w-0 max-w-full", {"flex": !hideTagsForMobile, "hidden md:flex": hideTagsForMobile}]}>
+            <div class="meta-icon">
+                <Icon name="material-symbols:tag-rounded" class="text-xl"></Icon>
+            </div>
+            <div class="flex min-w-0 flex-row flex-wrap items-center gap-x-1.5 gap-y-1">
+                {(tags && tags.length > 0) && tags.map((tag, i) => (
+                    <>
+                        <div class:list={[{"hidden": i == 0}, "text-[var(--meta-divider)] text-sm"]}>/</div>
+                        <a href={getTagUrl(tag)} aria-label={`View all posts with the ${tag.trim()} tag`}
+                           class="link-lg transition text-50 text-sm font-medium
+                                        hover:text-[var(--primary)] dark:hover:text-[var(--primary)]
+                                        break-words [overflow-wrap:anywhere]">
+                            {tag.trim()}
+                        </a>
+                    </>
+                ))}
+                {!(tags && tags.length > 0) && <div class="transition text-50 text-sm font-medium">{i18n(I18nKey.noTags)}</div>}
+            </div>
+        </div>
+    )}
+
+    {!hideHistory && createdDate && lastEditedDate && inferredUpdateCount !== undefined && (
+        <div class="flex items-center min-w-0" title={`${i18n(I18nKey.postHistoryCreated)} ${formatDateToYYYYMMDD(createdDate)} / ${i18n(I18nKey.postHistoryLastEdited)} ${formatDateToYYYYMMDD(lastEditedDate)}`}>
+            <div class="meta-icon">
+                <Icon name="material-symbols:manage-history-rounded" class="text-xl"></Icon>
+            </div>
+            <span class="text-50 text-sm font-medium whitespace-nowrap">
+                {i18n(I18nKey.postHistory)}
+                {" "}
+                {inferredUpdateCount}
+                {" "}
+                {i18n(I18nKey.postHistoryTimes)}
+                {" / "}
+                {formatDateToYYYYMMDD(lastEditedDate)}
+            </span>
+        </div>
+    )}
+
+    {commentPath && (
+        <div class="flex items-center post-comment-count hidden" data-comment-path={commentPath}>
+            <div class="meta-icon">
+                <Icon name="material-symbols:chat-bubble-outline-rounded" class="text-xl"></Icon>
+            </div>
+            <span class="text-50 text-sm font-medium post-comment-count-display">{i18n(I18nKey.postCommentsLoading)}</span>
+        </div>
+    )}
+
+    {!isHome && id && (
+        <div class="flex items-center umami-page-views hidden" data-id={id}>
+            <div class="meta-icon">
+                <Icon name="material-symbols:visibility-outline-rounded" class="text-xl"></Icon>
+            </div>
+            <span class="text-50 text-sm font-medium page-views-display">{i18n(I18nKey.pageViewsLoading)}</span>
+        </div>
+    )}
+
+    {likePath && (
+        <div class="flex items-center post-like-count hidden" data-like-path={likePath}>
+            <div class="meta-icon">
+                <Icon name="material-symbols:favorite-outline-rounded" class="text-xl"></Icon>
+            </div>
+            <span class="text-50 text-sm font-medium post-like-count-display">{i18n(I18nKey.postLikesLoading)}</span>
+        </div>
+    )}
+
+    {author && (
+        <div class="flex items-center min-w-0">
+            <div class="meta-icon">
+                <Icon name="material-symbols:person-outline-rounded" class="text-xl"></Icon>
+            </div>
+            <span class="text-50 text-sm font-medium whitespace-nowrap">{author}</span>
+        </div>
+    )}
+
+    {showEncrypted && (
+        <EncryptedBadge />
+    )}
+
+</div>
+
+{!isHome && id && (
+	<script
+		is:inline
+		define:vars={{
+			pageViewsText: i18n(I18nKey.profileStatsPageViews),
+			visitsText: i18n(I18nKey.profileStatsVisits),
+		}}
+	>
+		(function () {
+			function generateStatsText(pageViews, visits) {
+				return `${pageViewsText} ${pageViews} · ${visitsText} ${visits}`;
+			}
+
+			async function fetchPageViews() {
+				for (const container of document.querySelectorAll(
+					".umami-page-views[data-id]",
+				)) {
+					if (!window.oddmisc) {
+						container.classList.add("hidden");
+						continue;
+					}
+
+					const id = container.dataset.id;
+					if (!id) continue;
+
+					try {
+						const stats = await window.oddmisc.getStats(`/posts/${id}/`);
+						const pageViews = stats.pageviews || 0;
+						const visits = stats.visits || 0;
+
+						if (pageViews === 0 && visits === 0) {
+							container.classList.add("hidden");
+							continue;
+						}
+
+						container.classList.remove("hidden");
+						const label = container.querySelector(".page-views-display");
+						if (label) {
+							label.textContent = generateStatsText(pageViews, visits);
+						}
+					} catch (error) {
+						console.error("Error fetching page views:", error);
+						container.classList.add("hidden");
+					}
+				}
+			}
+
+			if (document.readyState === "loading") {
+				document.addEventListener("DOMContentLoaded", fetchPageViews);
+			} else {
+				fetchPageViews();
+			}
+			document.addEventListener("mizuki:page:loaded", fetchPageViews);
+		})();
+	</script>
+)}
+
+{commentPath && (
+<script is:inline define:vars={{
+    commentsText: i18n(I18nKey.comments),
+    commentsUnavailableText: i18n(I18nKey.postCommentsUnavailable)
+}}>
+    (function () {
+        const TWIKOO_SCRIPT_URL = "/assets/js/twikoo.all.min.js";
+        const TWIKOO_GLOBAL_LOADER_KEY = "__sayoriTwikooScriptPromise";
+        const TWIKOO_SCRIPT_TIMEOUT_MS = 8000;
+        let twikooCountPromise;
+
+        function waitForTwikooRuntime(timeoutMs = TWIKOO_SCRIPT_TIMEOUT_MS) {
+            if (window.twikoo?.getCommentsCount) {
+                return Promise.resolve(window.twikoo);
+            }
+
+            return new Promise((resolve, reject) => {
+                const startedAt = Date.now();
+                const interval = window.setInterval(() => {
+                    if (window.twikoo?.getCommentsCount) {
+                        window.clearInterval(interval);
+                        resolve(window.twikoo);
+                        return;
+                    }
+
+                    if (Date.now() - startedAt >= timeoutMs) {
+                        window.clearInterval(interval);
+                        reject(new Error("Twikoo script loaded, but getCommentsCount is unavailable."));
+                    }
+                }, 50);
+            });
+        }
+
+        function loadTwikooForCount() {
+            if (window.twikoo?.getCommentsCount) {
+                return Promise.resolve(window.twikoo);
+            }
+            if (!twikooCountPromise) {
+                if (!window[TWIKOO_GLOBAL_LOADER_KEY]) {
+                    window[TWIKOO_GLOBAL_LOADER_KEY] = new Promise((resolve, reject) => {
+                        let script = document.getElementById("twikoo-script-loaded");
+                        const finish = () => resolve();
+                        const fail = () => reject(new Error("Twikoo script failed to load."));
+
+                        if (script) {
+                            if (script.dataset.twikooState === "loaded") {
+                                finish();
+                                return;
+                            }
+                            if (script.dataset.twikooState === "error") {
+                                fail();
+                                return;
+                            }
+                            script.addEventListener("load", finish, { once: true });
+                            script.addEventListener("error", fail, { once: true });
+                            window.setTimeout(finish, 0);
+                            return;
+                        }
+
+                        script = document.createElement("script");
+                        script.id = "twikoo-script-loaded";
+                        script.dataset.twikooState = "loading";
+                        script.src = TWIKOO_SCRIPT_URL;
+                        script.async = true;
+                        script.onload = () => {
+                            script.dataset.twikooState = "loaded";
+                            finish();
+                        };
+                        script.onerror = () => {
+                            script.dataset.twikooState = "error";
+                            fail();
+                        };
+                        document.head.appendChild(script);
+                    })
+                        .then(() => waitForTwikooRuntime())
+                        .catch((error) => {
+                            window[TWIKOO_GLOBAL_LOADER_KEY] = null;
+                            throw error;
+                        });
+                }
+                twikooCountPromise = window[TWIKOO_GLOBAL_LOADER_KEY];
+            }
+            return twikooCountPromise;
+        }
+
+        async function fetchCommentCount() {
+            const containers = document.querySelectorAll(".post-comment-count[data-comment-path]");
+            if (!containers.length) return;
+            try {
+                const twikooRuntime = await loadTwikooForCount();
+                if (!twikooRuntime?.getCommentsCount) {
+                    throw new Error("Twikoo getCommentsCount unavailable");
+                }
+                for (const container of containers) {
+                    const path = container.dataset.commentPath;
+                    if (!path) continue;
+                    const result = await twikooRuntime.getCommentsCount({
+                        envId: `${window.location.origin}/api/twikoo`,
+                        urls: [path],
+                        includeReply: false,
+                    });
+                    const count = Array.isArray(result)
+                        ? Number(result[0]?.count || 0)
+                        : Number(result?.[path] || result?.count || 0);
+                    container.classList.remove("hidden");
+                    container.querySelector(".post-comment-count-display").textContent = `${commentsText} ${count}`;
+                }
+            } catch (error) {
+                console.warn("[PostMeta] comment count unavailable", error);
+                for (const container of document.querySelectorAll(".post-comment-count[data-comment-path]")) {
+                    container.classList.add("hidden");
+                    const label = container.querySelector(".post-comment-count-display");
+                    if (label) label.textContent = commentsUnavailableText;
+                }
+            }
+        }
+
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", fetchCommentCount);
+        } else {
+            fetchCommentCount();
+        }
+        document.addEventListener("mizuki:page:loaded", fetchCommentCount);
+    })();
+</script>
+)}
+
+{likePath && (
+<script is:inline define:vars={{
+    likesText: i18n(I18nKey.postLikes),
+    likesUnavailableText: i18n(I18nKey.postStatsUnavailable)
+}}>
+    (function () {
+        async function fetchLikeCount() {
+            for (const container of document.querySelectorAll(".post-like-count[data-like-path]")) {
+                const path = container.dataset.likePath;
+                if (!path) continue;
+                try {
+                    const response = await fetch(`/api/post-interactions?path=${encodeURIComponent(path)}`, {
+                        headers: { accept: "application/json" },
+                        credentials: "same-origin",
+                    });
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const data = await response.json();
+                    container.classList.remove("hidden");
+                    container.querySelector(".post-like-count-display").textContent = `${likesText} ${Number(data.likes || 0)}`;
+                    document.dispatchEvent(new CustomEvent("post-interactions:loaded", { detail: data }));
+                } catch (error) {
+                    console.warn("[PostMeta] like count unavailable", error);
+                    container.classList.add("hidden");
+                    const label = container.querySelector(".post-like-count-display");
+                    if (label) label.textContent = likesUnavailableText;
+                }
+            }
+        }
+
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", fetchLikeCount);
+        } else {
+            fetchLikeCount();
+        }
+        document.addEventListener("mizuki:page:loaded", fetchLikeCount);
+    })();
+</script>
+)}

@@ -1,0 +1,328 @@
+---
+import TypewriterText from "@components/atoms/typewriter-text/TypewriterText.astro";
+import { Icon } from "astro-icon/components";
+import { siteConfig } from "../../config";
+import { BANNER_HEIGHT_EXTEND } from "../../constants/constants";
+
+interface Props {
+	bannerImages: {
+		desktop: string | string[];
+		mobile: string | string[];
+	};
+	mobileNonHomeBannerClass?: string;
+	showTextOverlay?: boolean;
+	overlayTitle?: string;
+	overlaySubtitle?: string | string[];
+	typewriter?: boolean;
+	showWave?: boolean;
+}
+
+const {
+	bannerImages,
+	mobileNonHomeBannerClass = "",
+	showTextOverlay = false,
+	overlayTitle = siteConfig.banner.homeText?.title,
+	overlaySubtitle = siteConfig.banner.homeText?.subtitle,
+	typewriter = siteConfig.banner.homeText?.typewriter?.enable ?? false,
+	showWave = siteConfig.banner.waves?.enable ?? true,
+} = Astro.props;
+
+const normalizeToArray = (images: string | string[]): string[] =>
+	(Array.isArray(images) ? images : [images]).filter(Boolean);
+
+const desktopImages = normalizeToArray(bannerImages.desktop);
+const mobileImages = normalizeToArray(bannerImages.mobile);
+const mobileInitial = mobileImages[0] || desktopImages[0] || "";
+const desktopInitial = desktopImages[0] || mobileInitial;
+const mobileInitialSrcSet =
+	mobileInitial === "/assets/mobile-banner/1.webp"
+		? "/assets/mobile-banner/1-640.webp 640w, /assets/mobile-banner/1-1080.webp 1080w"
+		: mobileInitial;
+const mobileInitialFallback =
+	mobileInitial === "/assets/mobile-banner/1.webp"
+		? "/assets/mobile-banner/1-1080.webp"
+		: mobileInitial;
+const bannerPositionClass =
+	siteConfig.banner.position === "top"
+		? "object-top"
+		: siteConfig.banner.position === "bottom"
+			? "object-bottom"
+			: "object-center";
+const isCarouselEnabled =
+	siteConfig.banner.carousel?.enable &&
+	(desktopImages.length > 1 || mobileImages.length > 1);
+const carouselIntervalMs = Math.max(
+	(siteConfig.banner.carousel?.interval || 6) * 1000,
+	1500,
+);
+const fadeMs = Math.min(
+	Math.max(Math.round(carouselIntervalMs * 0.4), 500),
+	1500,
+);
+const kbDurationMs = carouselIntervalMs + fadeMs;
+const hasBannerCredit = siteConfig.banner.credit.enable;
+const hasBannerLink = !!siteConfig.banner.credit.url;
+---
+
+<div
+	id="banner-wrapper"
+	class={`absolute z-10 w-full transition duration-700 overflow-hidden ${mobileNonHomeBannerClass}`}
+	style={`top: -${BANNER_HEIGHT_EXTEND}vh`}
+>
+	<div
+		id="banner-carousel"
+		class="relative h-full w-full"
+		data-carousel-interval={carouselIntervalMs}
+		data-fade-ms={fadeMs}
+	>
+		<div class="banner-image-slot absolute inset-0">
+			<picture>
+				{desktopInitial && (
+					<source media="(min-width: 768px)" srcset={desktopInitial} />
+				)}
+				{mobileInitial && (
+					<source
+						media="(max-width: 767px)"
+						srcset={mobileInitialSrcSet}
+						sizes="100vw"
+					/>
+				)}
+				{
+					mobileInitial && (
+						<img
+							id="banner"
+							src={mobileInitialFallback}
+							alt="Blog banner"
+							class={`absolute inset-0 w-full h-full object-cover ${bannerPositionClass}`}
+							decoding="async"
+							loading="eager"
+							fetchpriority="high"
+						/>
+					)
+				}
+			</picture>
+		</div>
+	</div>
+
+	{isCarouselEnabled && (
+		<Fragment set:html={`<style>
+			@keyframes bannerKenBurns {
+				0% { transform: scale(1.03); }
+				100% { transform: scale(1.13); }
+			}
+			.banner-kb {
+				animation: bannerKenBurns ${kbDurationMs}ms ease-out forwards;
+			}
+		</style>`} />
+	)}
+
+	{isCarouselEnabled && (
+		<script
+			is:inline
+			data-swup-ignore-script
+			define:vars={{ desktopImages, mobileImages, carouselIntervalMs, fadeMs, bannerPositionClass }}
+		>
+			(function initBannerCarousel() {
+				const container = document.getElementById("banner-carousel");
+				if (!container) return;
+
+				if (window.__bannerCarouselCleanup) {
+					window.__bannerCarouselCleanup();
+				}
+
+				const isDesktop = () => window.matchMedia("(min-width: 768px)").matches;
+				const imageList = () => (isDesktop() ? desktopImages : mobileImages);
+				let currentIndex = 0;
+				let timerId = null;
+				let started = false;
+
+				function createFrame(src, isInitial) {
+					const frame = document.createElement("div");
+					frame.className = "banner-image-slot absolute inset-0";
+					const image = document.createElement("img");
+					image.id = "banner";
+					image.src = src;
+					image.alt = "Blog banner";
+					image.className = `absolute inset-0 w-full h-full object-cover ${bannerPositionClass}`;
+					image.decoding = "async";
+					image.loading = "eager";
+					image.fetchPriority = isInitial ? "high" : "auto";
+					frame.appendChild(image);
+					return frame;
+				}
+
+				function restartAnimation(frame) {
+					frame.classList.remove("banner-kb");
+					void frame.offsetWidth;
+					frame.classList.add("banner-kb");
+				}
+
+				function advance() {
+					const images = imageList();
+					if (images.length <= 1) return;
+
+					currentIndex = (currentIndex + 1) % images.length;
+					const previous = container.querySelector(".banner-image-slot");
+					const next = createFrame(images[currentIndex], false);
+					next.style.opacity = "0";
+					next.style.transition = `opacity ${fadeMs}ms ease-in-out`;
+					container.appendChild(next);
+
+					requestAnimationFrame(function () {
+						next.style.opacity = "1";
+						restartAnimation(next);
+					});
+
+					window.setTimeout(function () {
+						previous?.remove();
+						next.style.transition = "";
+					}, fadeMs + 50);
+				}
+
+				function start() {
+					if (started) return;
+					started = true;
+					const frame = container.querySelector(".banner-image-slot");
+					if (frame) restartAnimation(frame);
+					timerId = window.setInterval(advance, carouselIntervalMs);
+				}
+
+				function stop() {
+					if (timerId !== null) {
+						window.clearInterval(timerId);
+						timerId = null;
+					}
+				}
+
+				function onFirstInteraction() {
+					start();
+					window.removeEventListener("pointerdown", onFirstInteraction);
+					window.removeEventListener("keydown", onFirstInteraction);
+				}
+
+				// Keep the first hero frame stable until a real interaction finishes LCP.
+				window.addEventListener("pointerdown", onFirstInteraction, { once: true, passive: true });
+				window.addEventListener("keydown", onFirstInteraction, { once: true });
+
+				window.__bannerCarouselCleanup = function () {
+					stop();
+					window.removeEventListener("pointerdown", onFirstInteraction);
+					window.removeEventListener("keydown", onFirstInteraction);
+				};
+			})();
+		</script>
+	)}
+
+	{siteConfig.banner.homeText?.enable && (
+		<div class={`banner-text-overlay absolute inset-0 z-20 flex items-center justify-center ${!showTextOverlay ? "hidden" : ""}`}>
+			<div class="w-4/5 lg:w-3/4 text-center mb-0">
+				<div class="flex flex-col">
+					{overlayTitle && (
+						<h1 class="banner-title text-6xl lg:text-8xl text-white drop-shadow-lg mb-2 lg:mb-4">
+							{overlayTitle}
+						</h1>
+					)}
+					{overlaySubtitle && (
+						<h2 class="banner-subtitle text-xl lg:text-3xl text-white/90 drop-shadow-md">
+							<span class="inline-block min-h-[1.2em]">
+								{typewriter && Array.isArray(overlaySubtitle) ? (
+									<TypewriterText
+										text={overlaySubtitle}
+										speed={siteConfig.banner.homeText?.typewriter?.speed}
+										deleteSpeed={siteConfig.banner.homeText?.typewriter?.deleteSpeed}
+										pauseTime={siteConfig.banner.homeText?.typewriter?.pauseTime}
+									/>
+								) : Array.isArray(overlaySubtitle) ? (
+									overlaySubtitle[0]
+								) : (
+									overlaySubtitle
+								)}
+							</span>
+						</h2>
+					)}
+				</div>
+			</div>
+		</div>
+	)}
+
+	{showWave && (
+		<div
+			class="waves absolute -bottom-[1px] h-[10vh] max-h-[9.375rem] min-h-[3.125rem] w-full md:h-[15vh]"
+			id="header-waves"
+			style="transform: translateZ(0); will-change: fill;"
+		>
+			<svg
+				class="waves"
+				xmlns="http://www.w3.org/2000/svg"
+				xmlns:xlink="http://www.w3.org/1999/xlink"
+				viewBox="0 20 150 32"
+				preserveAspectRatio="none"
+				shape-rendering="auto"
+				style="transform: translateZ(0); backface-visibility: hidden;"
+			>
+				<defs>
+					<path
+						id="gentle-wave"
+						d="M-160 44c30 0 58-18 88-18s 58 18 88 18 58-18 88-18 58 18 88 18 v48h-352z"
+					></path>
+				</defs>
+				<g class="parallax" style="transform: translateZ(0);">
+					<use xlink:href="#gentle-wave" x="48" y="0" class="opacity-25 fill-[var(--page-bg)]" style="animation-delay: -2s; animation-duration: 7s; will-change: transform;"></use>
+					<use xlink:href="#gentle-wave" x="48" y="3" class="opacity-50 fill-[var(--page-bg)]" style="animation-delay: -3s; animation-duration: 10s; will-change: transform;"></use>
+					<use xlink:href="#gentle-wave" x="48" y="5" class="opacity-75 fill-[var(--page-bg)]" style="animation-delay: -5s; animation-duration: 13s; will-change: transform;"></use>
+					<use xlink:href="#gentle-wave" x="48" y="7" class="fill-[var(--page-bg)]" style="animation-delay: -5s; animation-duration: 20s; will-change: transform;"></use>
+				</g>
+			</svg>
+		</div>
+	)}
+
+	{hasBannerCredit && (
+		<a
+			href={siteConfig.banner.credit.url}
+			id="banner-credit"
+			target="_blank"
+			rel="noopener"
+			aria-label="Visit image source"
+			class:list={[
+				"group onload-animation transition-all absolute flex justify-center items-center rounded-full px-3 right-4 -top-[3.25rem] bg-black/60 hover:bg-black/70 h-9",
+				{ "hover:pr-9 active:bg-black/80": hasBannerLink },
+			]}
+		>
+			<Icon class="text-white/75 text-[1.25rem] mr-1" name="material-symbols:copyright-outline-rounded" />
+			<div class="text-white/75 text-xs">{siteConfig.banner.credit.text}</div>
+			<Icon
+				class:list={[
+					"transition absolute text-[oklch(0.75_0.14_var(--hue))] right-4 text-[0.75rem] opacity-0",
+					{ "group-hover:opacity-100": hasBannerLink },
+				]}
+				name="fa7-solid:arrow-up-right-from-square"
+			/>
+		</a>
+	)}
+</div>
+
+<style>
+	.banner-title {
+		text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+		animation: fadeInUp 1s ease-out;
+		font-weight: bold;
+	}
+
+	.banner-subtitle {
+		text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6);
+		animation: fadeInUp 1s ease-out 0.3s both;
+		min-height: 1.5em;
+		line-height: 1.2;
+	}
+
+	@keyframes fadeInUp {
+		from {
+			opacity: 0;
+			transform: translateY(30px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+</style>

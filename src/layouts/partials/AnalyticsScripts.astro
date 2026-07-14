@@ -1,0 +1,272 @@
+---
+/**
+ * AnalyticsScripts.astro
+ * 第三方分析脚本组件 - 延迟加载优化
+ *
+ * 包含:
+ * - Google Tag Manager (GTM)
+ * - Microsoft Clarity (可选，通过 thirdPartyAnalytics 配置控制)
+ *
+ * 使用 requestIdleCallback 延迟加载以优化性能
+ */
+
+interface Props {
+	gtmId?: string;
+	thirdPartyAnalytics?: {
+		enable: boolean;
+		clarityId?: string;
+		googleAnalyticsId?: string;
+		umami?: {
+			enable: boolean;
+			src: string;
+			websiteId: string;
+			hostUrl?: string;
+			domains?: string;
+		};
+	};
+}
+
+const {
+	gtmId = "GTM-KRX3XGVH",
+	thirdPartyAnalytics = { enable: false, clarityId: "" },
+} = Astro.props;
+
+const clarityEnable =
+	thirdPartyAnalytics.enable && thirdPartyAnalytics.clarityId;
+const googleAnalyticsId = thirdPartyAnalytics.googleAnalyticsId || "";
+const googleAnalyticsEnable =
+	thirdPartyAnalytics.enable &&
+	/^G-[A-Z0-9]+$/i.test(googleAnalyticsId);
+const umamiConfig = thirdPartyAnalytics.umami;
+const isUuid = (value: string | undefined) =>
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+		value || "",
+	);
+const umamiEnable =
+	!!umamiConfig?.enable &&
+	!!umamiConfig.src &&
+	isUuid(umamiConfig.websiteId);
+---
+
+<!-- 第三方分析脚本 - 仅在用户交互后延迟加载 -->
+<script
+	is:inline
+	define:vars={{
+		gtmId,
+		clarityEnable,
+		clarityId: thirdPartyAnalytics.clarityId || "",
+		googleAnalyticsEnable,
+		googleAnalyticsId,
+	}}
+>
+	(function () {
+		// 标记脚本是否已加载
+		window.analyticsLoaded = window.analyticsLoaded || false;
+
+		function loadAnalytics() {
+			if (window.analyticsLoaded) {
+				return;
+			}
+			window.analyticsLoaded = true;
+
+			// Google Tag Manager
+			(function (w, d, s, l, i) {
+				w[l] = w[l] || [];
+				w[l].push({
+					"gtm.start": new Date().getTime(),
+					event: "gtm.js",
+				});
+				const f = d.getElementsByTagName(s)[0],
+					j = d.createElement(s);
+				j.async = true;
+				j.src = "https://www.googletagmanager.com/gtm.js?id=" + i;
+				f.parentNode.insertBefore(j, f);
+			})(window, document, "script", "dataLayer", gtmId);
+
+			// Google Analytics 4
+			if (googleAnalyticsEnable && googleAnalyticsId) {
+				const gaScript = document.createElement("script");
+				gaScript.async = true;
+				gaScript.src =
+					"https://www.googletagmanager.com/gtag/js?id=" +
+					googleAnalyticsId;
+				document.head.appendChild(gaScript);
+
+				window.dataLayer = window.dataLayer || [];
+				window.gtag =
+					window.gtag ||
+					function () {
+						window.dataLayer.push(arguments);
+					};
+				window.gtag("js", new Date());
+				window.gtag("config", googleAnalyticsId, {
+					send_page_view: false,
+				});
+			}
+
+			// Clarity (仅在启用时加载)
+			if (clarityEnable && clarityId) {
+				(function (c, l, a, r, i, t, y) {
+					c[a] =
+						c[a] ||
+						function () {
+							(c[a].q = c[a].q || []).push(arguments);
+						};
+					t = l.createElement(r);
+					t.async = 1;
+					t.src = "https://www.clarity.ms/tag/" + i;
+					y = l.getElementsByTagName(r)[0];
+					y.parentNode.insertBefore(t, y);
+				})(window, document, "clarity", "script", clarityId);
+			}
+		}
+
+		// 仅在用户交互后加载分析脚本，减少初始页面加载负担
+		const events = [
+			"scroll",
+			"mousemove",
+			"keydown",
+			"touchstart",
+			"click",
+		];
+		let loaded = false;
+
+		function onInteraction() {
+			if (loaded) {
+				return;
+			}
+			loaded = true;
+			events.forEach(function (event) {
+				window.removeEventListener(event, onInteraction);
+			});
+			loadAnalytics();
+		}
+
+		events.forEach(function (event) {
+			window.addEventListener(event, onInteraction, {
+				once: true,
+				passive: true,
+			});
+		});
+
+		// 备用：如果用户 10 秒内没有交互，则在 idle 时加载
+		setTimeout(function () {
+			if (!loaded) {
+				loadAnalytics();
+			}
+		}, 10000);
+	})();
+</script>
+
+{
+	umamiEnable && (
+		<script
+			is:inline
+			defer
+			src={umamiConfig.src}
+			data-website-id={umamiConfig.websiteId}
+			data-host-url={umamiConfig.hostUrl || undefined}
+			data-domains={umamiConfig.domains || undefined}
+		/>
+	)
+}
+
+<script is:inline>
+	(function () {
+		const endpoint = "/api/analytics/event";
+		const site = "blog";
+		const heartbeatMs = 30000;
+		const storagePrefix = "sayoriAnalytics";
+
+		function randomId() {
+			if (window.crypto && window.crypto.randomUUID) {
+				return window.crypto.randomUUID();
+			}
+			return (
+				String(Date.now()) + "-" + Math.random().toString(16).slice(2)
+			);
+		}
+
+		function storedId(storage, key) {
+			try {
+				let value = storage.getItem(key);
+				if (!value) {
+					value = randomId();
+					storage.setItem(key, value);
+				}
+				return value;
+			} catch {
+				return randomId();
+			}
+		}
+
+		const visitorId = storedId(localStorage, storagePrefix + ":visitor");
+		const sessionId = storedId(sessionStorage, storagePrefix + ":session");
+		let lastPageKey = "";
+
+		function payload(event) {
+			return {
+				event,
+				site,
+				visitorId,
+				sessionId,
+				path: window.location.pathname,
+				title: document.title || "",
+			};
+		}
+
+		function send(event) {
+			const body = JSON.stringify(payload(event));
+			if (navigator.sendBeacon) {
+				const blob = new Blob([body], {
+					type: "text/plain;charset=UTF-8",
+				});
+				if (navigator.sendBeacon(endpoint, blob)) return;
+			}
+			fetch(endpoint, {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body,
+				keepalive: true,
+			}).catch(() => {});
+		}
+
+		function pageview() {
+			const key = window.location.pathname + "|" + document.title;
+			if (key === lastPageKey) return;
+			lastPageKey = key;
+			if (
+				typeof window.gtag === "function" &&
+				googleAnalyticsEnable &&
+				googleAnalyticsId
+			) {
+				window.gtag("event", "page_view", {
+					page_title: document.title || "",
+					page_path: window.location.pathname,
+					page_location: window.location.href,
+					send_to: googleAnalyticsId,
+				});
+			}
+			send("pageview");
+		}
+
+		function heartbeat() {
+			if (document.visibilityState === "visible") {
+				send("heartbeat");
+			}
+		}
+
+		if (document.readyState === "loading") {
+			document.addEventListener("DOMContentLoaded", pageview, {
+				once: true,
+			});
+		} else {
+			pageview();
+		}
+		document.addEventListener("swup:pageView", function () {
+			window.setTimeout(pageview, 0);
+		});
+		document.addEventListener("visibilitychange", heartbeat);
+		window.setInterval(heartbeat, heartbeatMs);
+	})();
+</script>

@@ -1,0 +1,102 @@
+---
+import FloatingButton from "@components/common/FloatingButton.astro";
+---
+
+<FloatingButton
+	id="reading-width-btn"
+	icon="material-symbols:format-align-left-rounded"
+	ariaLabel="切换阅读宽度"
+	onclick="toggleReadingWidth()"
+	class="hide"
+/>
+
+<script is:inline>
+	(() => {
+		const STORAGE_KEY = "sayoriReadingWidthMode";
+		const MODES = ["comfortable", "wide", "focus"];
+		const DEFAULT_MODE = "wide";
+		const LABELS = {
+			comfortable: "舒适宽度",
+			wide: "宽屏阅读",
+			focus: "专注阅读",
+		};
+
+		function normalizeMode(mode) {
+			return MODES.includes(mode) ? mode : DEFAULT_MODE;
+		}
+
+		function isPostPage() {
+			return Boolean(document.getElementById("post-container"));
+		}
+
+		function getSavedMode() {
+			try {
+				return normalizeMode(localStorage.getItem(STORAGE_KEY));
+			} catch {
+				return DEFAULT_MODE;
+			}
+		}
+
+		function saveMode(mode) {
+			try {
+				localStorage.setItem(STORAGE_KEY, mode);
+			} catch {
+				// localStorage may be disabled; visual state can still update.
+			}
+		}
+
+		function updateButton(mode) {
+			const button = document.getElementById("reading-width-btn");
+			if (!button) {
+				return;
+			}
+
+			const visible = isPostPage();
+			button.classList.toggle("hide", !visible);
+			button.classList.toggle("active", visible && mode !== "comfortable");
+			button.setAttribute(
+				"title",
+				visible ? `当前：${LABELS[mode]}。点击切换。` : "",
+			);
+			button.setAttribute("data-reading-mode", mode);
+		}
+
+		function applyReadingWidth(mode, persist = true) {
+			const normalizedMode = normalizeMode(mode);
+			const root = document.documentElement;
+			root.classList.remove(
+				"reading-width-comfortable",
+				"reading-width-wide",
+				"reading-width-focus",
+			);
+			root.classList.add(`reading-width-${normalizedMode}`);
+			root.setAttribute("data-reading-width", normalizedMode);
+			if (persist) {
+				saveMode(normalizedMode);
+			}
+			updateButton(normalizedMode);
+		}
+
+		window.toggleReadingWidth = function () {
+			const currentMode = normalizeMode(
+				document.documentElement.getAttribute("data-reading-width") ||
+					getSavedMode(),
+			);
+			const nextMode =
+				MODES[(MODES.indexOf(currentMode) + 1) % MODES.length];
+			applyReadingWidth(nextMode);
+		};
+
+		function syncReadingWidth() {
+			applyReadingWidth(getSavedMode(), false);
+		}
+
+		document.addEventListener("DOMContentLoaded", syncReadingWidth);
+		document.addEventListener("astro:page-load", syncReadingWidth);
+		document.addEventListener("swup:contentReplaced", () => {
+			requestAnimationFrame(syncReadingWidth);
+		});
+		document.addEventListener("mizuki:page:loaded", syncReadingWidth);
+		syncReadingWidth();
+	})();
+</script>

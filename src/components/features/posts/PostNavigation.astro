@@ -1,0 +1,78 @@
+---
+import { getPostUrlBySlug } from "@utils/url-utils";
+import { Icon } from "astro-icon/components";
+
+interface Props {
+	prevSlug?: string;
+	prevTitle?: string;
+	nextSlug?: string;
+	nextTitle?: string;
+	class?: string;
+}
+
+const {
+	prevSlug,
+	prevTitle,
+	nextSlug,
+	nextTitle,
+	class: className,
+} = Astro.props;
+
+const onlyOneButton = (prevSlug && !nextSlug) || (!prevSlug && nextSlug);
+---
+
+<div
+	class:list={[
+		"post-navigation flex flex-col mb-4 gap-3 w-full",
+		className,
+		!onlyOneButton && "md:grid md:grid-cols-2 md:gap-4",
+	]}
+>
+	{
+		prevSlug && (
+			<a
+				href={getPostUrlBySlug(prevSlug)}
+				class="group w-full font-bold overflow-hidden active:scale-[0.98]"
+			>
+				<div class="post-nav-card btn-card rounded-xl w-full min-h-[3.5rem] max-w-full px-4 py-3 flex items-center !justify-start gap-3">
+					<Icon
+						name="material-symbols:chevron-left-rounded"
+						class="shrink-0 text-[1.75rem] text-[var(--primary)] transition group-hover:-translate-x-0.5"
+					/>
+					<div class="min-w-0 flex-1 overflow-hidden transition overflow-ellipsis whitespace-nowrap text-sm md:text-base text-black/75 dark:text-white/75">
+						{prevTitle}
+					</div>
+				</div>
+			</a>
+		)
+	}
+
+	{
+		nextSlug && (
+			<a
+				href={getPostUrlBySlug(nextSlug)}
+				class="group w-full font-bold overflow-hidden active:scale-[0.98]"
+			>
+				<div class="post-nav-card btn-card rounded-xl w-full min-h-[3.5rem] max-w-full px-4 py-3 flex items-center !justify-end gap-3">
+					<div class="min-w-0 flex-1 overflow-hidden transition overflow-ellipsis whitespace-nowrap text-right text-sm md:text-base text-black/75 dark:text-white/75">
+						{nextTitle}
+					</div>
+					<Icon
+						name="material-symbols:chevron-right-rounded"
+						class="shrink-0 text-[1.75rem] text-[var(--primary)] transition group-hover:translate-x-0.5"
+					/>
+				</div>
+			</a>
+		)
+	}
+</div>
+
+<style>
+	.post-navigation {
+		overflow: visible;
+	}
+
+	.post-nav-card {
+		box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--primary) 10%, transparent);
+	}
+</style>

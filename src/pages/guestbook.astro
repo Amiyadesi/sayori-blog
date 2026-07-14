@@ -1,0 +1,109 @@
+---
+import Comment from "@components/comment/index.astro";
+import { PageHeader } from "@components/features/page-header";
+import MainGridLayout from "@layouts/MainGridLayout.astro";
+
+export const prerender = true;
+---
+
+<MainGridLayout
+	title="留言板"
+	description="给 Amiya 的书桌留一张小纸条。"
+>
+	<div
+		class="flex w-full rounded-[var(--radius-large)] overflow-visible relative min-h-32"
+	>
+		<div class="card-base paper-note paper-note-lined paper-tape guestbook-card z-10 px-9 py-6 relative w-full" style="padding-top: 1.75rem;">
+			<PageHeader
+				title="留言板"
+				subtitle="路过的话，可以在这里塞一张小纸条。"
+			/>
+
+			<div class="guestbook-note">
+				<div class="guestbook-note__tape" aria-hidden="true"></div>
+				<p>
+					路过可以留一句话。读后感、建议，或者单纯打个招呼都行。友链申请请走友链页里的邮件入口，审核后才会公开展示。
+				</p>
+			</div>
+		</div>
+	</div>
+
+	<div class="mt-4">
+		<Comment path="/guestbook/" />
+	</div>
+</MainGridLayout>
+
+<style>
+	.guestbook-card {
+		position: relative;
+	}
+
+	.guestbook-card::after {
+		content: "";
+		position: absolute;
+		right: 2.1rem;
+		top: 2.2rem;
+		width: 5.8rem;
+		height: 5.8rem;
+		border: 2px dashed rgba(239, 143, 166, 0.28);
+		border-radius: 52% 48% 45% 55%;
+		transform: rotate(12deg);
+		pointer-events: none;
+	}
+
+	.guestbook-note {
+		position: relative;
+		max-width: 47rem;
+		margin: 0.4rem 0 0.6rem;
+		padding: 1.25rem 1.35rem 1.1rem;
+		border: 1px dashed rgba(239, 143, 166, 0.32);
+		border-radius: var(--paper-radius);
+		background: var(--paper-bg-soft);
+		background-image: var(--paper-overlay), var(--paper-line-image);
+		background-position: 0 0, 0 var(--paper-line-offset);
+		box-shadow: var(--paper-shadow-flat);
+		color: var(--paper-text);
+		transform: rotate(-0.7deg);
+	}
+
+	:global(.dark) .guestbook-note {
+		color: var(--paper-text);
+	}
+
+	.guestbook-note__tape {
+		position: absolute;
+		left: 1.4rem;
+		top: -0.52rem;
+		width: 3.5rem;
+		height: 0.82rem;
+		border-radius: 2px;
+		background: var(--tape-blue);
+		box-shadow: 0 2px 5px rgba(38, 52, 71, 0.1);
+		transform: rotate(-8deg);
+	}
+
+	.guestbook-note p {
+		margin: 0;
+		font-size: 0.95rem;
+		line-height: 1.9;
+		font-family: var(--hand-font);
+	}
+
+	.guestbook-note p + p {
+		margin-top: 0.55rem;
+	}
+
+	@media (max-width: 640px) {
+		.guestbook-card {
+			padding-inline: 1.35rem;
+		}
+
+		.guestbook-card::after {
+			display: none;
+		}
+
+		.guestbook-note {
+			padding: 1.05rem 1rem;
+		}
+	}
+</style>

@@ -1,0 +1,375 @@
+---
+// 只加载基础的等宽字体，减少加载时间
+import "@fontsource-variable/jetbrains-mono/wght-italic.css";
+
+import "@/styles/expressive-code.css";
+import "@/styles/fancybox-custom.css";
+import "@/styles/markdown.css";
+import "@/styles/markdown-extend.styl";
+
+interface Props {
+	class: string;
+}
+const className = Astro.props.class;
+---
+
+<div
+	data-pagefind-body
+	class={`prose dark:prose-invert prose-base !max-w-none custom-md ${className}`}
+>
+	<!--<div class="prose dark:prose-invert max-w-none custom-md">-->
+	<!--<div class="max-w-none custom-md">-->
+	<slot />
+</div>
+
+<script>
+	type TrackLike = {
+		title: string;
+		artist: string;
+		cover: string;
+		url: string;
+		netease?: string;
+		youtube?: string;
+	};
+
+	type MusicSidebarState = {
+		currentSong?: TrackLike;
+		isPlaying?: boolean;
+		isLoading?: boolean;
+		currentTime?: number;
+		duration?: number;
+		volume?: number;
+		isMuted?: boolean;
+	};
+
+	const MUSIC_CARD_SELECTOR = "[data-music-track]";
+	let musicStateBound = false;
+
+	function getCardTrack(card: HTMLElement): TrackLike {
+		return {
+			title: card.dataset.title || "",
+			artist: card.dataset.artist || "",
+			cover: card.dataset.cover || "",
+			url: card.dataset.url || "",
+			netease: card.dataset.netease || "",
+			youtube: card.dataset.youtube || "",
+		};
+	}
+
+	function formatMusicTime(seconds: number | undefined) {
+		if (!Number.isFinite(seconds) || !seconds || seconds < 0) {
+			return "0:00";
+		}
+		const value = Math.floor(seconds);
+		const minutes = Math.floor(value / 60);
+		const rest = value % 60;
+		return `${minutes}:${String(rest).padStart(2, "0")}`;
+	}
+
+	function updateMusicCardState(
+		card: HTMLElement,
+		state: "idle" | "loading" | "playing",
+		playback?: {
+			currentTime?: number;
+			duration?: number;
+			volume?: number;
+			isMuted?: boolean;
+		},
+	) {
+		card.dataset.state = state;
+		card.classList.toggle("is-loading", state === "loading");
+		card.classList.toggle("is-playing", state === "playing");
+		card.classList.toggle("is-muted", Boolean(playback?.isMuted));
+		const playLabel = card.querySelector<HTMLElement>(".music-track-play-label");
+		const playIcon = card.querySelector<HTMLElement>(".music-track-play-icon");
+		if (playLabel) {
+			playLabel.textContent =
+				state === "playing" ? "播放中" : state === "loading" ? "加载" : "播放";
+		}
+		if (playIcon) {
+			playIcon.textContent = state === "playing" ? "Ⅱ" : "▶";
+		}
+
+		const currentTime = card.querySelector<HTMLElement>("[data-music-track-time]");
+		const duration = card.querySelector<HTMLElement>("[data-music-track-duration]");
+		const progress = card.querySelector<HTMLElement>("[data-music-track-progress]");
+		if (currentTime) {
+			currentTime.textContent = formatMusicTime(playback?.currentTime);
+		}
+		if (duration) {
+			duration.textContent =
+				playback?.duration && playback.duration > 0
+					? formatMusicTime(playback.duration)
+					: "--:--";
+		}
+		if (progress) {
+			const ratio =
+				playback?.duration && playback.duration > 0
+					? Math.max(0, Math.min(1, (playback.currentTime || 0) / playback.duration))
+					: state === "playing"
+						? 0.18
+						: 0;
+			progress.style.inlineSize = `${Math.round(ratio * 100)}%`;
+		}
+
+		const volumeFill = card.querySelector<HTMLElement>(
+			"[data-music-track-volume-fill]",
+		);
+		if (volumeFill) {
+			const volume = playback?.isMuted ? 0 : playback?.volume ?? 0.7;
+			volumeFill.style.inlineSize = `${Math.round(Math.max(0, Math.min(1, volume)) * 100)}%`;
+		}
+
+		const statusElement = card.querySelector<HTMLElement>("[data-music-track-status]");
+		if (!statusElement) {
+			return;
+		}
+		statusElement.textContent =
+			state === "playing" ? "播放中" : state === "loading" ? "加载中" : "待播放";
+	}
+
+	async function syncMusicTrackCards() {
+		const cards = Array.from(
+			document.querySelectorAll<HTMLElement>(MUSIC_CARD_SELECTOR),
+		);
+		if (cards.length === 0) {
+			return;
+		}
+		const module = await import("@/stores/musicPlayerStore");
+		const state = module.musicPlayerStore.getState();
+		for (const card of cards) {
+			const isCurrent = module.musicPlayerStore.isCurrentTrack(getCardTrack(card));
+			const nextState = isCurrent
+				? state.isLoading
+					? "loading"
+					: state.isPlaying
+						? "playing"
+						: "idle"
+				: "idle";
+			updateMusicCardState(card, nextState, {
+				currentTime: state.currentTime,
+				duration: state.duration,
+				volume: state.volume,
+				isMuted: state.isMuted,
+			});
+		}
+	}
+
+	function bindMusicTrackState() {
+		if (musicStateBound) {
+			return;
+		}
+		musicStateBound = true;
+		window.addEventListener("music-sidebar:state", (event) => {
+			const detail = (event as CustomEvent<MusicSidebarState>).detail;
+			const cards = Array.from(
+				document.querySelectorAll<HTMLElement>(MUSIC_CARD_SELECTOR),
+			);
+			for (const card of cards) {
+				const track = getCardTrack(card);
+				const isCurrent =
+					detail?.currentSong &&
+					(track.url
+						? detail.currentSong.url === track.url
+						: track.netease
+							? detail.currentSong.netease === track.netease
+							: track.youtube
+								? detail.currentSong.youtube === track.youtube
+								: detail.currentSong.title === track.title &&
+									detail.currentSong.artist === track.artist);
+				const nextState = isCurrent
+					? detail?.isLoading
+						? "loading"
+						: detail?.isPlaying
+							? "playing"
+							: "idle"
+					: "idle";
+				updateMusicCardState(card, nextState, {
+					currentTime: detail?.currentTime,
+					duration: detail?.duration,
+					volume: detail?.volume,
+					isMuted: detail?.isMuted,
+				});
+			}
+		});
+	}
+
+	async function setMusicTrackVolumeFromEvent(event: MouseEvent, slider: HTMLElement) {
+		const module = await import("@/stores/musicPlayerStore");
+		const rect = slider.getBoundingClientRect();
+		if (rect.width <= 0) {
+			return;
+		}
+		const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+		module.musicPlayerStore.setVolume(ratio);
+	}
+
+	async function setMusicTrackProgressFromEvent(event: MouseEvent, slider: HTMLElement) {
+		const module = await import("@/stores/musicPlayerStore");
+		const state = module.musicPlayerStore.getState();
+		if (!state.duration || state.duration <= 0) {
+			return;
+		}
+		const rect = slider.getBoundingClientRect();
+		if (rect.width <= 0) {
+			return;
+		}
+		const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+		module.musicPlayerStore.setProgress(ratio);
+	}
+
+	function extractCode(target: Element): string {
+		const codeEle = target.parentElement?.querySelector("code");
+		let code = "";
+		if (codeEle) {
+			const lineElements = codeEle.querySelectorAll("span.line");
+			if (lineElements.length > 0) {
+				const lines: string[] = [];
+				for (let i = 0; i < lineElements.length; i++) {
+					const lineElement = lineElements[i];
+					const lineText = lineElement.textContent || "";
+					lines.push(lineText);
+				}
+				code = lines.join("\n");
+			} else {
+				const codeElements = codeEle.querySelectorAll(".code:not(summary *)");
+				if (codeElements.length > 0) {
+					const lines: string[] = [];
+					for (let i = 0; i < codeElements.length; i++) {
+						const el = codeElements[i];
+						const lineText = el.textContent || "";
+						lines.push(lineText);
+					}
+					code = lines.join("\n");
+				} else {
+					code = codeEle.textContent || "";
+				}
+			}
+		}
+
+		return code.replace(/\n\n\n+/g, function (match) {
+			const newlineCount = match.length;
+			const emptyLineCount = newlineCount - 1;
+			let resultEmptyLines: number;
+			if (emptyLineCount % 2 === 0) {
+				resultEmptyLines = emptyLineCount / 2;
+			} else {
+				resultEmptyLines = Math.floor((emptyLineCount + 1) / 2);
+			}
+			if (resultEmptyLines < 1) {
+				resultEmptyLines = 1;
+			}
+			return "\n".repeat(resultEmptyLines + 1);
+		});
+	}
+
+	const copyToClipboard = async (text: string) => {
+		if (!navigator.clipboard?.writeText) {
+			throw new Error("Clipboard API 不可用");
+		}
+		await navigator.clipboard.writeText(text);
+	};
+
+	async function handleMusicTrackPlay(button: HTMLElement) {
+		const card = button.closest<HTMLElement>(MUSIC_CARD_SELECTOR);
+		if (!card) {
+			return;
+		}
+		updateMusicCardState(card, "loading");
+		const module = await import("@/stores/musicPlayerStore");
+		module.musicPlayerStore.playTrack(
+			{
+				id: Date.now(),
+				title: card.dataset.title || "",
+				artist: card.dataset.artist || "",
+				cover: card.dataset.cover || "",
+				url: card.dataset.url || "",
+				duration: 0,
+				netease: card.dataset.netease || undefined,
+				youtube: card.dataset.youtube || undefined,
+			},
+			{
+				fallbackLink: card.dataset.link || "",
+			},
+		);
+		await syncMusicTrackCards();
+	}
+
+	document.addEventListener("click", function (e: MouseEvent) {
+		const target = e.target as HTMLElement | null;
+		const spoiler = target?.closest(".sayori-spoiler");
+		if (spoiler instanceof HTMLElement) {
+			spoiler.classList.toggle("is-revealed");
+			return;
+		}
+
+		const musicButton = target?.closest<HTMLElement>("[data-music-track-play]");
+		if (musicButton) {
+			e.preventDefault();
+			handleMusicTrackPlay(musicButton).catch((error) => {
+				console.error("音乐卡片播放失败:", error);
+			});
+			return;
+		}
+
+		const volumeToggle = target?.closest<HTMLElement>(
+			"[data-music-track-volume-toggle]",
+		);
+		if (volumeToggle) {
+			e.preventDefault();
+			import("@/stores/musicPlayerStore")
+				.then((module) => module.musicPlayerStore.toggleMute())
+				.catch((error) => {
+					console.error("音乐卡片静音切换失败:", error);
+				});
+			return;
+		}
+
+		const volumeSlider = target?.closest<HTMLElement>(
+			"[data-music-track-volume-slider]",
+		);
+		if (volumeSlider) {
+			e.preventDefault();
+			setMusicTrackVolumeFromEvent(e, volumeSlider).catch((error) => {
+				console.error("音乐卡片音量调整失败:", error);
+			});
+			return;
+		}
+
+		const progressSlider = target?.closest<HTMLElement>(
+			"[data-music-track-progress-slider]",
+		);
+		if (progressSlider) {
+			e.preventDefault();
+			setMusicTrackProgressFromEvent(e, progressSlider).catch((error) => {
+				console.error("音乐卡片进度调整失败:", error);
+			});
+			return;
+		}
+
+		if (target && target.classList.contains("copy-btn")) {
+			const code = extractCode(target);
+			copyToClipboard(code)
+				.then(() => {
+					const timeoutId = target.getAttribute("data-timeout-id");
+					if (timeoutId) {
+						clearTimeout(parseInt(timeoutId));
+					}
+
+					target.classList.add("success");
+					const newTimeoutId = setTimeout(() => {
+						target.classList.remove("success");
+					}, 1000);
+					target.setAttribute("data-timeout-id", newTimeoutId.toString());
+				})
+				.catch((err) => {
+					console.error("复制失败:", err);
+				});
+		}
+	});
+
+	bindMusicTrackState();
+	document.addEventListener("astro:page-load", syncMusicTrackCards);
+	document.addEventListener("swup:contentReplaced", syncMusicTrackCards);
+	void syncMusicTrackCards();
+</script>

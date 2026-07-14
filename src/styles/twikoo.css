@@ -1,0 +1,434 @@
+:root {
+  --tk-text: black;
+  --code-block-text: #333; /* 调整为深色但在浅色背景下仍然舒适的值 */
+}
+
+@reference "tailwindcss";
+
+html.dark {
+  --tk-text: #d1d5db;
+  --code-block-text: #d1d5db; /* 在深色模式下使用更亮的颜色 */
+}
+
+.tk-comments {
+  @apply text-(--tk-text);
+}
+
+.tk-submit {
+  .tk-avatar {
+    @apply hidden;
+  }
+}
+
+/* Text Area */
+.tk-row {
+  .tk-col {
+    @apply flex-col-reverse;
+    .tk-input {
+      textarea {
+        @apply rounded-(--radius-large) py-4 px-6 !min-h-[150px]
+          focus:border-(--primary) bg-white/50 dark:bg-white/[0.03]
+          border-black/10 dark:border-white/12
+          transition-colors duration-200;
+      }
+    }
+  }
+}
+
+/* Meta */
+.tk-meta-input {
+  @apply relative mt-3;
+  div {
+    @apply min-h-10;
+    .el-input-group__prepend {
+      @apply !bg-inherit rounded-l-lg;
+      min-height: inherit;
+    }
+    input {
+      @apply px-4 rounded-r-lg focus:!border-(--primary);
+      min-height: inherit;
+    }
+  }
+}
+
+/* Button */
+.tk-row.actions {
+  @apply w-full !ml-0 !mt-0;
+  .tk-preview,
+  .tk-send,
+  .tk-cancel {
+    @apply border-none rounded-lg px-3 py-0 h-8
+       !bg-(--btn-regular-bg-active) disabled:!bg-(--btn-regular-bg)
+      !text-(--btn-content) disabled:!text-[#ffffffa1];
+  }
+  .__markdown {
+    @apply border-none rounded-lg px-3 py-0 h-8
+      !bg-(--btn-plain-bg-hover) !text-(--btn-content) opacity-80 hover:opacity-100;
+  }
+}
+
+/* Comment title */
+.tk-comments-title {
+  .__comments svg {
+    @apply fill-(--primary);
+  }
+}
+
+.tk-comment {
+  position: relative;
+  background: var(--paper-bg);
+  color: var(--paper-text);
+  border: 1px solid var(--paper-edge);
+  border-radius: var(--paper-radius);
+  box-shadow: var(--paper-shadow);
+  padding: 1.25rem;
+  background-image: var(--paper-overlay), var(--paper-line-image);
+  background-position: 0 0, 0 var(--paper-line-offset);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  .tk-action-icon svg {
+    @apply fill-(--primary);
+  }
+  .tk-avatar {
+    @apply rounded-xl overflow-hidden;
+  }
+}
+
+.tk-comment:hover {
+  box-shadow: var(--paper-shadow-hover);
+}
+
+html.dark .tk-comment {
+  border-color: var(--paper-edge);
+  background-image: var(--paper-overlay), var(--paper-line-image);
+}
+
+.tk-action {
+  .tk-action-count {
+    @apply text-(--btn-content);
+  }
+}
+
+.tk-meta {
+  .tk-tag {
+    @apply border-none rounded-lg text-(--btn-content) -translate-y-[2px];
+  }
+
+  .tk-tag-green {
+    @apply bg-(--btn-regular-bg) dark:bg-(--primary) dark:text-(--deep-text);
+  }
+}
+
+/* Content & Preview — full Markdown rendering */
+.tk-content,
+.tk-preview-container {
+  @apply text-[0.925rem] leading-relaxed;
+
+  img {
+    @apply inline !align-bottom;
+  }
+
+  a {
+    @apply underline text-(--primary) font-medium;
+  }
+
+  .tk-ruser {
+    @apply no-underline;
+  }
+
+  :not(pre) > code {
+    @apply bg-(--inline-code-bg) rounded-md text-(--inline-code-color) px-1 py-0.5 font-semibold text-[0.85em];
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold mt-3 mb-1.5;
+  }
+  h1 { @apply text-lg; }
+  h2 { @apply text-base; }
+  h3 { @apply text-[0.95rem]; }
+
+  p {
+    @apply my-1.5;
+  }
+
+  blockquote {
+    @apply border-l-3 border-(--primary)/40 pl-3 my-2 text-black/60 dark:text-white/60 italic;
+  }
+
+  .tk-gfm-alert {
+    @apply rounded-lg border border-l-4 pl-3 pr-3 py-2 not-italic;
+    background: color-mix(in srgb, var(--primary) 6%, transparent);
+  }
+
+  .tk-gfm-alert-title {
+    @apply mb-1 text-[0.8rem] font-bold uppercase tracking-normal;
+  }
+
+  .tk-gfm-alert-note {
+    @apply border-blue-500/70;
+    .tk-gfm-alert-title {
+      @apply text-blue-600 dark:text-blue-300;
+    }
+  }
+
+  .tk-gfm-alert-tip {
+    @apply border-emerald-500/70;
+    .tk-gfm-alert-title {
+      @apply text-emerald-600 dark:text-emerald-300;
+    }
+  }
+
+  .tk-gfm-alert-important {
+    @apply border-violet-500/70;
+    .tk-gfm-alert-title {
+      @apply text-violet-600 dark:text-violet-300;
+    }
+  }
+
+  .tk-gfm-alert-warning {
+    @apply border-amber-500/80;
+    .tk-gfm-alert-title {
+      @apply text-amber-700 dark:text-amber-300;
+    }
+  }
+
+  .tk-gfm-alert-caution {
+    @apply border-red-500/80;
+    .tk-gfm-alert-title {
+      @apply text-red-600 dark:text-red-300;
+    }
+  }
+
+  ul, ol {
+    @apply pl-5 my-1.5;
+  }
+
+  ul > li {
+    @apply relative pl-1 my-0.5;
+    list-style: disc;
+  }
+
+  ol > li {
+    @apply relative pl-1 my-0.5;
+    list-style: decimal;
+  }
+
+  li {
+    @apply before:content-none;
+  }
+
+  .tk-gfm-task-list-item {
+    @apply pl-0;
+    list-style: none;
+  }
+
+  .tk-gfm-task-list-item > input[type="checkbox"] {
+    @apply mr-2 align-middle accent-(--primary);
+  }
+
+  .tk-gfm-footnote-ref {
+    @apply mx-0.5 text-[0.72em] leading-none;
+  }
+
+  .tk-gfm-footnote-ref a,
+  .tk-gfm-footnote-backref {
+    @apply no-underline;
+  }
+
+  .tk-gfm-footnotes {
+    @apply mt-3 border-t border-black/10 pt-2 text-[0.82rem] text-black/60 dark:border-white/15 dark:text-white/60;
+  }
+
+  .tk-gfm-footnotes ol {
+    @apply my-0 pl-5;
+  }
+
+  .tk-gfm-emoji {
+    @apply inline-block h-[1.15em] w-[1.15em] align-[-0.15em];
+  }
+
+  span.tk-gfm-emoji {
+    @apply h-auto w-auto;
+  }
+
+  table {
+    @apply w-full my-2 border-collapse text-[0.875rem];
+  }
+
+  th, td {
+    @apply border border-black/10 dark:border-white/15 px-2.5 py-1.5 text-left;
+  }
+
+  th {
+    @apply bg-black/4 dark:bg-white/6 font-semibold;
+  }
+
+  hr {
+    @apply my-3 border-0 border-t border-black/10 dark:border-white/15;
+  }
+
+  img:not([class]) {
+    @apply block max-w-full rounded-lg my-2;
+  }
+}
+
+/* Sort Buttons */
+.tk-sort-item {
+  @apply !text-(--primary);
+  opacity: 0.6;
+}
+
+.tk-sort-item.__active {
+  @apply !text-(--primary);
+  opacity: 1;
+}
+
+/* Admin actions, For each comment */
+.tk-actions {
+  button {
+    @apply !text-(--primary);
+  }
+}
+
+/* Commenter Nickname Link, on hover */
+.tk-nick-link:hover {
+  @apply !text-(--primary);
+}
+
+/* Replies — notes stacked on top */
+.tk-replies {
+  @apply mt-3 ml-3 pl-0 border-l-0;
+  .tk-comment {
+    margin-left: 0.5rem;
+    margin-top: 0.5rem;
+    padding: 1rem;
+    background-color: var(--paper-bg-soft);
+    border-color: color-mix(in srgb, var(--paper-edge) 92%, white 8%);
+    transform: rotate(0.5deg);
+    .tk-content {
+      > span:first-of-type {
+        @apply text-xs;
+      }
+    }
+  }
+  .tk-comment:nth-child(even) {
+    transform: rotate(-0.3deg);
+  }
+}
+
+html.dark .tk-replies .tk-comment {
+  background-color: var(--paper-bg-soft);
+  border-color: var(--paper-edge);
+}
+
+.twikoo .code-block {
+  pre {
+    @apply !rounded-xl;
+  }
+
+  /* Code block fall back */
+  pre:not([class]) {
+    @apply bg-(--codeblock-bg) overflow-auto p-2 text-(--code-block-text);
+  }
+
+  .copy-btn-icon {
+    width: inherit !important;
+    height: inherit !important;
+  }
+}
+
+.tk-expand-wrap .tk-expand,
+.tk-collapse-wrap .tk-expand {
+  @apply hover:rounded-lg mt-1 hover:bg-(--btn-plain-bg-hover);
+}
+
+/* by @SirTamago
+Make the emoji component display correctly when there are too many emoji packs
+*/
+.card-base {
+  overflow: visible;
+}
+
+/* 防止 Twikoo 操作时的意外滚动 */
+.tk-action-icon,
+.tk-owo,
+.tk-submit,
+.tk-cancel,
+.tk-preview,
+.tk-admin,
+.tk-delete,
+.tk-edit {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+/* 确保点击区域足够大 */
+.tk-action {
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+}
+
+/* 防止表单提交时的意外跳转 */
+.tk-submit-wrapper {
+  position: relative;
+}
+
+/* 管理面板样式优化 */
+.tk-admin-panel {
+  position: relative;
+  z-index: 100;
+}
+
+/* Admin Panel */
+/* Primary buttons (e.g. Save, Submit) */
+.el-button--primary {
+  @apply !bg-(--primary) !border-(--primary);
+}
+
+/* Input & textarea focus border */
+.twikoo .el-input__inner:focus,
+.twikoo .el-textarea__inner:focus,
+.el-input.is-active .el-input__inner {
+  @apply !border-(--primary);
+}
+
+/* Non-primary button hover/focus/active states */
+.twikoo .el-button:not(.el-button--primary):not(.el-button--text):active,
+.twikoo .el-button:not(.el-button--primary):not(.el-button--text):focus,
+.twikoo .el-button:not(.el-button--primary):not(.el-button--text):hover {
+  @apply !text-(--primary) !border-(--primary)/50 !bg-(--primary)/10;
+}
+
+/* Text button default state */
+.el-button--text {
+  @apply !text-(--primary) !border-transparent !bg-transparent;
+}
+
+/* Text button hover/focus state */
+.el-button--text:focus,
+.el-button--text:hover {
+  @apply !text-(--primary)/60 !border-transparent !bg-transparent;
+}
+
+/* Active pagination page */
+.tk-pagination-pager {
+  &.__current {
+    @apply !bg-(--primary) !rounded-lg;
+  }
+}
+
+/* Native select dropdown options (light mode) */
+.twikoo select option {
+  @apply !text-black !bg-white;
+}
+
+/* Native select dropdown options (dark mode) */
+html.dark .twikoo select option {
+  @apply !text-gray-300 !bg-gray-800;
+}
+
+/* Admin panel rounded corners */
+.tk-admin {
+  @apply !rounded-lg;
+  clip-path: inset(0 round 0.5rem) !important;
+}

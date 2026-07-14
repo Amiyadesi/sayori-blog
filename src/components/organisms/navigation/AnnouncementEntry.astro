@@ -1,0 +1,388 @@
+---
+import { Icon } from "astro-icon/components";
+
+import { announcementConfig } from "../../../config";
+import I18nKey from "../../../i18n/i18nKey";
+import { i18n } from "../../../i18n/translation";
+
+const config = announcementConfig;
+const announcementId = config.id || "default";
+const announcementTitle = config.title || i18n(I18nKey.announcement);
+const announcementContent = config.content;
+const announcementParagraphs = announcementContent
+	.split(/\n{2,}/)
+	.filter(Boolean);
+const updatedLabel = config.updated ? `更新于 ${config.updated}` : "";
+const link = config.link;
+---
+
+<button
+	id="announcement-entry"
+	type="button"
+	class="announcement-entry-button btn-plain scale-animation rounded-lg active:scale-90"
+	aria-label={announcementTitle}
+	aria-haspopup="dialog"
+	aria-controls="announcement-modal"
+	data-announcement-entry
+	data-announcement-id={announcementId}
+>
+	<Icon name="material-symbols:campaign-outline" class="text-[1.25rem]" />
+	<span
+		id="announcement-unread-dot"
+		class="announcement-unread-dot"
+		hidden
+		aria-hidden="true"
+	/>
+</button>
+
+<div
+	id="announcement-modal"
+	class="announcement-modal"
+	hidden
+	aria-hidden="true"
+	data-announcement-id={announcementId}
+>
+	<button
+		type="button"
+		class="announcement-modal-backdrop"
+		data-announcement-close
+		aria-label="关闭公告"
+	/>
+	<section
+		class="announcement-dialog"
+		role="dialog"
+		aria-modal="true"
+		aria-labelledby="announcement-modal-title"
+		aria-describedby="announcement-modal-content"
+		tabindex="-1"
+	>
+		<header class="announcement-dialog-header">
+			<div>
+				<h2 id="announcement-modal-title">{announcementTitle}</h2>
+				{updatedLabel && <p>{updatedLabel}</p>}
+			</div>
+			<button
+				type="button"
+				class="btn-plain rounded-lg h-9 w-9 active:scale-90"
+				data-announcement-close
+				aria-label="关闭公告"
+			>
+				<Icon name="fa7-solid:xmark" class="text-sm" />
+			</button>
+		</header>
+
+		<div id="announcement-modal-content" class="announcement-dialog-content">
+			{
+				announcementParagraphs.map((paragraph) => (
+					<p>{paragraph}</p>
+				))
+			}
+		</div>
+
+		<footer class="announcement-dialog-footer">
+			{
+				link && link.enable !== false && (
+					<a
+						href={link.url}
+						target={link.external ? "_blank" : "_self"}
+						rel={link.external ? "noopener noreferrer" : undefined}
+						class="btn-regular rounded-lg h-10 px-4 text-sm font-medium active:scale-95"
+					>
+						{link.text}
+					</a>
+				)
+			}
+			<button
+				type="button"
+				class="btn-regular rounded-lg h-10 px-5 text-sm font-semibold active:scale-95"
+				data-announcement-confirm
+			>
+				确认
+			</button>
+			<p>下次不再自动弹出；有新公告时仍会提醒。</p>
+		</footer>
+	</section>
+</div>
+
+<style is:inline>
+	#navbar .navbar-actions #announcement-entry {
+		width: 44px !important;
+		height: 44px !important;
+		min-width: 44px !important;
+		min-height: 44px !important;
+		flex: 0 0 44px !important;
+	}
+
+	.announcement-unread-dot {
+		position: absolute;
+		top: 0.55rem;
+		right: 0.55rem;
+		width: 0.55rem;
+		height: 0.55rem;
+		border-radius: 999px;
+		background: #ef4444;
+		box-shadow: 0 0 0 2px var(--float-panel-bg);
+	}
+
+	.announcement-modal {
+		position: fixed;
+		inset: 0;
+		z-index: 9999;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 1rem;
+	}
+
+	.announcement-modal[hidden] {
+		display: none;
+	}
+
+	.announcement-modal-backdrop {
+		position: absolute;
+		inset: 0;
+		border: 0;
+		background: rgba(0, 0, 0, 0.42);
+		backdrop-filter: blur(4px);
+		cursor: default;
+	}
+
+	.announcement-dialog {
+		position: relative;
+		width: min(100%, 34rem);
+		max-height: min(82vh, 42rem);
+		overflow: auto;
+		border: 1px solid rgba(0, 0, 0, 0.08);
+		border-radius: var(--radius-large);
+		background: var(--float-panel-bg);
+		box-shadow: 0 24px 80px rgba(0, 0, 0, 0.22);
+		color: rgba(0, 0, 0, 0.78);
+	}
+
+	.announcement-dialog-header {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 1rem;
+		padding: 1.25rem 1.25rem 0.75rem;
+		border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+	}
+
+	.announcement-dialog-header h2 {
+		margin: 0;
+		font-size: 1.125rem;
+		font-weight: 700;
+		line-height: 1.35;
+	}
+
+	.announcement-dialog-header p {
+		margin: 0.25rem 0 0;
+		font-size: 0.8rem;
+		color: rgba(0, 0, 0, 0.5);
+	}
+
+	.announcement-dialog-content {
+		padding: 1rem 1.25rem 0.25rem;
+		font-size: 0.95rem;
+		line-height: 1.85;
+		color: rgba(0, 0, 0, 0.68);
+	}
+
+	.announcement-dialog-content p {
+		margin: 0 0 0.85rem;
+	}
+
+	.announcement-dialog-footer {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+		padding: 0.75rem 1.25rem 1.25rem;
+	}
+
+	.announcement-dialog-footer p {
+		flex-basis: 100%;
+		margin: 0;
+		font-size: 0.8rem;
+		line-height: 1.6;
+		color: rgba(0, 0, 0, 0.48);
+	}
+
+	.dark .announcement-unread-dot {
+		box-shadow: 0 0 0 2px var(--float-panel-bg);
+	}
+
+	.dark .announcement-dialog {
+		border-color: rgba(255, 255, 255, 0.1);
+		color: rgba(255, 255, 255, 0.82);
+	}
+
+	.dark .announcement-dialog-header {
+		border-bottom-color: rgba(255, 255, 255, 0.08);
+	}
+
+	.dark .announcement-dialog-header p,
+	.dark .announcement-dialog-footer p {
+		color: rgba(255, 255, 255, 0.52);
+	}
+
+	.dark .announcement-dialog-content {
+		color: rgba(255, 255, 255, 0.68);
+	}
+
+	@media (max-width: 640px) {
+		.announcement-dialog {
+			width: 100%;
+			max-height: 78vh;
+		}
+
+		.announcement-dialog-header,
+		.announcement-dialog-content,
+		.announcement-dialog-footer {
+			padding-left: 1rem;
+			padding-right: 1rem;
+		}
+	}
+</style>
+
+<script is:inline define:vars={{ announcementId }}>
+	(() => {
+		const STORAGE_KEY = "sayori-announcement-read-id";
+		const MODAL_ID = "announcement-modal";
+		const ENTRY_ID = "announcement-entry";
+		const DOT_ID = "announcement-unread-dot";
+		const STATE_EVENT = "sayori:announcement-state";
+
+		function readStoredId() {
+			try {
+				return localStorage.getItem(STORAGE_KEY) || "";
+			} catch {
+				return window.__sayoriAnnouncementSessionReadId || "";
+			}
+		}
+
+		function writeStoredId(id) {
+			window.__sayoriAnnouncementSessionReadId = id;
+			try {
+				localStorage.setItem(STORAGE_KEY, id);
+			} catch {
+				// Storage may be blocked; keep the modal closed for this session.
+			}
+		}
+
+		function isRead() {
+			return readStoredId() === announcementId;
+		}
+
+		function getModal() {
+			return document.getElementById(MODAL_ID);
+		}
+
+		function ensureModalRoot() {
+			const modal = getModal();
+			if (modal && modal.parentElement !== document.body) {
+				document.body.appendChild(modal);
+			}
+			return modal;
+		}
+
+		function getDialog() {
+			return getModal()?.querySelector(".announcement-dialog");
+		}
+
+		function updateUnreadState() {
+			const unread = !isRead();
+			document.getElementById(DOT_ID)?.toggleAttribute("hidden", !unread);
+			document
+				.getElementById(ENTRY_ID)
+				?.setAttribute("aria-label", unread ? "公告，有新内容" : "公告");
+			document.dispatchEvent(
+				new CustomEvent(STATE_EVENT, {
+					detail: { id: announcementId, unread },
+				}),
+			);
+		}
+
+		function openAnnouncementModal() {
+			const modal = ensureModalRoot();
+			const dialog = getDialog();
+			if (!modal || !dialog) {
+				return;
+			}
+			modal.hidden = false;
+			modal.setAttribute("aria-hidden", "false");
+			requestAnimationFrame(() => {
+				dialog.focus();
+			});
+		}
+
+		function closeAnnouncementModal({ markRead = false } = {}) {
+			const modal = ensureModalRoot();
+			if (markRead) {
+				writeStoredId(announcementId);
+			}
+			if (modal) {
+				modal.hidden = true;
+				modal.setAttribute("aria-hidden", "true");
+			}
+			updateUnreadState();
+		}
+
+		function bindAnnouncementControls() {
+			const entry = document.getElementById(ENTRY_ID);
+			if (entry?.dataset.bound !== "true") {
+				entry.dataset.bound = "true";
+				entry.addEventListener("click", openAnnouncementModal);
+			}
+
+			const modal = ensureModalRoot();
+			if (modal?.dataset.bound !== "true") {
+				modal.dataset.bound = "true";
+				modal.addEventListener("click", (event) => {
+					const target = event.target;
+					if (!(target instanceof Element)) {
+						return;
+					}
+					if (target.closest("[data-announcement-confirm]")) {
+						closeAnnouncementModal({ markRead: true });
+						return;
+					}
+					if (target.closest("[data-announcement-close]")) {
+						closeAnnouncementModal();
+					}
+				});
+			}
+			updateUnreadState();
+		}
+
+		function maybeAutoOpen() {
+			bindAnnouncementControls();
+			if (!isRead()) {
+				openAnnouncementModal();
+			}
+		}
+
+		document.addEventListener("keydown", (event) => {
+			if (event.key === "Escape" && !getModal()?.hidden) {
+				closeAnnouncementModal();
+			}
+		});
+
+		document.addEventListener("mizuki:page:loaded", bindAnnouncementControls);
+		document.addEventListener("DOMContentLoaded", maybeAutoOpen, { once: true });
+		if (document.readyState !== "loading") {
+			maybeAutoOpen();
+		}
+
+		window.sayoriAnnouncement = {
+			open: openAnnouncementModal,
+			close: closeAnnouncementModal,
+			markRead() {
+				closeAnnouncementModal({ markRead: true });
+			},
+			getUnread() {
+				return !isRead();
+			},
+		};
+	})();
+</script>

@@ -1,0 +1,356 @@
+---
+import I18nKey from "../../../i18n/i18nKey";
+import { i18n } from "../../../i18n/translation";
+
+interface Props {
+	friend: {
+		title: string;
+		siteurl: string;
+		imgurl: string;
+		desc: string;
+		tags: string[];
+		screenshotUrl: string;
+	};
+}
+
+const { friend } = Astro.props;
+const hostname = friend.siteurl.startsWith("/")
+	? "blog.sayori.org"
+	: new URL(friend.siteurl).hostname;
+const hasScreenshot = Boolean(friend.screenshotUrl);
+---
+
+<div
+	class:list={[
+		"friend-card group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 paper-note paper-tape",
+		hasScreenshot ? "has-site-preview" : "",
+	]}
+	data-title={friend.title.toLowerCase()}
+	data-desc={friend.desc.toLowerCase()}
+	data-tags={friend.tags.join(",")}
+	data-paper-tear="friend"
+>
+	{
+		hasScreenshot && (
+			<img
+				alt=""
+				class="friend-card-preview"
+				data-screenshot-src={friend.screenshotUrl}
+				loading="lazy"
+				decoding="async"
+				aria-hidden="true"
+				fetchpriority="low"
+			/>
+		)
+	}
+	<img
+		src={friend.imgurl}
+		alt=""
+		class="friend-card-avatar-preview"
+		loading="lazy"
+		decoding="async"
+		aria-hidden="true"
+		onerror="this.style.display='none'"
+	/>
+	<div class="friend-card-scrim" aria-hidden="true"></div>
+	<button
+		type="button"
+		class="friend-tear-trigger"
+		data-paper-tear-trigger
+		aria-label="撕掉这张卡片"
+	>×</button>
+	<div class="relative z-10 p-5">
+		<!-- 头像和标题区 -->
+		<div class="flex items-start gap-4 mb-4">
+			<div
+				class="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-[var(--btn-regular-bg)] ring-2 ring-white/65 dark:ring-white/10 transition-all duration-300"
+			>
+				<img
+					src={friend.imgurl}
+					alt={friend.title}
+					class="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-300"
+					loading="lazy"
+				/>
+			</div>
+
+			<div class="flex-1 min-w-0">
+				<h3
+					class="text-lg font-bold text-black/90 dark:text-white/90 mb-1 truncate group-hover:text-[var(--primary)] transition-colors duration-200"
+				>
+					{friend.title}
+				</h3>
+				<a
+					href={friend.siteurl}
+					target="_blank"
+					rel="noopener noreferrer"
+					class="text-xs text-black/50 dark:text-white/50 hover:text-[var(--primary)] truncate block transition-colors duration-200"
+				>
+					{hostname}
+				</a>
+			</div>
+		</div>
+
+		<!-- 描述 -->
+		<p
+			class="text-sm text-black/60 dark:text-white/60 mb-4 line-clamp-2 min-h-[2.5rem]"
+		>
+			{friend.desc}
+		</p>
+
+		<!-- 标签 -->
+		<div class="flex flex-wrap gap-2 mb-4">
+			{
+				friend.tags.map((tag) => (
+					<span class="px-2 py-1 text-xs rounded-md bg-[var(--primary)]/10 text-[var(--primary)] font-medium">
+						{tag}
+					</span>
+				))
+			}
+		</div>
+
+		<!-- 操作按钮 -->
+		<div class="flex gap-2">
+			<a
+				href={friend.siteurl}
+				target="_blank"
+				rel="noopener noreferrer"
+				class="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[var(--primary)] text-white hover:bg-[var(--primary)]/90 active:scale-95 transition-all duration-200 font-medium text-sm"
+			>
+				<svg
+					class="w-4 h-4"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+					></path>
+				</svg>
+				{i18n(I18nKey.friendsVisit)}
+			</a>
+			<button
+				class="copy-link-btn px-3 py-2 rounded-lg bg-[var(--btn-regular-bg)] hover:bg-[var(--btn-regular-bg-hover)] active:scale-95 transition-all duration-200 text-black/70 dark:text-white/70"
+				data-url={friend.siteurl}
+				title={i18n(I18nKey.friendsCopyLink)}
+			>
+				<svg
+					class="w-4 h-4"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+					></path>
+				</svg>
+			</button>
+		</div>
+	</div>
+
+	<!-- 悬停装饰效果 -->
+	<div
+		class="absolute inset-0 z-0 bg-gradient-to-br from-[var(--primary)]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+	>
+	</div>
+</div>
+
+<style>
+	.friend-tear-trigger {
+		position: absolute;
+		top: 0.35rem;
+		right: 0.4rem;
+		z-index: 15;
+		appearance: none;
+		border: 0;
+		background: transparent;
+		color: var(--paper-muted);
+		font-family: var(--hand-font);
+		font-size: 1rem;
+		line-height: 1;
+		cursor: pointer;
+		padding: 0.1rem 0.25rem;
+		opacity: 0;
+		transition: opacity 160ms ease, color 160ms ease, transform 160ms ease;
+	}
+
+	.friend-card:hover .friend-tear-trigger {
+		opacity: 1;
+	}
+
+	.friend-tear-trigger:hover {
+		color: var(--primary);
+		transform: rotate(-10deg) scale(1.1);
+	}
+
+	.friend-card {
+		animation: fadeInUp 0.5s ease-out forwards;
+		opacity: 0;
+		padding-top: 1.2rem;
+	}
+
+	.friend-card:nth-child(6n+1) { transform: rotate(-1deg); }
+	.friend-card:nth-child(6n+2) { transform: rotate(0.7deg); }
+	.friend-card:nth-child(6n+3) { transform: rotate(-0.4deg); }
+	.friend-card:nth-child(6n+4) { transform: rotate(1.2deg); }
+	.friend-card:nth-child(6n+5) { transform: rotate(-0.6deg); }
+	.friend-card:nth-child(6n+6) { transform: rotate(0.9deg); }
+
+	.friend-card:hover {
+		transform: rotate(0deg) translateY(-4px) !important;
+		z-index: 5;
+	}
+
+	.friend-card.has-site-preview {
+		min-height: 13.25rem;
+		isolation: isolate;
+	}
+
+	.friend-card-preview {
+		position: absolute;
+		inset: 0;
+		z-index: 0;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		object-position: top center;
+		transform: scale(1.02);
+		opacity: 0.54;
+		filter: saturate(1.12) contrast(1.03);
+		transition:
+			opacity 0.25s ease,
+			transform 0.25s ease,
+			filter 0.25s ease;
+	}
+
+	.friend-card.has-site-preview:hover .friend-card-preview {
+		transform: scale(1.05);
+		opacity: 0.7;
+		filter: saturate(1.2) contrast(1.08);
+	}
+
+	.friend-card-avatar-preview {
+		position: absolute;
+		inset: -1.25rem;
+		z-index: 0;
+		width: calc(100% + 2.5rem);
+		height: calc(100% + 2.5rem);
+		object-fit: cover;
+		object-position: center;
+		opacity: 0.1;
+		filter: blur(16px) saturate(1.25);
+		transform: scale(1.08);
+		transition: opacity 0.25s ease;
+		pointer-events: none;
+	}
+
+	.friend-card.preview-ready .friend-card-avatar-preview {
+		opacity: 0.04;
+	}
+
+	.friend-card.preview-failed .friend-card-avatar-preview {
+		opacity: 0.18;
+	}
+
+	.friend-card-scrim {
+		position: absolute;
+		inset: 0;
+		z-index: 0;
+		pointer-events: none;
+		background:
+			linear-gradient(
+				90deg,
+				rgba(255, 255, 255, 0.8),
+				rgba(255, 255, 255, 0.58) 48%,
+				rgba(255, 255, 255, 0.26)
+			),
+			radial-gradient(
+				circle at 10% 0%,
+				rgba(255, 255, 255, 0.72),
+				transparent 40%
+			);
+	}
+
+	:global(.dark) .friend-card-scrim {
+		background:
+			linear-gradient(
+				90deg,
+				rgba(21, 18, 25, 0.82),
+				rgba(21, 18, 25, 0.58) 48%,
+				rgba(21, 18, 25, 0.32)
+			),
+			radial-gradient(
+				circle at 10% 0%,
+				rgba(48, 38, 55, 0.46),
+				transparent 40%
+			);
+	}
+
+	.friend-card.preview-failed .friend-card-scrim {
+		background:
+			linear-gradient(
+				135deg,
+				rgba(255, 255, 255, 0.94),
+				rgba(255, 255, 255, 0.82)
+			),
+			radial-gradient(
+				circle at 8% 4%,
+				rgba(255, 255, 255, 0.68),
+				transparent 44%
+			);
+	}
+
+	:global(.dark) .friend-card.preview-failed .friend-card-scrim {
+		background:
+			linear-gradient(
+				135deg,
+				rgba(21, 18, 25, 0.97),
+				rgba(21, 18, 25, 0.91)
+			),
+			radial-gradient(
+				circle at 8% 4%,
+				rgba(54, 42, 61, 0.72),
+				transparent 44%
+			);
+	}
+
+	.friend-card.preview-failed .friend-card-preview,
+	.friend-card:not(.has-site-preview) .friend-card-scrim {
+		display: none;
+	}
+
+	@keyframes fadeInUp {
+		from {
+			opacity: 0;
+			transform: translateY(20px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	.friend-card:nth-child(1) {
+		animation-delay: 0.05s;
+	}
+	.friend-card:nth-child(2) {
+		animation-delay: 0.1s;
+	}
+	.friend-card:nth-child(3) {
+		animation-delay: 0.15s;
+	}
+	.friend-card:nth-child(4) {
+		animation-delay: 0.2s;
+	}
+	.friend-card:nth-child(5) {
+		animation-delay: 0.25s;
+	}
+	.friend-card:nth-child(6) {
+		animation-delay: 0.3s;
+	}
+</style>

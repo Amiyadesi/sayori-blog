@@ -1,0 +1,25 @@
+node_modules/
+.astro/
+.wrangler/
+dist/
+.env
+content/
+*.log
+
+# Generated from the public content repository by scripts/sync-content.js.
+src/content/posts/
+src/content/essays/
+src/content/site/
+src/content/spec/
+src/generated/
+src/data/anime.ts
+functions/_generated/
+public/images/
+public/assets/about/
+public/assets/anime/
+public/assets/desktop-banner/
+public/assets/friends/
+public/assets/mobile-banner/
+public/assets/music/
+public/assets/profile/
+public/assets/sponsor/

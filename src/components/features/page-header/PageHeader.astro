@@ -1,0 +1,22 @@
+---
+import type { PageHeaderProps } from "./types";
+
+const {
+	title,
+	subtitle,
+	class: className = "",
+} = Astro.props as PageHeaderProps;
+---
+
+<div class={`flex flex-col items-start justify-center mb-8 ${className}`}>
+	<h1
+		class="text-4xl font-bold text-black/90 dark:text-white/90 mb-2 relative hand-font paper-title-underline"
+	>
+		{title}
+	</h1>
+	{
+		subtitle && (
+			<p class="text-lg text-black/60 dark:text-white/60 hand-font">{subtitle}</p>
+		)
+	}
+</div>

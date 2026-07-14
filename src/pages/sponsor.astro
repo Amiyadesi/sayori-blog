@@ -1,0 +1,251 @@
+---
+import { PageHeader } from "@components/features/page-header";
+import Markdown from "@components/misc/Markdown.astro";
+import MainGridLayout from "@layouts/MainGridLayout.astro";
+import { getEntry, render } from "astro:content";
+import { Icon } from "astro-icon/components";
+
+import { profileConfig, siteConfig, sponsorConfig } from "../config";
+
+const sponsorPost = await getEntry("site", "sponsor");
+
+if (!sponsorPost) {
+	throw new Error("Sponsor page content not found");
+}
+
+const { Content } = await render(sponsorPost);
+const title = "赞助";
+const description = "通过 Ko-fi 或爱发电支持 Amiya_desi 的博客和公开项目。";
+const findProfileLink = (match: (value: string) => boolean) =>
+	profileConfig.links.find((link) => match(`${link.name} ${link.url}`))?.url;
+const kofiUrl =
+	findProfileLink((value) => /ko-fi|kofi/i.test(value)) ||
+	"https://ko-fi.com/amiya_desi/tip";
+const afdianUrl =
+	findProfileLink((value) => /ifdian|afdian|爱发电|愛發電/i.test(value)) ||
+	"https://ifdian.net/a/amiya_desi/plan";
+const sponsorOptions = [
+	{
+		name: "Ko-fi",
+		href: kofiUrl,
+		image: "/assets/sponsor/amiya_desi-Sharable-Profile-Vertical.jpg",
+		description: "通过 Ko-fi 支持",
+		icon: "material-symbols:local-cafe",
+	},
+	{
+		name: "爱发电",
+		href: afdianUrl,
+		image: "/assets/sponsor/afdian-Amiya_desi.jpg",
+		description: "通过爱发电支持",
+		icon: "material-symbols:favorite",
+	},
+];
+const pageUrl = new URL(Astro.url.pathname, siteConfig.siteURL).toString();
+const jsonLd = {
+	"@context": "https://schema.org",
+	"@type": "WebPage",
+	"@id": `${pageUrl}#webpage`,
+	url: pageUrl,
+	name: `${title} - ${siteConfig.title}`,
+	description,
+	isPartOf: {
+		"@id": `${new URL(siteConfig.siteURL).href}#blog`,
+	},
+};
+---
+
+<MainGridLayout title={title} description={description}>
+	<script
+		is:inline
+		slot="head"
+		type="application/ld+json"
+		set:html={JSON.stringify(jsonLd)}
+	/>
+	<script>
+		import("../scripts/right-sidebar-layout.js");
+	</script>
+
+	<section class="flex w-full rounded-[var(--radius-large)] overflow-visible relative min-h-32">
+		<div class="card-base paper-note paper-note-lined paper-tape sponsor-page z-10 px-5 sm:px-9 py-6 relative w-full" style="padding-top: 1.75rem;">
+			<PageHeader title={title} subtitle={description} />
+
+			<Markdown class="sponsor-copy mt-2">
+				<Content />
+			</Markdown>
+
+			<div class="sponsor-options" aria-label="赞助方式">
+				{
+					sponsorOptions.map((option) => (
+						<a
+							class="sponsor-option"
+							href={option.href}
+							target="_blank"
+							rel="noopener noreferrer"
+							aria-label={option.description}
+						>
+							<img
+								src={option.image}
+								alt={option.description}
+								loading="lazy"
+							/>
+							<span class="sponsor-option-label">
+								<Icon name={option.icon} />
+								{option.name}
+							</span>
+						</a>
+					))
+				}
+			</div>
+
+			<section class="sponsor-thanks" aria-labelledby="sponsor-thanks-title">
+				<h2 id="sponsor-thanks-title">感谢赞助</h2>
+				{
+					sponsorConfig.supporters.length > 0 ? (
+						<ul>
+							{sponsorConfig.supporters.map((supporter) => (
+								<li>
+									<span>{supporter.name}</span>
+									{supporter.source && <small>{supporter.source}</small>}
+								</li>
+							))}
+						</ul>
+					) : (
+						<p>感谢每一个愿意支持这里的人。</p>
+					)
+				}
+			</section>
+		</div>
+	</section>
+</MainGridLayout>
+
+<style>
+	.sponsor-page {
+		--sponsor-border: color-mix(in srgb, var(--primary) 18%, var(--line-divider));
+	}
+
+	.sponsor-options {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 1rem;
+		margin-top: 1.5rem;
+	}
+
+	.sponsor-option {
+		position: relative;
+		display: block;
+		overflow: hidden;
+		border: 1px solid var(--sponsor-border);
+		border-radius: 0.5rem;
+		background: rgba(255, 255, 255, 0.48);
+		transition:
+			transform 0.2s ease,
+			border-color 0.2s ease,
+			box-shadow 0.2s ease;
+	}
+
+	.sponsor-option:hover {
+		transform: translateY(-2px);
+		border-color: color-mix(in srgb, var(--primary) 42%, var(--line-divider));
+		box-shadow: 0 12px 28px rgba(84, 50, 67, 0.1);
+	}
+
+	.sponsor-option img {
+		display: block;
+		width: 100%;
+		aspect-ratio: 4 / 5;
+		object-fit: cover;
+		background: rgba(0, 0, 0, 0.04);
+	}
+
+	.sponsor-option-label {
+		position: absolute;
+		left: 0.75rem;
+		bottom: 0.75rem;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		border-radius: 999px;
+		background: rgba(255, 255, 255, 0.88);
+		padding: 0.42rem 0.7rem;
+		font-size: 0.86rem;
+		font-weight: 800;
+		color: rgba(0, 0, 0, 0.78);
+		box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+	}
+
+	.sponsor-option-label :global(svg) {
+		font-size: 1.05rem;
+		color: var(--primary);
+	}
+
+	.sponsor-thanks {
+		margin-top: 1.75rem;
+		border-top: 1px dashed var(--line-divider);
+		padding-top: 1.35rem;
+	}
+
+	.sponsor-thanks h2 {
+		margin: 0 0 0.85rem;
+		font-size: 1.25rem;
+		font-weight: 800;
+		color: rgba(0, 0, 0, 0.86);
+	}
+
+	.sponsor-thanks ul {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+		gap: 0.65rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.sponsor-thanks li {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+		border: 1px dashed var(--sponsor-border);
+		border-radius: 0.5rem;
+		background: rgba(255, 255, 255, 0.36);
+		padding: 0.7rem 0.8rem;
+	}
+
+	.sponsor-thanks span {
+		min-width: 0;
+		font-weight: 800;
+		color: rgba(0, 0, 0, 0.78);
+		overflow-wrap: anywhere;
+	}
+
+	.sponsor-thanks small,
+	.sponsor-thanks p {
+		color: rgba(0, 0, 0, 0.52);
+	}
+
+	:global(.dark) .sponsor-option,
+	:global(.dark) .sponsor-thanks li {
+		background: rgba(255, 255, 255, 0.045);
+	}
+
+	:global(.dark) .sponsor-thanks h2,
+	:global(.dark) .sponsor-thanks span {
+		color: rgba(255, 255, 255, 0.86);
+	}
+
+	:global(.dark) .sponsor-option-label {
+		background: rgba(20, 20, 24, 0.86);
+		color: rgba(255, 255, 255, 0.86);
+	}
+
+	:global(.dark) .sponsor-thanks small,
+	:global(.dark) .sponsor-thanks p {
+		color: rgba(255, 255, 255, 0.56);
+	}
+
+	@media (max-width: 720px) {
+		.sponsor-options {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

@@ -1,0 +1,176 @@
+---
+import { siteConfig } from "../../config";
+import type { FullscreenWallpaperConfig } from "../../types/config";
+
+interface Props {
+	config: FullscreenWallpaperConfig;
+	className?: string;
+}
+
+const { config, className } = Astro.props;
+
+const getImageSources = async () => {
+	const srcConfig = config.src;
+
+	if (siteConfig.banner.imageApi?.enable && siteConfig.banner.imageApi?.url) {
+		try {
+			const response = await fetch(siteConfig.banner.imageApi.url);
+			const text = await response.text();
+			const apiImages = text.split("\n").filter((line) => line.trim());
+			if (apiImages.length > 0) {
+				return { desktop: apiImages, mobile: apiImages };
+			}
+		} catch (error) {
+			console.warn("Failed to fetch images from API:", error);
+		}
+	}
+
+	const toArray = (src: string | string[] | undefined): string[] =>
+		Array.isArray(src) ? src : typeof src === "string" ? [src] : [];
+
+	if (typeof srcConfig === "object" && srcConfig !== null && !Array.isArray(srcConfig)) {
+		const desktop = toArray(srcConfig.desktop);
+		const mobile = toArray(srcConfig.mobile);
+		return {
+			desktop: desktop.length > 0 ? desktop : mobile,
+			mobile: mobile.length > 0 ? mobile : desktop,
+		};
+	}
+
+	const allImages = toArray(srcConfig as string | string[]);
+	return { desktop: allImages, mobile: allImages };
+};
+
+const imageSources = await getImageSources();
+const isCarouselEnabled =
+	config.carousel?.enable &&
+	(imageSources.desktop.length > 1 || imageSources.mobile.length > 1);
+const carouselInterval = config.carousel?.interval || 5;
+const position = config.position || "center";
+const zIndex = config.zIndex || -1;
+const opacity = config.opacity || 0.8;
+const blurAmount = config.blur || 0;
+const positionClass =
+	position === "top" ? "object-top" : position === "bottom" ? "object-bottom" : "object-center";
+---
+
+<div
+	class:list={[
+		"fixed inset-0 w-full h-full overflow-hidden pointer-events-none",
+		className,
+	]}
+	style={`z-index: ${zIndex}; opacity: ${opacity}; transform: translateZ(0); perspective: 1000px; display: none;`}
+	data-fullscreen-wallpaper
+	aria-hidden="true"
+></div>
+
+<script
+	is:inline
+	data-swup-ignore-script
+	define:vars={{ imageSources, isCarouselEnabled, carouselInterval, positionClass, blurAmount }}
+>
+	(function initFullscreenWallpaper() {
+		const container = document.querySelector("[data-fullscreen-wallpaper]");
+		if (!container || container.dataset.wallpaperInitialized === "true") return;
+		container.dataset.wallpaperInitialized = "true";
+
+		let timerId = null;
+		let currentIndex = 0;
+		let activeDevice = "";
+
+		function currentMode() {
+			return localStorage.getItem("wallpaperMode") || "banner";
+		}
+
+		function getDevice() {
+			return window.matchMedia("(min-width: 768px)").matches ? "desktop" : "mobile";
+		}
+
+		function getImages() {
+			const device = getDevice();
+			const images = imageSources[device] || imageSources.desktop || imageSources.mobile || [];
+			return { device, images };
+		}
+
+		function clearTimer() {
+			if (timerId !== null) {
+				window.clearInterval(timerId);
+				timerId = null;
+			}
+		}
+
+		function createImage(src, initial) {
+			const image = document.createElement("img");
+			image.src = src;
+			image.alt = "Fullscreen wallpaper";
+			image.className = `absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${positionClass}`;
+			image.style.transform = "translateZ(0)";
+			image.style.backfaceVisibility = "hidden";
+			image.style.willChange = "opacity";
+			if (blurAmount > 0) image.style.filter = `blur(${blurAmount}px)`;
+			image.decoding = "async";
+			image.loading = "eager";
+			image.fetchPriority = initial ? "high" : "auto";
+			return image;
+		}
+
+		function renderInitial() {
+			const { device, images } = getImages();
+			activeDevice = device;
+			currentIndex = 0;
+			container.replaceChildren();
+			if (images.length > 0) container.appendChild(createImage(images[currentIndex], true));
+		}
+
+		function advance() {
+			const { device, images } = getImages();
+			if (device !== activeDevice || images.length === 0) {
+				renderInitial();
+				return;
+			}
+			if (images.length <= 1) return;
+
+			currentIndex = (currentIndex + 1) % images.length;
+			const previous = container.querySelector("img");
+			const next = createImage(images[currentIndex], false);
+			next.style.opacity = "0";
+			container.appendChild(next);
+			requestAnimationFrame(function () {
+				next.style.opacity = "1";
+			});
+			window.setTimeout(function () {
+				previous?.remove();
+			}, 1050);
+		}
+
+		function startCarousel() {
+			clearTimer();
+			if (!isCarouselEnabled) return;
+			const { images } = getImages();
+			if (images.length > 1) timerId = window.setInterval(advance, carouselInterval * 1000);
+		}
+
+		function sync() {
+			if (currentMode() !== "fullscreen") {
+				clearTimer();
+				container.replaceChildren();
+				container.style.display = "none";
+				return;
+			}
+
+			container.style.display = "block";
+			if (!container.querySelector("img") || activeDevice !== getDevice()) {
+				renderInitial();
+			}
+			startCarousel();
+		}
+
+		function onResize() {
+			if (currentMode() === "fullscreen" && activeDevice !== getDevice()) sync();
+		}
+
+		window.addEventListener("wallpaper-mode-change", sync);
+		window.addEventListener("resize", onResize);
+		sync();
+	})();
+</script>

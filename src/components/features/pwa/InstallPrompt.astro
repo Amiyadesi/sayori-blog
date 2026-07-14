@@ -1,0 +1,294 @@
+---
+import { Icon } from "astro-icon/components";
+---
+
+<div id="pwa-install-prompt" class="pwa-install-prompt" hidden>
+	<div class="pwa-install-copy">
+		<strong>把书桌装到设备上</strong>
+		<span>下次可以像打开 App 一样回来。</span>
+	</div>
+	<div class="pwa-install-actions">
+		<button id="pwa-install-dismiss" type="button">稍后</button>
+		<button id="pwa-install-action" type="button" aria-label="安装站点">
+			<Icon name="material-symbols:install-mobile-rounded" />
+			<span>安装</span>
+		</button>
+	</div>
+</div>
+
+<style>
+	.pwa-install-prompt {
+		position: fixed;
+		left: 50%;
+		bottom: 1.25rem;
+		z-index: 80;
+		display: flex;
+		width: min(calc(100vw - 2rem), 26rem);
+		transform: translateX(-50%);
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		padding: 0.9rem;
+		border: 1px solid rgba(148, 163, 184, 0.32);
+		border-radius: 1rem;
+		background: rgba(255, 255, 255, 0.86);
+		box-shadow: 0 18px 48px rgba(15, 23, 42, 0.16);
+		backdrop-filter: blur(18px);
+		color: rgba(15, 23, 42, 0.86);
+		opacity: 1;
+		transition:
+			opacity 0.28s ease,
+			transform 0.28s ease;
+	}
+
+	.pwa-install-prompt[hidden] {
+		display: none;
+	}
+
+	.pwa-install-prompt.is-hiding {
+		pointer-events: none;
+		transform: translateX(-50%) translateY(0.75rem);
+		opacity: 0;
+	}
+
+	.pwa-install-copy {
+		display: grid;
+		gap: 0.2rem;
+		min-width: 0;
+	}
+
+	.pwa-install-copy strong {
+		font-size: 0.92rem;
+		line-height: 1.35;
+	}
+
+	.pwa-install-copy span {
+		font-size: 0.78rem;
+		line-height: 1.45;
+		color: rgba(15, 23, 42, 0.58);
+	}
+
+	.pwa-install-actions {
+		display: flex;
+		flex-shrink: 0;
+		align-items: center;
+		gap: 0.45rem;
+	}
+
+	.pwa-install-actions button {
+		display: inline-flex;
+		min-height: 2.25rem;
+		align-items: center;
+		justify-content: center;
+		gap: 0.25rem;
+		border-radius: 999px;
+		padding: 0 0.85rem;
+		font-size: 0.82rem;
+		line-height: 1;
+		transition:
+			background 0.18s ease,
+			color 0.18s ease,
+			transform 0.18s ease;
+	}
+
+	.pwa-install-actions button:hover {
+		transform: translateY(-1px);
+	}
+
+	#pwa-install-dismiss {
+		background: rgba(15, 23, 42, 0.06);
+		color: rgba(15, 23, 42, 0.62);
+	}
+
+	#pwa-install-action {
+		background: var(--primary);
+		color: white;
+	}
+
+	#pwa-install-action :global(svg) {
+		width: 1.05rem;
+		height: 1.05rem;
+	}
+
+	:global(.dark) .pwa-install-prompt {
+		border-color: rgba(255, 255, 255, 0.12);
+		background: rgba(24, 24, 27, 0.84);
+		box-shadow: 0 18px 48px rgba(0, 0, 0, 0.34);
+		color: rgba(255, 255, 255, 0.88);
+	}
+
+	:global(.dark) .pwa-install-copy span {
+		color: rgba(255, 255, 255, 0.58);
+	}
+
+	:global(.dark) #pwa-install-dismiss {
+		background: rgba(255, 255, 255, 0.08);
+		color: rgba(255, 255, 255, 0.68);
+	}
+
+	@media (max-width: 640px) {
+		.pwa-install-prompt {
+			bottom: 0.75rem;
+			align-items: stretch;
+			flex-direction: column;
+			gap: 0.75rem;
+		}
+
+		.pwa-install-actions {
+			justify-content: flex-end;
+		}
+	}
+</style>
+
+<script is:inline>
+	(() => {
+		const DISMISSED_KEY = "sayori-pwa-install-dismissed";
+		const LEGACY_DISMISSED_KEY = "sayori-pwa-install-dismissed-at";
+		const INSTALLED_KEY = "sayori-pwa-installed";
+		const AUTO_HIDE_MS = 3000;
+		const FADE_OUT_MS = 280;
+		let deferredInstallPrompt = null;
+		let autoHideTimer = 0;
+		let fadeTimer = 0;
+
+		function isStandalone() {
+			return (
+				window.matchMedia("(display-mode: standalone)").matches ||
+				window.navigator.standalone === true
+			);
+		}
+
+		function readFlag(key) {
+			try {
+				return localStorage.getItem(key) === "true";
+			} catch {
+				return false;
+			}
+		}
+
+		function isKnownInstalled() {
+			return isStandalone() || readFlag(INSTALLED_KEY);
+		}
+
+		function hasDismissal() {
+			try {
+				if (localStorage.getItem(DISMISSED_KEY) === "true") {
+					return true;
+				}
+				const legacyDismissedAt =
+					localStorage.getItem(LEGACY_DISMISSED_KEY);
+				if (legacyDismissedAt) {
+					localStorage.setItem(DISMISSED_KEY, "true");
+					return true;
+				}
+			} catch {
+				return false;
+			}
+			return false;
+		}
+
+		function writeFlag(key) {
+			try {
+				localStorage.setItem(key, "true");
+			} catch {
+				// Storage may be blocked; the native install flow still works.
+			}
+		}
+
+		function getPrompt() {
+			return document.getElementById("pwa-install-prompt");
+		}
+
+		function showPrompt() {
+			const prompt = getPrompt();
+			if (!prompt || isKnownInstalled() || hasDismissal()) {
+				return;
+			}
+			window.clearTimeout(autoHideTimer);
+			window.clearTimeout(fadeTimer);
+			prompt.classList.remove("is-hiding");
+			prompt.hidden = false;
+			autoHideTimer = window.setTimeout(
+				() => hidePrompt(true),
+				AUTO_HIDE_MS,
+			);
+		}
+
+		function hidePrompt(remember) {
+			const prompt = getPrompt();
+			window.clearTimeout(autoHideTimer);
+			window.clearTimeout(fadeTimer);
+			if (remember) {
+				writeFlag(DISMISSED_KEY);
+			}
+			if (!prompt || prompt.hidden) {
+				return;
+			}
+			prompt.classList.add("is-hiding");
+			fadeTimer = window.setTimeout(() => {
+				prompt.hidden = true;
+				prompt.classList.remove("is-hiding");
+			}, FADE_OUT_MS);
+		}
+
+		async function registerServiceWorker() {
+			if (!("serviceWorker" in navigator) || !window.isSecureContext) {
+				return;
+			}
+			try {
+				await navigator.serviceWorker.register("/sw.js");
+			} catch (error) {
+				window.dispatchEvent(
+					new CustomEvent("sayori:pwa-register-failed", {
+						detail: { error },
+					}),
+				);
+			}
+		}
+
+		window.addEventListener("beforeinstallprompt", (event) => {
+			event.preventDefault();
+			deferredInstallPrompt = event;
+			showPrompt();
+		});
+
+		window.addEventListener("appinstalled", () => {
+			deferredInstallPrompt = null;
+			writeFlag(INSTALLED_KEY);
+			hidePrompt(true);
+		});
+
+		document.addEventListener("click", async (event) => {
+			const target = event.target;
+			if (!(target instanceof Element)) {
+				return;
+			}
+
+			if (target.closest("#pwa-install-dismiss")) {
+				hidePrompt(true);
+				return;
+			}
+
+			if (!target.closest("#pwa-install-action")) {
+				return;
+			}
+
+			if (!deferredInstallPrompt) {
+				hidePrompt(false);
+				return;
+			}
+
+			deferredInstallPrompt.prompt();
+			const choice = await deferredInstallPrompt.userChoice.catch(
+				() => null,
+			);
+			deferredInstallPrompt = null;
+			if (choice?.outcome === "accepted") {
+				writeFlag(INSTALLED_KEY);
+			}
+			hidePrompt(true);
+		});
+
+		registerServiceWorker();
+	})();
+</script>

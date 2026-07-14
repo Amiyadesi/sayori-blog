@@ -1,0 +1,268 @@
+---
+import Comment from "@components/comment/index.astro";
+import { PageHeader } from "@components/features/page-header";
+import Markdown from "@components/misc/Markdown.astro";
+import { getEntry, render } from "astro:content";
+
+import I18nKey from "../i18n/i18nKey";
+import { i18n } from "../i18n/translation";
+import MainGridLayout from "../layouts/MainGridLayout.astro";
+import { profileConfig, siteConfig } from "../config";
+import { getTopicUrl, topics } from "../data/topics";
+
+const aboutPost = await getEntry("spec", "about");
+
+if (!aboutPost) {
+	throw new Error("About page content not found");
+}
+
+const { Content } = await render(aboutPost);
+const title = i18n(I18nKey.about);
+const pageUrl = new URL(Astro.url.pathname, siteConfig.siteURL).toString();
+const webmasterTopic = topics.find((topic) => topic.slug === "webmaster");
+const publicIdentityLinks = [
+	...profileConfig.links
+		.filter((link) => link.url.startsWith("http"))
+		.map((link) => ({
+			label: link.name,
+			href: link.url,
+		})),
+	{
+		label: "Wikidata Person",
+		href: "https://www.wikidata.org/wiki/Q140378992",
+	},
+	{
+		label: "Wikidata Brand",
+		href: "https://www.wikidata.org/wiki/Q140378510",
+	},
+];
+const representativeProjects = [
+	{
+		title: "WakeUpAtTheBorder",
+		href: "https://github.com/Amiyadesi/Wake-up-at-the-border",
+		description: "Godot 2D 横版叙事游戏，GodotHub 第三届开发大赛二等奖。",
+	},
+	{
+		title: "TimeRuner",
+		href: "https://github.com/Amiyadesi/time-runner",
+		description:
+			"C# 动作平台跳跃，5 秒时间回溯，034GameJam 最佳时间题材游戏奖。",
+	},
+	{
+		title: "EnhanceSaveSystem",
+		href: "https://github.com/Amiyadesi/enahnce_save_system",
+		description: "Godot 存档插件，支持 AES-GCM、gzip、原子写入和版本迁移。",
+	},
+	{
+		title: "Amiya's Desk",
+		href: "https://blog.sayori.org/",
+		description: "个人博客、文章归档、专题入口、RSS 和公开项目记录。",
+	},
+];
+const representativeArticles = [
+	{
+		title: "从零搭一个自己的博客",
+		href: "/posts/astro-mizuki-blog-from-zero/",
+	},
+	{
+		title: "给刚搭好的博客配一个免费域名",
+		href: "/posts/free-domain-and-web-community/",
+	},
+	{
+		title: "互联网社区记录 1",
+		href: "/posts/internet-community-1/",
+	},
+	...(webmasterTopic
+		? [
+				{
+					title: webmasterTopic.title,
+					href: getTopicUrl(webmasterTopic),
+				},
+			]
+		: []),
+];
+const faqItems = [
+	{
+		question: "这个博客主要写什么？",
+		answer: "主要写服务器探索、Godot 游戏开发、Cloudflare 和 Docker 折腾、Obsidian 写作流、AI 辅助开发、资源整理和日常回声。这里是个人博客，会保留自己的折腾过程、复盘和一些没那么正式的想法。",
+	},
+	{
+		question: "第一次来应该从哪里看起？",
+		answer: "可以先看首页的最新文章、随机文章入口、资源索引和服务器探索分类；也可以从主站 sayori.org 进入 GitHub、GeoScore、小白板和留言板。",
+	},
+	{
+		question: "这里是商业服务站点吗？",
+		answer: "不是。这里仍然是 Amiya_desi 的个人博客和公开知识入口，不提供公司电话、地址、价格表、本地服务页或商业交付承诺。",
+	},
+	{
+		question: "可以从哪里联系或继续了解你？",
+		answer: "可以从主导航进入 sayori.org，也可以在文章页、关于页或留言板留下公开反馈。公开项目和代码主要放在 GitHub。",
+	},
+];
+const jsonLd = {
+	"@context": "https://schema.org",
+	"@type": "FAQPage",
+	"@id": `${pageUrl}#faq`,
+	url: pageUrl,
+	name: `${title} - ${siteConfig.title}`,
+	about: {
+		"@id": `${new URL(siteConfig.siteURL).href}#person`,
+		name: profileConfig.name,
+	},
+	mainEntity: faqItems.map((item) => ({
+		"@type": "Question",
+		name: item.question,
+		acceptedAnswer: {
+			"@type": "Answer",
+			text: item.answer,
+		},
+	})),
+};
+---
+
+<MainGridLayout title={title}>
+	<script
+		is:inline
+		slot="head"
+		type="application/ld+json"
+		set:html={JSON.stringify(jsonLd)}
+	/>
+	<!-- 引入右侧边栏布局管理器 -->
+	<script>
+		import("../scripts/right-sidebar-layout.js");
+	</script>
+	<div
+		class="flex w-full rounded-[var(--radius-large)] overflow-visible relative min-h-32"
+	>
+		<div
+			class="card-base paper-note paper-note-lined paper-tape z-10 px-9 py-6 relative w-full"
+			style="padding-top: 1.75rem;"
+		>
+			<PageHeader title={title} />
+
+			<!-- 从MD文件读取的内容 -->
+			<Markdown class="mt-2">
+				<Content />
+			</Markdown>
+
+			<section
+				class="mt-6 border-t border-[var(--line-divider)] border-dashed pt-5"
+			>
+				<h2 class="text-xl font-bold mb-3">站点说明</h2>
+				<div class="space-y-3 text-sm text-[var(--text-50)] leading-7">
+					<p>
+						这里是 Amiya_desi
+						的个人博客和公开知识入口，长期记录服务器探索、Godot
+						游戏开发、Cloudflare 与 Docker 折腾、Obsidian 写作流、AI
+						辅助开发、资源整理和一点日常复盘。主站 sayori.org
+						负责放稳定入口，博客负责放更长的文章、教程、项目记录和回头看的思考。
+					</p>
+					<p>
+						如果你是从搜索引擎、AI
+						摘要或别人分享的链接来到这里，可以从最新文章、随机文章、资源索引和服务器探索分类开始；也可以回到主站继续看
+						GitHub、GeoScore、小白板和留言板。这里不是商业服务站点，不放本地地址、价格表或公司式承诺。
+					</p>
+				</div>
+			</section>
+
+			<section
+				class="mt-6 border-t border-[var(--line-divider)] border-dashed pt-5"
+			>
+				<h2 class="text-xl font-bold mb-3">公开实体与代表内容</h2>
+				<div class="space-y-4 text-sm text-[var(--text-50)] leading-7">
+					<p>
+						Amiya_desi 是这个站点使用的公开个人身份；Amiya的书桌 /
+						Amiya's Desk 是对应的博客和项目档案。公开入口包括
+						sayori.org、blog.sayori.org、GitHub、Linux.do、Bilibili
+						和
+						Wikidata。这里记录的是个人作品、文章、工具和复盘，不是公司或商业服务站。
+					</p>
+					<div>
+						<h3 class="font-semibold text-[var(--text-90)]">
+							公开入口
+						</h3>
+						<ul class="mt-2 grid gap-2 md:grid-cols-2">
+							{
+								publicIdentityLinks.map((item) => (
+									<li>
+										<a
+											class="link text-[var(--primary)] font-medium"
+											href={item.href}
+											target="_blank"
+											rel="noopener"
+										>
+											{item.label}
+										</a>
+									</li>
+								))
+							}
+						</ul>
+					</div>
+					<div>
+						<h3 class="font-semibold text-[var(--text-90)]">
+							代表项目
+						</h3>
+						<ul class="mt-2 space-y-2">
+							{
+								representativeProjects.map((item) => (
+									<li>
+										<a
+											class="link text-[var(--primary)] font-medium"
+											href={item.href}
+											target="_blank"
+											rel="noopener"
+										>
+											{item.title}
+										</a>
+										<span>：{item.description}</span>
+									</li>
+								))
+							}
+						</ul>
+					</div>
+					<div>
+						<h3 class="font-semibold text-[var(--text-90)]">
+							代表文章
+						</h3>
+						<ul class="mt-2 space-y-2">
+							{
+								representativeArticles.map((item) => (
+									<li>
+										<a
+											class="link text-[var(--primary)] font-medium"
+											href={item.href}
+										>
+											{item.title}
+										</a>
+									</li>
+								))
+							}
+						</ul>
+					</div>
+				</div>
+			</section>
+
+			<section
+				class="mt-6 border-t border-[var(--line-divider)] border-dashed pt-5"
+			>
+				<h2 class="text-xl font-bold mb-3">常见问题</h2>
+				<div class="space-y-4">
+					{
+						faqItems.map((item) => (
+							<article>
+								<h3 class="font-semibold">{item.question}</h3>
+								<p class="mt-1 text-sm text-[var(--text-50)] leading-7">
+									{item.answer}
+								</p>
+							</article>
+						))
+					}
+				</div>
+			</section>
+		</div>
+	</div>
+
+	<div class="mt-4">
+		<Comment path="/about/" />
+	</div>
+</MainGridLayout>

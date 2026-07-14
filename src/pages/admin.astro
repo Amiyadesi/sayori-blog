@@ -1,0 +1,1485 @@
+---
+import { PageHeader } from "@components/features/page-header";
+import MainGridLayout from "@layouts/MainGridLayout.astro";
+
+export const prerender = true;
+---
+
+<MainGridLayout title="管理员身份" description="Amiya 的评论身份确认入口">
+	<script>
+		import("../scripts/right-sidebar-layout.js");
+	</script>
+
+	<div class="admin-shell card-base paper-note paper-note-lined paper-tape" style="padding-top: 1.75rem;">
+		<PageHeader
+			title="管理员身份"
+			subtitle="这里现在只负责 GitHub OAuth 身份确认；写作继续从 Obsidian 插件发布。"
+		/>
+
+		<section id="admin-login" class="admin-login" hidden>
+			<div>
+				<p class="admin-kicker">Private Desk</p>
+				<h2>用 GitHub 登录</h2>
+				<p>
+					登录成功后，评论区可以确认你是站长，再允许使用 Amiya_desi
+					这个保留昵称发言。
+				</p>
+			</div>
+			<a class="admin-primary" href="/api/auth/login">继续登录</a>
+			<p id="admin-login-note" class="admin-note"></p>
+		</section>
+
+		<section id="admin-app" hidden>
+			<div class="admin-toolbar">
+				<div class="admin-user">
+					<img
+						id="admin-avatar"
+						src="/assets/profile/avatar-sayori.jpg"
+						alt=""
+					/>
+					<div>
+						<p class="admin-kicker">Logged in</p>
+						<strong id="admin-user-name">Amiya</strong>
+						<span id="admin-login-name">GitHub OAuth 已确认</span>
+					</div>
+				</div>
+				<div class="admin-actions">
+					<a
+						href="https://github.com/Amiyadesi/sayori-blog"
+						target="_blank"
+						rel="noreferrer">GitHub</a
+					>
+					<a href="/posts/" target="_blank" rel="noreferrer">文章</a>
+					<button id="admin-logout" type="button">退出</button>
+				</div>
+			</div>
+
+			<section class="admin-panel">
+				<div class="admin-panel-head">
+					<div>
+						<p class="admin-kicker">Comment Identity</p>
+						<h2>评论身份代理</h2>
+						<p id="admin-status" class="admin-note">
+							正在检查 OAuth 会话...
+						</p>
+					</div>
+				</div>
+
+				<div class="admin-status-grid">
+					<div>
+						<span>保留昵称</span>
+						<strong id="admin-owner-nick">Amiya_desi</strong>
+					</div>
+					<div>
+						<span>OAuth 管理员</span>
+						<strong id="admin-oauth-owner">未确认</strong>
+					</div>
+					<div>
+						<span>评论代理</span>
+						<strong id="admin-comment-proxy">未检查</strong>
+					</div>
+					<div>
+						<span>Twikoo 管理标识</span>
+						<strong id="admin-twikoo-admin">未检查</strong>
+					</div>
+					<div>
+						<span>网页写作</span>
+						<strong>已封印</strong>
+					</div>
+				</div>
+
+				<p class="admin-note admin-explain">
+					新文章、日记、分类和标签继续从 Obsidian
+					源文件维护。这个页面不再读取仓库文件树，也不会保存内容到
+					GitHub。
+				</p>
+			</section>
+
+			<section class="admin-panel admin-comments-panel">
+				<div class="admin-panel-head">
+					<div>
+						<p class="admin-kicker">Twikoo Comments</p>
+						<h2>评论管理 / Twikoo</h2>
+						<p id="comments-status" class="admin-note">
+							正在读取 Twikoo 评论...
+						</p>
+					</div>
+					<div class="analytics-controls">
+						<button
+							id="twikoo-comment-entry"
+							class="admin-secondary"
+							type="button">打开评论区管理面板</button
+						>
+						<a
+							id="twikoo-backend-link"
+							class="admin-secondary"
+							href="https://comments.sayori.org"
+							target="_blank"
+							rel="noreferrer">打开后端</a
+						>
+						<button id="comments-refresh" type="button"
+							>刷新</button
+						>
+					</div>
+				</div>
+
+				<div class="twikoo-admin-bridge">
+					<div>
+						<span>Twikoo 后端</span>
+						<code id="twikoo-base-url">https://comments.sayori.org</code>
+					</div>
+					<div class="twikoo-admin-actions">
+						<button id="twikoo-copy-url" type="button">复制后端地址</button>
+						<p id="twikoo-copy-status" class="admin-note" aria-live="polite">
+						</p>
+					</div>
+				</div>
+
+				<div class="admin-privacy-boundary">
+					<h3>来源识别边界</h3>
+					<p>
+						Twikoo 服务端会按请求记录管理所需的来源信息；这个后台只展示脱敏评论摘要、邮箱、页面和状态，不把原始 IP、UA 或 Twikoo
+						记录 ID 传给浏览器。
+					</p>
+					<p>
+						VPN、Proxy、Tor 只能基于服务端可见 IP、Cloudflare 字段和 IP intelligence 做风险判断，不能保证得到访问者真实网络出口。这里不会做 WebRTC 或 DNS
+						泄露探测。
+					</p>
+				</div>
+
+				<div id="twikoo-admin-panel" class="twikoo-admin-panel-embed" hidden>
+					<div class="twikoo-admin-panel-head">
+						<h3>Twikoo 管理面板</h3>
+						<button id="twikoo-admin-close" type="button">关闭</button>
+					</div>
+					<div id="twikoo-admin-mount"></div>
+				</div>
+
+				<div class="admin-metric-grid">
+					<div>
+						<span>总评论</span>
+						<strong id="comments-total">0</strong>
+					</div>
+					<div>
+						<span>可见</span>
+						<strong id="comments-visible">0</strong>
+					</div>
+					<div>
+						<span>隐藏 / 待处理</span>
+						<strong id="comments-hidden">0</strong>
+					</div>
+					<div>
+						<span>问题</span>
+						<strong id="comments-questions">0</strong>
+					</div>
+					<div>
+						<span>已载入样本</span>
+						<strong id="comments-loaded">0</strong>
+					</div>
+					<div>
+						<span>已审查 IP</span>
+						<strong id="comments-ip-reviewed">0</strong>
+					</div>
+					<div>
+						<span>中高风险</span>
+						<strong id="comments-ip-risky">0</strong>
+					</div>
+				</div>
+
+				<div class="analytics-grid">
+					<div class="analytics-table-card analytics-wide">
+						<div class="analytics-card-head">
+							<h3>最近问题</h3>
+							<span>问号 / 问句关键词</span>
+						</div>
+						<div class="analytics-table-wrap">
+							<table>
+								<thead>
+									<tr>
+										<th>时间</th>
+										<th>昵称</th>
+										<th>页面</th>
+										<th>内容</th>
+									</tr>
+								</thead>
+								<tbody id="comments-questions-body"></tbody>
+							</table>
+						</div>
+					</div>
+
+					<div class="analytics-table-card">
+						<div class="analytics-card-head">
+							<h3>评论最多页面</h3>
+							<span>按已载入样本聚合</span>
+						</div>
+						<div id="comments-top-pages-body" class="analytics-list">
+						</div>
+					</div>
+
+					<div class="analytics-table-card analytics-wide">
+						<div class="analytics-card-head">
+							<h3>最近评论</h3>
+							<span>管理员摘要</span>
+						</div>
+						<div class="analytics-table-wrap">
+							<table>
+								<thead>
+									<tr>
+										<th>时间</th>
+										<th>状态</th>
+										<th>昵称</th>
+										<th>邮箱</th>
+										<th>IP 审查</th>
+										<th>页面</th>
+										<th>内容</th>
+									</tr>
+								</thead>
+								<tbody id="comments-recent-body"></tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<section class="admin-panel admin-analytics-panel">
+				<div class="admin-panel-head">
+					<div>
+						<p class="admin-kicker">Analytics</p>
+						<h2>访问统计</h2>
+						<p id="analytics-status" class="admin-note">
+							正在读取 D1 访问明细...
+						</p>
+					</div>
+					<div class="analytics-controls">
+						<label>
+							<span>站点</span>
+							<select id="analytics-site">
+								<option value="all">全部</option>
+								<option value="blog">博客</option>
+								<option value="home">导航</option>
+							</select>
+						</label>
+						<label>
+							<span>范围</span>
+							<select id="analytics-range">
+								<option value="1d">1 天</option>
+								<option value="7d" selected>7 天</option>
+								<option value="30d">30 天</option>
+							</select>
+						</label>
+						<button id="analytics-refresh" type="button"
+							>刷新</button
+						>
+					</div>
+				</div>
+
+				<div class="admin-metric-grid">
+					<div>
+						<span>访问量</span>
+						<strong id="analytics-pageviews">0</strong>
+					</div>
+					<div>
+						<span>访客</span>
+						<strong id="analytics-visitors">0</strong>
+					</div>
+					<div>
+						<span>会话</span>
+						<strong id="analytics-sessions">0</strong>
+					</div>
+					<div>
+						<span>当前在线</span>
+						<strong id="analytics-online-count">0</strong>
+					</div>
+					<div>
+						<span>安全标记</span>
+						<strong id="analytics-security-count">0</strong>
+					</div>
+				</div>
+
+				<div class="analytics-grid">
+					<div class="analytics-table-card analytics-wide">
+						<div class="analytics-card-head">
+							<h3>正在看什么</h3>
+							<span>90 秒内心跳</span>
+						</div>
+						<div class="analytics-table-wrap">
+							<table>
+								<thead>
+									<tr>
+										<th>站点</th>
+										<th>页面</th>
+										<th>地区</th>
+										<th>ISP</th>
+										<th>最后心跳</th>
+									</tr>
+								</thead>
+								<tbody id="analytics-online-body"></tbody>
+							</table>
+						</div>
+					</div>
+
+					<div class="analytics-table-card">
+						<div class="analytics-card-head">
+							<h3>热门页面</h3>
+							<span>pageview</span>
+						</div>
+						<div
+							id="analytics-top-pages-body"
+							class="analytics-list"
+						>
+						</div>
+					</div>
+
+					<div class="analytics-table-card">
+						<div class="analytics-card-head">
+							<h3>地区 / ISP</h3>
+							<span>IPInfo 摘要</span>
+						</div>
+						<div id="analytics-geo-body" class="analytics-list">
+						</div>
+						<div
+							id="analytics-isp-body"
+							class="analytics-list analytics-list-compact"
+						>
+						</div>
+					</div>
+
+					<div class="analytics-table-card analytics-wide">
+						<div class="analytics-card-head">
+							<h3>最近访问</h3>
+							<span>明细事件</span>
+						</div>
+						<div class="analytics-table-wrap">
+							<table>
+								<thead>
+									<tr>
+										<th>时间</th>
+										<th>事件</th>
+										<th>页面</th>
+										<th>地区</th>
+										<th>安全</th>
+									</tr>
+								</thead>
+								<tbody id="analytics-recent-body"></tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+			</section>
+		</section>
+	</div>
+</MainGridLayout>
+
+<script is:inline>
+	const state = {
+		user: null,
+		config: null,
+		comments: null,
+		analytics: null,
+	};
+
+	const el = {
+		login: document.getElementById("admin-login"),
+		loginNote: document.getElementById("admin-login-note"),
+		app: document.getElementById("admin-app"),
+		avatar: document.getElementById("admin-avatar"),
+		userName: document.getElementById("admin-user-name"),
+		loginName: document.getElementById("admin-login-name"),
+		logout: document.getElementById("admin-logout"),
+		status: document.getElementById("admin-status"),
+		ownerNick: document.getElementById("admin-owner-nick"),
+		oauthOwner: document.getElementById("admin-oauth-owner"),
+		commentProxy: document.getElementById("admin-comment-proxy"),
+		twikooAdmin: document.getElementById("admin-twikoo-admin"),
+		twikooCommentEntry: document.getElementById("twikoo-comment-entry"),
+		twikooBackendLink: document.getElementById("twikoo-backend-link"),
+		twikooBaseUrl: document.getElementById("twikoo-base-url"),
+		twikooCopyUrl: document.getElementById("twikoo-copy-url"),
+		twikooCopyStatus: document.getElementById("twikoo-copy-status"),
+		twikooAdminPanel: document.getElementById("twikoo-admin-panel"),
+		twikooAdminMount: document.getElementById("twikoo-admin-mount"),
+		twikooAdminClose: document.getElementById("twikoo-admin-close"),
+		commentsStatus: document.getElementById("comments-status"),
+		commentsRefresh: document.getElementById("comments-refresh"),
+		commentsTotal: document.getElementById("comments-total"),
+		commentsVisible: document.getElementById("comments-visible"),
+		commentsHidden: document.getElementById("comments-hidden"),
+		commentsQuestions: document.getElementById("comments-questions"),
+		commentsLoaded: document.getElementById("comments-loaded"),
+		commentsIpReviewed: document.getElementById("comments-ip-reviewed"),
+		commentsIpRisky: document.getElementById("comments-ip-risky"),
+		commentsQuestionsBody: document.getElementById(
+			"comments-questions-body",
+		),
+		commentsTopPagesBody: document.getElementById(
+			"comments-top-pages-body",
+		),
+		commentsRecentBody: document.getElementById("comments-recent-body"),
+		analyticsStatus: document.getElementById("analytics-status"),
+		analyticsSite: document.getElementById("analytics-site"),
+		analyticsRange: document.getElementById("analytics-range"),
+		analyticsRefresh: document.getElementById("analytics-refresh"),
+		analyticsPageviews: document.getElementById("analytics-pageviews"),
+		analyticsVisitors: document.getElementById("analytics-visitors"),
+		analyticsSessions: document.getElementById("analytics-sessions"),
+		analyticsOnlineCount: document.getElementById("analytics-online-count"),
+		analyticsSecurityCount: document.getElementById(
+			"analytics-security-count",
+		),
+		analyticsOnlineBody: document.getElementById("analytics-online-body"),
+		analyticsTopPagesBody: document.getElementById(
+			"analytics-top-pages-body",
+		),
+		analyticsRecentBody: document.getElementById("analytics-recent-body"),
+		analyticsGeoBody: document.getElementById("analytics-geo-body"),
+		analyticsIspBody: document.getElementById("analytics-isp-body"),
+	};
+
+	function setStatus(message, tone = "muted") {
+		el.status.textContent = message;
+		el.status.dataset.tone = tone;
+	}
+
+	async function api(path, options = {}) {
+		const response = await fetch(path, {
+			...options,
+			headers: {
+				...(options.body ? { "content-type": "application/json" } : {}),
+				...(options.headers || {}),
+			},
+		});
+		const data = await response.json().catch(() => ({}));
+		if (!response.ok || data.success === false) {
+			throw new Error(data.error || `请求失败：${response.status}`);
+		}
+		return data;
+	}
+
+	function showLogin(message = "") {
+		el.login.hidden = false;
+		el.app.hidden = true;
+		el.loginNote.textContent = message;
+	}
+
+	function showApp() {
+		const config = state.config || {};
+		el.login.hidden = true;
+		el.app.hidden = false;
+		el.avatar.src =
+			state.user.avatar_url || "/assets/profile/avatar-sayori.jpg";
+		el.userName.textContent = state.user.name || state.user.login;
+		el.loginName.textContent = `${state.user.login} · ${config.adminLogin || "Amiyadesi"}`;
+		el.ownerNick.textContent = config.commentOwnerNick || "Amiya_desi";
+		el.oauthOwner.textContent =
+			state.user.login === config.adminLogin ? "已确认" : "不匹配";
+		el.commentProxy.textContent = "OAuth 可用";
+		el.twikooAdmin.textContent = config.twikooAdminAvailable
+			? "已启用"
+			: "未启用";
+		const twikooUrl = config.twikooBaseUrl || "https://comments.sayori.org";
+		el.twikooBaseUrl.textContent = twikooUrl;
+		el.twikooBackendLink.href = twikooUrl;
+		el.twikooBackendLink.setAttribute(
+			"aria-label",
+			`打开 Twikoo 后端 ${twikooUrl}`,
+		);
+		setStatus(
+			config.twikooAdminAvailable
+				? "现在可以在评论区使用保留昵称发评论，并附带 Twikoo 管理员标识。"
+				: "现在可以用 GitHub OAuth 确认后使用保留昵称发评论；只是不会附带 Twikoo 管理员标识。",
+			"ok",
+		);
+	}
+
+	let twikooAdminInited = false;
+	async function openTwikooAdmin() {
+		el.twikooAdminPanel.hidden = false;
+		if (twikooAdminInited) return;
+		twikooAdminInited = true;
+		const twikooUrl = state.config?.twikooBaseUrl || "https://comments.sayori.org";
+
+		function doInit() {
+			if (!window.twikoo || !window.twikoo.init) {
+				el.twikooAdminMount.textContent = "Twikoo 脚本加载失败，请刷新重试。";
+				return;
+			}
+			window.twikoo.init({
+				envId: twikooUrl,
+				el: "#twikoo-admin-mount",
+			});
+		}
+
+		if (window.twikoo && window.twikoo.init) {
+			doInit();
+			return;
+		}
+
+		const script = document.createElement("script");
+		script.src = "/assets/js/twikoo.all.min.js";
+		script.onerror = () => {
+			script.src = "https://cdn.jsdelivr.net/npm/twikoo@1.6.39/dist/twikoo.all.min.js";
+			script.onerror = () => {
+				el.twikooAdminMount.textContent = "Twikoo 脚本加载失败，请刷新重试。";
+			};
+			script.onload = doInit;
+			document.head.appendChild(script);
+		};
+		script.onload = doInit;
+		document.head.appendChild(script);
+	}
+
+	function closeTwikooAdmin() {
+		el.twikooAdminPanel.hidden = true;
+	}
+
+	async function copyTwikooUrl() {
+		const value = el.twikooBaseUrl.textContent.trim();
+		if (!value) return;
+		try {
+			await navigator.clipboard.writeText(value);
+			el.twikooCopyStatus.textContent = "已复制。";
+			el.twikooCopyStatus.dataset.tone = "ok";
+		} catch {
+			const range = document.createRange();
+			range.selectNodeContents(el.twikooBaseUrl);
+			const selection = window.getSelection();
+			selection.removeAllRanges();
+			selection.addRange(range);
+			el.twikooCopyStatus.textContent = "已选中地址，请手动复制。";
+			el.twikooCopyStatus.dataset.tone = "muted";
+		}
+	}
+
+	function setAnalyticsStatus(message, tone = "muted") {
+		el.analyticsStatus.textContent = message;
+		el.analyticsStatus.dataset.tone = tone;
+	}
+
+	function setCommentsStatus(message, tone = "muted") {
+		el.commentsStatus.textContent = message;
+		el.commentsStatus.dataset.tone = tone;
+	}
+
+	function formatNumber(value) {
+		return new Intl.NumberFormat("zh-CN").format(Number(value || 0));
+	}
+
+	function formatRelativeTime(timestamp) {
+		if (!timestamp) return "未知";
+		const seconds = Math.max(
+			0,
+			Math.round((Date.now() - timestamp) / 1000),
+		);
+		if (seconds < 60) return `${seconds} 秒前`;
+		const minutes = Math.round(seconds / 60);
+		if (minutes < 60) return `${minutes} 分钟前`;
+		const hours = Math.round(minutes / 60);
+		if (hours < 24) return `${hours} 小时前`;
+		return new Date(timestamp).toLocaleString("zh-CN");
+	}
+
+	function siteLabel(site) {
+		return site === "home" ? "导航" : "博客";
+	}
+
+	function scopeLabel(scope) {
+		if (scope === "domestic") return "国内";
+		if (scope === "foreign") return "国外";
+		return "未识别";
+	}
+
+	function placeLabel(item) {
+		const scope = scopeLabel(item.locationScope);
+		const parts = [item.countryName, item.region, item.city].filter(
+			(value, index, array) => value && array.indexOf(value) === index,
+		);
+		return parts.length ? `${scope} · ${parts.join(" / ")}` : "未识别地区";
+	}
+
+	function securityLabels(item) {
+		const labels = [];
+		if (item.isVpn) labels.push("VPN");
+		if (item.isProxy) labels.push("Proxy");
+		if (item.isTor) labels.push("Tor");
+		if (item.isThreat) labels.push("Threat");
+		return labels;
+	}
+
+	function ipReviewLabel(review) {
+		if (!review?.present) return "无 IP";
+		const place = [review.flag, review.countryName, review.region, review.city]
+			.filter(Boolean)
+			.join(" ");
+		const network = review.isp || review.organization || review.asn || "";
+		const risk =
+			review.riskLabels?.length
+				? `${review.riskLevel} · ${review.riskLabels.join(", ")}`
+				: review.riskLevel || "normal";
+		return [review.maskedIp, place, network, risk].filter(Boolean).join(" · ");
+	}
+
+	function cell(text) {
+		const td = document.createElement("td");
+		td.textContent = text;
+		return td;
+	}
+
+	function emptyRow(colspan, message) {
+		const tr = document.createElement("tr");
+		const td = cell(message);
+		td.colSpan = colspan;
+		td.className = "analytics-empty";
+		tr.append(td);
+		return tr;
+	}
+
+	function listItem(primary, secondary, value) {
+		const item = document.createElement("div");
+		item.className = "analytics-list-item";
+		const text = document.createElement("span");
+		const strong = document.createElement("strong");
+		const small = document.createElement("small");
+		const count = document.createElement("b");
+		strong.textContent = primary;
+		small.textContent = secondary;
+		count.textContent = value;
+		text.append(strong, small);
+		item.append(text, count);
+		return item;
+	}
+
+	function renderMetrics(data) {
+		const summary = data.summary || {};
+		const security = data.securityBreakdown || {};
+		const securityCount =
+			Number(security.vpn || 0) +
+			Number(security.proxy || 0) +
+			Number(security.tor || 0) +
+			Number(security.threat || 0);
+		el.analyticsPageviews.textContent = formatNumber(summary.pageviews);
+		el.analyticsVisitors.textContent = formatNumber(summary.visitors);
+		el.analyticsSessions.textContent = formatNumber(summary.sessions);
+		el.analyticsOnlineCount.textContent = formatNumber(summary.online);
+		el.analyticsSecurityCount.textContent = formatNumber(securityCount);
+	}
+
+	function renderOnline(items) {
+		if (!items?.length) {
+			el.analyticsOnlineBody.replaceChildren(emptyRow(5, "暂无在线会话"));
+			return;
+		}
+		const rows = items.map((item) => {
+			const tr = document.createElement("tr");
+			const page = `${item.title || item.path} (${item.path})`;
+			tr.append(
+				cell(siteLabel(item.site)),
+				cell(page),
+				cell(placeLabel(item)),
+				cell(item.isp || item.organization || "未知"),
+				cell(formatRelativeTime(item.lastSeenAt)),
+			);
+			return tr;
+		});
+		el.analyticsOnlineBody.replaceChildren(...rows);
+	}
+
+	function renderTopPages(items) {
+		if (!items?.length) {
+			el.analyticsTopPagesBody.replaceChildren(
+				listItem("暂无页面", "等待 pageview", "0"),
+			);
+			return;
+		}
+		el.analyticsTopPagesBody.replaceChildren(
+			...items.map((item) =>
+				listItem(
+					item.title || item.path,
+					`${siteLabel(item.site)} · ${item.path} · ${formatNumber(item.visitors)} 访客`,
+					formatNumber(item.pageviews),
+				),
+			),
+		);
+	}
+
+	function renderGeo(data) {
+		const countries = data.geoBreakdown?.countries || [];
+		const cities = data.geoBreakdown?.cities || [];
+		const isps = data.ispBreakdown || [];
+		el.analyticsGeoBody.replaceChildren(
+			...(cities.length
+				? cities.map((item) =>
+						listItem(
+							placeLabel(item),
+							"省州 / 城市",
+							formatNumber(item.pageviews),
+						),
+					)
+				: countries.length
+					? countries.map((item) =>
+							listItem(
+								`${scopeLabel(item.locationScope)} · ${item.countryName || item.countryCode || "未识别地区"}`,
+								`${formatNumber(item.visitors)} 访客`,
+								formatNumber(item.pageviews),
+							),
+						)
+					: [listItem("未识别地区", "等待 IPInfo / Cloudflare 地理字段", "0")]),
+		);
+		el.analyticsIspBody.replaceChildren(
+			...(isps.length
+				? isps
+						.slice(0, 6)
+						.map((item) =>
+							listItem(
+								item.isp || "未知 ISP",
+								`${formatNumber(item.visitors)} 访客`,
+								formatNumber(item.pageviews),
+							),
+						)
+				: []),
+		);
+	}
+
+	function renderRecent(items) {
+		if (!items?.length) {
+			el.analyticsRecentBody.replaceChildren(emptyRow(5, "暂无访问明细"));
+			return;
+		}
+		const rows = items.map((item) => {
+			const tr = document.createElement("tr");
+			const labels = securityLabels(item);
+			tr.append(
+				cell(formatRelativeTime(item.createdAt)),
+				cell(item.eventType),
+				cell(`${siteLabel(item.site)} · ${item.title || item.path}`),
+				cell(placeLabel(item)),
+				cell(labels.length ? labels.join(", ") : "正常"),
+			);
+			return tr;
+		});
+		el.analyticsRecentBody.replaceChildren(...rows);
+	}
+
+	function renderAnalytics(data) {
+		renderMetrics(data);
+		renderOnline(data.online || []);
+		renderTopPages(data.topPages || []);
+		renderGeo(data);
+		renderRecent(data.recentEvents || []);
+		setAnalyticsStatus("统计已更新。", "ok");
+	}
+
+	function renderCommentMetrics(data) {
+		const summary = data.summary || {};
+		el.commentsTotal.textContent = formatNumber(summary.total);
+		el.commentsVisible.textContent = formatNumber(summary.visible);
+		el.commentsHidden.textContent = formatNumber(summary.hidden);
+		el.commentsQuestions.textContent = formatNumber(summary.questionCount);
+		el.commentsLoaded.textContent = formatNumber(summary.loaded);
+		el.commentsIpReviewed.textContent = formatNumber(summary.ipReviewed);
+		el.commentsIpRisky.textContent = formatNumber(summary.ipRisky);
+	}
+
+	function renderCommentQuestions(items) {
+		if (!items?.length) {
+			el.commentsQuestionsBody.replaceChildren(emptyRow(4, "暂无问题评论"));
+			return;
+		}
+		const rows = items.map((item) => {
+			const tr = document.createElement("tr");
+			tr.append(
+				cell(formatRelativeTime(item.created)),
+				cell(item.nick || "匿名"),
+				cell(item.url || "未知页面"),
+				cell(item.commentText || ""),
+			);
+			return tr;
+		});
+		el.commentsQuestionsBody.replaceChildren(...rows);
+	}
+
+	function renderCommentTopPages(items) {
+		if (!items?.length) {
+			el.commentsTopPagesBody.replaceChildren(
+				listItem("暂无评论页面", "等待 Twikoo 数据", "0"),
+			);
+			return;
+		}
+		el.commentsTopPagesBody.replaceChildren(
+			...items.map((item) =>
+				listItem(
+					item.url,
+					`${formatNumber(item.questionCount)} 个问题 · 最近 ${formatRelativeTime(item.latestCreated)}`,
+					formatNumber(item.count),
+				),
+			),
+		);
+	}
+
+	function renderCommentRecent(items) {
+		if (!items?.length) {
+			el.commentsRecentBody.replaceChildren(emptyRow(7, "暂无评论"));
+			return;
+		}
+		const rows = items.map((item) => {
+			const tr = document.createElement("tr");
+			tr.append(
+				cell(formatRelativeTime(item.created)),
+				cell(item.status === "hidden" ? "隐藏" : "可见"),
+				cell(item.nick || "匿名"),
+				cell(item.email || "未填写"),
+				cell(ipReviewLabel(item.ipReview)),
+				cell(item.url || "未知页面"),
+				cell(item.commentText || ""),
+			);
+			return tr;
+		});
+		el.commentsRecentBody.replaceChildren(...rows);
+	}
+
+	function renderComments(data) {
+		renderCommentMetrics(data);
+		renderCommentQuestions(data.recentQuestions || []);
+		renderCommentTopPages(data.topPages || []);
+		renderCommentRecent(data.recentComments || []);
+		setCommentsStatus(
+			data.summary?.sampled
+				? "统计已更新；问题数按最近载入样本估算。"
+				: "统计已更新。",
+			"ok",
+		);
+	}
+
+	async function loadComments() {
+		setCommentsStatus("正在读取 Twikoo 评论...");
+		try {
+			const data = await api("/api/admin/comments?per=80&pages=5");
+			state.comments = data;
+			renderComments(data);
+		} catch (error) {
+			setCommentsStatus(error.message || "评论统计接口读取失败。", "bad");
+		}
+	}
+
+	async function loadAnalytics() {
+		setAnalyticsStatus("正在读取 D1 访问明细...");
+		try {
+			const params = new URLSearchParams({
+				site: el.analyticsSite.value,
+				range: el.analyticsRange.value,
+			});
+			const data = await api(`/api/admin/analytics?${params.toString()}`);
+			state.analytics = data;
+			renderAnalytics(data);
+		} catch (error) {
+			setAnalyticsStatus(error.message || "统计接口读取失败。", "bad");
+		}
+	}
+
+	async function logout() {
+		await api("/api/auth/logout", { method: "POST", body: "{}" }).catch(
+			() => null,
+		);
+		showLogin("已经退出。");
+	}
+
+	async function boot() {
+		try {
+			const data = await api("/api/admin/me");
+			state.user = data.user;
+			state.config = data.config;
+			showApp();
+			loadComments();
+			loadAnalytics();
+		} catch (error) {
+			showLogin(
+				error.message.includes("Cloudflare") ? error.message : "",
+			);
+		}
+	}
+
+	el.logout.addEventListener("click", logout);
+	el.twikooCopyUrl.addEventListener("click", copyTwikooUrl);
+	el.twikooCommentEntry.addEventListener("click", openTwikooAdmin);
+	el.twikooAdminClose.addEventListener("click", closeTwikooAdmin);
+	el.commentsRefresh.addEventListener("click", loadComments);
+	el.analyticsRefresh.addEventListener("click", loadAnalytics);
+	el.analyticsSite.addEventListener("change", loadAnalytics);
+	el.analyticsRange.addEventListener("change", loadAnalytics);
+	boot();
+</script>
+
+<style>
+	.admin-shell {
+		padding: 1.5rem;
+		overflow: hidden;
+	}
+
+	.admin-shell [hidden] {
+		display: none !important;
+	}
+
+	.admin-login {
+		display: grid;
+		grid-template-columns: 1fr auto;
+		gap: 1rem;
+		align-items: center;
+		margin-top: 1rem;
+		padding: 1.25rem;
+		border: 1px solid var(--line-divider);
+		border-radius: var(--radius-large);
+		background:
+			linear-gradient(135deg, rgba(255, 255, 255, 0.6), transparent),
+			var(--btn-regular-bg);
+	}
+
+	.admin-login h2,
+	.admin-panel h2 {
+		margin: 0;
+		font-size: 1.1rem;
+		font-weight: 800;
+		color: var(--primary);
+	}
+
+	.admin-login p {
+		margin: 0.35rem 0 0;
+		color: var(--text-50);
+		line-height: 1.8;
+	}
+
+	.admin-kicker {
+		margin: 0;
+		color: var(--text-30);
+		font-size: 0.75rem;
+		font-weight: 800;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+	}
+
+	.admin-toolbar {
+		display: flex;
+		justify-content: space-between;
+		gap: 1rem;
+		align-items: center;
+		margin: 1rem 0;
+		padding: 1rem;
+		border: 1px solid var(--line-divider);
+		border-radius: var(--radius-large);
+		background: var(--btn-regular-bg);
+	}
+
+	.admin-user {
+		display: flex;
+		gap: 0.8rem;
+		align-items: center;
+		min-width: 0;
+	}
+
+	.admin-user img {
+		width: 3rem;
+		height: 3rem;
+		border-radius: 999px;
+		object-fit: cover;
+		box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.7);
+	}
+
+	.admin-user span {
+		display: block;
+		color: var(--text-30);
+		font-size: 0.8rem;
+	}
+
+	.admin-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		align-items: center;
+		justify-content: flex-end;
+	}
+
+	.admin-actions a,
+	.admin-actions button,
+	.admin-primary,
+	.admin-secondary {
+		border: 1px solid var(--line-divider);
+		border-radius: var(--radius-medium);
+		padding: 0.55rem 0.8rem;
+		background: var(--card-bg);
+		color: var(--btn-content);
+		font-weight: 700;
+		font-size: 0.9rem;
+		transition: 0.2s ease;
+		cursor: pointer;
+		text-decoration: none;
+	}
+
+	.admin-actions a:hover,
+	.admin-actions button:hover,
+	.admin-primary:hover,
+	.admin-secondary:hover {
+		transform: translateY(-1px);
+		background: var(--btn-plain-bg-hover);
+		color: var(--primary);
+	}
+
+	.admin-primary {
+		border-color: color-mix(in srgb, var(--primary) 45%, transparent);
+		background: color-mix(in srgb, var(--primary) 15%, var(--card-bg));
+	}
+
+	.admin-panel {
+		border: 1px solid var(--line-divider);
+		border-radius: var(--radius-large);
+		background: color-mix(in srgb, var(--card-bg) 90%, transparent);
+		min-width: 0;
+	}
+
+	.admin-panel-head {
+		display: flex;
+		justify-content: space-between;
+		gap: 1rem;
+		padding: 1rem;
+		border-bottom: 1px solid var(--line-divider);
+	}
+
+	.admin-status-grid {
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: 0.75rem;
+		padding: 1rem;
+	}
+
+	.admin-metric-grid {
+		display: grid;
+		grid-template-columns: repeat(5, minmax(0, 1fr));
+		gap: 0.75rem;
+		padding: 1rem;
+		border-bottom: 1px solid var(--line-divider);
+	}
+
+	.admin-status-grid div,
+	.admin-metric-grid div {
+		min-width: 0;
+		padding: 0.85rem;
+		border: 1px solid var(--line-divider);
+		border-radius: var(--radius-medium);
+		background: var(--btn-regular-bg);
+	}
+
+	.admin-status-grid span,
+	.admin-metric-grid span {
+		display: block;
+		color: var(--text-30);
+		font-size: 0.78rem;
+		font-weight: 700;
+	}
+
+	.admin-status-grid strong,
+	.admin-metric-grid strong {
+		display: block;
+		margin-top: 0.35rem;
+		color: var(--text-90);
+		font-size: 0.98rem;
+		overflow-wrap: anywhere;
+	}
+
+	.admin-metric-grid strong {
+		font-size: clamp(1.25rem, 2vw, 1.8rem);
+	}
+
+	.admin-comments-panel,
+	.admin-analytics-panel {
+		margin-top: 1rem;
+	}
+
+	.twikoo-admin-bridge {
+		display: flex;
+		justify-content: space-between;
+		gap: 1rem;
+		align-items: center;
+		padding: 0.9rem 1rem;
+		border-bottom: 1px solid var(--line-divider);
+		background: color-mix(in srgb, var(--btn-regular-bg) 82%, transparent);
+	}
+
+	.twikoo-admin-bridge span {
+		display: block;
+		color: var(--text-30);
+		font-size: 0.76rem;
+		font-weight: 800;
+	}
+
+	.twikoo-admin-bridge code {
+		display: block;
+		margin-top: 0.25rem;
+		color: var(--text-90);
+		font-size: 0.9rem;
+		overflow-wrap: anywhere;
+	}
+
+	.twikoo-admin-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.55rem;
+		align-items: center;
+		justify-content: flex-end;
+	}
+
+	.twikoo-admin-actions button {
+		min-height: 2.35rem;
+		border: 1px solid var(--line-divider);
+		border-radius: var(--radius-medium);
+		padding: 0.45rem 0.7rem;
+		background: var(--card-bg);
+		color: var(--btn-content);
+		font-weight: 700;
+		cursor: pointer;
+	}
+
+	.admin-privacy-boundary {
+		margin: 1rem;
+		padding: 0.9rem 1rem;
+		border: 1px solid var(--line-divider);
+		border-radius: var(--radius-medium);
+		background: color-mix(in srgb, var(--card-bg) 76%, transparent);
+	}
+
+	.admin-privacy-boundary h3 {
+		margin: 0 0 0.45rem;
+		color: var(--text-90);
+		font-size: 0.98rem;
+	}
+
+	.admin-privacy-boundary p {
+		margin: 0.3rem 0 0;
+		color: var(--text-50);
+		font-size: 0.86rem;
+		line-height: 1.75;
+	}
+
+	.analytics-controls {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.6rem;
+		align-items: flex-end;
+		justify-content: flex-end;
+	}
+
+	.analytics-controls label {
+		display: grid;
+		gap: 0.25rem;
+		color: var(--text-30);
+		font-size: 0.76rem;
+		font-weight: 800;
+	}
+
+	.analytics-controls select,
+	.analytics-controls button {
+		min-height: 2.35rem;
+		border: 1px solid var(--line-divider);
+		border-radius: var(--radius-medium);
+		padding: 0.45rem 0.7rem;
+		background: var(--card-bg);
+		color: var(--btn-content);
+		font-weight: 700;
+	}
+
+	.analytics-controls button {
+		cursor: pointer;
+	}
+
+	.analytics-grid {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.9rem;
+		padding: 1rem;
+	}
+
+	.analytics-wide {
+		grid-column: 1 / -1;
+	}
+
+	.analytics-table-card {
+		min-width: 0;
+		border: 1px solid var(--line-divider);
+		border-radius: var(--radius-medium);
+		background: var(--btn-regular-bg);
+		overflow: hidden;
+	}
+
+	.analytics-card-head {
+		display: flex;
+		justify-content: space-between;
+		gap: 0.75rem;
+		align-items: baseline;
+		padding: 0.85rem 0.9rem;
+		border-bottom: 1px solid var(--line-divider);
+	}
+
+	.analytics-card-head h3 {
+		margin: 0;
+		color: var(--text-90);
+		font-size: 0.98rem;
+	}
+
+	.analytics-card-head span {
+		color: var(--text-30);
+		font-size: 0.76rem;
+		font-weight: 700;
+	}
+
+	.analytics-table-wrap {
+		overflow-x: auto;
+	}
+
+	.analytics-table-card table {
+		width: 100%;
+		border-collapse: collapse;
+		font-size: 0.84rem;
+	}
+
+	.analytics-table-card th,
+	.analytics-table-card td {
+		padding: 0.7rem 0.9rem;
+		border-bottom: 1px solid var(--line-divider);
+		text-align: left;
+		vertical-align: top;
+	}
+
+	.analytics-table-card th {
+		color: var(--text-30);
+		font-size: 0.72rem;
+		text-transform: uppercase;
+	}
+
+	.analytics-table-card td {
+		color: var(--text-75);
+		overflow-wrap: anywhere;
+	}
+
+	.analytics-empty {
+		color: var(--text-30) !important;
+		text-align: center !important;
+	}
+
+	.analytics-list {
+		display: grid;
+		gap: 0.45rem;
+		padding: 0.8rem;
+	}
+
+	.analytics-list-compact {
+		padding-top: 0;
+	}
+
+	.analytics-list-item {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		gap: 0.75rem;
+		align-items: center;
+		padding: 0.7rem;
+		border: 1px solid var(--line-divider);
+		border-radius: var(--radius-small);
+		background: color-mix(in srgb, var(--card-bg) 78%, transparent);
+	}
+
+	.analytics-list-item span {
+		display: grid;
+		min-width: 0;
+	}
+
+	.analytics-list-item strong {
+		color: var(--text-90);
+		font-size: 0.9rem;
+		overflow-wrap: anywhere;
+	}
+
+	.analytics-list-item small {
+		margin-top: 0.2rem;
+		color: var(--text-30);
+		overflow-wrap: anywhere;
+	}
+
+	.analytics-list-item b {
+		color: var(--primary);
+		font-size: 1rem;
+	}
+
+	.admin-explain {
+		padding: 0 1rem 1rem;
+		line-height: 1.8;
+	}
+
+	.admin-note {
+		margin: 0;
+		color: var(--text-30);
+		font-size: 0.86rem;
+	}
+
+	.admin-note[data-tone="ok"] {
+		color: #15803d;
+	}
+
+	.admin-note[data-tone="bad"] {
+		color: #dc2626;
+	}
+
+	:global(.dark) .admin-shell,
+	:global(.dark) .admin-toolbar,
+	:global(.dark) .admin-login,
+	:global(.dark) .admin-panel,
+	:global(.dark) .admin-status-grid div,
+	:global(.dark) .admin-metric-grid div,
+	:global(.dark) .twikoo-admin-bridge,
+	:global(.dark) .admin-privacy-boundary,
+	:global(.dark) .analytics-table-card {
+		backdrop-filter: blur(12px);
+	}
+
+	:global(.dark) .admin-panel-head,
+	:global(.dark) .admin-status-grid div,
+	:global(.dark) .admin-metric-grid div,
+	:global(.dark) .analytics-table-card,
+	:global(.dark) .analytics-card-head,
+	:global(.dark) .analytics-table-card th,
+	:global(.dark) .analytics-table-card td,
+	:global(.dark) .twikoo-admin-bridge,
+	:global(.dark) .twikoo-admin-actions button,
+	:global(.dark) .admin-privacy-boundary,
+	:global(.dark) .analytics-list-item {
+		border-color: rgba(255, 181, 215, 0.14);
+	}
+
+	:global(.dark) .admin-actions a,
+	:global(.dark) .admin-actions button,
+	:global(.dark) .admin-primary,
+	:global(.dark) .admin-secondary,
+	:global(.dark) .analytics-controls select,
+	:global(.dark) .analytics-controls button,
+	:global(.dark) .twikoo-admin-actions button {
+		background: rgba(18, 12, 24, 0.88);
+		color: rgba(255, 232, 242, 0.94);
+		border-color: rgba(255, 181, 215, 0.2);
+	}
+
+	:global(.dark) .admin-actions a:hover,
+	:global(.dark) .admin-actions button:hover,
+	:global(.dark) .admin-primary:hover,
+	:global(.dark) .admin-secondary:hover,
+	:global(.dark) .twikoo-admin-actions button:hover {
+		background: rgba(255, 179, 214, 0.13);
+		color: #ffb3d6;
+	}
+
+	:global(.dark) .admin-primary {
+		background: linear-gradient(
+			180deg,
+			rgba(255, 146, 197, 0.2),
+			rgba(255, 146, 197, 0.1)
+		);
+		border-color: rgba(255, 146, 197, 0.38);
+	}
+
+	:global(.dark) .admin-user img {
+		box-shadow: 0 0 0 3px rgba(255, 179, 214, 0.16);
+	}
+
+	:global(.dark) .admin-kicker,
+	:global(.dark) .admin-user strong,
+	:global(.dark) .admin-login h2,
+	:global(.dark) .admin-panel h2 {
+		color: rgba(255, 187, 220, 0.98);
+	}
+
+	:global(.dark) .admin-user span,
+	:global(.dark) .admin-note,
+	:global(.dark) .admin-login p,
+	:global(.dark) .admin-status-grid span,
+	:global(.dark) .admin-metric-grid span,
+	:global(.dark) .twikoo-admin-bridge span,
+	:global(.dark) .analytics-controls label,
+	:global(.dark) .analytics-card-head span,
+	:global(.dark) .analytics-list-item small {
+		color: rgba(255, 225, 238, 0.72);
+	}
+
+	:global(.dark) .analytics-table-card td,
+	:global(.dark) .twikoo-admin-bridge code,
+	:global(.dark) .admin-privacy-boundary h3,
+	:global(.dark) .analytics-list-item strong {
+		color: rgba(255, 238, 246, 0.88);
+	}
+
+	:global(.dark) .admin-privacy-boundary p {
+		color: rgba(255, 225, 238, 0.72);
+	}
+
+	.twikoo-admin-panel-embed {
+		margin: 1rem;
+		padding: 0;
+		border: 1px solid var(--line-divider);
+		border-radius: var(--radius-large);
+		overflow: hidden;
+	}
+
+	.twikoo-admin-panel-head {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 0.85rem 1rem;
+		border-bottom: 1px solid var(--line-divider);
+		background: var(--btn-regular-bg);
+	}
+
+	.twikoo-admin-panel-head h3 {
+		margin: 0;
+		font-size: 0.98rem;
+		color: var(--text-90);
+	}
+
+	.twikoo-admin-panel-head button {
+		border: 1px solid var(--line-divider);
+		border-radius: var(--radius-medium);
+		padding: 0.4rem 0.7rem;
+		background: var(--card-bg);
+		color: var(--btn-content);
+		font-weight: 700;
+		cursor: pointer;
+	}
+
+	#twikoo-admin-mount {
+		padding: 1rem;
+	}
+
+	@media (max-width: 900px) {
+		.admin-shell {
+			padding: 1rem;
+		}
+
+		.admin-login,
+		.admin-status-grid,
+		.admin-metric-grid,
+		.analytics-grid {
+			grid-template-columns: 1fr;
+		}
+
+		.admin-toolbar,
+		.admin-panel-head,
+		.twikoo-admin-bridge {
+			align-items: stretch;
+			flex-direction: column;
+		}
+
+		.admin-actions {
+			justify-content: flex-start;
+		}
+
+		.analytics-controls {
+			justify-content: flex-start;
+		}
+
+		.twikoo-admin-actions {
+			align-items: flex-start;
+			justify-content: flex-start;
+		}
+	}
+</style>

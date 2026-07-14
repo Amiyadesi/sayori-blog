@@ -1,0 +1,7 @@
+* text=auto eol=lf
+*.js linguist-language=astro
+# Existing writing and Live2D motion assets preserve trailing whitespace.
+*.md whitespace=-trailing-space
+*.mtn whitespace=-trailing-space
+# Vendored minified bundles are kept byte-for-byte for reproducibility.
+public/assets/js/*.min.js whitespace=-trailing-space

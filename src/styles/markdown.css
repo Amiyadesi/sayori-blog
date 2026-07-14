@@ -1,0 +1,829 @@
+@reference "tailwindcss";
+
+.custom-md {
+  h1 {
+    @apply text-3xl;
+  }
+
+  :is(h1, h2, h3, h4, h5, h6) {
+    .anchor {
+      @apply transition -m-0.5 ms-[0.2ch] p-0.5 select-none opacity-0 no-underline;
+
+      .anchor-icon {
+        @apply mx-[0.45ch];
+      }
+    }
+
+    &:hover .anchor {
+      @apply opacity-100;
+    }
+  }
+
+  /* --- 链接 --- */
+  a:not(.no-styling) {
+    @apply relative bg-none font-medium text-(--primary)
+        underline decoration-(--link-underline) decoration-1 decoration-dashed underline-offset-4;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+
+    &:hover,
+    &:active {
+      @apply decoration-transparent;
+      background: var(--btn-plain-bg-hover);
+      border-bottom: 1px dashed var(--link-hover);
+      text-decoration: none;
+    }
+  }
+
+  /* --- 代码块 --- */
+  code {
+    @apply bg-(--inline-code-bg) text-(--inline-code-color) px-1 py-0.5 rounded-md overflow-hidden;
+
+    font-family: var(--ec-codeFontFml, "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
+
+    &:before,
+    &:after {
+      content: none;
+    }
+
+    counter-reset: line;
+    span.line {
+      &:before {
+        @apply text-white/25 mr-4 w-4 inline-block select-none;
+        content: counter(line);
+        counter-increment: line;
+        direction: rtl;
+      }
+      &:last-child:empty,
+      &:last-child:has(> span:empty:only-child) {
+        display: none;
+      }
+    }
+  }
+
+  /* --- 列表 --- */
+  ul,
+  ol {
+    li::marker {
+      @apply text-(--primary);
+    }
+  }
+
+  /* --- 引用块 --- */
+  blockquote {
+    @apply not-italic border-transparent relative;
+    font-weight: inherit;
+
+    &:before {
+      @apply content-[''] absolute left-0 block transition bg-(--btn-regular-bg) h-full w-1 rounded-full;
+    }
+
+    p:before,
+    p:after {
+      @apply content-none;
+    }
+  }
+
+  /* --- 表格样式 --- */
+  .table-wrapper {
+    @apply w-full overflow-x-auto m-0 rounded-(--radius-large);
+    -webkit-overflow-scrolling: touch;
+
+    /* --- 滚动条样式 --- */
+    &::-webkit-scrollbar {
+      height: 6px;
+      width: 6px;
+    }
+    &::-webkit-scrollbar-track {
+      background: transparent;
+      margin: 0 calc(var(--radius-large) + 2px);
+    }
+    &::-webkit-scrollbar-thumb {
+      background: var(--scrollbar-bg);
+      border-radius: 4px;
+    }
+    &::-webkit-scrollbar-thumb:hover {
+      background: var(--scrollbar-bg-hover);
+    }
+    &::-webkit-scrollbar-thumb:active {
+      background: var(--scrollbar-bg-active);
+    }
+  }
+
+  table {
+    @apply w-full border-separate m-0 bg-(--card-bg);
+    border-spacing: 0;
+
+    border: 1px solid var(--line-divider);
+    border-radius: var(--radius-large);
+
+    overflow: hidden;
+  }
+
+  th,
+  td {
+    @apply px-4 py-3 whitespace-nowrap;
+    border-bottom: 1px solid var(--line-divider);
+    border-right: 1px solid var(--line-divider);
+    transition: none;
+  }
+
+  th {
+    background-color: var(--btn-regular-bg);
+    color: var(--btn-content);
+    font-weight: 600;
+    text-align: left;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+  th:last-child,
+  td:last-child {
+    border-right: none;
+  }
+
+  tr:nth-child(even) {
+    background-color: var(--codeblock-bg);
+  }
+  tr:hover td {
+    background-color: var(--btn-plain-bg-hover);
+    transition: none;
+  }
+
+  /* --- 数学公式样式 --- */
+  .katex-display {
+    @apply w-full overflow-x-auto overflow-y-hidden box-border my-4;
+    padding-bottom: 6px;
+    padding-top: 0.5rem;
+    -webkit-overflow-scrolling: touch;
+
+    &::-webkit-scrollbar {
+      height: 6px;
+      width: 6px;
+    }
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    &::-webkit-scrollbar-thumb {
+      background: var(--scrollbar-bg);
+      border-radius: 4px;
+    }
+    &::-webkit-scrollbar-thumb:hover {
+      background: var(--scrollbar-bg-hover);
+    }
+    &::-webkit-scrollbar-thumb:active {
+      background: var(--scrollbar-bg-active);
+    }
+  }
+
+  .katex-display > .katex {
+    display: block;
+    width: fit-content;
+    min-width: calc(100% - 2px);
+  }
+
+  .katex-display > .katex:has(.tag) > .katex-html {
+    display: block;
+    padding-right: 3rem;
+    box-sizing: border-box;
+  }
+
+  .sayori-spoiler,
+  spoiler {
+    --_spoiler-mask: #111;
+    --_spoiler-tooltip-bg: color-mix(in oklch, var(--card-bg) 92%, black 8%);
+    --_spoiler-tooltip-border: color-mix(in oklch, var(--primary) 28%, transparent);
+
+    position: relative;
+    display: inline;
+    padding: 0.08rem 0.28rem;
+    border-radius: 0.25rem;
+    background: var(--_spoiler-mask);
+    color: transparent;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+    cursor: help;
+    transition:
+      background-color 150ms ease,
+      color 150ms ease;
+  }
+
+  .sayori-spoiler *,
+  spoiler * {
+    color: inherit;
+  }
+
+  .sayori-spoiler:hover,
+  .sayori-spoiler:focus,
+  .sayori-spoiler.is-revealed,
+  spoiler:hover,
+  spoiler:focus {
+    background: color-mix(in oklch, var(--primary) 13%, transparent);
+    color: inherit;
+    outline: none;
+  }
+
+  .sayori-spoiler:focus-visible {
+    outline: 2px solid color-mix(in oklch, var(--primary) 55%, white 20%);
+    outline-offset: 2px;
+  }
+
+  .sayori-spoiler[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 0.55rem);
+    z-index: 40;
+    width: max-content;
+    max-width: min(18rem, 78vw);
+    padding: 0.42rem 0.58rem;
+    border: 1px solid var(--_spoiler-tooltip-border);
+    border-radius: 0.5rem;
+    background: var(--_spoiler-tooltip-bg);
+    color: rgb(17 24 39 / 0.92);
+    box-shadow: 0 10px 30px rgb(0 0 0 / 0.18);
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    white-space: normal;
+    transform: translate(-50%, 0.25rem);
+    opacity: 0;
+    pointer-events: none;
+    transition:
+      opacity 150ms ease,
+      transform 150ms ease;
+  }
+
+  .sayori-spoiler[data-tooltip]::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 0.28rem);
+    z-index: 41;
+    width: 0.55rem;
+    height: 0.55rem;
+    border-right: 1px solid var(--_spoiler-tooltip-border);
+    border-bottom: 1px solid var(--_spoiler-tooltip-border);
+    background: var(--_spoiler-tooltip-bg);
+    transform: translate(-50%, 0.25rem) rotate(45deg);
+    opacity: 0;
+    pointer-events: none;
+    transition:
+      opacity 150ms ease,
+      transform 150ms ease;
+  }
+
+  .sayori-spoiler[data-tooltip]:hover::after,
+  .sayori-spoiler[data-tooltip]:hover::before,
+  .sayori-spoiler[data-tooltip]:focus::after,
+  .sayori-spoiler[data-tooltip]:focus::before,
+  .sayori-spoiler[data-tooltip].is-revealed::after,
+  .sayori-spoiler[data-tooltip].is-revealed::before {
+    opacity: 1;
+    transform: translate(-50%, 0) rotate(0deg);
+  }
+
+  .sayori-spoiler[data-tooltip]:hover::before,
+  .sayori-spoiler[data-tooltip]:focus::before,
+  .sayori-spoiler[data-tooltip].is-revealed::before {
+    transform: translate(-50%, 0) rotate(45deg);
+  }
+
+  .sayori-figure {
+    --sayori-image-width: min(100%, 46rem);
+
+    display: grid;
+    gap: 0.5rem;
+    width: min(100%, var(--sayori-image-width));
+    margin-block: 1.35rem;
+    margin-inline: auto;
+  }
+
+  .sayori-figure--left {
+    margin-left: 0;
+    margin-right: auto;
+  }
+
+  .sayori-figure--center {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .sayori-figure--right {
+    margin-left: auto;
+    margin-right: 0;
+  }
+
+  .sayori-figure img {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    margin: 0;
+    border-radius: 0.75rem;
+  }
+
+  .sayori-figure figcaption {
+    margin: 0;
+    color: rgb(0 0 0 / 0.55);
+    font-size: 0.88rem;
+    line-height: 1.55;
+    text-align: center;
+  }
+
+  .sayori-photo-grid {
+    --photo-grid-columns: 2;
+
+    display: grid;
+    grid-template-columns: repeat(var(--photo-grid-columns), minmax(0, 1fr));
+    gap: 1rem;
+    align-items: start;
+    margin: 1.25rem 0;
+  }
+
+  .sayori-photo-grid-item {
+    display: grid;
+    gap: 0.55rem;
+    margin: 0;
+    min-width: 0;
+    width: min(100%, var(--sayori-image-width, 100%));
+  }
+
+  .sayori-photo-grid-item img {
+    width: 100%;
+    height: auto;
+    margin: 0;
+    border-radius: 0.5rem;
+    object-fit: cover;
+  }
+
+  .sayori-photo-grid-item figcaption {
+    margin: 0;
+    color: rgb(0 0 0 / 0.55);
+    font-size: 0.92rem;
+    line-height: 1.55;
+    text-align: center;
+  }
+
+  @media (max-width: 640px) {
+    .sayori-photo-grid {
+      grid-template-columns: 1fr;
+      gap: 1.15rem;
+    }
+  }
+
+  .music-track-card {
+    display: grid;
+    gap: 0.95rem;
+    width: min(100%, 34rem);
+    margin: 1.55rem auto;
+    padding: 1.35rem 1.45rem 1.1rem;
+    border: 1px solid color-mix(in srgb, var(--paper-edge) 86%, var(--primary) 8%);
+    border-radius: 1.6rem;
+    background-color: color-mix(in srgb, var(--paper-bg) 96%, white 4%);
+    box-shadow:
+      0 18px 38px rgba(92, 54, 77, 0.08),
+      0 3px 10px rgba(92, 54, 77, 0.06);
+    color: var(--paper-text);
+    overflow: visible;
+  }
+
+  .music-track-card::before {
+    width: clamp(3.7rem, 21%, 5.8rem);
+    height: 1.35rem;
+    top: -0.72rem;
+    opacity: 0.9;
+  }
+
+  .music-track-top {
+    display: grid;
+    grid-template-columns: 5.9rem minmax(0, 1fr) minmax(4.8rem, auto);
+    gap: 1.05rem;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .music-track-cover-shell {
+    width: 5.65rem;
+    height: 5.65rem;
+    border-radius: 999px;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 32% 22%, rgba(255, 255, 255, 0.72), transparent 34%),
+      color-mix(in srgb, var(--primary) 18%, var(--paper-bg) 82%);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.36),
+      0 8px 18px rgba(124, 70, 102, 0.12);
+  }
+
+  .music-track-cover {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    margin: 0;
+  }
+
+  .music-track-cover--placeholder {
+    display: grid;
+    place-items: center;
+    color: var(--primary);
+    font-size: 2rem;
+    font-weight: 700;
+  }
+
+  .music-track-meta {
+    min-width: 0;
+    display: grid;
+    gap: 0.28rem;
+  }
+
+  .music-track-title {
+    font-size: clamp(1.25rem, 1rem + 1.3vw, 1.9rem);
+    font-weight: 800;
+    line-height: 1.15;
+    color: color-mix(in srgb, var(--paper-text) 96%, black 4%);
+    word-break: break-word;
+  }
+
+  .music-track-artist {
+    color: color-mix(in srgb, var(--paper-text) 76%, transparent);
+    font-size: clamp(1rem, 0.92rem + 0.4vw, 1.22rem);
+    line-height: 1.35;
+    word-break: break-word;
+  }
+
+  .music-track-time {
+    margin-top: 0.35rem;
+    color: color-mix(in srgb, var(--paper-text) 70%, transparent);
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.2;
+    word-break: break-word;
+  }
+
+  .music-track-volume {
+    display: grid;
+    grid-template-columns: 1.9rem minmax(3.2rem, 5.8rem);
+    gap: 0.45rem;
+    align-items: center;
+    justify-content: end;
+    color: color-mix(in srgb, var(--paper-text) 66%, transparent);
+  }
+
+  .music-track-volume-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 1.9rem;
+    block-size: 1.9rem;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: color-mix(in srgb, var(--paper-text) 64%, transparent);
+    font-size: 1.2rem;
+    line-height: 1;
+    cursor: pointer;
+    transition:
+      color 160ms ease,
+      transform 160ms ease,
+      background-color 160ms ease;
+  }
+
+  .music-track-volume-button:hover {
+    color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 10%, transparent);
+    transform: translateY(-1px);
+  }
+
+  .music-track-volume-bar,
+  .music-track-progress {
+    display: block;
+    overflow: hidden;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--primary) 18%, var(--paper-edge) 42%);
+    cursor: pointer;
+  }
+
+  .music-track-volume-bar {
+    inline-size: min(5.8rem, 17vw);
+    block-size: 0.42rem;
+  }
+
+  .music-track-volume-fill,
+  .music-track-progress-fill {
+    display: block;
+    block-size: 100%;
+    border-radius: inherit;
+    background: color-mix(in srgb, var(--primary) 76%, #f4a7ce 24%);
+  }
+
+  .music-track-volume-fill {
+    inline-size: 84%;
+  }
+
+  .music-track-progress {
+    inline-size: 100%;
+    block-size: 0.58rem;
+    text-align: left;
+  }
+
+  .music-track-progress-fill {
+    inline-size: 0%;
+    min-inline-size: 0;
+    transition: inline-size 180ms ease;
+  }
+
+  .music-track-card.is-playing .music-track-progress-fill {
+    min-inline-size: 1.4rem;
+  }
+
+  .music-track-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    min-height: 5.15rem;
+  }
+
+  .music-track-play {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 5.1rem;
+    height: 5.1rem;
+    width: 4.6rem;
+    padding: 0;
+    justify-self: center;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--paper-edge));
+    background: color-mix(in srgb, var(--primary) 16%, white 84%);
+    color: color-mix(in srgb, var(--primary) 76%, #7b3f60 24%);
+    font-size: 1.12rem;
+    font-weight: 800;
+    line-height: 1;
+    cursor: pointer;
+    transition:
+      transform 160ms ease,
+      background-color 160ms ease,
+      border-color 160ms ease,
+      box-shadow 160ms ease;
+  }
+
+  .music-track-play:hover {
+    transform: translateY(-2px);
+    background: color-mix(in srgb, var(--primary) 18%, white 82%);
+    border-color: color-mix(in srgb, var(--primary) 42%, var(--paper-edge));
+    box-shadow: 0 14px 24px rgba(198, 92, 169, 0.18);
+  }
+
+  .music-track-play-icon {
+    font-size: 1.08rem;
+    line-height: 1;
+  }
+
+  .music-track-play-label {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .music-track-status {
+    margin-top: -0.45rem;
+    color: color-mix(in srgb, var(--paper-text) 60%, transparent);
+    font-size: 0.82rem;
+    line-height: 1.3;
+    text-align: center;
+  }
+
+  .music-track-card.is-loading {
+    border-color: color-mix(in srgb, var(--primary) 34%, var(--paper-edge));
+  }
+
+  .music-track-card.is-loading .music-track-play {
+    background: color-mix(in srgb, var(--primary) 22%, white 78%);
+  }
+
+  .music-track-card.is-playing {
+    border-color: color-mix(in srgb, var(--primary) 46%, var(--paper-edge));
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--primary) 16%, transparent),
+      0 18px 38px rgba(92, 54, 77, 0.1),
+      0 3px 10px rgba(92, 54, 77, 0.08);
+  }
+
+  .music-track-card.is-playing .music-track-play {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+  }
+
+  .music-track-card.is-muted .music-track-volume-button {
+    color: color-mix(in srgb, var(--paper-text) 42%, transparent);
+  }
+
+  .mermaid,
+  .mermaid-container {
+    position: relative;
+    width: min(100%, var(--article-wide-measure, 90rem));
+    margin: 1.35rem auto;
+    padding: clamp(1rem, 2vw, 1.55rem);
+    border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--line-divider));
+    border-radius: 1rem;
+    background: color-mix(in srgb, var(--card-bg) 94%, white 6%);
+    box-shadow: 0 12px 28px rgba(31, 41, 55, 0.06);
+    overflow: auto;
+    min-height: 9.75rem;
+    scrollbar-gutter: stable;
+  }
+
+  .mermaid svg {
+    display: block;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    height: auto;
+    overflow: visible;
+    margin: 0;
+  }
+
+  .mermaid-zoom-wrapper {
+    display: block;
+    transform-origin: 0 0;
+    margin: 0;
+    transition: transform 120ms ease-out;
+    will-change: transform;
+    cursor: grab;
+    background: transparent;
+  }
+
+  .mermaid-zoom-wrapper:active {
+    cursor: grabbing;
+  }
+
+  .mermaid :where(.nodeLabel, .edgeLabel, .label, text, tspan) {
+    fill: color-mix(in srgb, var(--card-content) 92%, black 8%) !important;
+    color: color-mix(in srgb, var(--card-content) 92%, black 8%) !important;
+    opacity: 1 !important;
+    font-family: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Noto Sans SC", system-ui, sans-serif !important;
+    font-size: 16px !important;
+    font-weight: 600;
+    line-height: 1.25 !important;
+    text-decoration: none !important;
+  }
+
+  .mermaid :where(foreignObject) {
+    overflow: visible !important;
+  }
+
+  .mermaid :where(.node rect, .node circle, .node ellipse, .node polygon, .node path) {
+    stroke-width: 1.8px !important;
+  }
+
+  .mermaid-loading,
+  .mermaid-error {
+    color: color-mix(in srgb, var(--card-content) 72%, transparent);
+    font-size: 0.9rem;
+    text-align: center;
+  }
+
+  .sayori-link-card-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.9rem;
+    margin: 1.25rem 0 1rem;
+  }
+
+  .sayori-link-card {
+    display: grid;
+    gap: 0.38rem;
+    min-width: 0;
+    padding: 1rem;
+    border: 1px solid var(--line-divider);
+    border-radius: 0.875rem;
+    background: var(--card-bg);
+    transition:
+      transform 160ms ease,
+      border-color 160ms ease,
+      background-color 160ms ease;
+  }
+
+  .sayori-link-card:hover {
+    transform: translateY(-2px);
+    border-color: color-mix(in oklch, var(--primary) 32%, var(--line-divider));
+    background: color-mix(in oklch, var(--card-bg) 92%, var(--btn-regular-bg) 8%);
+  }
+
+  .sayori-link-card-title {
+    color: var(--card-content);
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.35;
+    word-break: break-word;
+  }
+
+  .sayori-link-card-desc {
+    color: color-mix(in oklch, var(--card-content) 70%, transparent);
+    font-size: 0.9rem;
+    line-height: 1.55;
+    word-break: break-word;
+  }
+
+  .sayori-link-card-hint {
+    margin: 0 0 1.25rem;
+    color: color-mix(in oklch, var(--card-content) 74%, transparent);
+    font-size: 0.92rem;
+    line-height: 1.65;
+  }
+
+  @media (max-width: 900px) {
+    .sayori-link-card-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .music-track-card {
+      width: 100%;
+      padding: 1.15rem 1rem 1rem;
+      border-radius: 1.3rem;
+    }
+
+    .music-track-top {
+      grid-template-columns: 4.6rem minmax(0, 1fr) minmax(4.4rem, auto);
+      gap: 0.9rem;
+    }
+
+    .music-track-cover-shell {
+      width: 4.4rem;
+      height: 4.4rem;
+    }
+
+    .music-track-volume {
+      justify-content: end;
+      grid-template-columns: 1.8rem minmax(2.8rem, 4.8rem);
+    }
+
+    .music-track-volume-bar {
+      inline-size: 100%;
+    }
+
+    .music-track-controls {
+      min-height: 4.65rem;
+    }
+
+    .music-track-play {
+      inline-size: 4.1rem;
+      block-size: 4.1rem;
+      min-width: 4.1rem;
+    }
+
+    .music-track-status {
+      font-size: 0.78rem;
+    }
+  }
+
+  @media (max-width: 420px) {
+    .music-track-top {
+      grid-template-columns: 4.3rem minmax(0, 1fr);
+    }
+
+    .music-track-volume {
+      grid-column: 1 / -1;
+      justify-content: stretch;
+      grid-template-columns: 1.8rem 1fr;
+    }
+
+    .music-track-controls {
+      min-height: 4.35rem;
+    }
+  }
+}
+
+/* 外部覆盖样式 */
+.custom-md .expressive-code :is(ul, ol) li::marker {
+  @apply text-inherit;
+}
+
+:root:not(.dark) .custom-md .sayori-spoiler,
+:root:not(.dark) .custom-md spoiler {
+  --_spoiler-mask: #171717;
+  --_spoiler-tooltip-bg: #ffffff;
+}
+
+:root.dark .custom-md .sayori-spoiler[data-tooltip]::after {
+  color: rgb(255 255 255 / 0.9);
+}
+
+:root.dark .custom-md .sayori-photo-grid-item figcaption {
+  color: rgb(255 255 255 / 0.55);
+}
+
+:root.dark .custom-md .sayori-figure figcaption {
+  color: rgb(255 255 255 / 0.55);
+}

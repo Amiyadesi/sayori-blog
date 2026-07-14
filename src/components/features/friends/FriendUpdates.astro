@@ -1,0 +1,583 @@
+---
+interface FriendUpdate {
+	title: string;
+	url: string;
+	excerpt: string;
+	date: string;
+	friendTitle: string;
+	friendDesc: string;
+	friendImgurl: string;
+	friendSiteurl: string;
+}
+
+interface Props {
+	updates: FriendUpdate[];
+	hasLiveSources?: boolean;
+}
+
+const { updates, hasLiveSources = false } = Astro.props;
+
+const formatDate = (date: string) => {
+	if (!date) {
+		return "";
+	}
+	const parsed = new Date(`${date}T00:00:00`);
+	if (Number.isNaN(parsed.getTime())) {
+		return date;
+	}
+	return new Intl.DateTimeFormat("zh-CN", {
+		month: "2-digit",
+		day: "2-digit",
+	}).format(parsed);
+};
+---
+
+{
+	(updates.length > 0 || hasLiveSources) && (
+		<section
+			class="friend-updates mb-8"
+			aria-labelledby="friend-updates-title"
+			data-friend-updates
+			data-has-static-updates={updates.length > 0 ? "true" : "false"}
+			hidden={updates.length === 0}
+		>
+			<div class="mb-5 flex items-end justify-between gap-4">
+				<div>
+					<div class="flex items-center gap-2">
+						<svg
+							class="h-5 w-5 text-[var(--primary)]"
+							viewBox="0 0 24 24"
+							fill="currentColor"
+							aria-hidden="true"
+						>
+							<path d="M12 2l1.45 5.2L18.5 5.5l-1.7 5.05L22 12l-5.2 1.45 1.7 5.05-5.05-1.7L12 22l-1.45-5.2-5.05 1.7 1.7-5.05L2 12l5.2-1.45L5.5 5.5l5.05 1.7L12 2z" />
+						</svg>
+						<h2
+							id="friend-updates-title"
+							class="text-2xl font-bold text-black/85 dark:text-white/85"
+						>
+							朋友动态
+						</h2>
+					</div>
+					<p class="mt-2 text-sm text-black/55 dark:text-white/55">
+						去朋友们的文章看看吗
+					</p>
+				</div>
+				<div class="friend-updates-actions">
+					<span class="friend-updates-status" data-friend-updates-status>
+						正在更新
+					</span>
+					<button
+						type="button"
+						class="friend-updates-refresh"
+						data-friend-updates-refresh
+						aria-label="刷新朋友动态"
+					>
+						刷新
+					</button>
+				</div>
+			</div>
+
+			<div class="friend-updates-grid" data-friend-updates-grid>
+				{updates.map((item) => (
+					<article class="friend-update">
+						<a
+							class="friend-update-card"
+							href={item.url}
+							target="_blank"
+							rel="noopener noreferrer"
+							style={`--friend-update-image: url("${item.friendImgurl.replaceAll('"', "%22")}")`}
+						>
+							<span class="friend-update-media">
+								<img
+									src={item.friendImgurl}
+									alt=""
+									loading="lazy"
+									decoding="async"
+								/>
+							</span>
+							<span class="friend-update-body">
+								<div class="friend-update-date">
+									{formatDate(item.date)}
+								</div>
+								<h3>{item.title}</h3>
+								<p>{item.excerpt}</p>
+							</span>
+						</a>
+						<a
+							class="friend-update-author"
+							href={item.friendSiteurl}
+							target="_blank"
+							rel="noopener noreferrer"
+						>
+							<img
+								src={item.friendImgurl}
+								alt={item.friendTitle}
+								loading="lazy"
+							/>
+							<span>
+								<strong>{item.friendTitle}</strong>
+								<em>{item.friendDesc}</em>
+							</span>
+						</a>
+					</article>
+				))}
+			</div>
+		</section>
+	)
+}
+
+<script is:inline>
+	(() => {
+		const section = document.querySelector("[data-friend-updates]");
+		const grid = section?.querySelector("[data-friend-updates-grid]");
+		const status = section?.querySelector("[data-friend-updates-status]");
+		const refreshButton = section?.querySelector("[data-friend-updates-refresh]");
+		if (!section || !grid) {
+			return;
+		}
+
+		const setStatus = (text) => {
+			if (status) {
+				status.textContent = text;
+			}
+		};
+
+		const formatDate = (value) => {
+			if (!value) {
+				return "";
+			}
+			const parsed = new Date(`${value}T00:00:00`);
+			if (Number.isNaN(parsed.getTime())) {
+				return String(value);
+			}
+			return new Intl.DateTimeFormat("zh-CN", {
+				month: "2-digit",
+				day: "2-digit",
+			}).format(parsed);
+		};
+
+		const createTextElement = (tagName, text) => {
+			const element = document.createElement(tagName);
+			element.textContent = text || "";
+			return element;
+		};
+
+		const createExternalLink = (className, href) => {
+			const link = document.createElement("a");
+			link.className = className;
+			link.href = href || "#";
+			link.target = "_blank";
+			link.rel = "noopener noreferrer";
+			return link;
+		};
+
+		const renderUpdate = (item) => {
+			const article = document.createElement("article");
+			article.className = "friend-update";
+
+			const card = createExternalLink("friend-update-card", item.url);
+			if (item.friendImgurl) {
+				card.style.setProperty(
+					"--friend-update-image",
+					`url("${String(item.friendImgurl).replaceAll('"', "%22")}")`,
+				);
+			}
+			const media = document.createElement("span");
+			media.className = "friend-update-media";
+			const mediaImage = document.createElement("img");
+			mediaImage.src = item.friendImgurl || "";
+			mediaImage.alt = "";
+			mediaImage.loading = "lazy";
+			mediaImage.decoding = "async";
+			media.appendChild(mediaImage);
+			card.appendChild(media);
+
+			const body = document.createElement("span");
+			body.className = "friend-update-body";
+			const date = createTextElement("div", formatDate(item.date));
+			date.className = "friend-update-date";
+			body.appendChild(date);
+			body.appendChild(createTextElement("h3", item.title));
+			body.appendChild(createTextElement("p", item.excerpt));
+			card.appendChild(body);
+
+			const author = createExternalLink(
+				"friend-update-author",
+				item.friendSiteurl,
+			);
+			const avatar = document.createElement("img");
+			avatar.src = item.friendImgurl || "";
+			avatar.alt = item.friendTitle || "";
+			avatar.loading = "lazy";
+			author.appendChild(avatar);
+
+			const meta = document.createElement("span");
+			meta.appendChild(createTextElement("strong", item.friendTitle));
+			meta.appendChild(createTextElement("em", item.friendDesc));
+			author.appendChild(meta);
+
+			article.appendChild(card);
+			article.appendChild(author);
+			return article;
+		};
+
+		const normalizeUpdates = (updates) =>
+			Array.isArray(updates)
+				? updates.filter((item) => item?.title && item?.url)
+				: [];
+
+		const setRefreshing = (refreshing) => {
+			if (refreshButton instanceof HTMLButtonElement) {
+				refreshButton.disabled = refreshing;
+				refreshButton.textContent = refreshing ? "更新中" : "刷新";
+			}
+		};
+
+		const loadLiveUpdates = () => {
+			setStatus("正在更新");
+			setRefreshing(true);
+			fetch("/api/friend-updates?limit=6&fresh=1", {
+				cache: "no-store",
+				headers: {
+					accept: "application/json",
+					"cache-control": "no-cache",
+				},
+			})
+				.then((response) => {
+					if (!response.ok) {
+						throw new Error("friend updates request failed");
+					}
+					return response.json();
+				})
+				.then((data) => {
+					if (!data?.success) {
+						throw new Error("friend updates response invalid");
+					}
+					const updates = normalizeUpdates(data?.updates);
+					if (!updates.length) {
+						if (section.dataset.hasStaticUpdates !== "true") {
+							section.hidden = true;
+						} else {
+							setStatus("暂无新内容");
+						}
+						return;
+					}
+					grid.replaceChildren(...updates.map(renderUpdate));
+					section.hidden = false;
+					setStatus(
+						`更新于 ${formatDate(String(data?.updatedAt || "").slice(0, 10))}`,
+					);
+				})
+				.catch(() => {
+					if (section.dataset.hasStaticUpdates !== "true") {
+						section.hidden = true;
+					} else {
+						setStatus("显示本地记录");
+					}
+				})
+				.finally(() => {
+					setRefreshing(false);
+				});
+		};
+
+		refreshButton?.addEventListener("click", () => {
+			loadLiveUpdates();
+		});
+		loadLiveUpdates();
+	})();
+</script>
+
+<style>
+	:global(.friend-updates) {
+		padding: 1rem;
+		border: 1px solid rgba(255, 255, 255, 0.56);
+		border-radius: 1rem;
+		background: rgba(255, 255, 255, 0.94);
+		box-shadow: 0 1.2rem 3rem rgba(15, 23, 42, 0.1);
+		backdrop-filter: blur(14px) saturate(1.04);
+	}
+
+	:global(.dark .friend-updates) {
+		border-color: rgba(255, 255, 255, 0.1);
+		background: rgba(24, 22, 29, 0.93);
+		box-shadow: none;
+	}
+
+	:global(.friend-updates-actions) {
+		display: inline-flex;
+		flex: 0 0 auto;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	:global(.friend-updates-status),
+	:global(.friend-updates-refresh) {
+		flex: 0 0 auto;
+		border: 1px solid color-mix(in srgb, var(--primary) 22%, transparent);
+		border-radius: 999px;
+		background: color-mix(in srgb, var(--primary) 9%, white 91%);
+		color: color-mix(in srgb, var(--primary) 72%, rgba(0, 0, 0, 0.72));
+		font-size: 0.78rem;
+		font-weight: 700;
+		line-height: 1;
+		padding: 0.45rem 0.7rem;
+		white-space: nowrap;
+	}
+
+	:global(.friend-updates-refresh) {
+		cursor: pointer;
+		transition:
+			transform 160ms ease,
+			background-color 160ms ease,
+			border-color 160ms ease;
+	}
+
+	:global(.friend-updates-refresh:hover:not(:disabled)) {
+		transform: translateY(-1px);
+		background: color-mix(in srgb, var(--primary) 15%, white 85%);
+		border-color: color-mix(in srgb, var(--primary) 36%, transparent);
+	}
+
+	:global(.friend-updates-refresh:disabled) {
+		cursor: wait;
+		opacity: 0.72;
+	}
+
+	:global(.dark .friend-updates-status),
+	:global(.dark .friend-updates-refresh) {
+		background: color-mix(in srgb, var(--primary) 18%, rgba(24, 22, 29, 0.82));
+		color: color-mix(in srgb, var(--primary) 58%, white 42%);
+	}
+
+	:global(.friend-updates-grid) {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 1rem;
+	}
+
+	:global(.friend-update) {
+		min-width: 0;
+	}
+
+	:global(.friend-update-card) {
+		position: relative;
+		display: grid;
+		grid-template-columns: minmax(6.25rem, 34%) minmax(0, 1fr);
+		gap: 1rem;
+		min-height: 11.5rem;
+		padding: 0.75rem;
+		border-radius: 0.75rem;
+		overflow: hidden;
+		background:
+			linear-gradient(
+				135deg,
+				rgba(255, 255, 255, 0.97),
+				rgba(255, 255, 255, 0.9)
+			),
+			var(--friend-update-image, none);
+		background-size: cover;
+		background-position: center;
+		border: 1px solid rgba(0, 0, 0, 0.06);
+		text-decoration: none;
+		transition:
+			transform 0.2s ease,
+			box-shadow 0.2s ease,
+			background 0.2s ease;
+	}
+
+	:global(.friend-update-card)::before {
+		content: "";
+		position: absolute;
+		inset: 0;
+		background:
+			linear-gradient(
+				135deg,
+				rgba(255, 255, 255, 0.94),
+				rgba(255, 255, 255, 0.86)
+			),
+			var(--friend-update-image, none);
+		background-size: cover;
+		background-position: center;
+		filter: blur(18px) saturate(1.18);
+		transform: scale(1.12);
+		opacity: 0.16;
+		pointer-events: none;
+	}
+
+	:global(.dark .friend-update-card) {
+		background:
+			linear-gradient(
+				135deg,
+				rgba(27, 24, 31, 0.96),
+				rgba(27, 24, 31, 0.9)
+			),
+			var(--friend-update-image, none);
+		border-color: rgba(255, 255, 255, 0.08);
+	}
+
+	:global(.dark .friend-update-card)::before {
+		background:
+			linear-gradient(
+				135deg,
+				rgba(27, 24, 31, 0.94),
+				rgba(27, 24, 31, 0.86)
+			),
+			var(--friend-update-image, none);
+		opacity: 0.14;
+	}
+
+	:global(.friend-update-card:hover) {
+		transform: translateY(-2px);
+		box-shadow: 0 1rem 2.5rem rgba(0, 0, 0, 0.1);
+		border-color: color-mix(in srgb, var(--primary) 30%, transparent);
+	}
+
+	:global(.friend-update-media),
+	:global(.friend-update-body) {
+		position: relative;
+		z-index: 1;
+	}
+
+	:global(.friend-update-media) {
+		display: block;
+		align-self: stretch;
+		min-height: 100%;
+		border-radius: 0.55rem;
+		overflow: hidden;
+		background: color-mix(
+			in srgb,
+			var(--primary) 12%,
+			var(--btn-regular-bg)
+		);
+		box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.34);
+	}
+
+	:global(.friend-update-media img) {
+		display: block;
+		width: 100%;
+		height: 100%;
+		min-height: 10rem;
+		object-fit: cover;
+	}
+
+	:global(.friend-update-body) {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+		padding: 0.35rem 0.25rem 0.35rem 0;
+	}
+
+	:global(.friend-update-date) {
+		margin-bottom: 0.6rem;
+		font-size: 0.75rem;
+		font-weight: 700;
+		color: var(--primary);
+		opacity: 0.78;
+	}
+
+	:global(.friend-update-card h3) {
+		display: -webkit-box;
+		margin: 0 0 0.7rem;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+		color: rgba(0, 0, 0, 0.78);
+		font-size: 1.05rem;
+		font-weight: 800;
+		line-height: 1.35;
+	}
+
+	:global(.dark .friend-update-card h3) {
+		color: rgba(255, 255, 255, 0.86);
+	}
+
+	:global(.friend-update-card p) {
+		display: -webkit-box;
+		margin: 0;
+		-webkit-line-clamp: 3;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+		color: rgba(0, 0, 0, 0.6);
+		font-size: 0.88rem;
+		line-height: 1.65;
+	}
+
+	:global(.dark .friend-update-card p) {
+		color: rgba(255, 255, 255, 0.62);
+	}
+
+	:global(.friend-update-author) {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		margin-top: 0.75rem;
+		text-decoration: none;
+		min-width: 0;
+	}
+
+	:global(.friend-update-author img) {
+		width: 2.65rem;
+		height: 2.65rem;
+		flex: 0 0 auto;
+		border-radius: 999px;
+		object-fit: cover;
+		border: 2px solid color-mix(in srgb, var(--primary) 55%, transparent);
+		background: var(--btn-regular-bg);
+	}
+
+	:global(.friend-update-author span) {
+		display: block;
+		min-width: 0;
+	}
+
+	:global(.friend-update-author strong),
+	:global(.friend-update-author em) {
+		display: block;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	:global(.friend-update-author strong) {
+		color: rgba(0, 0, 0, 0.82);
+		font-size: 0.96rem;
+		line-height: 1.25;
+	}
+
+	:global(.dark .friend-update-author strong) {
+		color: rgba(255, 255, 255, 0.86);
+	}
+
+	:global(.friend-update-author em) {
+		margin-top: 0.18rem;
+		color: rgba(0, 0, 0, 0.5);
+		font-size: 0.78rem;
+		font-style: normal;
+	}
+
+	:global(.dark .friend-update-author em) {
+		color: rgba(255, 255, 255, 0.52);
+	}
+
+	@media (max-width: 900px) {
+		:global(.friend-updates-grid) {
+			grid-template-columns: 1fr;
+		}
+	}
+
+	@media (max-width: 640px) {
+		:global(.friend-updates) {
+			padding: 0.75rem;
+		}
+
+		:global(.friend-update-card) {
+			grid-template-columns: 5.25rem minmax(0, 1fr);
+			min-height: auto;
+		}
+
+		:global(.friend-update-media img) {
+			min-height: 8rem;
+		}
+	}
+</style>

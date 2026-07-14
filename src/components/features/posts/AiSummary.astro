@@ -1,0 +1,156 @@
+---
+import { Icon } from "astro-icon/components";
+
+type AiSummaryData = {
+	generatedAt?: string;
+	model?: string;
+	sourceHash?: string;
+	items?: string[];
+};
+
+interface Props {
+	summary?: AiSummaryData;
+}
+
+const { summary } = Astro.props;
+const staticItems = Array.isArray(summary?.items)
+	? summary.items.filter((item) => item && item.trim())
+	: [];
+const hasStaticSummary = staticItems.length > 0;
+---
+
+{
+	hasStaticSummary && (
+		<details
+			class="ai-summary mb-6 onload-animation"
+			data-pagefind-ignore
+			open
+		>
+			<summary class="ai-summary-header">
+				<span class="ai-summary-title">
+					<span class="ai-summary-icon" aria-hidden="true">
+						<Icon name="material-symbols:auto-awesome-rounded" />
+					</span>
+					<span>文章速览</span>
+				</span>
+				<span class="ai-summary-note">快速扫读</span>
+			</summary>
+			<ul class="ai-summary-list">
+				{staticItems.map((item) => <li>{item}</li>)}
+			</ul>
+		</details>
+	)
+}
+
+<style>
+	.ai-summary {
+		border: 1px solid color-mix(in srgb, var(--primary) 22%, transparent);
+		border-radius: 12px;
+		background:
+			linear-gradient(
+				135deg,
+				color-mix(in srgb, var(--primary) 8%, transparent),
+				color-mix(in srgb, var(--card-bg) 92%, transparent)
+			),
+			var(--card-bg);
+		box-shadow: 0 10px 28px rgba(0, 0, 0, 0.06);
+		overflow: hidden;
+	}
+
+	.ai-summary-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+		min-height: 44px;
+		padding: 0.85rem 1rem;
+		cursor: pointer;
+		list-style: none;
+	}
+
+	.ai-summary-header::-webkit-details-marker {
+		display: none;
+	}
+
+	.ai-summary-header::after {
+		content: "";
+		width: 0.55rem;
+		height: 0.55rem;
+		border-right: 2px solid currentColor;
+		border-bottom: 2px solid currentColor;
+		transform: rotate(45deg);
+		opacity: 0.45;
+		transition: transform 0.2s ease;
+	}
+
+	.ai-summary[open] .ai-summary-header::after {
+		transform: rotate(225deg);
+	}
+
+	.ai-summary-title {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.55rem;
+		font-weight: 700;
+		color: color-mix(in srgb, var(--primary) 82%, black);
+	}
+
+	:global(.dark) .ai-summary-title {
+		color: color-mix(in srgb, var(--primary) 78%, white);
+	}
+
+	.ai-summary-icon {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.65rem;
+		height: 1.65rem;
+		border-radius: 8px;
+		background: color-mix(in srgb, var(--primary) 14%, transparent);
+	}
+
+	.ai-summary-note {
+		margin-left: auto;
+		font-size: 0.8rem;
+		color: rgba(0, 0, 0, 0.52);
+		white-space: nowrap;
+	}
+
+	:global(.dark) .ai-summary-note {
+		color: rgba(255, 255, 255, 0.52);
+	}
+
+	.ai-summary-list {
+		margin: 0;
+		padding: 0 1rem 1rem 2.35rem;
+		color: rgba(0, 0, 0, 0.74);
+		line-height: 1.8;
+	}
+
+	:global(.dark) .ai-summary-list {
+		color: rgba(255, 255, 255, 0.74);
+	}
+
+	.ai-summary-list li + li {
+		margin-top: 0.35rem;
+	}
+
+	@media (max-width: 640px) {
+		.ai-summary-header {
+			align-items: flex-start;
+			flex-direction: column;
+			gap: 0.35rem;
+		}
+
+		.ai-summary-header::after {
+			position: absolute;
+			right: 1rem;
+			top: 1.1rem;
+		}
+
+		.ai-summary-note {
+			margin-left: 2.2rem;
+			white-space: normal;
+		}
+	}
+</style>

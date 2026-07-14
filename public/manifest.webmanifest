@@ -1,0 +1,25 @@
+{
+	"name": "Amiya的书桌",
+	"short_name": "书桌",
+	"description": "笔记、项目和一点日常折腾",
+	"start_url": "/",
+	"scope": "/",
+	"display": "standalone",
+	"background_color": "#fff7fb",
+	"theme_color": "#f08ab5",
+	"orientation": "any",
+	"icons": [
+		{
+			"src": "/favicon/amiya-desk-192.png",
+			"sizes": "192x192",
+			"type": "image/png",
+			"purpose": "any"
+		},
+		{
+			"src": "/favicon/amiya-desk-512.png",
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "any maskable"
+		}
+	]
+}

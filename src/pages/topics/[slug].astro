@@ -1,0 +1,315 @@
+---
+import { PageHeader } from "@components/features/page-header";
+import MainGridLayout from "@layouts/MainGridLayout.astro";
+import { getCollection, type CollectionEntry } from "astro:content";
+import type { GetStaticPaths } from "astro";
+
+import { profileConfig, siteConfig } from "../../config";
+import { getTopicBySlug, getTopicUrl, topics } from "../../data/topics";
+import { getPostPublicDescription } from "../../utils/post-card-content";
+import { getPostUrl, removeFileExtension } from "../../utils/url-utils";
+
+export const getStaticPaths = (() => {
+	return topics.map((topic) => ({
+		params: { slug: topic.slug },
+		props: { topic },
+	}));
+}) satisfies GetStaticPaths;
+
+const { topic } = Astro.props;
+const resolvedTopic = getTopicBySlug(topic.slug);
+if (!resolvedTopic) {
+	throw new Error(`Topic not found: ${topic.slug}`);
+}
+
+type PostEntry = CollectionEntry<"posts">;
+
+const allPosts = await getCollection("posts");
+const normalizeId = (value: string) => removeFileExtension(value);
+const postByReference = new Map<string, PostEntry>();
+for (const post of allPosts) {
+	postByReference.set(post.id, post);
+	postByReference.set(normalizeId(post.id), post);
+}
+
+const includedPosts = resolvedTopic.includedPosts.map((reference) => {
+	const post =
+		postByReference.get(reference.id) ??
+		postByReference.get(reference.slug);
+	if (!post) {
+		throw new Error(
+			`Topic ${resolvedTopic.slug} references missing post: ${reference.id}`,
+		);
+	}
+
+	const isPublished = post.data.draft !== true;
+	const publicUrl = isPublished ? getPostUrl(post) : undefined;
+	return {
+		reference,
+		post,
+		isPublished,
+		publicUrl,
+		absoluteUrl: publicUrl
+			? new URL(publicUrl, siteConfig.siteURL).href
+			: undefined,
+		description: getPostPublicDescription(post.data, post.data.title),
+		publishedDate: post.data.published.toISOString().slice(0, 10),
+	};
+});
+
+const pageUrl = new URL(
+	getTopicUrl(resolvedTopic),
+	siteConfig.siteURL,
+).toString();
+const topicTitle = `${resolvedTopic.title}：个人博客、Cloudflare Pages、域名和社区`;
+const publicIncludedPosts = includedPosts.filter((item) => item.isPublished);
+const siteUrl = new URL(siteConfig.siteURL).href;
+const personId = `${siteUrl}#person`;
+const organizationId = `${siteUrl}#organization`;
+const blogId = `${siteUrl}#blog`;
+const topicJsonLd = [
+	{
+		"@context": "https://schema.org",
+		"@type": "CollectionPage",
+		"@id": `${pageUrl}#webpage`,
+		url: pageUrl,
+		name: topicTitle,
+		description: resolvedTopic.description,
+		inLanguage: siteConfig.lang.replace("_", "-"),
+		isPartOf: {
+			"@id": blogId,
+		},
+		about: [
+			{
+				"@id": personId,
+				name: profileConfig.name,
+			},
+			{
+				"@id": organizationId,
+				name: siteConfig.title,
+			},
+		],
+	},
+	{
+		"@context": "https://schema.org",
+		"@type": "ItemList",
+		"@id": `${pageUrl}#included-posts`,
+		name: `${resolvedTopic.title} included posts`,
+		url: pageUrl,
+		itemListElement: publicIncludedPosts.map((item, index) => ({
+			"@type": "ListItem",
+			position: index + 1,
+			url: item.absoluteUrl,
+			name: item.post.data.title,
+			description: item.reference.why,
+		})),
+	},
+	{
+		"@context": "https://schema.org",
+		"@type": "FAQPage",
+		"@id": `${pageUrl}#faq`,
+		name: `${resolvedTopic.title} 常见问题`,
+		url: pageUrl,
+		mainEntity: resolvedTopic.questions.map((item) => ({
+			"@type": "Question",
+			name: item.question,
+			acceptedAnswer: {
+				"@type": "Answer",
+				text: item.answer,
+			},
+		})),
+	},
+];
+
+const entityLinks = [
+	{
+		label: "sayori.org",
+		href: "https://sayori.org/",
+		text: "主站，放稳定入口、公开项目、工具和联系方式。",
+	},
+	{
+		label: "blog.sayori.org",
+		href: siteConfig.siteURL,
+		text: "博客，放文章、归档、RSS、专题页和较长的复盘。",
+	},
+	{
+		label: "GitHub",
+		href: "https://github.com/Amiyadesi",
+		text: "公开代码、GameJam 项目、博客仓库和工具实验。",
+	},
+	{
+		label: "Linux.do",
+		href: "https://linux.do/u/Amiya_desi",
+		text: "技术社区账号，和 AI、部署、域名、社区观察相关。",
+	},
+	{
+		label: "Bilibili",
+		href: "https://space.bilibili.com/3546919890585725",
+		text: "公开视频入口，适合承接教程和站点介绍。",
+	},
+	{
+		label: "Wikidata",
+		href: "https://www.wikidata.org/wiki/Q140378992",
+		text: "Amiya_desi 的公开实体关联入口。",
+	},
+];
+---
+
+<MainGridLayout title={topicTitle} description={resolvedTopic.description}>
+	<script
+		is:inline
+		slot="head"
+		type="application/ld+json"
+		set:html={JSON.stringify(topicJsonLd)}
+	/>
+	<script>
+		import("../../scripts/right-sidebar-layout.js");
+	</script>
+
+	<article
+		class="card-base paper-note paper-note-lined paper-tape px-6 md:px-9 py-7 relative w-full"
+		data-pagefind-body
+	>
+		<PageHeader
+			title={resolvedTopic.title}
+			subtitle="个人博客、Cloudflare Pages、域名、评论、友链和中文社区"
+		/>
+
+		<section
+			class="border-l-4 border-[var(--primary)] pl-4 text-sm leading-7 text-[var(--text-50)]"
+		>
+			<p lang="en">{resolvedTopic.englishSummary}</p>
+		</section>
+
+		<section
+			class="mt-7 border-t border-[var(--line-divider)] border-dashed pt-5"
+		>
+			<h2 class="text-xl font-bold mb-3">这个专题适合谁</h2>
+			<ul class="space-y-2 text-sm leading-7 text-[var(--text-50)]">
+				{resolvedTopic.audience.map((item) => <li>{item}</li>)}
+			</ul>
+		</section>
+
+		<section
+			class="mt-7 border-t border-[var(--line-divider)] border-dashed pt-5"
+		>
+			<h2 class="text-xl font-bold mb-3">建议阅读路线</h2>
+			<ol class="space-y-2 text-sm leading-7 text-[var(--text-50)]">
+				{resolvedTopic.startingPath.map((item) => <li>{item}</li>)}
+			</ol>
+		</section>
+
+		<section
+			class="mt-7 border-t border-[var(--line-divider)] border-dashed pt-5"
+		>
+			<h2 class="text-xl font-bold mb-3">专题文章</h2>
+			<div class="space-y-5">
+				{
+					includedPosts.map((item) => (
+						<article class="border-b border-[var(--line-divider)] border-dashed pb-4 last:border-b-0 last:pb-0">
+							<div class="flex flex-wrap items-center gap-2">
+								{item.publicUrl ? (
+									<a
+										class="link text-base font-semibold text-[var(--primary)]"
+										href={item.publicUrl}
+									>
+										{item.post.data.title}
+									</a>
+								) : (
+									<h3 class="text-base font-semibold text-[var(--text-90)]">
+										{item.post.data.title}
+									</h3>
+								)}
+								<span class="text-xs text-[var(--text-30)]">
+									{item.isPublished
+										? item.publishedDate
+										: "待公开"}
+								</span>
+							</div>
+							<p class="mt-2 text-sm leading-7 text-[var(--text-50)]">
+								{item.reference.why}
+							</p>
+							<p class="mt-1 text-xs leading-6 text-[var(--text-30)]">
+								{item.description}
+							</p>
+						</article>
+					))
+				}
+			</div>
+		</section>
+
+		<section
+			class="mt-7 border-t border-[var(--line-divider)] border-dashed pt-5"
+		>
+			<h2 class="text-xl font-bold mb-3">问答答案层</h2>
+			<div class="space-y-4">
+				{
+					resolvedTopic.questions.map((item) => (
+						<article>
+							<h3 class="font-semibold text-[var(--text-90)]">
+								{item.question}
+							</h3>
+							<p class="mt-1 text-sm leading-7 text-[var(--text-50)]">
+								{item.answer}
+							</p>
+						</article>
+					))
+				}
+			</div>
+		</section>
+
+		<section
+			class="mt-7 border-t border-[var(--line-divider)] border-dashed pt-5"
+		>
+			<h2 class="text-xl font-bold mb-3">实体与证据入口</h2>
+			<p class="text-sm leading-7 text-[var(--text-50)]">
+				Amiya_desi 是这个站点的公开个人身份；Amiya的书桌 / Amiya's Desk
+				是这个身份下的个人博客和项目档案。代表内容包括 Godot
+				游戏作品、服务器与 Cloudflare 折腾、Obsidian 写作流、AI
+				辅助开发复盘、站长社区观察和小工具入口。
+			</p>
+			<ul
+				class="mt-4 grid gap-3 text-sm leading-7 text-[var(--text-50)] md:grid-cols-2"
+			>
+				{
+					entityLinks.map((item) => (
+						<li>
+							<a
+								class="link font-semibold text-[var(--primary)]"
+								href={item.href}
+								target={
+									item.href.startsWith(
+										"https://blog.sayori.org",
+									)
+										? undefined
+										: "_blank"
+								}
+								rel={
+									item.href.startsWith(
+										"https://blog.sayori.org",
+									)
+										? undefined
+										: "noopener"
+								}
+							>
+								{item.label}
+							</a>
+							<span>：{item.text}</span>
+						</li>
+					))
+				}
+			</ul>
+		</section>
+
+		<section
+			class="mt-7 border-t border-[var(--line-divider)] border-dashed pt-5"
+		>
+			<h2 class="text-xl font-bold mb-3">非商业边界</h2>
+			<p class="text-sm leading-7 text-[var(--text-50)]">
+				这个专题不会把个人博客包装成商业服务站。这里不添加价格表、本地地址、公司电话、交付承诺或
+				Service schema；SEO、GEO 和 AEO
+				优化只用于让真实文章、公开项目和站点边界更容易被理解。
+			</p>
+		</section>
+	</article>
+</MainGridLayout>

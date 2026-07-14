@@ -1,0 +1,89 @@
+---
+import { Icon } from "astro-icon/components";
+
+import { getSortedPostsList, isHomeListPost } from "@/utils/content-utils";
+
+const allPosts = await getSortedPostsList();
+const publicPosts = allPosts.filter(
+	(post) => !post.data.encrypted && !post.data.password && post.url,
+);
+const articlePosts = publicPosts.filter(isHomeListPost);
+const candidates = (articlePosts.length > 0 ? articlePosts : publicPosts)
+	.slice(0, 40)
+	.map((post) => post.url)
+	.filter(Boolean);
+---
+
+{
+	candidates.length > 0 && (
+		<section class="random-post-jump onload-animation paper-note paper-note-plain paper-note-taped paper-tape card-base mb-4 px-5 py-4 md:px-6">
+			<div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+				<div class="min-w-0">
+					<div class="paper-kicker flex items-center gap-2 text-sm font-semibold text-[var(--primary)]">
+						<Icon
+							name="material-symbols:shuffle-rounded"
+							class="text-xl"
+						/>
+						<span>随机翻一页</span>
+					</div>
+					<p class="mt-1 text-sm text-75">
+						不知道先看哪篇的话，让书桌随手递一张纸条过来。
+					</p>
+				</div>
+
+				<button
+					id="random-post-jump-button"
+					class="btn-regular group h-11 shrink-0 rounded-xl px-4 text-sm font-semibold active:scale-95"
+					type="button"
+					data-posts={JSON.stringify(candidates)}
+				>
+					<Icon
+						name="material-symbols:shuffle-rounded"
+						class="mr-2 text-xl transition group-hover:rotate-12"
+					/>
+					<span>随机文章</span>
+				</button>
+			</div>
+		</section>
+	)
+}
+
+<script>
+	function initRandomPostJump() {
+		const button = document.getElementById("random-post-jump-button");
+		if (!button || button.dataset.initialized === "true") {
+			return;
+		}
+
+		button.dataset.initialized = "true";
+		button.addEventListener("click", () => {
+			try {
+				const posts = JSON.parse(button.dataset.posts || "[]");
+				if (!Array.isArray(posts) || posts.length === 0) {
+					return;
+				}
+
+				const picked = posts[Math.floor(Math.random() * posts.length)];
+				if (typeof picked === "string") {
+					window.location.href = picked;
+				}
+			} catch {
+				button.removeAttribute("data-initialized");
+			}
+		});
+	}
+
+	document.addEventListener("DOMContentLoaded", initRandomPostJump);
+	document.addEventListener("astro:page-load", initRandomPostJump);
+	document.addEventListener("swup:contentReplaced", initRandomPostJump);
+
+	if (document.readyState !== "loading") {
+		initRandomPostJump();
+	}
+</script>
+
+<style>
+	.random-post-jump {
+		animation-delay: calc(var(--content-delay) + 25ms);
+	}
+</style>

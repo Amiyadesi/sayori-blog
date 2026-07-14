@@ -1,0 +1,503 @@
+---
+import ConfigCarrier from "@components/misc/ConfigCarrier.astro";
+import MusicPlayer from "@components/widgets/music-player/MusicPlayer.svelte";
+import Pio from "@components/features/pio/Pio.svelte"; // 使用 Svelte 版本的 Pio 组件
+import InstallPrompt from "@components/features/pwa/InstallPrompt.astro";
+import SayoriPet from "@components/features/sayori-pet/SayoriPet.svelte";
+import { PageProgressBar } from "@components/control/PageProgressBar";
+import { pioConfig, siteConfig } from "@/config";
+
+const BANNER_HEIGHT = 35;
+const BANNER_HEIGHT_EXTEND = 30;
+const BANNER_HEIGHT_HOME = BANNER_HEIGHT + BANNER_HEIGHT_EXTEND;
+
+import { PAGE_WIDTH } from "../constants/constants";
+import { pathsEqual, url } from "../utils/url-utils";
+import "../styles/main.css";
+import "../styles/mobile-navbar.css";
+import "../styles/wallpaper-navbar-transparent.css";
+import "../styles/panel-animations.css";
+
+// 导入新提取的 Head 组件
+import AnalyticsScripts from "./partials/AnalyticsScripts.astro";
+import HeadTags from "./partials/HeadTags.astro";
+
+interface Props {
+	title?: string;
+	banner?: string;
+	description?: string;
+	lang?: string;
+	setOGTypeArticle?: boolean;
+	postSlug?: string;
+	coverImage?: string;
+	ogImageAlt?: string;
+	publishedTime?: Date | string;
+	modifiedTime?: Date | string;
+	tags?: string[];
+}
+
+let {
+	title,
+	banner,
+	description,
+	lang,
+	setOGTypeArticle,
+	postSlug,
+	coverImage,
+	ogImageAlt,
+	publishedTime,
+	modifiedTime,
+	tags,
+} = Astro.props;
+
+// apply a class to the body element to decide the height of the banner, only used for initial page load
+// Swup can update the body for each page visit, but it's after the page transition, causing a delay for banner height change
+// so use Swup hooks instead to change the height immediately when a link is clicked
+const isHomePage = pathsEqual(Astro.url.pathname, url("/"));
+
+// defines global css variables
+// why doing this in Layout instead of GlobalStyles: https://github.com/withastro/astro/issues/6728#issuecomment-1502203757
+const configHue = siteConfig.themeColor.hue;
+
+// 获取导航栏透明模式配置
+const navbarTransparentMode =
+	siteConfig.banner?.navbar?.transparentMode || "semi";
+
+// 判断是否应该显示顶部高光效果（只在full和semifull模式下显示）
+const shouldShowTopHighlight =
+	navbarTransparentMode === "full" || navbarTransparentMode === "semifull";
+
+// 获取默认banner图片的辅助函数
+const getDefaultBanner = (): string => {
+	const src = siteConfig.banner.src;
+	if (typeof src === "string") {
+		return src;
+	}
+	if (Array.isArray(src)) {
+		return src[0] || "";
+	}
+	if (src && typeof src === "object") {
+		// 优先使用desktop，如果没有则使用mobile
+		const desktopSrc = src.desktop;
+		const mobileSrc = src.mobile;
+		if (typeof desktopSrc === "string") {
+			return desktopSrc;
+		}
+		if (Array.isArray(desktopSrc) && desktopSrc.length > 0) {
+			return desktopSrc[0];
+		}
+		if (typeof mobileSrc === "string") {
+			return mobileSrc;
+		}
+		if (Array.isArray(mobileSrc) && mobileSrc.length > 0) {
+			return mobileSrc[0];
+		}
+	}
+	return "";
+};
+
+if (!banner || typeof banner !== "string" || banner.trim() === "") {
+	banner = getDefaultBanner();
+}
+
+// TODO don't use post cover as banner for now
+banner = getDefaultBanner();
+
+const enableBanner = !!siteConfig.banner.src;
+
+let pageTitle: string;
+if (title) {
+	pageTitle = `${title} - ${siteConfig.title}`;
+} else {
+	// 首页文档标题追加英文品牌名，让标题在中英双语下都完整，
+	// 长度也落入搜索引擎偏好的区间。仅影响 <title>，不改动 siteConfig.title
+	// （导航栏、schema 品牌名、OG 标题仍使用中文原值）。
+	pageTitle = siteConfig.subtitle
+		? `${siteConfig.title} - ${siteConfig.subtitle} | Amiya's Desk`
+		: `${siteConfig.title} | Amiya's Desk`;
+}
+
+let ogImageUrl: string | undefined;
+if (siteConfig.generateOgImages && postSlug) {
+	ogImageUrl = new URL(`/og/${postSlug}.png`, Astro.site).toString();
+} else if (coverImage) {
+	// For post pages with cover images, use the resolved cover image
+	ogImageUrl = coverImage.startsWith("http")
+		? coverImage
+		: new URL(coverImage, Astro.site).toString();
+} else if (banner) {
+	// For others, use the first banner as OG image
+	ogImageUrl = banner.startsWith("http")
+		? banner
+		: new URL(banner, Astro.site).toString();
+}
+
+// const siteLang = siteConfig.lang.replace('_', '-')
+if (!lang) {
+	lang = `${siteConfig.lang}`;
+}
+const siteLang = lang.replace("_", "-");
+
+const bannerOffsetByPosition = {
+	top: `${BANNER_HEIGHT_EXTEND}vh`,
+	center: `${BANNER_HEIGHT_EXTEND / 2}vh`,
+	bottom: "0",
+};
+const bannerOffset =
+	bannerOffsetByPosition[siteConfig.banner.position || "center"];
+
+// 构建字体配置的 CSS 变量
+// ASCII 字体优先级最高（用于英文、数字等），CJK 字体作为回退
+let bodyFontFamily = "";
+if (siteConfig.font) {
+	const fonts: string[] = [];
+	// 先添加 ASCII 字体（优先级最高）
+	if (siteConfig.font.asciiFont?.fontFamily) {
+		const asciiFont = siteConfig.font.asciiFont.fontFamily;
+		// 如果字体名包含空格，需要用引号包围
+		fonts.push(asciiFont.includes(" ") ? `"${asciiFont}"` : asciiFont);
+	}
+	// 再添加 CJK 字体（作为回退）
+	if (siteConfig.font.cjkFont?.fontFamily) {
+		const cjkFont = siteConfig.font.cjkFont.fontFamily;
+		// 如果字体名包含空格，需要用引号包围
+		fonts.push(cjkFont.includes(" ") ? `"${cjkFont}"` : cjkFont);
+	}
+	// 添加系统字体作为最终回退
+	fonts.push(
+		"system-ui",
+		"-apple-system",
+		"BlinkMacSystemFont",
+		"'Segoe UI'",
+		"Roboto",
+		"Oxygen",
+		"Ubuntu",
+		"Cantarell",
+		"'Open Sans'",
+		"'Helvetica Neue'",
+		"sans-serif",
+	);
+	// 组合成完整的 font-family 字符串
+	bodyFontFamily = fonts.join(", ");
+}
+---
+
+<!doctype html>
+<html
+	lang={siteLang}
+	class="bg-[var(--page-bg)] text-[14px] md:text-[16px]"
+	data-overlayscrollbars-initialize
+>
+	<head>
+		<meta charset="UTF-8" />
+
+		<!-- 第三方分析脚本 -->
+		<AnalyticsScripts
+			thirdPartyAnalytics={siteConfig.thirdPartyAnalytics}
+		/>
+
+		<!-- SEO Meta Tags, Open Graph, Twitter Card, Favicons, Theme Init -->
+		<HeadTags
+			title={pageTitle}
+			description={description}
+			ogImageUrl={ogImageUrl}
+			ogImageAlt={ogImageAlt}
+			setOGTypeArticle={setOGTypeArticle}
+			publishedTime={publishedTime}
+			modifiedTime={modifiedTime}
+			tags={tags}
+			configHue={configHue}
+		/>
+
+		<!-- defines global css variables. This will be applied to <html> <body> and some other elements idk why -->
+		<slot name="head" />
+
+		<!-- Global CSS variables for page width and hue -->
+		<style
+			define:vars={{
+				configHue,
+				"page-width": `${PAGE_WIDTH}rem`,
+			}}
+		></style>
+
+		<!-- Pio 看板娘样式 - 非渲染阻塞加载 -->
+		{
+			pioConfig.enable && (
+				<Fragment
+					set:html={`<link rel="stylesheet" href="/pio/static/pio.css" media="print" onload="this.media='all'" />`}
+				/>
+			)
+		}
+	</head>
+	<body
+		class="min-h-screen"
+		class:list={[
+			{ "lg:is-home": isHomePage, "enable-banner": enableBanner },
+		]}
+		style={bodyFontFamily ? `font-family: ${bodyFontFamily};` : ""}
+		data-overlayscrollbars-initialize
+	>
+		<noscript
+			><iframe
+				src="https://www.googletagmanager.com/ns.html?id=GTM-KRX3XGVH"
+				height="0"
+				width="0"
+				style="display:none;visibility:hidden"></iframe></noscript
+		>
+		<!-- 页面顶部渐变高光效果 - 只在full和semifull模式下显示 -->
+		{shouldShowTopHighlight && <div class="top-gradient-highlight" />}
+
+		<ConfigCarrier />
+		<PageProgressBar
+			enable={siteConfig.pageProgressBar?.enable ?? false}
+			height={siteConfig.pageProgressBar?.height ?? 3}
+			duration={siteConfig.pageProgressBar?.duration ?? 8000}
+		/>
+		<slot />
+
+		<!-- Music Player - 核心始终加载（当enable=true），UI通过showFloatingPlayer控制 -->
+		<MusicPlayer client:idle />
+
+		<!-- Pio 看板娘组件 - 仅在进入视口时加载 -->
+		{pioConfig.enable && <Pio client:visible />}
+
+		<SayoriPet client:idle />
+		<InstallPrompt />
+
+		<!-- increase the page height during page transition to prevent the scrolling animation from jumping -->
+		<div id="page-height-extend" class="hidden h-[300vh]"></div>
+	</body>
+</html>
+
+<style
+	is:global
+	define:vars={{
+		bannerOffset,
+		"banner-height-home": `${BANNER_HEIGHT_HOME}vh`,
+		"banner-height": `${BANNER_HEIGHT}vh`,
+	}}
+>
+	@reference "../styles/main.css";
+
+	@layer components {
+		@media (min-width: 1280px) {
+			.enable-banner.lg\:is-home #banner-wrapper {
+				height: var(--banner-height-home);
+				transform: translateY(var(--banner-height-extend));
+			}
+			.enable-banner #banner-wrapper {
+				height: var(--banner-height-home);
+			}
+
+			.enable-banner.lg\:is-home #banner {
+				height: var(--banner-height-home);
+				transform: translateY(0);
+			}
+			.enable-banner #banner {
+				height: var(--banner-height-home);
+				transform: translateY(var(--bannerOffset));
+			}
+			.enable-banner.lg\:is-home #main-grid {
+				transform: translateY(var(--banner-height-extend));
+			}
+			.enable-banner #top-row {
+				height: calc(var(--banner-height-home) - 4.5rem);
+				@apply transition-all duration-300;
+			}
+		}
+
+		/* Water waves animation - GPU 加速优化 */
+		.waves > .parallax use {
+			animation: wave 25s cubic-bezier(0.5, 0.5, 0.45, 0.5) infinite;
+			transform: translateZ(0);
+			will-change: transform;
+			backface-visibility: hidden;
+		}
+		@keyframes wave {
+			0% {
+				transform: translate3d(-90px, 0, 0);
+			}
+			100% {
+				transform: translate3d(85px, 0, 0);
+			}
+		}
+	}
+	@layer utilities {
+		.typewriter {
+			position: relative;
+			min-height: 1.5em;
+			display: inline-block;
+			vertical-align: baseline;
+		}
+
+		.typewriter:empty::before {
+			content: "\00A0";
+			visibility: hidden;
+		}
+
+		@media (min-width: 1280px) {
+			.enable-banner.lg\:is-home #sidebar-sticky {
+				top: calc(1rem - var(--banner-height-extend)) !important;
+			}
+			.enable-banner.lg\:is-home #left-sidebar-sticky {
+				top: calc(1rem - var(--banner-height-extend)) !important;
+			}
+			.enable-banner.lg\:is-home #right-sidebar-sticky {
+				top: calc(1rem - var(--banner-height-extend)) !important;
+			}
+		}
+		.navbar-hidden {
+			@apply opacity-0 -translate-y-16;
+		}
+	}
+</style>
+
+<script>
+	// Swup 页面过渡管理器 - 统一入口
+	// 所有功能已重构为模块化架构，详见 src/scripts/ 目录
+	import { initSwupManager } from "../scripts/swup-manager";
+	import "../scripts/paper-note-interactions";
+
+	// 初始化 Swup 管理器
+	initSwupManager();
+</script>
+
+<script>
+	class TypewriterEffect {
+		private element: HTMLElement;
+		private texts: string[];
+		private currentTextIndex = 0;
+		private speed: number;
+		private deleteSpeed: number;
+		private pauseTime: number;
+		private currentIndex = 0;
+		private isDeleting = false;
+		private timeoutId: number | null = null;
+
+		constructor(element: HTMLElement) {
+			this.element = element;
+			const textData = element.dataset.text || "";
+
+			try {
+				const parsed = JSON.parse(textData);
+				this.texts = Array.isArray(parsed) ? parsed : [textData];
+			} catch {
+				this.texts = [textData];
+			}
+
+			this.speed = parseInt(element.dataset.speed || "100");
+			this.deleteSpeed = parseInt(element.dataset.deleteSpeed || "50");
+			this.pauseTime = parseInt(element.dataset.pauseTime || "2000");
+
+			if (this.texts.length > 1 && !this.isTypewriterEnabled()) {
+				this.showRandomText();
+			} else {
+				this.element.textContent = "";
+				this.start();
+			}
+		}
+
+		private isTypewriterEnabled(): boolean {
+			return (
+				this.element.dataset.speed !== undefined ||
+				this.element.dataset.deleteSpeed !== undefined ||
+				this.element.dataset.pauseTime !== undefined
+			);
+		}
+
+		private showRandomText() {
+			const randomIndex = Math.floor(Math.random() * this.texts.length);
+			this.element.textContent = this.texts[randomIndex];
+		}
+
+		private start() {
+			if (this.texts.length === 0) {
+				return;
+			}
+			this.type();
+		}
+
+		private getCurrentText(): string {
+			return this.texts[this.currentTextIndex] || "";
+		}
+
+		private type() {
+			const currentText = this.getCurrentText();
+
+			if (this.isDeleting) {
+				if (this.currentIndex > 0) {
+					this.currentIndex--;
+					this.element.textContent = currentText.substring(
+						0,
+						this.currentIndex,
+					);
+					this.timeoutId = window.setTimeout(
+						() => this.type(),
+						this.deleteSpeed,
+					);
+				} else {
+					this.isDeleting = false;
+					this.currentTextIndex =
+						(this.currentTextIndex + 1) % this.texts.length;
+					this.timeoutId = window.setTimeout(
+						() => this.type(),
+						this.speed,
+					);
+				}
+			} else if (this.currentIndex < currentText.length) {
+				this.currentIndex++;
+				this.element.textContent = currentText.substring(
+					0,
+					this.currentIndex,
+				);
+				this.timeoutId = window.setTimeout(
+					() => this.type(),
+					this.speed,
+				);
+			} else if (this.texts.length > 1) {
+				this.isDeleting = true;
+				this.timeoutId = window.setTimeout(
+					() => this.type(),
+					this.pauseTime,
+				);
+			} else if (this.texts.length === 1 && this.texts[0] === "") {
+				this.element.textContent = "\u00A0";
+			}
+		}
+
+		public destroy() {
+			if (this.timeoutId) {
+				clearTimeout(this.timeoutId);
+			}
+		}
+	}
+
+	function initTypewriters() {
+		const typewriterElements = document.querySelectorAll(".typewriter");
+		typewriterElements.forEach((element) => {
+			const htmlElement = element as HTMLElement;
+			if (htmlElement.dataset.typewriterInitialized === "true") {
+				return;
+			}
+			htmlElement.dataset.typewriterInitialized = "true";
+			new TypewriterEffect(htmlElement);
+		});
+	}
+
+	document.addEventListener("DOMContentLoaded", initTypewriters);
+	document.addEventListener("swup:contentReplaced", initTypewriters);
+	document.addEventListener("swup:page:view", initTypewriters);
+	if (document.readyState !== "loading") {
+		initTypewriters();
+	}
+</script>
+
+<!-- 代码块折叠功能 -->
+<script>
+	import "../scripts/code-collapse.js";
+</script>
+
+<!-- 主题切换综合性能优化器（包含代码块优化、重型元素优化、性能诊断） -->
+<script>
+	import "../scripts/theme-optimizer.js";
+</script>

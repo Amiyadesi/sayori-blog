@@ -1,0 +1,336 @@
+---
+import PostMeta from "@components/features/posts/PostMeta.astro";
+import Markdown from "@components/misc/Markdown.astro";
+import { PageHeader } from "@components/features/page-header";
+import MainGridLayout from "@layouts/MainGridLayout.astro";
+import { getEssayPosts, getPostDisplayTags } from "@utils/content-utils";
+import { getPostPublicDescription } from "@utils/post-card-content";
+import { formatDateToYYYYMMDD } from "@utils/date-utils";
+import { removeFileExtension } from "@utils/url-utils";
+import { render } from "astro:content";
+
+import { profileConfig } from "../config";
+
+const title = "随笔";
+const description =
+	"一些暂时不必单独展开的短记录，按发布时间从新到旧放在这里。点开标题即可展开正文。";
+
+const essays = await Promise.all(
+	(await getEssayPosts()).map(async (post) => {
+		const { Content } = await render(post);
+		const displayTags = getPostDisplayTags(post);
+		const createdDate = post.data.created || post.data.published;
+		const lastEditedDate =
+			post.data.lastEdited || post.data.updated || post.data.published;
+		return {
+			post,
+			Content,
+			displayTags,
+			createdDate,
+			lastEditedDate,
+			description: getPostPublicDescription(post.data, post.data.title),
+			dateLabel: formatDateToYYYYMMDD(new Date(post.data.published)),
+			anchorId: removeFileExtension(post.id).replace(/[\/\s]+/g, "-"),
+		};
+	}),
+);
+---
+
+<MainGridLayout title={title} description={description}>
+	<script>
+		import("../scripts/right-sidebar-layout.js");
+
+		// Open the targeted essay when arriving via a #anchor deep link
+		// (e.g. from search results or shared links).
+		function openTargetEssay() {
+			const hash = window.location.hash;
+			if (!hash || hash.length < 2) return;
+			const id = decodeURIComponent(hash.slice(1));
+			const target = document.getElementById(id);
+			if (target && target.tagName === "DETAILS") {
+				(target as HTMLDetailsElement).open = true;
+				target.scrollIntoView({ block: "start" });
+			}
+		}
+
+		openTargetEssay();
+		window.addEventListener("hashchange", openTargetEssay);
+	</script>
+
+	<section
+		class="flex w-full rounded-[var(--radius-large)] overflow-visible relative min-h-32"
+	>
+		<div class="card-base paper-note paper-note-lined paper-tape z-10 px-5 sm:px-9 py-6 relative w-full" style="padding-top: 1.75rem;">
+			<PageHeader title={title} subtitle={description} />
+
+			{
+				essays.length > 0 ? (
+					<div class="essay-list">
+						{essays.map((essay) => {
+							const EssayContent = essay.Content;
+							return (
+								<details
+									id={essay.anchorId}
+									class="essay-entry"
+									data-pagefind-body
+								>
+									<summary class="essay-summary">
+										<span class="essay-chevron" aria-hidden="true">
+											<svg
+												viewBox="0 0 24 24"
+												width="18"
+												height="18"
+												fill="none"
+												stroke="currentColor"
+												stroke-width="2.4"
+												stroke-linecap="round"
+												stroke-linejoin="round"
+											>
+												<polyline points="9 6 15 12 9 18" />
+											</svg>
+										</span>
+										<span class="essay-summary-text">
+											<h2
+												class="essay-title"
+												data-pagefind-weight="8"
+												data-pagefind-meta="title"
+											>
+												{essay.post.data.title}
+											</h2>
+											{essay.description && (
+												<span class="essay-description">
+													{essay.description}
+												</span>
+											)}
+										</span>
+										<time class="essay-date">{essay.dateLabel}</time>
+									</summary>
+
+									<div class="essay-body">
+										<PostMeta
+											className="essay-meta"
+											published={essay.post.data.published}
+											updated={essay.post.data.updated}
+											tags={essay.displayTags}
+											category={
+												essay.post.data.category || undefined
+											}
+											createdDate={essay.createdDate}
+											lastEditedDate={essay.lastEditedDate}
+											updateCount={essay.post.data.updateCount}
+											author={
+												essay.post.data.author ||
+												profileConfig.name
+											}
+											hideUpdateDate
+											hideCategory
+											hideTags
+											hideHistory
+										/>
+										<Markdown class="essay-content markdown-content">
+											<EssayContent />
+										</Markdown>
+									</div>
+								</details>
+							);
+						})}
+					</div>
+				) : (
+					<div class="empty-state">暂时还没有公开随笔。</div>
+				)
+			}
+		</div>
+	</section>
+</MainGridLayout>
+
+<style>
+	.essay-list {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.essay-entry {
+		position: relative;
+		margin-bottom: 0.75rem;
+		padding: 0.5rem 0.75rem;
+		padding-top: 1.2rem;
+		background: var(--paper-bg);
+		background-image: var(--paper-overlay), var(--paper-line-image);
+		background-position: 0 0, 0 var(--paper-line-offset);
+		border: 1px dashed var(--paper-edge);
+		border-radius: var(--paper-radius);
+		box-shadow: var(--paper-shadow);
+		transition: transform 0.2s ease, box-shadow 0.2s ease;
+	}
+
+	.essay-entry:nth-child(6n+1) { transform: rotate(-0.8deg); }
+	.essay-entry:nth-child(6n+2) { transform: rotate(0.5deg); }
+	.essay-entry:nth-child(6n+3) { transform: rotate(-0.3deg); }
+	.essay-entry:nth-child(6n+4) { transform: rotate(1deg); }
+	.essay-entry:nth-child(6n+5) { transform: rotate(-0.5deg); }
+	.essay-entry:nth-child(6n+6) { transform: rotate(0.6deg); }
+
+	.essay-entry[open] {
+		transform: rotate(0deg);
+		z-index: 3;
+	}
+
+	.essay-entry:hover {
+		transform: rotate(0deg) !important;
+		z-index: 5;
+		box-shadow: var(--paper-shadow-hover);
+	}
+
+	.essay-entry::before {
+		content: '';
+		position: absolute;
+		top: -6px;
+		left: 30%;
+		width: clamp(45px, 25%, 80px);
+		height: 20px;
+		background: linear-gradient(135deg, var(--tape-yellow) 0%, rgba(255, 245, 215, 0.55) 50%, var(--tape-yellow) 100%);
+		border-radius: 2px;
+		transform: rotate(-2deg);
+		z-index: 2;
+		pointer-events: none;
+	}
+
+	.essay-entry:nth-child(3n+2)::before {
+		left: 50%;
+		transform: translateX(-50%) rotate(1.5deg);
+	}
+
+	.essay-entry:nth-child(3n+3)::before {
+		left: auto;
+		right: 20%;
+		transform: rotate(-1deg);
+	}
+
+	/* Summary row: clickable, compact, no native marker */
+	.essay-summary {
+		display: flex;
+		align-items: baseline;
+		gap: 0.65rem;
+		padding: 0.85rem 0.25rem;
+		cursor: pointer;
+		list-style: none;
+		border-radius: var(--radius-large);
+		transition: background-color 0.2s ease;
+	}
+
+	.essay-summary::-webkit-details-marker {
+		display: none;
+	}
+
+	.essay-summary:hover {
+		background-color: var(--btn-plain-bg-hover);
+	}
+
+	.essay-summary:focus-visible {
+		outline: 2px solid var(--primary);
+		outline-offset: 2px;
+	}
+
+	.essay-chevron {
+		flex: none;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		margin-top: 0.15rem;
+		color: var(--primary);
+		transition: transform 0.25s ease;
+	}
+
+	.essay-entry[open] .essay-chevron {
+		transform: rotate(90deg);
+	}
+
+	.essay-summary-text {
+		flex: 1 1 auto;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.3rem;
+	}
+
+	.essay-title {
+		font-size: 1.25rem;
+		font-weight: 800;
+		line-height: 1.35;
+		color: rgba(0, 0, 0, 0.9);
+		margin: 0;
+	}
+
+	.essay-description {
+		font-size: 0.92rem;
+		line-height: 1.6;
+		color: rgba(0, 0, 0, 0.55);
+		/* clamp to one line while collapsed to keep the list tight */
+		display: -webkit-box;
+		-webkit-line-clamp: 1;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
+
+	.essay-entry[open] .essay-description {
+		-webkit-line-clamp: unset;
+		overflow: visible;
+	}
+
+	.essay-date {
+		flex: none;
+		font-size: 0.8rem;
+		font-variant-numeric: tabular-nums;
+		color: rgba(0, 0, 0, 0.4);
+		white-space: nowrap;
+		font-family: var(--hand-font);
+	}
+
+	.essay-body {
+		padding: 0.25rem 0.25rem 1.1rem 1.85rem;
+	}
+
+	.essay-meta {
+		margin-bottom: 0.75rem;
+	}
+
+	.essay-content {
+		margin-bottom: 0;
+	}
+
+	.empty-state {
+		padding: 3rem 0;
+		text-align: center;
+		color: rgba(0, 0, 0, 0.45);
+	}
+
+	:global(.dark) .essay-title {
+		color: rgba(255, 255, 255, 0.92);
+	}
+
+	:global(.dark) .essay-description {
+		color: rgba(255, 255, 255, 0.5);
+	}
+
+	:global(.dark) .essay-date {
+		color: rgba(255, 255, 255, 0.4);
+	}
+
+	:global(.dark) .empty-state {
+		color: rgba(255, 255, 255, 0.55);
+	}
+
+	@media (max-width: 640px) {
+		.essay-title {
+			font-size: 1.1rem;
+		}
+
+		.essay-body {
+			padding-left: 1.5rem;
+		}
+
+		.essay-date {
+			display: none;
+		}
+	}
+</style>

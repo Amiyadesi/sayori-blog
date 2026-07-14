@@ -1,0 +1,27 @@
+---
+export interface Props {
+	text: string | string[];
+	speed?: number;
+	deleteSpeed?: number;
+	pauseTime?: number;
+	class?: string;
+}
+
+const {
+	text,
+	speed = 100,
+	deleteSpeed = 50,
+	pauseTime = 2000,
+	class: className = "",
+} = Astro.props;
+const textData = Array.isArray(text) ? JSON.stringify(text) : text;
+const fallbackText = Array.isArray(text) ? (text[0] ?? "") : text;
+---
+
+<span
+	class={`typewriter ${className}`}
+	data-text={textData}
+	data-speed={speed}
+	data-delete-speed={deleteSpeed}
+	data-pause-time={pauseTime}>{fallbackText}</span
+>

@@ -1,0 +1,47 @@
+---
+import type { CollectionEntry } from "astro:content";
+
+import "@/styles/twikoo.css";
+import { commentConfig } from "@/config";
+import { removeFileExtension } from "@/utils/url-utils";
+
+import Giscus from "./Giscus.astro";
+import Twikoo from "./Twikoo.astro";
+
+interface Props {
+	post?: CollectionEntry<"posts">;
+	path?: string;
+	reviewOnly?: boolean;
+}
+
+const { post, path: customPath, reviewOnly = false } = Astro.props as Props;
+
+const path = post
+	? `/posts/${removeFileExtension(post.id)}`
+	: (customPath ?? "");
+// const url = `${Astro.site?.href}${path}`;
+
+let commentService = "";
+if (commentConfig?.enable) {
+	if (commentConfig.system) {
+		commentService = commentConfig.system;
+	} else if (commentConfig.twikoo) {
+		commentService = "twikoo";
+	}
+}
+
+const commentEnabled = post ? (post.data.comment ?? true) : true;
+---
+
+{
+	commentConfig?.enable && commentEnabled && path && (
+		<div
+			class="paper-note paper-note-lined paper-note-taped paper-tape p-6 mb-4"
+			style="padding-top: 1.75rem;"
+		>
+			{commentService === "twikoo" && <Twikoo path={path} reviewOnly={reviewOnly} />}
+			{commentService === "giscus" && <Giscus path={path} />}
+			{commentService === "" && null}
+		</div>
+	)
+}

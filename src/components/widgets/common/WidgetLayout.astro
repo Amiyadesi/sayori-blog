@@ -1,0 +1,113 @@
+---
+import { Icon } from "astro-icon/components";
+
+import I18nKey from "../../../i18n/i18nKey";
+import { i18n } from "../../../i18n/translation";
+
+interface Props {
+	id: string;
+	name?: string;
+	isCollapsed?: boolean;
+	collapsedHeight?: string;
+	class?: string;
+	style?: string;
+}
+const { id, name, isCollapsed, collapsedHeight, style } = Astro.props;
+const className = Astro.props.class;
+const widgetShellClass = [
+	"paper-note",
+	"paper-note-lined",
+	"paper-note-taped",
+	"paper-tape",
+	"paper-list-item",
+	"pb-4",
+	"pt-4",
+	"card-base",
+	className || "",
+].join(" ");
+---
+
+<widget-layout
+	data-id={id}
+	data-is-collapsed={String(isCollapsed)}
+	data-paper-tear="widget"
+	class={widgetShellClass}
+	style={style}
+>
+	{
+		name && (
+			<div
+				class="paper-title font-bold transition text-lg text-neutral-900 dark:text-neutral-100 relative ml-7 mt-3 mb-2 flex items-center gap-2"
+			>
+				<button
+					type="button"
+					class="absolute right-0 top-0"
+					data-paper-tear-trigger
+					aria-label="撕掉这张纸条"
+				>
+					×
+				</button>
+				<span
+					class="inline-block h-4 w-1 rounded-md bg-[var(--primary)]"
+					aria-hidden="true"
+				></span>
+				{name}
+				<slot name="title-icon" />
+			</div>
+		)
+	}
+	<div
+		id={id}
+		class:list={[
+			"collapse-wrapper px-4 overflow-hidden",
+			{ collapsed: isCollapsed },
+		]}
+	>
+		<slot />
+	</div>
+	{
+		isCollapsed && (
+			<div class="expand-btn px-4 -mb-2">
+				<button class="btn-plain rounded-lg w-full h-9">
+					<div class="text-[var(--primary)] flex items-center justify-center gap-2 -translate-x-2">
+						<Icon
+							name="material-symbols:more-horiz"
+							class="text-[1.75rem]"
+						/>{" "}
+						{i18n(I18nKey.more)}
+					</div>
+				</button>
+			</div>
+		)
+	}
+</widget-layout>
+
+<style define:vars={{ collapsedHeight }}>
+	.collapsed {
+		height: var(--collapsedHeight);
+	}
+</style>
+
+<script>
+	class WidgetLayout extends HTMLElement {
+		constructor() {
+			super();
+
+			if (this.dataset.isCollapsed !== "true") {
+				return;
+			}
+
+			const id = this.dataset.id;
+			const btn = this.querySelector(".expand-btn");
+			const wrapper = this.querySelector(`#${id}`);
+			btn!.addEventListener("click", () => {
+				wrapper!.classList.remove("collapsed");
+				btn!.classList.add("hidden");
+			});
+		}
+	}
+
+	if (!customElements.get("widget-layout")) {
+		customElements.define("widget-layout", WidgetLayout);
+	}
+</script>

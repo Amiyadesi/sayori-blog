@@ -1,0 +1,9 @@
+name = "sayori-blog"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-06-16"
+
+[[d1_databases]]
+binding = "SAYORI_ANALYTICS_DB"
+database_name = "sayori-analytics"
+database_id = "61babd32-ae72-4896-927d-8c246ed78292"
+migrations_dir = "migrations"
