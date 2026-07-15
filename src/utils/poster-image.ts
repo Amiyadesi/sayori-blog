@@ -1,4 +1,4 @@
-import path from "node:path";
+import { resolveLocalImage } from "./local-image";
 
 export async function processPosterImage(
 	imagePath: string | undefined,
@@ -17,18 +17,8 @@ export async function processPosterImage(
 
 	if (isLocal && filePath) {
 		const basePath = filePath.replace(/\/[^/]+$/, "").replace(/\\/g, "/");
-		const files = import.meta.glob<ImageMetadata>(
-			"../../**/*.{jpg,jpeg,png,gif,webp,avif,svg}",
-			{
-				import: "default",
-			},
-		);
-		const normalizedPath = path
-			.normalize(path.join("../../", basePath, imagePath))
-			.replace(/\\/g, "/");
-		const file = files[`./${normalizedPath}`] || files[normalizedPath];
-		if (file) {
-			const img = await file();
+		const img = await resolveLocalImage(basePath, imagePath);
+		if (img) {
 			return img.src;
 		}
 	}

@@ -6,8 +6,6 @@
  * 自定义 permalink 也在根目录下
  * 例如：permalink: "custom-page" => /custom-page/
  */
-import path from "node:path";
-
 import Image from "@components/atoms/Image/Image.astro";
 import Comment from "@components/comment/index.astro";
 import PasswordProtection from "@components/features/auth/PasswordProtection.astro";
@@ -26,6 +24,7 @@ import {
 	getSortedPosts,
 	isDiaryPost,
 } from "@utils/content-utils";
+import { resolveLocalImage } from "@utils/local-image";
 import {
 	generatePermalinkSlug,
 	hasCustomPermalink,
@@ -116,15 +115,8 @@ if (entry.data.image) {
 	);
 	if (isLocal) {
 		const basePath = getFileDirFromPath(entry.filePath || "");
-		const files = import.meta.glob<ImageMetadata>("../**", {
-			import: "default",
-		});
-		const normalizedPath = path
-			.normalize(path.join("../", basePath, entry.data.image))
-			.replace(/\\/g, "/");
-		const file = files[normalizedPath];
-		if (file) {
-			const img = await file();
+		const img = await resolveLocalImage(basePath, entry.data.image);
+		if (img) {
 			posterCoverUrl = img.src;
 			const ogImage = await getImage({
 				src: img,
@@ -160,15 +152,8 @@ if (profileConfig.avatar) {
 		profileConfig.avatar.startsWith("data:")
 	);
 	if (isLocal) {
-		const files = import.meta.glob<ImageMetadata>("../**", {
-			import: "default",
-		});
-		const normalizedPath = path
-			.normalize(path.join("../", profileConfig.avatar))
-			.replace(/\\/g, "/");
-		const file = files[normalizedPath];
-		if (file) {
-			const img = await file();
+		const img = await resolveLocalImage("", profileConfig.avatar);
+		if (img) {
 			posterAvatarUrl = img.src;
 		}
 	}

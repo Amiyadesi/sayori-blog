@@ -1,6 +1,4 @@
 ---
-import path from "node:path";
-
 import Comment from "@components/comment/index.astro";
 import LastModified from "@components/features/posts/LastModified.astro";
 import PostEngagement from "@components/features/posts/PostEngagement.astro";
@@ -19,6 +17,7 @@ import {
 	getSortedPosts,
 	isDiaryPost,
 } from "@utils/content-utils";
+import { resolveLocalImage } from "@utils/local-image";
 import { getPostPublicDescription } from "@utils/post-card-content";
 import { buildPostPaths } from "@utils/post-url";
 import { getFileDirFromPath, removeFileExtension } from "@utils/url-utils";
@@ -67,15 +66,8 @@ if (entry.data.image) {
 	);
 	if (isLocal) {
 		const basePath = getFileDirFromPath(entry.filePath || "");
-		const files = import.meta.glob<ImageMetadata>("../../**", {
-			import: "default",
-		});
-		const normalizedPath = path
-			.normalize(path.join("../../", basePath, entry.data.image))
-			.replace(/\\/g, "/");
-		const file = files[normalizedPath];
-		if (file) {
-			const img = await file();
+		const img = await resolveLocalImage(basePath, entry.data.image);
+		if (img) {
 			posterCoverUrl = img.src;
 
 			// Resize for OG
@@ -117,15 +109,8 @@ if (profileConfig.avatar) {
 		profileConfig.avatar.startsWith("data:")
 	);
 	if (isLocal) {
-		const files = import.meta.glob<ImageMetadata>("../../**", {
-			import: "default",
-		});
-		const normalizedPath = path
-			.normalize(path.join("../../", profileConfig.avatar))
-			.replace(/\\/g, "/");
-		const file = files[normalizedPath];
-		if (file) {
-			const img = await file();
+		const img = await resolveLocalImage("", profileConfig.avatar);
+		if (img) {
 			posterAvatarUrl = img.src;
 		}
 	}

@@ -365,9 +365,11 @@ function getContentId(filePath, baseDir = sourcePostsDir) {
 		.replace(/\\/g, "/")
 		.replace(/\.(md|mdx)$/i, "");
 
-	return relativePath.endsWith("/index")
+	const sourceId = relativePath.endsWith("/index")
 		? relativePath.slice(0, -"/index".length)
 		: relativePath;
+	const segments = sourceId.split("/").filter(Boolean);
+	return segments.map(slugify).join("/");
 }
 
 function getPostId(filePath) {
@@ -504,6 +506,15 @@ function comparePostsByLatestUpdate(a, b) {
 
 function trimUrlPath(value) {
 	return String(value).replace(/^\/+/, "").replace(/\/+$/, "");
+}
+
+function slugify(value) {
+	return value
+		.normalize("NFKD")
+		.toLowerCase()
+		.trim()
+		.replace(/[^\p{Letter}\p{Number}]+/gu, "-")
+		.replace(/^-+|-+$/g, "");
 }
 
 function getPostUrl(post) {

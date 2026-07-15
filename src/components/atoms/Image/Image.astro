@@ -18,6 +18,7 @@ interface Props {
 
 import { Image as AstroImage } from "astro:assets";
 
+import { resolveLocalImage } from "@utils/local-image";
 import { url } from "../../../utils/url-utils";
 
 const {
@@ -48,19 +49,11 @@ const isPublic = src.startsWith("/");
 // biome-ignore lint/suspicious/noImplicitAnyLet: <check later>
 let img: ImageMetadata | undefined;
 if (isLocal) {
-	const files = import.meta.glob<ImageMetadata>("../../../**", {
-		import: "default",
-	});
-	const normalizedPath = path
-		.normalize(path.join("../../../", basePath, src))
-		.replace(/\\/g, "/");
-	const file = files[normalizedPath];
-	if (!file) {
+	img = await resolveLocalImage(basePath, src);
+	if (!img) {
 		console.error(
-			`\n[ERROR] Image file not found: ${normalizedPath.replace("../../../", "src/")}`,
+			`\n[ERROR] Image file not found: ${path.normalize(path.join("src", basePath, src)).replace(/\\/g, "/")}`,
 		);
-	} else {
-		img = await file();
 	}
 }
 
