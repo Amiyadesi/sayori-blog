@@ -7,7 +7,8 @@ import { fileURLToPath } from "node:url";
 const scriptFile = fileURLToPath(import.meta.url);
 const blogRoot = path.resolve(path.dirname(scriptFile), "..");
 const repoRoot = path.resolve(blogRoot, "..");
-const postsRoot = path.join(repoRoot, "articles", "posts");
+const articlesRoot = resolveContentRoot();
+const postsRoot = path.join(articlesRoot, "posts");
 const maxContentChars = Number(process.env.AI_SUMMARY_MAX_CHARS || 16000);
 
 const args = parseArgs(process.argv.slice(2));
@@ -103,8 +104,15 @@ function normalizeEndpoint(baseUrl) {
 	return /\/chat\/completions$/i.test(base) ? base : `${base}/chat/completions`;
 }
 
+function resolveContentRoot() {
+	const configured = String(process.env.CONTENT_DIR || "").trim();
+	return configured
+		? path.resolve(blogRoot, configured)
+		: path.join(repoRoot, "sayori-articles");
+}
+
 function collectDirtyPaths() {
-	const result = spawnSync("git", ["-C", repoRoot, "status", "--porcelain", "-z"], {
+	const result = spawnSync("git", ["-C", articlesRoot, "status", "--porcelain", "-z"], {
 		encoding: "utf8",
 		windowsHide: true,
 		maxBuffer: 10 * 1024 * 1024,
@@ -173,7 +181,7 @@ function* walk(dir) {
 }
 
 function toRepoPath(filePath) {
-	return path.relative(repoRoot, filePath).replaceAll("\\", "/");
+	return path.relative(articlesRoot, filePath).replaceAll("\\", "/");
 }
 
 function isMainPostMarkdown(filePath) {

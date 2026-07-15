@@ -7,13 +7,14 @@ import { loadEnv } from "./load-env.js";
 const scriptFile = fileURLToPath(import.meta.url);
 const blogRoot = path.resolve(path.dirname(scriptFile), "..");
 const workspaceRoot = path.resolve(blogRoot, "..");
+const localReposRoot = workspaceRoot;
 loadEnv();
 const configuredContentDir = String(process.env.CONTENT_DIR || "").trim();
 const articlesRoot = configuredContentDir
 	? path.resolve(blogRoot, configuredContentDir)
-	: path.join(workspaceRoot, "articles");
-const repoRoot = configuredContentDir ? articlesRoot : workspaceRoot;
-const contentPathspec = configuredContentDir ? "." : "articles";
+	: path.join(localReposRoot, "sayori-articles");
+const repoRoot = articlesRoot;
+const contentPathspec = ".";
 
 const POSTS_SRC = path.join(articlesRoot, "posts");
 const POSTS_DEST = path.join(blogRoot, "src", "content", "posts");

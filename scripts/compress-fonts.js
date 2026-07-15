@@ -6,6 +6,9 @@ import Fontmin from "fontmin";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "../..");
+const contentRoot = process.env.CONTENT_DIR
+	? path.resolve(__dirname, "..", process.env.CONTENT_DIR)
+	: path.join(repoRoot, "sayori-articles");
 
 // 读取配置文件获取语言设置和字体配置
 async function getConfig() {
@@ -203,7 +206,7 @@ function addTextToSet(textSet, value) {
 
 function readLocalMusicPlaylistText() {
 	const textSet = new Set();
-	const musicConfigPath = path.join(repoRoot, "articles/site/music.json");
+	const musicConfigPath = path.join(contentRoot, "site/music.json");
 
 	if (!fs.existsSync(musicConfigPath)) {
 		return textSet;

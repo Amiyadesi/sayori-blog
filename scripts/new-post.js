@@ -1,4 +1,4 @@
-/* Create a new source article under articles/posts/<slug>/<slug>.md. */
+/* Create a new source article under sayori-articles/posts/<slug>/<slug>.md. */
 
 import fs from "node:fs";
 import path from "node:path";
@@ -7,7 +7,8 @@ import { fileURLToPath } from "node:url";
 const scriptFile = fileURLToPath(import.meta.url);
 const blogRoot = path.resolve(path.dirname(scriptFile), "..");
 const repoRoot = path.resolve(blogRoot, "..");
-const postsRoot = path.join(repoRoot, "articles", "posts");
+const articlesRoot = resolveContentRoot();
+const postsRoot = path.join(articlesRoot, "posts");
 
 const args = process.argv.slice(2);
 
@@ -32,7 +33,7 @@ const targetPath = path.join(targetDir, `${slug}.md`);
 
 if (fs.existsSync(targetPath)) {
 	console.error(
-		`Error: File ${path.relative(repoRoot, targetPath)} already exists`,
+		`Error: File ${path.relative(articlesRoot, targetPath)} already exists`,
 	);
 	process.exit(1);
 }
@@ -40,7 +41,14 @@ if (fs.existsSync(targetPath)) {
 fs.mkdirSync(targetDir, { recursive: true });
 fs.writeFileSync(targetPath, buildPostContent({ title, today }), "utf8");
 
-console.log(`Post ${path.relative(repoRoot, targetPath)} created`);
+console.log(`Post ${path.relative(articlesRoot, targetPath)} created`);
+
+function resolveContentRoot() {
+	const configured = String(process.env.CONTENT_DIR || "").trim();
+	return configured
+		? path.resolve(blogRoot, configured)
+		: path.join(repoRoot, "sayori-articles");
+}
 
 function getDate() {
 	const today = new Date();

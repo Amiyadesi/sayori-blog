@@ -5,7 +5,8 @@ import { fileURLToPath } from "node:url";
 const scriptFile = fileURLToPath(import.meta.url);
 const blogRoot = path.resolve(path.dirname(scriptFile), "..");
 const repoRoot = path.resolve(blogRoot, "..");
-const postsRoot = path.join(repoRoot, "articles", "posts");
+const articlesRoot = resolveContentRoot();
+const postsRoot = path.join(articlesRoot, "posts");
 
 const args = process.argv.slice(2);
 const flags = parseFlags(args);
@@ -33,7 +34,7 @@ if (
 }
 
 if (!fs.existsSync(postsRoot)) {
-	console.error(`Error: articles posts dir not found: ${postsRoot}`);
+	console.error(`Error: content posts dir not found: ${postsRoot}`);
 	process.exit(1);
 }
 
@@ -53,14 +54,14 @@ try {
 }
 
 if (next === original) {
-	console.log(`No change: ${path.relative(repoRoot, targetPath)}`);
+	console.log(`No change: ${path.relative(articlesRoot, targetPath)}`);
 	process.exit(0);
 }
 
 fs.writeFileSync(targetPath, next);
 
 const history = readHistory(next);
-console.log(`Updated: ${path.relative(repoRoot, targetPath)}`);
+console.log(`Updated: ${path.relative(articlesRoot, targetPath)}`);
 console.log(`created: ${history.created}`);
 console.log(`updated: ${history.updated}`);
 console.log(`lastEdited: ${history.lastEdited}`);
@@ -94,6 +95,13 @@ function parseFlags(values) {
 	return result;
 }
 
+function resolveContentRoot() {
+	const configured = String(process.env.CONTENT_DIR || "").trim();
+	return configured
+		? path.resolve(blogRoot, configured)
+		: path.join(repoRoot, "sayori-articles");
+}
+
 function today() {
 	const now = new Date();
 	const year = now.getFullYear();
@@ -108,7 +116,7 @@ function isDate(value) {
 
 function resolveTarget(value) {
 	const normalized = value.replaceAll("\\", "/").replace(/^\/+/, "");
-	const direct = path.resolve(repoRoot, value);
+	const direct = path.resolve(articlesRoot, normalized);
 	const underPosts = path.join(postsRoot, normalized);
 
 	for (const candidate of [direct, underPosts]) {
@@ -137,7 +145,7 @@ function resolveTarget(value) {
 			slug === slugTarget ||
 			slug === withoutExt ||
 			baseName === withoutExt ||
-			path.relative(repoRoot, filePath).replaceAll("\\", "/") ===
+			path.relative(articlesRoot, filePath).replaceAll("\\", "/") ===
 				normalized
 		) {
 			return filePath;
