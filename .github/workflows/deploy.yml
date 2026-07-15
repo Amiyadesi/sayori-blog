@@ -34,21 +34,20 @@ jobs:
         shell: bash
         run: |
           if [[ -z "${CLOUDFLARE_ACCOUNT_ID}" || -z "${CLOUDFLARE_API_TOKEN}" ]]; then
-            echo "::warning::Cloudflare deploy skipped. Add CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN repository secrets."
-            echo "ready=false" >> "${GITHUB_OUTPUT}"
-            exit 0
+            echo "::error::Cloudflare deploy secrets missing. Add CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN repository secrets."
+            exit 1
           fi
           echo "ready=true" >> "${GITHUB_OUTPUT}"
+      - uses: pnpm/action-setup@v4
+        if: steps.cloudflare.outputs.ready == 'true'
+        with:
+          version: 11.1.3
+          run_install: false
       - uses: actions/setup-node@v6
         if: steps.cloudflare.outputs.ready == 'true'
         with:
           node-version: 22
           cache: pnpm
-      - name: Enable pnpm
-        if: steps.cloudflare.outputs.ready == 'true'
-        run: |
-          corepack enable
-          corepack prepare pnpm@11.1.3 --activate
       - name: Install dependencies
         if: steps.cloudflare.outputs.ready == 'true'
         run: pnpm install --frozen-lockfile
