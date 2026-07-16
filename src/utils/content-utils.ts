@@ -377,9 +377,14 @@ export interface Tag {
 	count: number;
 }
 
-export async function getTagList(options?: {
+export interface TagListOptions {
 	includeDiary?: boolean;
-}): Promise<Tag[]> {
+	sortBy?: "name" | "count";
+	minCount?: number;
+	limit?: number;
+}
+
+export async function getTagList(options?: TagListOptions): Promise<Tag[]> {
 	const allBlogPosts = await getCollection<"posts">("posts", ({ data }) => {
 		return data.draft !== true;
 	});
@@ -400,12 +405,22 @@ export async function getTagList(options?: {
 		});
 	});
 
-	// sort tags
-	const keys: string[] = Object.keys(countMap).sort((a, b) => {
-		return a.toLowerCase().localeCompare(b.toLowerCase());
-	});
+	const minCount = Math.max(1, Math.trunc(options?.minCount ?? 1));
+	const tags = Object.entries(countMap)
+		.map(([name, count]) => ({ name, count }))
+		.filter((tag) => tag.count >= minCount)
+		.sort((a, b) => {
+			if (options?.sortBy === "count" && a.count !== b.count) {
+				return b.count - a.count;
+			}
+			return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+		});
 
-	return keys.map((key) => ({ name: key, count: countMap[key] }));
+	if (options?.limit === undefined) {
+		return tags;
+	}
+
+	return tags.slice(0, Math.max(0, Math.trunc(options.limit)));
 }
 
 export interface Category {

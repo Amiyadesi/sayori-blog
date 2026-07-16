@@ -7,7 +7,11 @@ import { widgetManager } from "../../../utils/widget-manager";
 import ButtonTag from "../../control/ButtonTag.astro";
 import WidgetLayout from "../common/WidgetLayout.astro";
 
-const tags = await getTagList();
+const tags = await getTagList({
+	sortBy: "count",
+	minCount: 2,
+	limit: 18,
+});
 
 const COLLAPSED_HEIGHT = "7.5rem";
 
@@ -40,9 +44,15 @@ const style = Astro.props.style;
 			tags.map((t) => (
 				<ButtonTag
 					href={getTagUrl(t.name)}
-					label={`View all posts with the ${t.name.trim()} tag`}
+					label={`${t.name.trim()} 标签，共 ${t.count} 篇文章`}
 				>
-					{t.name.trim()}
+					<span>{t.name.trim()}</span>
+					<span
+						class="ml-1.5 rounded-full bg-black/5 px-1.5 text-[0.6875rem] leading-5 tabular-nums text-black/55 dark:bg-white/10 dark:text-white/60"
+						aria-hidden="true"
+					>
+						{t.count}
+					</span>
 				</ButtonTag>
 			))
 		}

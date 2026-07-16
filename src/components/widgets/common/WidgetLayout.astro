@@ -36,21 +36,24 @@ const widgetShellClass = [
 >
 	{
 		name && (
-			<div
-				class="paper-title font-bold transition text-lg text-neutral-900 dark:text-neutral-100 relative ml-7 mt-3 mb-2 flex items-center gap-2"
-			>
+			<div class="paper-title font-bold transition text-lg text-neutral-900 dark:text-neutral-100 relative ml-7 mt-3 mb-2 flex items-center gap-2 pr-10">
 				<button
 					type="button"
-					class="absolute right-0 top-0"
+					class="widget-tear-trigger absolute right-1 top-1/2"
 					data-paper-tear-trigger
 					aria-label="撕掉这张纸条"
+					title="撕掉这张纸条"
 				>
-					×
+					<Icon
+						name="material-symbols:content-cut-rounded"
+						class="text-base"
+						aria-hidden="true"
+					/>
 				</button>
 				<span
 					class="inline-block h-4 w-1 rounded-md bg-[var(--primary)]"
 					aria-hidden="true"
-				></span>
+				/>
 				{name}
 				<slot name="title-icon" />
 			</div>
@@ -85,6 +88,46 @@ const widgetShellClass = [
 <style define:vars={{ collapsedHeight }}>
 	.collapsed {
 		height: var(--collapsedHeight);
+	}
+
+	.widget-tear-trigger[data-paper-tear-trigger] {
+		display: inline-flex;
+		width: 1.75rem;
+		height: 1.75rem;
+		align-items: center;
+		justify-content: center;
+		padding: 0;
+		border: 1px dashed
+			color-mix(in srgb, var(--paper-muted) 42%, transparent);
+		border-radius: 9999px;
+		background: color-mix(in srgb, var(--paper-bg) 84%, var(--primary) 8%);
+		box-shadow: 0 2px 8px
+			color-mix(in srgb, var(--paper-muted) 18%, transparent);
+		color: var(--paper-muted);
+		transform: translateY(-50%) rotate(-6deg);
+		transition:
+			transform 160ms ease,
+			border-color 160ms ease,
+			background-color 160ms ease,
+			color 160ms ease,
+			box-shadow 160ms ease;
+	}
+
+	.widget-tear-trigger[data-paper-tear-trigger]:hover {
+		border-color: color-mix(in srgb, var(--primary) 48%, transparent);
+		background: color-mix(in srgb, var(--paper-bg) 72%, var(--primary) 14%);
+		color: var(--primary);
+		transform: translateY(-50%) rotate(-12deg) scale(1.06);
+	}
+
+	.widget-tear-trigger[data-paper-tear-trigger]:active {
+		transform: translateY(-50%) rotate(-8deg) scale(0.96);
+	}
+
+	.widget-tear-trigger[data-paper-tear-trigger]:focus-visible {
+		outline: 2px solid color-mix(in srgb, var(--primary) 72%, white);
+		outline-offset: 2px;
+		color: var(--primary);
 	}
 </style>
 
