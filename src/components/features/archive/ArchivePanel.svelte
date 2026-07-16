@@ -7,9 +7,21 @@
 	export let categories: string[];
 	export let sortedPosts: Post[] = [];
 
+	const legacyCategoryAliases: Record<string, string> = {
+		"服务器探索": "建站与自托管",
+		"AI工具": "AI 与工作流",
+		"资源分享": "工具与资源",
+		"互联网观察": "互联网与社区",
+		"日常回声": "个人记录",
+		"学习记录": "个人记录",
+	};
 	const params = new URLSearchParams(window.location.search);
 	tags = params.has("tag") ? params.getAll("tag") : [];
-	categories = params.has("category") ? params.getAll("category") : [];
+	categories = params.has("category")
+		? params
+				.getAll("category")
+				.map((category) => legacyCategoryAliases[category] ?? category)
+		: [];
 	const uncategorized = params.get("uncategorized");
 
 	interface Post {

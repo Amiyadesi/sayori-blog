@@ -39,6 +39,13 @@ const sponsorOptions = [
 		description: "通过爱发电支持",
 		icon: "material-symbols:favorite",
 	},
+	{
+		name: "赞赏码",
+		image: "/assets/sponsor/amiya-desi-reward-code.png",
+		description: "扫描赞赏码支持",
+		icon: "material-symbols:qr-code-2",
+		fit: "contain",
+	},
 ];
 const pageUrl = new URL(Astro.url.pathname, siteConfig.siteURL).toString();
 const jsonLd = {
@@ -75,25 +82,43 @@ const jsonLd = {
 
 			<div class="sponsor-options" aria-label="赞助方式">
 				{
-					sponsorOptions.map((option) => (
-						<a
-							class="sponsor-option"
-							href={option.href}
-							target="_blank"
-							rel="noopener noreferrer"
-							aria-label={option.description}
-						>
-							<img
-								src={option.image}
-								alt={option.description}
-								loading="lazy"
-							/>
-							<span class="sponsor-option-label">
-								<Icon name={option.icon} />
-								{option.name}
-							</span>
-						</a>
-					))
+					sponsorOptions.map((option) => {
+						const content = (
+							<>
+								<img
+									class:list={{
+										"sponsor-option-image-contain": option.fit === "contain",
+									}}
+									src={option.image}
+									alt={option.description}
+									loading="lazy"
+								/>
+								<span class="sponsor-option-label">
+									<Icon name={option.icon} />
+									{option.name}
+								</span>
+							</>
+						);
+
+						return option.href ? (
+							<a
+								class="sponsor-option"
+								href={option.href}
+								target="_blank"
+								rel="noopener noreferrer"
+								aria-label={option.description}
+							>
+								{content}
+							</a>
+						) : (
+							<div
+								class="sponsor-option sponsor-option-static"
+								aria-label={option.description}
+							>
+								{content}
+							</div>
+						);
+					})
 				}
 			</div>
 
@@ -125,7 +150,7 @@ const jsonLd = {
 
 	.sponsor-options {
 		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
+		grid-template-columns: repeat(3, minmax(0, 1fr));
 		gap: 1rem;
 		margin-top: 1.5rem;
 	}
@@ -143,7 +168,7 @@ const jsonLd = {
 			box-shadow 0.2s ease;
 	}
 
-	.sponsor-option:hover {
+	.sponsor-option:not(.sponsor-option-static):hover {
 		transform: translateY(-2px);
 		border-color: color-mix(in srgb, var(--primary) 42%, var(--line-divider));
 		box-shadow: 0 12px 28px rgba(84, 50, 67, 0.1);
@@ -155,6 +180,11 @@ const jsonLd = {
 		aspect-ratio: 4 / 5;
 		object-fit: cover;
 		background: rgba(0, 0, 0, 0.04);
+	}
+
+	.sponsor-option img.sponsor-option-image-contain {
+		object-fit: contain;
+		background: #17191d;
 	}
 
 	.sponsor-option-label {
@@ -243,7 +273,13 @@ const jsonLd = {
 		color: rgba(255, 255, 255, 0.56);
 	}
 
-	@media (max-width: 720px) {
+	@media (max-width: 900px) {
+		.sponsor-options {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+	}
+
+	@media (max-width: 620px) {
 		.sponsor-options {
 			grid-template-columns: 1fr;
 		}

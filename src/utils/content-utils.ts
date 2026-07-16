@@ -42,6 +42,74 @@ const DIARY_SYSTEM_TAGS = new Set([
 	"公开整理版",
 ]);
 
+// Public posts use this small, stable vocabulary. Legacy aliases remain below
+// so old content can still render cleanly while the authoring source is updated.
+const CANONICAL_PUBLIC_TAGS = new Set([
+	"AI",
+	"AI API",
+	"AI 写作",
+	"AI 额度",
+	"Astro",
+	"Bangumi",
+	"Claude Code",
+	"Cloudflare",
+	"Docker",
+	"Doki Chinese Club",
+	"Fediverse",
+	"GEO",
+	"GitHub",
+	"Godot",
+	"Linux.do",
+	"NodeLoc",
+	"Obsidian",
+	"VPS",
+	"Vaultwarden",
+	"中文社区",
+	"云服务",
+	"创作工具",
+	"创作资源",
+	"写作",
+	"原创博客",
+	"独立博客",
+	"域名",
+	"学生服务器",
+	"学生资源",
+	"密码管理",
+	"开源",
+	"开源服务",
+	"开发工具",
+	"成长记录",
+	"数字足迹",
+	"搜索",
+	"插件",
+	"新手入门",
+	"效率工具",
+	"教育邮箱",
+	"游戏开发",
+	"游戏设计",
+	"独立游戏",
+	"浏览器扩展",
+	"笔记同步",
+	"站内导航",
+	"站长工具",
+	"自托管",
+	"软件推荐",
+	"论坛",
+	"隐私",
+	"阿里云",
+	"免费资源",
+]);
+
+const CATEGORY_ORDER = [
+	"建站与自托管",
+	"AI 与工作流",
+	"工具与资源",
+	"游戏开发",
+	"互联网与社区",
+	"个人记录",
+	"日记",
+];
+
 const TAG_NORMALIZATION = new Map<string, string>([
 	// 内容类型归一化
 	["tutorial", "教程"],
@@ -205,6 +273,9 @@ export function isOrdinaryPublicPost(post: PostVisibilityLike): boolean {
 
 function normalizeDisplayTag(tag: string): string {
 	const trimmed = tag.trim();
+	if (CANONICAL_PUBLIC_TAGS.has(trimmed)) {
+		return trimmed;
+	}
 	const normalized = TAG_NORMALIZATION.get(trimmed.toLowerCase());
 	return normalized ?? trimmed;
 }
@@ -458,6 +529,12 @@ export async function getCategoryList(options?: {
 	});
 
 	const lst = Object.keys(count).sort((a, b) => {
+		const rankA = CATEGORY_ORDER.indexOf(a);
+		const rankB = CATEGORY_ORDER.indexOf(b);
+		if (rankA !== -1 || rankB !== -1) {
+			return (rankA === -1 ? Number.MAX_SAFE_INTEGER : rankA) -
+				(rankB === -1 ? Number.MAX_SAFE_INTEGER : rankB);
+		}
 		return a.toLowerCase().localeCompare(b.toLowerCase());
 	});
 
@@ -534,13 +611,11 @@ function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
 
 /**
  * 获取相关文章推荐
- * 评分公式: totalScore = tagMatchScore + titleSimilarityScore + timeFreshnessScore + categoryBonus + contentTypeBonus + diaryPenalty
+ * 评分公式: totalScore = tagMatchScore + titleSimilarityScore + timeFreshnessScore + categoryBonus
  * - tagMatchScore (0-150): 标签 Jaccard 相似度 × 150 (提高权重)
  * - titleSimilarityScore (0-50): 标题分词 Jaccard 相似度 × 50 (降低权重)
  * - timeFreshnessScore (0-10): 6 个月半衰期指数衰减 (大幅降低权重)
  * - categoryBonus (0 or 30): 同分类加 30 分 (提高权重)
- * - contentTypeBonus (0 or 20): 同内容类型加 20 分 (新增)
- * - diaryPenalty (-30 or 0): 非日记文章不推荐日记 (新增)
  */
 export async function getRelatedPosts(
 	currentPost: CollectionEntry<"posts">,
@@ -562,23 +637,6 @@ export async function getRelatedPosts(
 	const currentTokens = tokenizeTitle(currentPost.data.title);
 	const currentCategory = currentPost.data.category || "";
 	const now = Date.now();
-
-	// 判断内容类型
-	const getContentType = (post: CollectionEntry<"posts">) => {
-		const tags = getPostDisplayTags(post);
-		if (tags.includes("教程")) return "tutorial";
-		if (tags.includes("叙事")) return "narrative";
-		if (tags.includes("资源整合")) return "resource";
-		if (tags.includes("复盘")) return "review";
-		if (
-			post.data.category === "日常回声" ||
-			post.data.category === "学习记录"
-		)
-			return "diary";
-		return "other";
-	};
-
-	const currentContentType = getContentType(currentPost);
 
 	const scored = candidates.map((post) => {
 		const postTags = new Set(getPostDisplayTags(post));
@@ -605,24 +663,11 @@ export async function getRelatedPosts(
 				? 30
 				: 0;
 
-		// contentTypeBonus (0 or 20) - 新增：同内容类型加分
-		const postContentType = getContentType(post);
-		const contentTypeBonus =
-			currentContentType === postContentType ? 20 : 0;
-
-		// diaryPenalty (-30 or 0) - 新增：非日记文章不推荐日记
-		const diaryPenalty =
-			currentContentType !== "diary" && postContentType === "diary"
-				? -30
-				: 0;
-
 		const totalScore =
 			tagMatchScore +
 			titleSimilarityScore +
 			timeFreshnessScore +
-			categoryBonus +
-			contentTypeBonus +
-			diaryPenalty;
+			categoryBonus;
 
 		return {
 			post,

@@ -177,7 +177,26 @@ const archiveUrl = url("/archive/");
 		// 高亮当前分类
 		const pills = bar.querySelectorAll<HTMLAnchorElement>(".category-pill");
 		const params = new URLSearchParams(window.location.search);
-		const activeCategory = params.get("category") || "";
+		const requestedCategory = params.get("category") || "";
+		const categoryAliases: Record<string, string> = {
+			"服务器探索": "建站与自托管",
+			"AI工具": "AI 与工作流",
+			"资源分享": "工具与资源",
+			"互联网观察": "互联网与社区",
+			"日常回声": "个人记录",
+			"学习记录": "个人记录",
+		};
+		const activeCategory =
+			categoryAliases[requestedCategory] ?? requestedCategory;
+		if (requestedCategory && requestedCategory !== activeCategory) {
+			params.set("category", activeCategory);
+			const search = params.toString();
+			history.replaceState(
+				{},
+				"",
+				`${window.location.pathname}${search ? `?${search}` : ""}${window.location.hash}`,
+			);
+		}
 		const hasTag = params.has("tag");
 		const hasUncategorized = params.has("uncategorized");
 

@@ -824,6 +824,7 @@ function verifySponsorPage(sponsorHtml) {
 		"赞助",
 		"/assets/sponsor/amiya_desi-Sharable-Profile-Vertical.jpg",
 		"/assets/sponsor/afdian-Amiya_desi.jpg",
+		"/assets/sponsor/amiya-desi-reward-code.png",
 		"https://ko-fi.com/amiya_desi/tip",
 		"https://ifdian.net/a/amiya_desi/plan",
 		"感谢赞助",
@@ -832,6 +833,16 @@ function verifySponsorPage(sponsorHtml) {
 		"爱发电用户_eYwj",
 		"爱发电用户_1d601",
 	]);
+	const sponsorRoot = parse(sponsorHtml);
+	if (
+		sponsorRoot.querySelector(
+			'a img[src="/assets/sponsor/amiya-desi-reward-code.png"]',
+		)
+	) {
+		fail("Sponsor reward-code image must not be wrapped in a link");
+	} else {
+		pass("Sponsor reward-code image is not linked");
+	}
 	const sponsorJsonLdNodes = getJsonLdNodes(
 		sponsorHtml,
 		"sponsor/index.html",

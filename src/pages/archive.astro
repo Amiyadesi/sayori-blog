@@ -5,8 +5,10 @@ import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
 import MainGridLayout from "@layouts/MainGridLayout.astro";
 import {
+	getCategoryList,
 	getPostDisplayTags,
 	getSortedPostsList,
+	getTagList,
 	isOrdinaryPublicPost,
 } from "@utils/content-utils";
 
@@ -32,17 +34,11 @@ const posts = sortedPostsList.map((post) => ({
 	},
 }));
 
-// 2. 提取所有标签 (去重)
-const tags = [...new Set(posts.flatMap((post) => post.data.tags))];
-
-// 3. 提取所有分类 (去重且过滤掉 undefined)
-const categories = [
-	...new Set(
-		posts
-			.map((post) => post.data.category)
-			.filter((c): c is string => typeof c === "string"),
-	),
-];
+// Keep archive filters useful: singleton tags remain on posts but do not crowd the UI.
+const tags = (await getTagList({ minCount: 2, sortBy: "count" })).map(
+	(tag) => tag.name,
+);
+const categories = (await getCategoryList()).map((category) => category.name);
 ---
 
 <MainGridLayout title={i18n(I18nKey.archive)}>

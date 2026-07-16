@@ -33,11 +33,11 @@ const webmasterTopic = topics.find((topic) => topic.slug === "webmaster");
 const homeFaqItems = [
 	{
 		question: "这个博客主要写什么？",
-		answer: "blog.sayori.org 是 Amiya_desi 的个人博客，主要记录服务器探索、Godot 游戏开发、Cloudflare、Docker、Obsidian 写作流、AI 辅助开发、资源整理、项目复盘和日常回声。",
+		answer: "blog.sayori.org 是 Amiya_desi 的个人博客，主要记录建站与自托管、Godot 游戏开发、AI 工作流、工具与资源、互联网社区和个人记录。",
 	},
 	{
 		question: "第一次访问应该从哪里开始？",
-		answer: "可以先看最新文章、随机文章入口、个人站长工具箱专题、资源索引、服务器探索和 Godot 相关内容；如果只想了解公开入口，可以回到 sayori.org 查看 GitHub、GeoScore、小白板和留言板。",
+		answer: "可以先看最新文章、随机文章入口、个人站长工具箱专题、资源索引、建站与自托管和 Godot 相关内容；如果只想了解公开入口，可以回到 sayori.org 查看 GitHub、GeoScore、小白板和留言板。",
 	},
 	{
 		question: "更新节奏和内容边界是什么？",
@@ -53,7 +53,7 @@ const homeFaqItems = [
 	},
 ];
 const pageDescription = isHomeFirstPage
-	? "Amiya的书桌是 Amiya_desi 的个人博客和公开知识入口，记录服务器探索、Godot 游戏开发、Cloudflare、Docker、Obsidian 写作流、AI 辅助开发、资源整理、项目复盘和日常回声。"
+	? "Amiya的书桌是 Amiya_desi 的个人博客和公开知识入口，记录建站与自托管、Godot 游戏开发、AI 工作流、工具与资源、互联网社区和个人记录。"
 	: `${siteConfig.title} - ${siteConfig.subtitle}`;
 const pageUrl = new URL(Astro.url.pathname, siteConfig.siteURL).toString();
 const siteLanguage = siteConfig.lang.replace("_", "-");
@@ -149,9 +149,8 @@ if (isHomeFirstPage) {
 					<div class="mt-3 space-y-3">
 						<p>
 							这里长期记录 Amiya_desi
-							的公开知识和作品过程：服务器探索、Godot
-							游戏开发、Cloudflare、Docker、Obsidian 写作流、AI
-							辅助开发、资源整理、项目复盘和日常回声。主站
+						的公开知识和作品过程：建站与自托管、Godot
+						游戏开发、AI 工作流、工具与资源、互联网社区和个人记录。主站
 							sayori.org
 							负责放稳定入口，博客负责放更完整的文章、归档、RSS、随机文章入口和回头看的记录。
 							内容会跟着真实项目和学习节奏更新，不会为了填充 GEO
