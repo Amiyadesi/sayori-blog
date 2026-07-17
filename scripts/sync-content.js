@@ -71,8 +71,30 @@ const PRIVATE_WIKI_TARGETS = new Set([
 const warnings = [];
 
 if (!fs.existsSync(articlesRoot)) {
-	console.warn(`[sync-content] articles 目录不存在：${articlesRoot}`);
-	process.exit(0);
+	failSync(`content root missing: ${articlesRoot}`);
+}
+
+for (const directory of ["posts", "essays", "spec", "site", "assets", "friends", "anime"]) {
+	const directoryPath = path.join(articlesRoot, directory);
+	if (!fs.existsSync(directoryPath) || !fs.statSync(directoryPath).isDirectory()) {
+		failSync(`required directory missing: ${directory}`);
+	}
+}
+
+for (const filename of [
+	"profile.json",
+	"banner.json",
+	"navigation.json",
+	"announcement.json",
+	"sponsor.json",
+	"music.json",
+]) {
+	validateRequiredJsonFile(path.join(SITE_CONFIG_SRC, filename));
+}
+
+const sponsorPagePath = path.join(SITE_CONFIG_SRC, "sponsor.md");
+if (!fs.existsSync(sponsorPagePath) || !fs.statSync(sponsorPagePath).isFile()) {
+	failSync("required file missing: site/sponsor.md");
 }
 
 printArticleChangeSummary(collectArticleChangeSummary());
@@ -132,13 +154,34 @@ syncSiteConfig();
 syncFriendsData();
 
 if (warnings.length > 0) {
-	console.warn("\n[sync-content] 警告：");
+	console.error("\n[sync-content] validation errors:");
 	for (const warning of warnings) {
-		console.warn(`  - ${warning}`);
+		console.error(`  - ${warning}`);
 	}
+	failSync("content validation failed");
 }
 
 console.log("[sync-content] done");
+
+function failSync(message) {
+	console.error(`[sync-content] ${message}`);
+	process.exit(1);
+}
+
+function validateRequiredJsonFile(filePath) {
+	const label = path.relative(articlesRoot, filePath).replaceAll("\\", "/");
+	if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+		failSync(`required file missing: ${label}`);
+	}
+	try {
+		const value = JSON.parse(fs.readFileSync(filePath, "utf8"));
+		if (!value || typeof value !== "object" || Array.isArray(value)) {
+			failSync(`${label} must contain a JSON object`);
+		}
+	} catch (error) {
+		failSync(`${label} parse failed: ${error.message}`);
+	}
+}
 
 // ─── Posts sync (folder-per-post aware) ───────────────────────────────────────
 

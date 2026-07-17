@@ -10,13 +10,17 @@ const repoRoot = path.resolve(path.dirname(scriptPath), "..", "..");
 const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "blog-sync-"));
 
 try {
-	const fixtureRoot = path.join(tmpRoot, "remote_server");
-	const fixtureBlog = path.join(fixtureRoot, "blog");
+	const fixtureRoot = tmpRoot;
+	const fixtureBlog = path.join(tmpRoot, "sayori-blog");
 	const fixtureArticles = path.join(tmpRoot, "sayori-articles");
 
 	fs.mkdirSync(path.join(fixtureBlog, "scripts"), { recursive: true });
 	fs.cpSync(scriptPath, path.join(fixtureBlog, "scripts", "sync-content.js"));
 	fs.cpSync(path.join(path.dirname(scriptPath), "load-env.js"), path.join(fixtureBlog, "scripts", "load-env.js"));
+	write(path.join(fixtureBlog, "package.json"), '{"type":"module"}\n');
+	for (const status of ["watching", "completed", "planned"]) {
+		fs.mkdirSync(path.join(fixtureArticles, "anime", status), { recursive: true });
+	}
 
 	write(path.join(fixtureArticles, "posts", "hello", "hello.md"), [
 		"---",

@@ -11,9 +11,8 @@ const scriptPath = fileURLToPath(
 const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "blog-track-post-edit-"));
 
 try {
-	const fixtureRoot = path.join(tmpRoot, "remote_server");
-	const fixtureBlog = path.join(fixtureRoot, "blog");
-	const fixtureArticles = path.join(fixtureRoot, "articles");
+	const fixtureBlog = path.join(tmpRoot, "sayori-blog");
+	const fixtureArticles = path.join(tmpRoot, "sayori-articles");
 	const fixtureScript = path.join(
 		fixtureBlog,
 		"scripts",
@@ -23,6 +22,7 @@ try {
 
 	fs.mkdirSync(path.dirname(fixtureScript), { recursive: true });
 	fs.cpSync(scriptPath, fixtureScript);
+	write(path.join(fixtureBlog, "package.json"), '{"type":"module"}\n');
 
 	write(
 		postPath,

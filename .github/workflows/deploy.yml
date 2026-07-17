@@ -1,8 +1,9 @@
-name: Deploy Sayori Blog
+name: Verify and Deploy Sayori Blog
 
 on:
   push:
     branches: [main]
+  pull_request:
   repository_dispatch:
     types: [content-updated]
   workflow_dispatch:
@@ -14,45 +15,64 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  WRANGLER_VERSION: 4.111.0
+  RESTIC_VERSION: 0.19.1
+  RESTIC_LINUX_AMD64_SHA256: f415415624dcc452f2a02b8c33641791a8c6d6d3b65bbb3543fcf9a25151585c
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CF_BROWSER_RENDERING_API_TOKEN: ${{ secrets.CF_BROWSER_RENDERING_API_TOKEN }}
+  R2_BACKUP_ACCESS_KEY_ID: ${{ secrets.R2_BACKUP_ACCESS_KEY_ID }}
+  R2_BACKUP_SECRET_ACCESS_KEY: ${{ secrets.R2_BACKUP_SECRET_ACCESS_KEY }}
+  RESTIC_PASSWORD: ${{ secrets.RESTIC_PASSWORD }}
+
 jobs:
-  deploy:
+  verify:
+    name: verify
     runs-on: ubuntu-latest
-    timeout-minutes: 35
-    env:
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CF_BROWSER_RENDERING_API_TOKEN: ${{ secrets.CF_BROWSER_RENDERING_API_TOKEN }}
+    timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/checkout@v6
+      - name: Require main for production events
+        if: github.event_name != 'pull_request' && github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Production verification and deploy must run from main."
+          exit 1
+
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Checkout public content
+        uses: actions/checkout@v6
         with:
           repository: Amiyadesi/sayori-articles
           ref: main
           path: content
-      - name: Check Cloudflare secrets
-        id: cloudflare
-        shell: bash
-        run: |
-          if [[ -z "${CLOUDFLARE_ACCOUNT_ID}" || -z "${CLOUDFLARE_API_TOKEN}" ]]; then
-            echo "::error::Cloudflare deploy secrets missing. Add CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN repository secrets."
-            exit 1
-          fi
-          echo "ready=true" >> "${GITHUB_OUTPUT}"
+
       - uses: pnpm/action-setup@v4
-        if: steps.cloudflare.outputs.ready == 'true'
         with:
           version: 11.1.3
           run_install: false
+
       - uses: actions/setup-node@v6
-        if: steps.cloudflare.outputs.ready == 'true'
         with:
           node-version: 22
           cache: pnpm
+
       - name: Install dependencies
-        if: steps.cloudflare.outputs.ready == 'true'
         run: pnpm install --frozen-lockfile
-      - name: Sync and verify
-        if: steps.cloudflare.outputs.ready == 'true'
+
+      - name: Record immutable deployment metadata
+        shell: bash
+        run: |
+          echo "DEPLOYMENT_CODE_SHA=${GITHUB_SHA}" >> "${GITHUB_ENV}"
+          echo "DEPLOYMENT_CONTENT_SHA=$(git -C content rev-parse HEAD)" >> "${GITHUB_ENV}"
+          echo "DEPLOYMENT_BUILT_AT=$(date -u +'%Y-%m-%dT%H:%M:%S.000Z')" >> "${GITHUB_ENV}"
+          echo "DEPLOYMENT_WORKFLOW_RUN=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" >> "${GITHUB_ENV}"
+
+      - name: Run Node tests
+        run: pnpm test
+
+      - name: Sync and verify build
         env:
           CONTENT_DIR: ./content
         run: |
@@ -60,11 +80,72 @@ jobs:
           pnpm run check
           pnpm run build
           pnpm run verify-build-output
+          node scripts/write-deployment-manifest.mjs dist/deployment.json
+
+      - name: Check production secrets
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          missing=0
+          for name in \
+            CLOUDFLARE_ACCOUNT_ID \
+            CLOUDFLARE_API_TOKEN \
+            CF_BROWSER_RENDERING_API_TOKEN \
+            R2_BACKUP_ACCESS_KEY_ID \
+            R2_BACKUP_SECRET_ACCESS_KEY \
+            RESTIC_PASSWORD; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Missing GitHub Actions secret: ${name}"
+              missing=1
+            fi
+          done
+          exit "${missing}"
+
+      - name: Export D1 before migration and back up with restic
+        if: github.event_name != 'pull_request'
+        shell: bash
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_BACKUP_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_BACKUP_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          AWS_EC2_METADATA_DISABLED: "true"
+          RESTIC_REPOSITORY: s3:https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com/sayori-ops-backups
+        run: |
+          set -euo pipefail
+          archive="${RUNNER_TEMP}/restic_${RESTIC_VERSION}_linux_amd64.bz2"
+          curl -fsSL \
+            "https://github.com/restic/restic/releases/download/v${RESTIC_VERSION}/restic_${RESTIC_VERSION}_linux_amd64.bz2" \
+            -o "${archive}"
+          echo "${RESTIC_LINUX_AMD64_SHA256}  ${archive}" | sha256sum -c -
+          bunzip2 -c "${archive}" > "${RUNNER_TEMP}/restic"
+          chmod 0755 "${RUNNER_TEMP}/restic"
+          sudo install -m 0755 "${RUNNER_TEMP}/restic" /usr/local/bin/restic
+          backup="${RUNNER_TEMP}/sayori-analytics-${GITHUB_RUN_ID}-${GITHUB_SHA}.sql"
+          pnpm dlx "wrangler@${WRANGLER_VERSION}" d1 export sayori-analytics \
+            --remote \
+            --skip-confirmation \
+            --output "${backup}"
+          restic cat config >/dev/null
+          restic --retry-lock 10m backup "${backup}" \
+            --host sayori-blog-actions \
+            --tag d1-pre-migration \
+            --tag sayori-analytics
+          restic --retry-lock 10m forget --prune \
+            --host sayori-blog-actions \
+            --tag d1-pre-migration \
+            --group-by host,tags \
+            --keep-daily 14 \
+            --keep-weekly 8 \
+            --keep-monthly 6
+          rm -f "${backup}"
+
       - name: Apply D1 migrations
-        if: steps.cloudflare.outputs.ready == 'true'
-        run: npx --yes wrangler@latest d1 migrations apply sayori-analytics --remote
+        if: github.event_name != 'pull_request'
+        run: pnpm dlx "wrangler@${WRANGLER_VERSION}" d1 migrations apply sayori-analytics --remote
+
       - name: Configure screenshot secret
-        if: steps.cloudflare.outputs.ready == 'true' && env.CF_BROWSER_RENDERING_API_TOKEN != ''
+        if: github.event_name != 'pull_request'
+        shell: bash
         run: |
           secret_file="${RUNNER_TEMP}/sayori-blog-pages-secrets.json"
           node --input-type=module - "${secret_file}" <<'NODE'
@@ -74,12 +155,18 @@ jobs:
             CF_API_TOKEN: process.env.CF_BROWSER_RENDERING_API_TOKEN,
           }), { mode: 0o600 });
           NODE
-          npx --yes wrangler@latest pages secret bulk "${secret_file}" --project-name sayori-blog
+          pnpm dlx "wrangler@${WRANGLER_VERSION}" pages secret bulk "${secret_file}" --project-name sayori-blog
           rm -f "${secret_file}"
+
       - name: Deploy Pages
-        if: steps.cloudflare.outputs.ready == 'true'
+        if: github.event_name != 'pull_request'
         run: >
-          npx --yes wrangler@latest pages deploy dist
+          pnpm dlx "wrangler@${WRANGLER_VERSION}" pages deploy dist
           --project-name sayori-blog
           --branch main
+          --commit-hash "${GITHUB_SHA}"
           --commit-message "Deploy blog.sayori.org from GitHub Actions"
+
+      - name: Verify custom domain
+        if: github.event_name != 'pull_request'
+        run: node scripts/verify-live-deployment.mjs https://blog.sayori.org

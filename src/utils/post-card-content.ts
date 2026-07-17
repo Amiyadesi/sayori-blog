@@ -7,6 +7,10 @@ export interface PostHomeContentData {
 	password?: string | null;
 }
 
+export const ENCRYPTED_POST_HOME_CONTENT = i18n(
+	I18nKey.postEncryptedMessage,
+);
+
 function hasPassword(password?: string | null): boolean {
 	return typeof password === "string" && password.length > 0;
 }
@@ -27,7 +31,7 @@ export function getPostPublicDescription(
 	fallback = "",
 ): string {
 	if (shouldHidePostHomeContent(data)) {
-		return i18n(I18nKey.postEncryptedMessage);
+		return ENCRYPTED_POST_HOME_CONTENT;
 	}
 
 	return data.description || fallback;
