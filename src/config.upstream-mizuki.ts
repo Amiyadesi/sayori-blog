@@ -425,12 +425,14 @@ export const announcementConfig: AnnouncementConfig = {
 	title: "", // 公告标题，填空使用i18n字符串Key.announcement
 	content: "文章从本地 articles/ 同步到 Mizuki；这里会慢慢变成更适合长期阅读的笔记站。", // 公告内容
 	closable: true, // 允许用户关闭公告
-	link: {
-		enable: true, // 启用链接
-		text: "回到主入口", // 链接文本
-		url: "/about/", // 链接 URL
-		external: false, // 内部链接
-	},
+	links: [
+		{
+			enable: true,
+			text: "回到主入口",
+			url: "/about/",
+			external: false,
+		},
+	],
 };
 
 export const musicPlayerConfig: MusicPlayerConfig = {

@@ -140,7 +140,10 @@ try {
 	}, null, 2));
 	write(path.join(fixtureArticles, "site", "announcement.json"), JSON.stringify({
 		content: "Test announcement",
-		link: { enable: true, text: "Read", url: "/about/", external: false },
+		links: [
+			{ enable: true, text: "Read", url: "/about/", external: false },
+			{ enable: true, text: "Try", url: "https://example.com/", external: true },
+		],
 	}, null, 2));
 	write(path.join(fixtureArticles, "site", "sponsor.md"), [
 		"---",
@@ -330,6 +333,9 @@ try {
 	assert.doesNotMatch(generated, /"Hidden"/);
 	assert.match(generated, /"Sponsor"/);
 	assert.match(generated, /"Test announcement"/);
+	assert.match(generated, /"links"/);
+	assert.match(generated, /"Read"/);
+	assert.match(generated, /"Try"/);
 	assert.match(generated, /sponsorConfigOverride/);
 	assert.match(generated, /"Dna"/);
 	assert.match(generated, /"爱发电用户_04571"/);

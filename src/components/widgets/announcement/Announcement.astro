@@ -8,6 +8,7 @@ import WidgetLayout from "../common/WidgetLayout.astro";
 
 const config = announcementConfig;
 const announcementId = config.id || "default";
+const links = (config.links || []).filter((link) => link.enable !== false);
 
 interface Props {
 	class?: string;
@@ -33,30 +34,30 @@ const style = Astro.props.style;
 		</div>
 
 		<!-- 可选链接和关闭按钮 -->
-		<div class="flex items-center justify-between gap-3">
-			<div>
+		<div class="flex items-start justify-between gap-3">
+			<div class="flex flex-wrap gap-2 min-w-0">
 				{
-					config.link && config.link.enable !== false && (
+					links.map((link) => (
 						<a
-							href={config.link.url}
-							target={config.link.external ? "_blank" : "_self"}
+							href={link.url}
+							target={link.external ? "_blank" : "_self"}
 							rel={
-								config.link.external
+								link.external
 									? "noopener noreferrer"
 									: undefined
 							}
 							class="btn-regular rounded-lg px-3 py-1.5 text-sm font-medium active:scale-95 transition-transform"
 						>
-							{config.link.text}
+							{link.text}
 						</a>
-					)
+					))
 				}
 			</div>
 
 			{
 				config.closable && (
 					<button
-						class="btn-regular rounded-lg h-8 w-8 text-sm hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+						class="btn-regular rounded-lg h-8 w-8 shrink-0 text-sm hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
 						data-announcement-sidebar-close
 						aria-label={i18n(I18nKey.announcementClose)}
 					>

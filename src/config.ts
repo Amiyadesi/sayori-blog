@@ -452,12 +452,14 @@ const baseAnnouncementConfig: AnnouncementConfig = {
 	content:
 		"这里会放站点更新、最新文章入口和临时说明。想看最近更新可以先去时间线；看完文章想说点什么，也可以在页尾或者留言板塞一张小纸条。\n\n浏览器本地存储只用于记住你是否确认过当前公告，以及让 Twikoo 评论区沿用上次填写的昵称、邮箱和链接；不会新建账号，也不会把这些偏好同步到别处。", // 公告内容
 	closable: true, // 允许用户关闭公告
-	link: {
-		enable: true, // 启用链接
-		text: "看时间线", // 链接文本
-		url: "/timeline/", // 链接 URL
-		external: false, // 内部链接
-	},
+	links: [
+		{
+			enable: true,
+			text: "看时间线",
+			url: "/timeline/",
+			external: false,
+		},
+	],
 };
 
 export const announcementConfig: AnnouncementConfig = {

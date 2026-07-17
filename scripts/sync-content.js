@@ -1817,7 +1817,7 @@ function normalizeAnnouncementConfig(announcement) {
 		"icon",
 		"type",
 		"closable",
-		"link",
+		"links",
 	]);
 }
 
