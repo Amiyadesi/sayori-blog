@@ -39,8 +39,18 @@ try {
 }
 
 function run(outputPath, env) {
+	const childEnv = { ...process.env };
+	for (const name of [
+		"DEPLOYMENT_CODE_SHA",
+		"DEPLOYMENT_CONTENT_SHA",
+		"DEPLOYMENT_BUILT_AT",
+		"DEPLOYMENT_WORKFLOW_RUN",
+	]) {
+		delete childEnv[name];
+	}
+
 	return spawnSync(process.execPath, [scriptPath, outputPath], {
 		encoding: "utf8",
-		env: { ...process.env, ...env },
+		env: { ...childEnv, ...env },
 	});
 }
