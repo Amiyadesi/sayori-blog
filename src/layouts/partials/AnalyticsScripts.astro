@@ -171,7 +171,13 @@ const umamiEnable =
 	)
 }
 
-<script is:inline>
+<script
+	is:inline
+	define:vars={{
+		googleAnalyticsEnable,
+		googleAnalyticsId,
+	}}
+>
 	(function () {
 		const endpoint = "/api/analytics/event";
 		const site = "blog";

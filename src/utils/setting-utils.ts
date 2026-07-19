@@ -9,7 +9,7 @@ import { siteConfig } from "@/config";
 import type { LIGHT_DARK_MODE, WALLPAPER_MODE } from "@/types/config";
 
 export function getDefaultHue(): number {
-	const fallback = "250";
+	const fallback = String(siteConfig.themeColor.hue);
 	const configCarrier = document.getElementById("config-carrier");
 	// 在Swup页面切换时，config-carrier可能不存在，使用默认值
 	if (!configCarrier) {
@@ -19,17 +19,26 @@ export function getDefaultHue(): number {
 }
 
 export function getHue(): number {
+	if (siteConfig.themeColor.fixed) {
+		localStorage.removeItem("hue");
+		return getDefaultHue();
+	}
 	const stored = localStorage.getItem("hue");
 	return stored ? Number.parseInt(stored) : getDefaultHue();
 }
 
 export function setHue(hue: number): void {
-	localStorage.setItem("hue", String(hue));
+	const nextHue = siteConfig.themeColor.fixed ? getDefaultHue() : hue;
+	if (siteConfig.themeColor.fixed) {
+		localStorage.removeItem("hue");
+	} else {
+		localStorage.setItem("hue", String(nextHue));
+	}
 	const r = document.querySelector(":root") as HTMLElement;
 	if (!r) {
 		return;
 	}
-	r.style.setProperty("--hue", String(hue));
+	r.style.setProperty("--hue", String(nextHue));
 }
 
 export function applyThemeToDocument(theme: LIGHT_DARK_MODE) {
