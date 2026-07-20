@@ -213,6 +213,31 @@ function verifyAnalyticsScripts(html) {
 	requireIncludes("index.html", html, ["/api/analytics/event"]);
 
 	const root = parse(html);
+	const googleAnalyticsScripts = root
+		.querySelectorAll("script")
+		.filter((script) => {
+			const body = script.innerHTML;
+			return (
+				body.includes("googleAnalyticsEnable") ||
+				body.includes("googleAnalyticsId")
+			);
+		});
+
+	for (const script of googleAnalyticsScripts) {
+		const body = script.innerHTML;
+		const hasEnableBinding =
+			!body.includes("googleAnalyticsEnable") ||
+			/\b(?:const|let|var)\s+googleAnalyticsEnable\b/.test(body);
+		const hasIdBinding =
+			!body.includes("googleAnalyticsId") ||
+			/\b(?:const|let|var)\s+googleAnalyticsId\b/.test(body);
+		if (hasEnableBinding && hasIdBinding) {
+			pass("index.html analytics script has local Google Analytics bindings");
+		} else {
+			fail("index.html analytics script references an undefined Google Analytics binding");
+		}
+	}
+
 	const umamiScripts = root
 		.querySelectorAll("script")
 		.filter((script) => {

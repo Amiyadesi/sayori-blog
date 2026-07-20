@@ -21,7 +21,7 @@
 		font-size: 0.875rem;
 		font-weight: 700;
 		color: var(--btn-content);
-		background-color: oklch(0.95 0.025 var(--hue));
+		background-color: var(--btn-regular-bg);
 		display: flex;
 		align-items: center;
 		justify-content: center;

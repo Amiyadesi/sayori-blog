@@ -201,7 +201,7 @@ function toIsoDate(value?: Date | string) {
 <title>{title}</title>
 <meta name="description" content={description || title} />
 <meta name="robots" content="index, follow, max-image-preview:large" />
-<meta name="theme-color" content={`oklch(0.75 0.14 ${configHue})`} />
+<meta name="theme-color" content="#f4f3ef" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-title" content={siteConfig.title} />
@@ -335,9 +335,9 @@ function toIsoDate(value?: Date | string) {
 		document.documentElement.setAttribute("data-theme", expressiveTheme);
 	}
 
-	// Load the hue from local storage
-	const hue = localStorage.getItem("hue") || configHue;
-	document.documentElement.style.setProperty("--hue", hue);
+	// The public paper theme is fixed. Remove the legacy picker value before paint.
+	localStorage.removeItem("hue");
+	document.documentElement.style.setProperty("--hue", String(configHue));
 
 	// calculate the --banner-height-extend, which needs to be a multiple of 4 to avoid blurry text
 	let offset = Math.floor(window.innerHeight * (BANNER_HEIGHT_EXTEND / 100));
