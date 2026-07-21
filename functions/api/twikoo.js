@@ -6,7 +6,7 @@ import {
 } from "../_lib/twikoo.js";
 
 const OWNER_NICK = "Amiya_desi";
-const OWNER_AVATAR = "https://blog.sayori.org/assets/profile/avatar-sayori.jpg";
+const OWNER_AVATAR = "https://blog.sayori.org/assets/profile/avatar-sayori.png";
 
 function isOwnerNick(value) {
 	return String(value || "").trim().toLowerCase() === OWNER_NICK.toLowerCase();

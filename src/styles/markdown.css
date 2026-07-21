@@ -20,18 +20,27 @@
   }
 
   /* --- 链接 --- */
-  a:not(.no-styling) {
-    @apply relative bg-none font-medium text-(--primary)
+  a:not(.no-styling):not(.anchor) {
+    @apply relative font-medium text-(--primary)
         underline decoration-(--link-underline) decoration-1 decoration-dashed underline-offset-4;
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;
+    padding: 0.04em 0.2em;
+    border-radius: 0.3rem;
+    background: color-mix(in oklch, var(--admonitions-color-note) 12%, transparent);
 
     &:hover,
-    &:active {
+    &:active,
+    &:focus-visible {
       @apply decoration-transparent;
-      background: var(--btn-plain-bg-hover);
+      background: color-mix(in oklch, var(--admonitions-color-note) 20%, transparent);
       border-bottom: 1px dashed var(--link-hover);
       text-decoration: none;
+    }
+
+    &:focus-visible {
+      outline: 2px solid color-mix(in oklch, var(--admonitions-color-note) 62%, transparent);
+      outline-offset: 2px;
     }
   }
 
@@ -59,6 +68,13 @@
         display: none;
       }
     }
+  }
+
+  :not(pre) > code {
+    border: 1px solid color-mix(in oklch, var(--admonitions-color-note) 24%, transparent);
+    background: color-mix(in oklch, var(--admonitions-color-note) 10%, var(--inline-code-bg));
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
   }
 
   /* --- 列表 --- */

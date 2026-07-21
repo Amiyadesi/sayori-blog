@@ -326,7 +326,7 @@ export const navBarConfig: NavBarConfig = {
 };
 
 const baseProfileConfig: ProfileConfig = {
-	avatar: "assets/images/avatar-sayori.jpg", // 相对于 /src 目录。如果以 '/' 开头，则相对于 /public 目录
+	avatar: "assets/images/avatar-sayori.png", // 相对于 /src 目录。如果以 '/' 开头，则相对于 /public 目录
 	name: "Amiya_desi",
 	bio: "Amiya_desi 的个人博客，记录 Godot 游戏开发、服务器折腾、Cloudflare、Obsidian 写作流、AI 辅助开发和日常复盘。",
 	typewriter: {
