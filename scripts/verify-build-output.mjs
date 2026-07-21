@@ -58,6 +58,47 @@ function readTextIfExists(filePath) {
 	return fs.readFileSync(filePath, "utf8");
 }
 
+function walkDistTextFiles(dir) {
+	return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+		const fullPath = path.join(dir, entry.name);
+		if (entry.isDirectory()) return walkDistTextFiles(fullPath);
+		return entry.isFile() && /\.(?:css|html)$/i.test(entry.name) ? [fullPath] : [];
+	});
+}
+
+function verifyLocalFontReferences() {
+	const stale = [];
+	for (const filePath of walkDistTextFiles(distDir)) {
+		const content = fs.readFileSync(filePath, "utf8");
+		if (/url\([^)]*\/assets\/font\/[^)]*\.ttf(?:[?#][^)]*)?\)/i.test(content)) {
+			stale.push(path.relative(distDir, filePath).replaceAll(path.sep, "/"));
+		}
+	}
+	if (stale.length > 0) {
+		fail(`Local TTF references remain in ${stale.slice(0, 8).join(", ")}`);
+	} else {
+		pass("Built HTML and CSS use compressed local fonts");
+	}
+}
+
+function verifyCssDelivery(html) {
+	const root = parse(html);
+	const inlineCssBytes = root
+		.querySelectorAll("style")
+		.reduce((total, style) => total + Buffer.byteLength(style.innerHTML, "utf8"), 0);
+	const linkedStylesheets = root.querySelectorAll('link[rel="stylesheet"]').length;
+	if (inlineCssBytes > 128 * 1024) {
+		fail(`index.html inlines ${inlineCssBytes} CSS bytes; expected at most 131072`);
+	} else {
+		pass(`index.html inline CSS is bounded (${inlineCssBytes} bytes)`);
+	}
+	if (linkedStylesheets === 0) {
+		fail("index.html must keep non-critical CSS in external stylesheets");
+	} else {
+		pass(`index.html links ${linkedStylesheets} external stylesheet(s)`);
+	}
+}
+
 function requireIncludes(name, content, snippets) {
 	for (const snippet of snippets) {
 		if (!content.includes(snippet)) {
@@ -728,6 +769,27 @@ function verifyPostDefaultImageMetadata() {
 	}
 }
 
+function verifyArticleLandmarks() {
+	const post = getExpectedArchivePosts()[0];
+	if (!post) {
+		fail("No public post available for article landmark verification");
+		return;
+	}
+	const relativePath = path.join(trimUrlPath(post.url), "index.html");
+	const html = readDistFile(relativePath);
+	const root = parse(html);
+	if (root.querySelector(".banner-title")) {
+		fail(`dist/${relativePath} renders the homepage banner H1`);
+	} else {
+		pass(`dist/${relativePath} excludes the homepage banner H1`);
+	}
+	if (root.querySelector("nav#navbar")) {
+		pass(`dist/${relativePath} exposes the primary nav landmark`);
+	} else {
+		fail(`dist/${relativePath} missing nav#navbar landmark`);
+	}
+}
+
 function verifyHomePagination(indexHtml) {
 	const pageSize = getPageSize();
 	const expectedUrls = getExpectedHomePostUrls();
@@ -963,8 +1025,11 @@ requireNoJsonLdType("index.html", indexJsonLdNodes, "Service");
 verifyVisibleFaqMatchesJsonLd("index.html", indexHtml, indexJsonLdNodes);
 verifyAnalyticsScripts(indexHtml);
 verifyHomepageCriticalMedia(indexHtml);
+verifyCssDelivery(indexHtml);
+verifyLocalFontReferences();
 verifyHomePagination(indexHtml);
 verifyPostDefaultImageMetadata();
+verifyArticleLandmarks();
 verifySourceSecurityHeaders();
 requireAnyHref("index.html", indexHtml, "/topics/webmaster/");
 requireAnyHref("index.html", indexHtml, "/sponsor/");

@@ -9,6 +9,8 @@ const ALLOWED_RANGES = new Map([
 export const ONLINE_TTL_MS = 90 * 1000;
 export const IP_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 export const EVENT_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
+const IP_LOOKUP_TIMEOUT_MS = 5000;
+const IPSB_GEOIP_URL = "https://api.ip.sb/geoip/";
 
 const BASE_CORS_HEADERS = {
 	"access-control-allow-methods": "POST, OPTIONS",
@@ -31,6 +33,8 @@ const EMPTY_IP_INFO = Object.freeze({
 	isProxy: false,
 	isTor: false,
 	isThreat: false,
+	riskSignalsKnown: false,
+	source: "none",
 });
 
 const UNKNOWN_LOCATION_VALUES = new Set([
@@ -486,6 +490,8 @@ function rowToIpInfo(row) {
 		isProxy: Boolean(row.is_proxy),
 		isTor: Boolean(row.is_tor),
 		isThreat: Boolean(row.is_threat),
+		riskSignalsKnown: Boolean(row.risk_signals_known),
+		source: cleanString(row.provider || "cache", 32),
 	};
 }
 
@@ -570,8 +576,9 @@ async function writeIpCache(db, ipHash, info, now) {
 		.prepare(
 			`INSERT INTO analytics_ip_cache (
 				ip_hash, country_code, country_name, region, city, asn, organization, isp,
-				connection_type, is_vpn, is_proxy, is_tor, is_threat, looked_up_at, expires_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				connection_type, is_vpn, is_proxy, is_tor, is_threat, provider,
+				risk_signals_known, looked_up_at, expires_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			ON CONFLICT(ip_hash) DO UPDATE SET
 				country_code = excluded.country_code,
 				country_name = excluded.country_name,
@@ -585,6 +592,8 @@ async function writeIpCache(db, ipHash, info, now) {
 				is_proxy = excluded.is_proxy,
 				is_tor = excluded.is_tor,
 				is_threat = excluded.is_threat,
+				provider = excluded.provider,
+				risk_signals_known = excluded.risk_signals_known,
 				looked_up_at = excluded.looked_up_at,
 				expires_at = excluded.expires_at`,
 		)
@@ -602,10 +611,67 @@ async function writeIpCache(db, ipHash, info, now) {
 			info.isProxy ? 1 : 0,
 			info.isTor ? 1 : 0,
 			info.isThreat ? 1 : 0,
+			cleanString(info.source || "unknown", 32),
+			info.riskSignalsKnown ? 1 : 0,
 			now,
 			now + IP_CACHE_TTL_MS,
 		)
 		.run();
+}
+
+function ipSbEnabled(env) {
+	return String(env.IPSB_ENABLED || "").trim().toLowerCase() === "true";
+}
+
+function lookupSignal() {
+	return AbortSignal.timeout(IP_LOOKUP_TIMEOUT_MS);
+}
+
+async function lookupDkly(env, ip) {
+	if (!env.DKLY_IPINFO_API_KEY) return null;
+	const url = new URL("https://ipinfo.dkly.net/api/");
+	url.searchParams.set("ip", ip);
+	const response = await fetch(url.toString(), {
+		headers: {
+			accept: "application/json",
+			"X-API-Key": env.DKLY_IPINFO_API_KEY,
+		},
+		signal: lookupSignal(),
+	});
+	if (!response.ok) return null;
+	const data = await response.json();
+	if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+	return {
+		...normalizeIpInfoResponse(data),
+		riskSignalsKnown: true,
+		source: "dkly",
+	};
+}
+
+async function lookupIpSb(env, ip) {
+	if (!ipSbEnabled(env)) return null;
+	const response = await fetch(`${IPSB_GEOIP_URL}${encodeURIComponent(ip)}`, {
+		headers: {
+			accept: "application/json",
+			"user-agent": "sayori-blog/1.0 (+https://blog.sayori.org)",
+		},
+		signal: lookupSignal(),
+	});
+	if (!response.ok) return null;
+	const data = await response.json();
+	if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+	const asn = cleanString(data.asn, 40);
+	const normalized = normalizeIpInfoResponse({
+		...data,
+		country_name: data.country,
+		asn: asn && !asn.toUpperCase().startsWith("AS") ? `AS${asn}` : asn,
+		organization: data.asn_organization || data.organization,
+	});
+	return {
+		...normalized,
+		riskSignalsKnown: false,
+		source: "ipsb",
+	};
 }
 
 export async function lookupIpInfo(
@@ -620,32 +686,25 @@ export async function lookupIpInfo(
 	if (cached && Number(cached.expires_at) > now) {
 		return withDerivedLocation(rowToIpInfo(cached), cf);
 	}
-	if (!env.DKLY_IPINFO_API_KEY) {
-		return withDerivedLocation(EMPTY_IP_INFO, cf);
+	for (const [name, provider] of [
+		["dkly", () => lookupDkly(env, ip)],
+		["ipsb", () => lookupIpSb(env, ip)],
+	]) {
+		try {
+			const result = await provider();
+			if (!result) continue;
+			const info = withDerivedLocation(result, cf);
+			await writeIpCache(db, ipHash, info, now);
+			return info;
+		} catch (error) {
+			console.warn(
+				`[blog-analytics] ${name} IP lookup failed`,
+				error?.name || "Error",
+			);
+		}
 	}
 
-	try {
-		const url = new URL("https://ipinfo.dkly.net/api/");
-		url.searchParams.set("ip", ip);
-		const response = await fetch(url.toString(), {
-			headers: {
-				accept: "application/json",
-				"X-API-Key": env.DKLY_IPINFO_API_KEY,
-			},
-		});
-		if (!response.ok) {
-			return withDerivedLocation(EMPTY_IP_INFO, cf);
-		}
-		const info = withDerivedLocation(
-			normalizeIpInfoResponse(await response.json()),
-			cf,
-		);
-		await writeIpCache(db, ipHash, info, now);
-		return info;
-	} catch (error) {
-		console.error("[blog-analytics] ip info lookup failed", error);
-		return withDerivedLocation(EMPTY_IP_INFO, cf);
-	}
+	return withDerivedLocation(EMPTY_IP_INFO, cf);
 }
 
 function ipInfoBindValues(info) {
@@ -662,6 +721,7 @@ function ipInfoBindValues(info) {
 		info.isProxy ? 1 : 0,
 		info.isTor ? 1 : 0,
 		info.isThreat ? 1 : 0,
+		info.riskSignalsKnown ? 1 : 0,
 	];
 }
 
@@ -692,8 +752,9 @@ export async function recordAnalyticsEvent(context) {
 		`INSERT INTO analytics_events (
 				id, site, event_type, visitor_hash, session_hash, ip_hash, path, title,
 				country_code, country_name, region, city, asn, organization, isp,
-				connection_type, is_vpn, is_proxy, is_tor, is_threat, created_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				connection_type, is_vpn, is_proxy, is_tor, is_threat,
+				risk_signals_known, created_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 	)
 		.bind(
 			crypto.randomUUID(),
@@ -714,8 +775,8 @@ export async function recordAnalyticsEvent(context) {
 				session_hash, visitor_hash, ip_hash, site, first_seen_at, last_seen_at,
 				last_event_type, current_path, current_title, pageviews, heartbeats,
 				country_code, country_name, region, city, asn, organization, isp,
-				connection_type, is_vpn, is_proxy, is_tor, is_threat
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				connection_type, is_vpn, is_proxy, is_tor, is_threat, risk_signals_known
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			ON CONFLICT(session_hash) DO UPDATE SET
 				visitor_hash = excluded.visitor_hash,
 				ip_hash = excluded.ip_hash,
@@ -737,7 +798,8 @@ export async function recordAnalyticsEvent(context) {
 				is_vpn = excluded.is_vpn,
 				is_proxy = excluded.is_proxy,
 				is_tor = excluded.is_tor,
-				is_threat = excluded.is_threat`,
+				is_threat = excluded.is_threat,
+				risk_signals_known = excluded.risk_signals_known`,
 	)
 		.bind(
 			sessionHash,
@@ -799,6 +861,7 @@ function mapSecurity(row) {
 		isProxy: Boolean(row.is_proxy),
 		isTor: Boolean(row.is_tor),
 		isThreat: Boolean(row.is_threat),
+		riskSignalsKnown: Boolean(row.risk_signals_known),
 	};
 }
 
@@ -908,7 +971,8 @@ export async function getAdminAnalytics(env, options = {}) {
 		.prepare(
 			`SELECT site, current_path AS path, current_title AS title, last_seen_at,
 				pageviews, heartbeats, country_code, country_name, region, city, asn,
-				organization, isp, connection_type, is_vpn, is_proxy, is_tor, is_threat
+				organization, isp, connection_type, is_vpn, is_proxy, is_tor, is_threat,
+				risk_signals_known
 			FROM analytics_sessions
 			WHERE last_seen_at >= ?${sessionSite.sql}
 			ORDER BY last_seen_at DESC
@@ -921,7 +985,7 @@ export async function getAdminAnalytics(env, options = {}) {
 		.prepare(
 			`SELECT site, event_type, path, title, created_at, country_code, country_name,
 				region, city, asn, organization, isp, connection_type,
-				is_vpn, is_proxy, is_tor, is_threat
+				is_vpn, is_proxy, is_tor, is_threat, risk_signals_known
 			FROM analytics_events
 			WHERE created_at >= ?${eventSite.sql}
 			ORDER BY created_at DESC

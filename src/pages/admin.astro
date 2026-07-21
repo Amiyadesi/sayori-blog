@@ -612,7 +612,9 @@ export const prerender = true;
 			.join(" ");
 		const network = review.isp || review.organization || review.asn || "";
 		const risk =
-			review.riskLabels?.length
+			review.riskSignalsKnown === false
+				? "风险信号未知"
+				: review.riskLabels?.length
 				? `${review.riskLevel} · ${review.riskLabels.join(", ")}`
 				: review.riskLevel || "normal";
 		return [review.maskedIp, place, network, risk].filter(Boolean).join(" · ");
@@ -752,7 +754,13 @@ export const prerender = true;
 				cell(item.eventType),
 				cell(`${siteLabel(item.site)} · ${item.title || item.path}`),
 				cell(placeLabel(item)),
-				cell(labels.length ? labels.join(", ") : "正常"),
+				cell(
+					item.riskSignalsKnown === false
+						? "未检测"
+						: labels.length
+							? labels.join(", ")
+							: "正常",
+				),
 			);
 			return tr;
 		});

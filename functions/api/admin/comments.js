@@ -34,6 +34,7 @@ const EMPTY_IP_REVIEW = Object.freeze({
 	riskScore: 0,
 	riskLevel: "unknown",
 	riskLabels: [],
+	riskSignalsKnown: false,
 	source: "none",
 });
 
@@ -190,6 +191,17 @@ function withRiskFields(info) {
 		isTor: Boolean(info.isTor),
 		isThreat: Boolean(info.isThreat),
 	};
+	if (info.riskSignalsKnown === false) {
+		return {
+			...info,
+			...flags,
+			flag: flagFromCountry(info.countryCode),
+			riskScore: null,
+			riskLevel: "unknown",
+			riskLabels: [],
+			riskSignalsKnown: false,
+		};
+	}
 	let score = 0;
 	if (flags.isThreat) score += 80;
 	if (flags.isTor) score += 70;
@@ -211,6 +223,7 @@ function withRiskFields(info) {
 		riskLevel:
 			score >= 70 ? "high" : score >= 35 ? "medium" : score > 0 ? "low" : "normal",
 		riskLabels: labels,
+		riskSignalsKnown: true,
 	};
 }
 
@@ -234,12 +247,16 @@ export function buildIpReview(comment, enrichedInfo = null) {
 		isProxy: Boolean(hinted.isProxy),
 		isTor: Boolean(hinted.isTor),
 		isThreat: Boolean(hinted.isThreat),
-		riskScore: Number(hinted.riskScore || 0),
+		riskScore:
+			hinted.riskSignalsKnown === false
+				? null
+				: Number(hinted.riskScore || 0),
 		riskLevel: hinted.riskLevel || "normal",
 		riskLabels: Array.isArray(hinted.riskLabels)
 			? hinted.riskLabels.map((item) => cleanString(item, 40)).filter(Boolean)
 			: [],
-		source: enrichedInfo ? "ipinfo" : "twikoo",
+		riskSignalsKnown: hinted.riskSignalsKnown !== false,
+		source: cleanString(hinted.source || (enrichedInfo ? "ipinfo" : "twikoo"), 32),
 	};
 }
 

@@ -140,13 +140,20 @@ describe("D1 event recording", () => {
 			},
 		);
 
-		const result = await recordAnalyticsEvent({
-			request,
-			env: {
-				SAYORI_ANALYTICS_DB: db,
-				ANALYTICS_HASH_SECRET: "test-secret",
-			},
-		});
+		const originalRandom = Math.random;
+		Math.random = () => 1;
+		let result;
+		try {
+			result = await recordAnalyticsEvent({
+				request,
+				env: {
+					SAYORI_ANALYTICS_DB: db,
+					ANALYTICS_HASH_SECRET: "test-secret",
+				},
+			});
+		} finally {
+			Math.random = originalRandom;
+		}
 
 		assert.equal(result.success, true);
 		assert.equal(
@@ -242,6 +249,115 @@ describe("dklyIPdatabase normalization", () => {
 });
 
 describe("IPInfo cache", () => {
+	it("uses IP.SB when the keyed provider is unavailable without claiming risk coverage", async () => {
+		const writes = [];
+		const db = {
+			prepare(sql) {
+				return {
+					values: [],
+					bind(...values) {
+						this.values = values;
+						return this;
+					},
+					first() {
+						return null;
+					},
+					run() {
+						writes.push({ sql, values: this.values });
+						return { success: true };
+					},
+				};
+			},
+		};
+		const originalFetch = globalThis.fetch;
+		let requestedUrl = "";
+		globalThis.fetch = async (url) => {
+			requestedUrl = String(url);
+			return new Response(
+				JSON.stringify({
+					ip: "1.1.1.1",
+					country_code: "US",
+					country: "United States",
+					asn: 13335,
+					asn_organization: "Cloudflare, Inc.",
+					isp: "Cloudflare",
+				}),
+				{ status: 200, headers: { "content-type": "application/json" } },
+			);
+		};
+
+		try {
+			const info = await lookupIpInfo(
+				{ SAYORI_ANALYTICS_DB: db, IPSB_ENABLED: "true" },
+				"1.1.1.1",
+				"hash",
+				2000,
+			);
+
+			assert.equal(requestedUrl, "https://api.ip.sb/geoip/1.1.1.1");
+			assert.equal(info.countryCode, "US");
+			assert.equal(info.asn, "AS13335");
+			assert.equal(info.organization, "Cloudflare, Inc.");
+			assert.equal(info.source, "ipsb");
+			assert.equal(info.riskSignalsKnown, false);
+			assert.equal(writes.length, 1);
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
+	});
+
+	it("falls back to IP.SB when the keyed provider returns an error", async () => {
+		const db = {
+			prepare() {
+				return {
+					bind() {
+						return this;
+					},
+					first() {
+						return null;
+					},
+					run() {
+						return { success: true };
+					},
+				};
+			},
+		};
+		const originalFetch = globalThis.fetch;
+		const requests = [];
+		globalThis.fetch = async (url) => {
+			requests.push(String(url));
+			if (String(url).startsWith("https://ipinfo.dkly.net/")) {
+				return new Response("upstream unavailable", { status: 503 });
+			}
+			return new Response(
+				JSON.stringify({ ip: "8.8.8.8", country_code: "US", asn: 15169 }),
+				{ status: 200, headers: { "content-type": "application/json" } },
+			);
+		};
+
+		try {
+			const info = await lookupIpInfo(
+				{
+					SAYORI_ANALYTICS_DB: db,
+					DKLY_IPINFO_API_KEY: "test-secret",
+					IPSB_ENABLED: "true",
+				},
+				"8.8.8.8",
+				"hash",
+				2000,
+			);
+
+			assert.equal(info.source, "ipsb");
+			assert.equal(info.riskSignalsKnown, false);
+			assert.deepEqual(requests, [
+				"https://ipinfo.dkly.net/api/?ip=8.8.8.8",
+				"https://api.ip.sb/geoip/8.8.8.8",
+			]);
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
+	});
+
 	it("does not reuse expired cache rows when no API key is configured", async () => {
 		const db = {
 			prepare() {
@@ -281,6 +397,8 @@ describe("IPInfo cache", () => {
 			isProxy: false,
 			isTor: false,
 			isThreat: false,
+			riskSignalsKnown: false,
+			source: "none",
 		});
 	});
 

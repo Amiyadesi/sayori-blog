@@ -1,0 +1,184 @@
+---
+import { Icon } from "astro-icon/components";
+---
+
+<div
+	class="copy-feedback-layer"
+	data-copy-feedback-layer
+	data-state="success"
+	aria-hidden="true"
+>
+	<div
+		class="copy-feedback-card"
+		role="status"
+		aria-live="polite"
+		aria-atomic="true"
+	>
+		<span
+			class="copy-feedback-icon copy-feedback-icon-working"
+			aria-hidden="true"
+		>
+			<Icon name="material-symbols:progress-activity" />
+		</span>
+		<span
+			class="copy-feedback-icon copy-feedback-icon-success"
+			aria-hidden="true"
+		>
+			<Icon name="material-symbols:check-circle-outline-rounded" />
+		</span>
+		<span
+			class="copy-feedback-icon copy-feedback-icon-error"
+			aria-hidden="true"
+		>
+			<Icon name="material-symbols:error-outline-rounded" />
+		</span>
+		<span data-copy-feedback-text></span>
+	</div>
+</div>
+
+<script>
+	import {
+		COPY_FEEDBACK_EVENT,
+		getCopyFeedbackMessages,
+		isProgrammaticCopyActive,
+		type CopyFeedbackDetail,
+	} from "@utils/copy-feedback";
+
+	const layer = document.querySelector<HTMLElement>(
+		"[data-copy-feedback-layer]",
+	);
+	const text = layer?.querySelector<HTMLElement>("[data-copy-feedback-text]");
+	let hideTimer = 0;
+
+	function showFeedback(detail: CopyFeedbackDetail) {
+		if (!layer || !text) return;
+
+		const messages = getCopyFeedbackMessages(
+			document.documentElement.lang || "en",
+		);
+		window.clearTimeout(hideTimer);
+		layer.dataset.state = detail.state;
+		text.textContent = detail.message || messages[detail.state];
+		layer.classList.add("is-visible");
+		layer.setAttribute("aria-hidden", "false");
+
+		const duration =
+			detail.state === "working"
+				? 10000
+				: detail.state === "error"
+					? 2800
+					: 1600;
+		hideTimer = window.setTimeout(() => {
+			layer.classList.remove("is-visible");
+			layer.setAttribute("aria-hidden", "true");
+		}, duration);
+	}
+
+	if (layer && layer.dataset.bound !== "true") {
+		layer.dataset.bound = "true";
+		document.addEventListener(COPY_FEEDBACK_EVENT, (event) => {
+			showFeedback((event as CustomEvent<CopyFeedbackDetail>).detail);
+		});
+		document.addEventListener("copy", () => {
+			if (!isProgrammaticCopyActive()) {
+				showFeedback({ state: "success" });
+			}
+		});
+	}
+</script>
+
+<style is:global>
+	.copy-feedback-layer {
+		position: fixed;
+		inset: 0;
+		z-index: 10000;
+		display: grid;
+		place-items: center;
+		padding: 1rem;
+		background: rgba(20, 24, 31, 0.16);
+		backdrop-filter: blur(1.5px);
+		opacity: 0;
+		visibility: hidden;
+		pointer-events: none;
+		transition:
+			opacity 140ms ease,
+			visibility 140ms ease;
+	}
+
+	.copy-feedback-layer.is-visible {
+		opacity: 1;
+		visibility: visible;
+	}
+
+	.copy-feedback-card {
+		display: flex;
+		align-items: center;
+		gap: 0.7rem;
+		min-width: min(18rem, calc(100vw - 2rem));
+		max-width: min(28rem, calc(100vw - 2rem));
+		padding: 0.9rem 1.1rem;
+		border: 1px solid color-mix(in srgb, var(--primary) 38%, transparent);
+		border-radius: 8px;
+		background: color-mix(in srgb, var(--card-bg) 96%, #ffffff 4%);
+		color: var(--deep-text, #1f2937);
+		box-shadow: 0 16px 42px rgba(15, 23, 42, 0.24);
+		font-size: 0.96rem;
+		font-weight: 700;
+		line-height: 1.45;
+	}
+
+	.copy-feedback-icon {
+		display: none;
+		flex: 0 0 auto;
+		width: 1.35rem;
+		height: 1.35rem;
+		color: var(--primary);
+	}
+
+	.copy-feedback-icon svg {
+		display: block;
+		width: 100%;
+		height: 100%;
+	}
+
+	.copy-feedback-layer[data-state="working"] .copy-feedback-icon-working,
+	.copy-feedback-layer[data-state="success"] .copy-feedback-icon-success,
+	.copy-feedback-layer[data-state="error"] .copy-feedback-icon-error {
+		display: block;
+	}
+
+	.copy-feedback-layer[data-state="working"] .copy-feedback-icon-working {
+		animation: copy-feedback-spin 850ms linear infinite;
+	}
+
+	.copy-feedback-layer[data-state="error"] .copy-feedback-icon-error {
+		color: #c2413a;
+	}
+
+	@keyframes copy-feedback-spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+
+	@media (max-width: 640px) {
+		.copy-feedback-layer {
+			place-items: end center;
+			padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+		}
+
+		.copy-feedback-card {
+			width: 100%;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.copy-feedback-layer {
+			transition: none;
+		}
+
+		.copy-feedback-layer[data-state="working"] .copy-feedback-icon-working {
+			animation: none;
+		}
+	}
+</style>

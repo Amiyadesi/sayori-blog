@@ -1256,32 +1256,42 @@ async function compressFonts() {
 	}
 }
 
-// 更新 dist 中的 CSS，将 ttf 引用替换为 woff2（子集优化后）或保持原样
+function escapeRegExp(value) {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function localTtfPattern(baseName) {
+	return new RegExp(
+		`url\\(\\s*["']?/assets/font/${escapeRegExp(baseName)}\\.ttf(?:\\?[^"')\\s]*)?["']?\\s*\\)(?:\\s*format\\(\\s*["']?truetype["']?\\s*\\))?`,
+		"g",
+	);
+}
+
+// 更新 dist 中的 HTML/CSS，将本地 ttf 引用替换为 woff2。
 async function updateCssFontReferences() {
 	try {
 		const { fonts } = await getConfig();
 		const distDir = path.join(__dirname, "../dist/");
 		const publicFontDir = path.join(__dirname, "../public/assets/font");
 
-		// 查找所有 CSS 文件（包括 _astro 目录）
-		const cssFiles = [];
-		function findCssFiles(dir) {
+		const builtTextFiles = [];
+		function findBuiltTextFiles(dir) {
 			if (!fs.existsSync(dir)) return;
 			const files = fs.readdirSync(dir);
 			files.forEach((file) => {
 				const filePath = path.join(dir, file);
 				const stat = fs.statSync(filePath);
 				if (stat.isDirectory()) {
-					findCssFiles(filePath);
-				} else if (file.endsWith(".css")) {
-					cssFiles.push(filePath);
+					findBuiltTextFiles(filePath);
+				} else if (/\.(?:css|html)$/i.test(file)) {
+					builtTextFiles.push(filePath);
 				}
 			});
 		}
-		findCssFiles(distDir);
+		findBuiltTextFiles(distDir);
 
-		if (cssFiles.length === 0) {
-			console.log("⚠ No CSS files found in dist");
+		if (builtTextFiles.length === 0) {
+			console.log("⚠ No HTML or CSS files found in dist");
 			return;
 		}
 
@@ -1311,37 +1321,28 @@ async function updateCssFontReferences() {
 					continue;
 				}
 
-				// 更新每个 CSS 文件
-				for (const cssFile of cssFiles) {
-					let cssContent = fs.readFileSync(cssFile, "utf-8");
-					const originalContent = cssContent;
-
-					// 匹配 @font-face 规则中引用该字体的 src
-					// 匹配格式: url("/assets/font/xxx.ttf") 或 url("/assets/font/xxx.ttf") format("truetype")
-					const ttfPattern = new RegExp(
-						`url\\(["']?/assets/font/${baseName}\\.ttf["']?\\)\\s*format\\(["']truetype["']\\)`,
-						"g",
-					);
+				for (const builtFile of builtTextFiles) {
+					let content = fs.readFileSync(builtFile, "utf-8");
+					const originalContent = content;
+					const ttfPattern = localTtfPattern(baseName);
 
 					if (fontConfig.enableCompress) {
-						// 子集优化：直接替换为 woff2（子集化后的）
-						cssContent = cssContent.replace(
+						content = content.replace(
 							ttfPattern,
 							`url("/assets/font/${woff2File}") format("woff2")`,
 						);
 					} else {
-						// 未开启子集优化：使用原始 woff2（如果有），降级到 ttf
 						if (fs.existsSync(publicWoff2)) {
-							cssContent = cssContent.replace(
+							content = content.replace(
 								ttfPattern,
 								`url("/assets/font/${woff2File}") format("woff2"), url("/assets/font/${baseName}.ttf") format("truetype")`,
 							);
 						}
 					}
 
-					if (cssContent !== originalContent) {
-						fs.writeFileSync(cssFile, cssContent);
-						console.log(`✓ Updated CSS: ${cssFile} (${baseName})`);
+					if (content !== originalContent) {
+						fs.writeFileSync(builtFile, content);
+						console.log(`✓ Updated built asset: ${builtFile} (${baseName})`);
 					}
 				}
 			}
@@ -1356,30 +1357,26 @@ async function updateCssFontReferences() {
 				const ttfFile = `${baseName}.ttf`;
 
 				// 检查是否有 CSS 引用了这个 ttf
-				for (const cssFile of cssFiles) {
-					let cssContent = fs.readFileSync(cssFile, "utf-8");
-					const ttfPattern = new RegExp(
-						`url\\(["']?/assets/font/${baseName}\\.ttf["']?\\)\\s*format\\(["']truetype["']\\)`,
-						"g",
-					);
+				for (const builtFile of builtTextFiles) {
+					let content = fs.readFileSync(builtFile, "utf-8");
+					const ttfPattern = localTtfPattern(baseName);
 
-					if (cssContent.match(ttfPattern)) {
-						// 替换为 woff2 + ttf fallback
-						cssContent = cssContent.replace(
+					if (content.match(ttfPattern)) {
+						content = content.replace(
 							ttfPattern,
-							`url("/assets/font/${file}") format("woff2"), url("/assets/font/${ttfFile}") format("truetype")`,
+							`url("/assets/font/${file}") format("woff2")`,
 						);
-						fs.writeFileSync(cssFile, cssContent);
+						fs.writeFileSync(builtFile, content);
 						console.log(
-							`✓ Updated CSS: ${cssFile} (${baseName} - woff2 fallback)`,
+							`✓ Updated built asset: ${builtFile} (${baseName})`,
 						);
 					}
 				}
 			}
 		}
 	} catch (error) {
-		console.error("⚠ CSS font reference update failed:", error.message);
-		// 不退出，只是警告
+		console.error("❌ Built font reference update failed:", error.message);
+		throw error;
 	}
 }
 

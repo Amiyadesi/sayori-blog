@@ -33,8 +33,15 @@
     justify-content: center;
   }
 
-  .copy-btn:hover {
+  .copy-btn:hover,
+  .copy-btn:focus-visible {
     background: var(--btn-regular-bg-hover);
+  }
+
+  .copy-btn:focus-visible {
+    opacity: 1;
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
   }
 
   .copy-btn-icon {
@@ -64,7 +71,8 @@
   }
 
   /* 悬停 frame 时显示复制按钮 */
-  .frame:hover .copy-btn {
+  .frame:hover .copy-btn,
+  .frame:focus-within .copy-btn {
     opacity: 1;
   }
 }
@@ -175,6 +183,7 @@
     height: 1.75rem;
     top: 0.5rem;
     right: 0.5rem;
+    opacity: 1;
   }
 
   .expressive-code .copy-btn-icon {

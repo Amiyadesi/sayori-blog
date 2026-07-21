@@ -2,6 +2,7 @@ node_modules/
 .astro/
 .wrangler/
 dist/
+.playwright-cli/
 .env
 content/
 *.log
