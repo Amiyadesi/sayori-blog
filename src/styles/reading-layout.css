@@ -81,8 +81,67 @@
   background: rgba(255, 255, 255, 0.34);
 }
 
+/* Admonitions use the shared theme tokens instead of falling back to a plain quote. */
+#post-container .markdown-content blockquote.admonition {
+  --admonition-accent: var(--admonitions-color-note);
+  position: relative;
+  padding: 0.82rem 1rem 0.82rem 1.2rem;
+  border: 1px solid color-mix(in oklch, var(--admonition-accent) 34%, transparent);
+  border-left-width: 0.28rem;
+  border-radius: var(--radius-large);
+  background: color-mix(in oklch, var(--admonition-accent) 9%, var(--card-bg));
+}
+
+#post-container .markdown-content blockquote.admonition.bdm-tip {
+  --admonition-accent: var(--admonitions-color-tip);
+}
+
+#post-container .markdown-content blockquote.admonition.bdm-important {
+  --admonition-accent: var(--admonitions-color-important);
+}
+
+#post-container .markdown-content blockquote.admonition.bdm-warning {
+  --admonition-accent: var(--admonitions-color-warning);
+}
+
+#post-container .markdown-content blockquote.admonition.bdm-caution {
+  --admonition-accent: var(--admonitions-color-caution);
+}
+
+#post-container .markdown-content blockquote.admonition::before {
+  width: 0.28rem;
+  background: var(--admonition-accent);
+}
+
+#post-container .markdown-content blockquote.admonition .bdm-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: fit-content;
+  margin: 0 0 0.35rem;
+  padding: 0.14rem 0.5rem;
+  border: 1px solid color-mix(in oklch, var(--admonition-accent) 28%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--admonition-accent) 14%, transparent);
+  line-height: 1.4;
+  font-weight: 700;
+  color: var(--admonition-accent);
+}
+
+#post-container .markdown-content blockquote.admonition > p:first-of-type {
+  margin-top: 0.35rem;
+}
+
+#post-container .markdown-content blockquote.admonition > p:last-child {
+  margin-bottom: 0;
+}
+
 :root.dark #post-container .markdown-content blockquote {
   background: rgba(255, 255, 255, 0.045);
+}
+
+:root.dark #post-container .markdown-content blockquote.admonition {
+  background: color-mix(in oklch, var(--admonition-accent) 16%, var(--card-bg));
 }
 
 #post-container .markdown-content :where(h2, h3) {
