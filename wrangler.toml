@@ -2,6 +2,9 @@ name = "sayori-blog"
 pages_build_output_dir = "dist"
 compatibility_date = "2026-06-16"
 
+[vars]
+IPSB_ENABLED = "true"
+
 [[d1_databases]]
 binding = "SAYORI_ANALYTICS_DB"
 database_name = "sayori-analytics"

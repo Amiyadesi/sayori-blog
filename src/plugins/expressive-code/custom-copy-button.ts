@@ -12,7 +12,9 @@ export function pluginCustomCopyButton() {
 						tagName: "button",
 						properties: {
 							className: ["copy-btn"],
+							type: "button",
 							"aria-label": "Copy code",
+							title: "Copy code",
 						},
 						children: [
 							{

@@ -52,8 +52,7 @@ export default defineConfig({
 
 	output: "static",
 	build: {
-		// 首页会用到多组布局样式；内联可避免移动端首屏排队等待 CSS 请求。
-		inlineStylesheets: "always",
+		inlineStylesheets: "auto",
 	},
 
 	integrations: [

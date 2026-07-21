@@ -23,6 +23,11 @@ const className = Astro.props.class;
 </div>
 
 <script>
+	import {
+		copyTextWithFeedback,
+		getCopyFeedbackMessages,
+	} from "@utils/copy-feedback";
+
 	type TrackLike = {
 		title: string;
 		artist: string;
@@ -263,12 +268,14 @@ const className = Astro.props.class;
 		});
 	}
 
-	const copyToClipboard = async (text: string) => {
-		if (!navigator.clipboard?.writeText) {
-			throw new Error("Clipboard API 不可用");
+	function localizeCopyButtons() {
+		const messages = getCopyFeedbackMessages(document.documentElement.lang || "en");
+		for (const button of document.querySelectorAll<HTMLButtonElement>(".copy-btn")) {
+			if (button.getAttribute("aria-busy") === "true") continue;
+			button.setAttribute("aria-label", messages.action);
+			button.title = messages.action;
 		}
-		await navigator.clipboard.writeText(text);
-	};
+	}
 
 	async function handleMusicTrackPlay(button: HTMLElement) {
 		const card = button.closest<HTMLElement>(MUSIC_CARD_SELECTOR);
@@ -347,29 +354,53 @@ const className = Astro.props.class;
 			return;
 		}
 
-		if (target && target.classList.contains("copy-btn")) {
-			const code = extractCode(target);
-			copyToClipboard(code)
+		const copyButton = target?.closest<HTMLButtonElement>(".copy-btn");
+		if (copyButton) {
+			e.preventDefault();
+			if (copyButton.getAttribute("aria-busy") === "true") return;
+
+			const messages = getCopyFeedbackMessages(document.documentElement.lang || "en");
+			const code = extractCode(copyButton);
+			copyButton.setAttribute("aria-busy", "true");
+			copyButton.setAttribute("aria-label", messages.working);
+			copyButton.title = messages.working;
+			copyTextWithFeedback(code)
 				.then(() => {
-					const timeoutId = target.getAttribute("data-timeout-id");
+					const timeoutId = copyButton.getAttribute("data-timeout-id");
 					if (timeoutId) {
 						clearTimeout(parseInt(timeoutId));
 					}
 
-					target.classList.add("success");
+					copyButton.classList.add("success");
+					copyButton.setAttribute("aria-label", messages.success);
+					copyButton.title = messages.success;
 					const newTimeoutId = setTimeout(() => {
-						target.classList.remove("success");
-					}, 1000);
-					target.setAttribute("data-timeout-id", newTimeoutId.toString());
+						copyButton.classList.remove("success");
+						copyButton.setAttribute("aria-label", messages.action);
+						copyButton.title = messages.action;
+					}, 1600);
+					copyButton.setAttribute("data-timeout-id", newTimeoutId.toString());
 				})
 				.catch((err) => {
 					console.error("复制失败:", err);
+					copyButton.setAttribute("aria-label", messages.error);
+					copyButton.title = messages.error;
+					setTimeout(() => {
+						copyButton.setAttribute("aria-label", messages.action);
+						copyButton.title = messages.action;
+					}, 2800);
+				})
+				.finally(() => {
+					copyButton.removeAttribute("aria-busy");
 				});
 		}
 	});
 
 	bindMusicTrackState();
+	document.addEventListener("astro:page-load", localizeCopyButtons);
+	document.addEventListener("swup:contentReplaced", localizeCopyButtons);
 	document.addEventListener("astro:page-load", syncMusicTrackCards);
 	document.addEventListener("swup:contentReplaced", syncMusicTrackCards);
+	localizeCopyButtons();
 	void syncMusicTrackCards();
 </script>

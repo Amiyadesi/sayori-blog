@@ -10,6 +10,12 @@ function read(relativePath: string): string {
 }
 
 describe("fixed paper theme contract", () => {
+	it("loads the shared theme variables for every page", () => {
+		const layout = read("src/layouts/Layout.astro");
+
+		assert.match(layout, /import "\.\.\/styles\/variables\.styl";/);
+	});
+
 	it("locks the public theme and removes the hue picker from the rendered navbar", () => {
 		const config = read("src/config.ts");
 		const navbar = read("src/components/organisms/navigation/Navbar.astro");

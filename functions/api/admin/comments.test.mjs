@@ -134,4 +134,23 @@ describe("admin comment stats", () => {
 		assert.equal(stats.riskyComments[0].ipReview.maskedIp, "203.0.113.x");
 		assert.equal(JSON.stringify(stats).includes("203.0.113.10"), false);
 	});
+
+	it("keeps IP.SB-only reviews at unknown risk", () => {
+		const review = buildIpReview(
+			{ ip: "1.1.1.1" },
+			{
+				countryCode: "US",
+				asn: "AS13335",
+				organization: "Cloudflare, Inc.",
+				riskSignalsKnown: false,
+				source: "ipsb",
+			},
+		);
+
+		assert.equal(review.riskSignalsKnown, false);
+		assert.equal(review.riskScore, null);
+		assert.equal(review.riskLevel, "unknown");
+		assert.deepEqual(review.riskLabels, []);
+		assert.equal(review.source, "ipsb");
+	});
 });

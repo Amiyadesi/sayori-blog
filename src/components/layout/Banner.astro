@@ -213,8 +213,8 @@ const hasBannerLink = !!siteConfig.banner.credit.url;
 		</script>
 	)}
 
-	{siteConfig.banner.homeText?.enable && (
-		<div class={`banner-text-overlay absolute inset-0 z-20 flex items-center justify-center ${!showTextOverlay ? "hidden" : ""}`}>
+	{siteConfig.banner.homeText?.enable && showTextOverlay && (
+		<div class="banner-text-overlay absolute inset-0 z-20 flex items-center justify-center">
 			<div class="w-4/5 lg:w-3/4 text-center mb-0">
 				<div class="flex flex-col">
 					{overlayTitle && (
