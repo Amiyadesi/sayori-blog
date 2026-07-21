@@ -83,29 +83,30 @@
 
 /* Admonitions use the shared theme tokens instead of falling back to a plain quote. */
 #post-container .markdown-content blockquote.admonition {
-  --admonition-accent: var(--admonitions-color-note);
+  --admonition-accent: #496ed8;
   position: relative;
   padding: 0.82rem 1rem 0.82rem 1.2rem;
-  border: 1px solid color-mix(in oklch, var(--admonition-accent) 34%, transparent);
+  border: 1px solid color-mix(in srgb, var(--admonition-accent) 42%, var(--paper-edge));
   border-left-width: 0.28rem;
   border-radius: var(--radius-large);
-  background: color-mix(in oklch, var(--admonition-accent) 9%, var(--card-bg));
+  background: color-mix(in srgb, var(--admonition-accent) 12%, var(--paper-bg-soft));
+  color: var(--paper-text);
 }
 
 #post-container .markdown-content blockquote.admonition.bdm-tip {
-  --admonition-accent: var(--admonitions-color-tip);
+  --admonition-accent: #178f88;
 }
 
 #post-container .markdown-content blockquote.admonition.bdm-important {
-  --admonition-accent: var(--admonitions-color-important);
+  --admonition-accent: #a64e9d;
 }
 
 #post-container .markdown-content blockquote.admonition.bdm-warning {
-  --admonition-accent: var(--admonitions-color-warning);
+  --admonition-accent: #bd7a12;
 }
 
 #post-container .markdown-content blockquote.admonition.bdm-caution {
-  --admonition-accent: var(--admonitions-color-caution);
+  --admonition-accent: #c45143;
 }
 
 #post-container .markdown-content blockquote.admonition::before {
@@ -141,7 +142,11 @@
 }
 
 :root.dark #post-container .markdown-content blockquote.admonition {
-  background: color-mix(in oklch, var(--admonition-accent) 16%, var(--card-bg));
+  background: color-mix(in srgb, var(--admonition-accent) 21%, var(--paper-bg-soft));
+}
+
+:root.dark #post-container .markdown-content blockquote.admonition .bdm-title {
+  color: color-mix(in srgb, var(--admonition-accent) 70%, white);
 }
 
 #post-container .markdown-content :where(h2, h3) {

@@ -1,6 +1,9 @@
 @reference "tailwindcss";
 
 .custom-md {
+  --inline-mark-accent: #496ed8;
+  --inline-mark-surface: color-mix(in srgb, var(--inline-mark-accent) 12%, var(--paper-bg-soft));
+
   h1 {
     @apply text-3xl;
   }
@@ -23,23 +26,24 @@
   a:not(.no-styling):not(.anchor) {
     @apply relative font-medium text-(--primary)
         underline decoration-(--link-underline) decoration-1 decoration-dashed underline-offset-4;
+    color: var(--inline-mark-accent);
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;
     padding: 0.04em 0.2em;
     border-radius: 0.3rem;
-    background: color-mix(in oklch, var(--admonitions-color-note) 12%, transparent);
+    background: var(--inline-mark-surface);
 
     &:hover,
     &:active,
     &:focus-visible {
       @apply decoration-transparent;
-      background: color-mix(in oklch, var(--admonitions-color-note) 20%, transparent);
-      border-bottom: 1px dashed var(--link-hover);
+      background: color-mix(in srgb, var(--inline-mark-accent) 21%, var(--paper-bg-soft));
+      border-bottom: 1px dashed color-mix(in srgb, var(--inline-mark-accent) 58%, var(--paper-edge));
       text-decoration: none;
     }
 
     &:focus-visible {
-      outline: 2px solid color-mix(in oklch, var(--admonitions-color-note) 62%, transparent);
+      outline: 2px solid color-mix(in srgb, var(--inline-mark-accent) 68%, transparent);
       outline-offset: 2px;
     }
   }
@@ -71,8 +75,9 @@
   }
 
   :not(pre) > code {
-    border: 1px solid color-mix(in oklch, var(--admonitions-color-note) 24%, transparent);
-    background: color-mix(in oklch, var(--admonitions-color-note) 10%, var(--inline-code-bg));
+    border: 1px solid color-mix(in srgb, var(--inline-mark-accent) 27%, var(--paper-edge));
+    background: color-mix(in srgb, var(--inline-mark-accent) 11%, var(--paper-bg-soft));
+    color: var(--paper-text);
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;
   }
@@ -819,6 +824,11 @@
       min-height: 4.35rem;
     }
   }
+}
+
+:root.dark .custom-md {
+  --inline-mark-accent: #9db4ff;
+  --inline-mark-surface: color-mix(in srgb, var(--inline-mark-accent) 16%, var(--paper-bg-soft));
 }
 
 /* 外部覆盖样式 */
