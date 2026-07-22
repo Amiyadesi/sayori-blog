@@ -1,0 +1,460 @@
+---
+import {
+	getSortedPostsList,
+	isOrdinaryPublicPost,
+} from "@utils/content-utils";
+import { BLOG_ORIGIN } from "@utils/campaign-link";
+
+const posts = (await getSortedPostsList())
+	.filter(isOrdinaryPublicPost)
+	.map((post) => ({
+		title: post.data.title,
+		url: new URL(post.url || "/", BLOG_ORIGIN).toString(),
+	}));
+
+const presetSources = [
+	"linuxdo",
+	"v2ex",
+	"nodeloc",
+	"nodeseek",
+	"bilibili",
+	"youtube",
+	"github",
+];
+
+const contentPlacements = [
+	"thread-op",
+	"reply",
+	"profile",
+	"video-description",
+	"repo-readme",
+	"newsletter",
+];
+---
+
+<section
+	class="campaign-panel"
+	aria-labelledby="campaign-link-title"
+	data-campaign-link-builder
+	data-preset-sources={JSON.stringify(presetSources)}
+>
+	<header class="campaign-head">
+		<div>
+			<p class="campaign-kicker">Campaign Link</p>
+			<h2 id="campaign-link-title">推广链接</h2>
+			<p>统一 UTM 规则，来源可自由输入，正文仍按平台单独写</p>
+		</div>
+		<a href="https://stats.sayori.org" target="_blank" rel="noreferrer">
+			打开 Umami
+		</a>
+	</header>
+
+	<form class="campaign-form" data-campaign-form novalidate>
+		<label class="campaign-field campaign-span-2">
+			<span>文章</span>
+			<select data-campaign-post>
+				<option value="">自定义博客地址</option>
+				{
+					posts.map((post, index) => (
+						<option value={post.url} selected={index === 0}>
+							{post.title}
+						</option>
+					))
+				}
+			</select>
+		</label>
+
+		<label class="campaign-field campaign-span-2">
+			<span>目标 URL</span>
+			<input
+				type="url"
+				inputmode="url"
+				value={posts[0]?.url || BLOG_ORIGIN}
+				placeholder="https://blog.sayori.org/posts/example/"
+				data-campaign-target
+				required
+			/>
+		</label>
+
+		<label class="campaign-field">
+			<span>Source</span>
+			<input
+				type="text"
+				list="campaign-source-options"
+				placeholder="论坛、网站或完整 URL"
+				data-campaign-source
+				autocomplete="off"
+				required
+			/>
+			<datalist id="campaign-source-options" data-campaign-source-options>
+				{presetSources.map((source) => <option value={source} />)}
+			</datalist>
+		</label>
+
+		<label class="campaign-field">
+			<span>Medium</span>
+			<select data-campaign-medium>
+				<option value="community">community</option>
+				<option value="video">video</option>
+				<option value="social">social</option>
+				<option value="repository">repository</option>
+				<option value="referral">referral</option>
+				<option value="feed">feed</option>
+				<option value="email">email</option>
+				<option value="offline">offline</option>
+			</select>
+		</label>
+
+		<label class="campaign-field">
+			<span>Campaign</span>
+			<input
+				type="text"
+				placeholder="202607-project-release"
+				data-campaign-name
+				required
+			/>
+		</label>
+
+		<label class="campaign-field">
+			<span>Content</span>
+			<input
+				type="text"
+				list="campaign-content-options"
+				placeholder="thread-op"
+				data-campaign-content
+				autocomplete="off"
+			/>
+			<datalist id="campaign-content-options">
+				{contentPlacements.map((placement) => <option value={placement} />)}
+			</datalist>
+		</label>
+
+		<div class="campaign-recent campaign-span-2" data-campaign-recent hidden>
+			<span>本机最近来源</span>
+			<div data-campaign-recent-list></div>
+		</div>
+
+		<label class="campaign-field campaign-span-2">
+			<span>生成结果</span>
+			<textarea rows="4" readonly data-campaign-output></textarea>
+		</label>
+
+		<div class="campaign-actions campaign-span-2">
+			<button type="button" data-campaign-copy disabled>复制链接</button>
+			<p data-campaign-status aria-live="polite">填写来源后生成链接</p>
+		</div>
+	</form>
+</section>
+
+<script>
+	import {
+		buildCampaignUrl,
+		createDefaultCampaign,
+		mergeRecentCampaignSources,
+		normalizeCampaignSource,
+		removeRecentCampaignSource,
+	} from "../../../utils/campaign-link";
+
+	const STORAGE_KEY = "sayori:utm-sources:v1";
+
+	function initCampaignLinkBuilders() {
+		document
+			.querySelectorAll<HTMLElement>("[data-campaign-link-builder]")
+			.forEach((root) => {
+				if (root.dataset.initialized === "true") return;
+				root.dataset.initialized = "true";
+
+				const post = root.querySelector<HTMLSelectElement>("[data-campaign-post]")!;
+				const target = root.querySelector<HTMLInputElement>("[data-campaign-target]")!;
+				const source = root.querySelector<HTMLInputElement>("[data-campaign-source]")!;
+				const medium = root.querySelector<HTMLSelectElement>("[data-campaign-medium]")!;
+				const campaign = root.querySelector<HTMLInputElement>("[data-campaign-name]")!;
+				const content = root.querySelector<HTMLInputElement>("[data-campaign-content]")!;
+				const output = root.querySelector<HTMLTextAreaElement>("[data-campaign-output]")!;
+				const copy = root.querySelector<HTMLButtonElement>("[data-campaign-copy]")!;
+				const status = root.querySelector<HTMLElement>("[data-campaign-status]")!;
+				const options = root.querySelector<HTMLDataListElement>("[data-campaign-source-options]")!;
+				const recent = root.querySelector<HTMLElement>("[data-campaign-recent]")!;
+				const recentList = root.querySelector<HTMLElement>("[data-campaign-recent-list]")!;
+
+				const presets = JSON.parse(root.dataset.presetSources || "[]") as string[];
+				let recentSources: string[] = [];
+				try {
+					const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+					if (Array.isArray(stored)) recentSources = stored.filter((item) => typeof item === "string");
+				} catch {
+					recentSources = [];
+				}
+
+				function persistRecentSources() {
+					try {
+						localStorage.setItem(STORAGE_KEY, JSON.stringify(recentSources));
+					} catch {
+						// Browser storage is optional.
+					}
+				}
+
+				function renderRecentSources() {
+					options.replaceChildren(
+						...[...new Set([...presets, ...recentSources])].map((value) => {
+							const option = document.createElement("option");
+							option.value = value;
+							return option;
+						}),
+					);
+					recent.hidden = recentSources.length === 0;
+					recentList.replaceChildren(
+						...recentSources.map((value) => {
+							const button = document.createElement("button");
+							button.type = "button";
+							button.textContent = `${value} ×`;
+							button.title = `忘记来源 ${value}`;
+							button.addEventListener("click", () => {
+								recentSources = removeRecentCampaignSource(recentSources, value);
+								persistRecentSources();
+								renderRecentSources();
+							});
+							return button;
+						}),
+					);
+				}
+
+				function setDefaultCampaign(force = false) {
+					if (force || !campaign.value.trim()) {
+						campaign.value = createDefaultCampaign(target.value);
+					}
+				}
+
+				function updatePreview() {
+					try {
+						const value = buildCampaignUrl({
+							target: target.value,
+							source: source.value,
+							medium: medium.value,
+							campaign: campaign.value,
+							content: content.value,
+						});
+						output.value = value;
+						copy.disabled = false;
+						status.textContent = "链接已生成";
+						status.dataset.tone = "ok";
+					} catch (error) {
+						output.value = "";
+						copy.disabled = true;
+						status.textContent = error instanceof Error ? error.message : "无法生成链接";
+						status.dataset.tone = "muted";
+					}
+				}
+
+				function rememberSource() {
+					const normalized = normalizeCampaignSource(source.value);
+					if (!normalized) return;
+					source.value = normalized;
+					if (!presets.includes(normalized)) {
+						recentSources = mergeRecentCampaignSources(recentSources, normalized);
+						persistRecentSources();
+						renderRecentSources();
+					}
+					updatePreview();
+				}
+
+				post.addEventListener("change", () => {
+					if (post.value) {
+						target.value = post.value;
+						setDefaultCampaign(true);
+						updatePreview();
+					} else {
+						target.focus();
+					}
+				});
+				target.addEventListener("input", () => {
+					if (post.value !== target.value) post.value = "";
+					updatePreview();
+				});
+				target.addEventListener("blur", () => {
+					setDefaultCampaign();
+					updatePreview();
+				});
+				source.addEventListener("input", updatePreview);
+				source.addEventListener("blur", rememberSource);
+				medium.addEventListener("change", updatePreview);
+				campaign.addEventListener("input", updatePreview);
+				content.addEventListener("input", updatePreview);
+				copy.addEventListener("click", async () => {
+					if (!output.value) return;
+					rememberSource();
+					try {
+						await navigator.clipboard.writeText(output.value);
+						status.textContent = "已复制";
+						status.dataset.tone = "ok";
+					} catch {
+						output.focus();
+						output.select();
+						status.textContent = "已选中，请手动复制";
+						status.dataset.tone = "muted";
+					}
+				});
+
+				renderRecentSources();
+				setDefaultCampaign();
+				updatePreview();
+			});
+	}
+
+	initCampaignLinkBuilders();
+	document.addEventListener("swup:pageView", initCampaignLinkBuilders);
+</script>
+
+<style>
+	.campaign-panel {
+		margin-top: 1rem;
+		border: 1px solid var(--line-divider);
+		border-radius: var(--radius-large);
+		background: color-mix(in srgb, var(--card-bg) 90%, transparent);
+		overflow: hidden;
+	}
+
+	.campaign-head {
+		display: flex;
+		justify-content: space-between;
+		gap: 1rem;
+		align-items: center;
+		padding: 1rem;
+		border-bottom: 1px solid var(--line-divider);
+	}
+
+	.campaign-kicker,
+	.campaign-head h2,
+	.campaign-head p {
+		margin: 0;
+	}
+
+	.campaign-kicker {
+		color: var(--text-30);
+		font-size: 0.75rem;
+		font-weight: 800;
+		text-transform: uppercase;
+	}
+
+	.campaign-head h2 {
+		margin-top: 0.2rem;
+		color: var(--primary);
+		font-size: 1.1rem;
+	}
+
+	.campaign-head p {
+		margin-top: 0.3rem;
+		color: var(--text-50);
+		font-size: 0.86rem;
+	}
+
+	.campaign-head a,
+	.campaign-actions button,
+	.campaign-recent button {
+		border: 1px solid var(--line-divider);
+		border-radius: var(--radius-medium);
+		background: var(--card-bg);
+		color: var(--btn-content);
+		font-weight: 700;
+		text-decoration: none;
+		cursor: pointer;
+	}
+
+	.campaign-head a,
+	.campaign-actions button {
+		padding: 0.55rem 0.8rem;
+	}
+
+	.campaign-form {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.85rem;
+		padding: 1rem;
+	}
+
+	.campaign-span-2 {
+		grid-column: 1 / -1;
+	}
+
+	.campaign-field {
+		display: grid;
+		gap: 0.3rem;
+		min-width: 0;
+		color: var(--text-30);
+		font-size: 0.78rem;
+		font-weight: 800;
+	}
+
+	.campaign-field input,
+	.campaign-field select,
+	.campaign-field textarea {
+		width: 100%;
+		min-width: 0;
+		border: 1px solid var(--line-divider);
+		border-radius: var(--radius-medium);
+		padding: 0.65rem 0.75rem;
+		background: var(--btn-regular-bg);
+		color: var(--text-90);
+		font: inherit;
+		font-weight: 500;
+	}
+
+	.campaign-field textarea {
+		resize: vertical;
+		font-family: var(--font-mono, monospace);
+		font-size: 0.8rem;
+		overflow-wrap: anywhere;
+	}
+
+	.campaign-recent > span {
+		display: block;
+		margin-bottom: 0.4rem;
+		color: var(--text-30);
+		font-size: 0.78rem;
+		font-weight: 800;
+	}
+
+	.campaign-recent > div,
+	.campaign-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		align-items: center;
+	}
+
+	.campaign-recent button {
+		padding: 0.35rem 0.55rem;
+		font-size: 0.78rem;
+	}
+
+	.campaign-actions p {
+		margin: 0;
+		color: var(--text-30);
+		font-size: 0.86rem;
+	}
+
+	.campaign-actions p[data-tone="ok"] {
+		color: #15803d;
+	}
+
+	.campaign-actions button:disabled {
+		cursor: not-allowed;
+		opacity: 0.5;
+	}
+
+	@media (max-width: 720px) {
+		.campaign-head,
+		.campaign-form {
+			grid-template-columns: 1fr;
+		}
+
+		.campaign-head {
+			align-items: flex-start;
+			flex-direction: column;
+		}
+
+		.campaign-span-2 {
+			grid-column: auto;
+		}
+	}
+</style>

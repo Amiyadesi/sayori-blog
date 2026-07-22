@@ -118,6 +118,7 @@ if (profileConfig.avatar) {
 
 // 判断是否为加密文章
 const isEncrypted = !!(entry.data.encrypted && entry.data.password);
+const isDiary = isDiaryPost(entry);
 const publicDescription = getPostPublicDescription(
 	entry.data,
 	entry.data.title,
@@ -134,7 +135,7 @@ const organizationId = `${siteUrl}#organization`;
 const blogId = `${siteUrl}#blog`;
 const interactionPath = Astro.url.pathname;
 const commentPath = `/posts/${removeFileExtension(entry.id)}`;
-const canUseAiSummary = !isEncrypted && !isDiaryPost(entry);
+const canUseAiSummary = !isEncrypted && !isDiary;
 const jsonLdImage = new URL(
 	ogCoverUrl || "/assets/desktop-banner/1.webp",
 	siteConfig.siteURL,
@@ -202,6 +203,8 @@ const jsonLd = {
 			]}
 			data-post-id={entry.id}
 			data-post-alias={entry.data.alias}
+			data-content-kind={isDiary ? "diary" : "article"}
+			data-effective-read={!isDiary && !isEncrypted ? "true" : "false"}
 			data-paper-tear="drop"
 			data-paper-restore-scope={`post-${entry.id}`}
 		>

@@ -1,4 +1,5 @@
 ---
+import CampaignLinkBuilder from "@components/features/admin/CampaignLinkBuilder.astro";
 import { PageHeader } from "@components/features/page-header";
 import MainGridLayout from "@layouts/MainGridLayout.astro";
 
@@ -94,6 +95,8 @@ export const prerender = true;
 					GitHub。
 				</p>
 			</section>
+
+			<CampaignLinkBuilder />
 
 			<section class="admin-panel admin-comments-panel">
 				<div class="admin-panel-head">

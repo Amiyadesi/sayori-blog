@@ -158,6 +158,12 @@ const umamiEnable =
 	})();
 </script>
 
+<script>
+	import { startEffectiveReadTracking } from "../../scripts/effective-read-tracker";
+
+	startEffectiveReadTracking();
+</script>
+
 {
 	umamiEnable && (
 		<script

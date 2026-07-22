@@ -89,6 +89,7 @@ const { remarkPluginFrontmatter } = await render(entry);
 // 处理加密逻辑
 let encryptedContent = "";
 const isEncrypted = !!(entry.data.encrypted && entry.data.password);
+const isDiary = isDiaryPost(entry);
 const publicDescription = getPostPublicDescription(
 	entry.data,
 	entry.data.title,
@@ -166,7 +167,7 @@ const coverImage =
 		: ogCoverUrl;
 const interactionPath = Astro.url.pathname;
 const commentPath = `/posts/${removeFileExtension(entry.id)}`;
-const canUseAiSummary = !isEncrypted && !isDiaryPost(entry);
+const canUseAiSummary = !isEncrypted && !isDiary;
 const jsonLdImage = new URL(
 	ogCoverUrl || coverImage || "/assets/desktop-banner/1.webp",
 	siteConfig.siteURL,
@@ -241,6 +242,9 @@ const jsonLd = {
 				"card-base z-10 px-6 md:px-9 pt-6 pb-4 relative w-full ",
 				{},
 			]}
+			data-post-id={entry.id}
+			data-content-kind={isDiary ? "diary" : "article"}
+			data-effective-read={!isDiary && !isEncrypted ? "true" : "false"}
 		>
 			<!-- word count and reading time -->
 			<div
