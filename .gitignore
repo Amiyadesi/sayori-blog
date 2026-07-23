@@ -4,6 +4,7 @@ node_modules/
 dist/
 .playwright-cli/
 output/
+.cache/blog-media/
 .env
 content/
 *.log

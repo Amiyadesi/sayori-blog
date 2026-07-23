@@ -24,6 +24,7 @@ import { pluginLanguageBadge } from "./src/plugins/expressive-code/language-badg
 import { AdmonitionComponent } from "./src/plugins/rehype-component-admonition.mjs";
 import { GithubCardComponent } from "./src/plugins/rehype-component-github-card.mjs";
 import { MusicTrackComponent } from "./src/plugins/rehype-component-music-track.mjs";
+import { rehypeBlogMedia } from "./src/plugins/rehype-blog-media.mjs";
 import { rehypeImageWidth } from "./src/plugins/rehype-image-width.mjs";
 import { rehypeMermaid } from "./src/plugins/rehype-mermaid.mjs";
 import { rehypeWrapTable } from "./src/plugins/rehype-wrap-table.mjs";
@@ -218,6 +219,7 @@ export default defineConfig({
 					},
 				},
 			],
+			rehypeBlogMedia,
 			rehypeImageWidth,
 		],
 	},

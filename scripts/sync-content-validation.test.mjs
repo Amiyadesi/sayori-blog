@@ -65,6 +65,26 @@ try {
 	assert.match(invalid.stderr, /site\/profile\.json parse failed/);
 	assert.equal(fs.readFileSync(invalidSentinel, "utf8"), "keep generated config");
 
+	const remoteMediaBlogRoot = path.join(tmpRoot, "missing-media-manifest-blog");
+	const remoteMediaContentRoot = path.join(tmpRoot, "missing-media-manifest-content");
+	const remoteMediaScriptPath = installSyncScript(remoteMediaBlogRoot);
+	createRequiredDirectories(remoteMediaContentRoot);
+	writeRequiredSiteFiles(remoteMediaContentRoot);
+	const missingManifest = spawnSync(process.execPath, [remoteMediaScriptPath], {
+		encoding: "utf8",
+		env: {
+			...process.env,
+			CONTENT_DIR: path.relative(remoteMediaBlogRoot, remoteMediaContentRoot),
+			BLOG_MEDIA_BASE_URL: "https://img.sayori.org/blog/v1",
+			BLOG_MEDIA_MANIFEST: path.join(remoteMediaBlogRoot, "missing.json"),
+		},
+	});
+	assert.equal(missingManifest.status, 1);
+	assert.match(
+		`${missingManifest.stdout}\n${missingManifest.stderr}`,
+		/blog media manifest missing/i,
+	);
+
 	const brokenLinkBlogRoot = path.join(tmpRoot, "broken-link-blog");
 	const brokenLinkContentRoot = path.join(tmpRoot, "broken-link-content");
 	const brokenLinkScriptPath = installSyncScript(brokenLinkBlogRoot);

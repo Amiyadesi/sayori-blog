@@ -218,6 +218,23 @@ pnpm run sync-content
 ![描述](/images/posts/image.jpg)
 ```
 
+### 生产图片 CDN
+
+文章源图继续和 Markdown 一起保存在 `sayori-articles/posts`。本地开发不设置 `BLOG_MEDIA_BASE_URL` 时，`sync-content.js` 会把图片复制到本地公开目录，便于离线预览。
+
+生产流水线会先执行 `pnpm run prepare-media`：
+
+- PNG 使用 near-lossless WebP quality 85，JPEG 等栅格图使用 WebP quality 82
+- 生成不放大的 `640`、`1280`、`1920` 响应式尺寸
+- 动画 WebP 保留全部帧，GIF 与 SVG 保留原格式
+- 对象写入 `sayori-media` R2 的 `blog/v1/<sha256>/` 前缀
+- manifest 保存源路径、内容哈希、宽高、字节数、主 URL 和响应式变体
+- 生产同步缺少 manifest、远端对象、正确 MIME 或匹配字节数时直接失败
+
+页面最终使用 `https://img.sayori.org/blog/v1/...`，并生成 `srcset`、`sizes`、原始宽高、`loading="lazy"` 和 `decoding="async"`。头像、Banner、赞助码及其他站点 UI 资源仍由 Cloudflare Pages 托管，不进入这条正文图片管线。
+
+GitHub Actions 只通过 `BLOG_MEDIA_CF_API_TOKEN` 上传 HEAD 检查为缺失的对象。这个 token 只需要目标 R2 bucket 的写权限，不应写入 `.env`、manifest、构建产物或文章仓库。
+
 ## ⚠️ 注意事项
 
 1. **不要**在内容仓库中包含代码文件

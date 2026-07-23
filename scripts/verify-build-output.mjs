@@ -92,6 +92,182 @@ function verifyLocalFontReferences() {
 	}
 }
 
+function verifyBlogMediaOutput() {
+	const baseUrl = String(process.env.BLOG_MEDIA_BASE_URL || "")
+		.trim()
+		.replace(/\/+$/, "");
+	if (!baseUrl) {
+		pass("Blog media output remains in local development mode");
+		return;
+	}
+
+	const manifestPath = path.resolve(
+		String(
+			process.env.BLOG_MEDIA_MANIFEST ||
+				path.join(".cache", "blog-media", "manifest.json"),
+		),
+	);
+	if (!fs.existsSync(manifestPath)) {
+		fail(`Blog media manifest is missing: ${manifestPath}`);
+		return;
+	}
+	const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+	if (String(manifest.baseUrl || "").replace(/\/+$/, "") !== baseUrl) {
+		fail("Blog media manifest base URL does not match BLOG_MEDIA_BASE_URL");
+		return;
+	}
+
+	const postImageDir = path.join(distDir, "images", "posts");
+	const copiedPostImages = fs.existsSync(postImageDir)
+		? walkAllFiles(postImageDir).filter(
+				(filePath) => path.basename(filePath) !== ".gitkeep",
+			)
+		: [];
+	if (copiedPostImages.length > 0) {
+		fail(
+			`Production output still contains ${copiedPostImages.length} post image copies`,
+		);
+	} else {
+		pass("Production output contains no post image copies");
+	}
+
+	const remoteByPost = new Map();
+	for (const asset of manifest.assets || []) {
+		if (asset.source?.kind !== "remote" || !asset.source.post) continue;
+		const entries = remoteByPost.get(asset.source.post) || [];
+		entries.push(asset);
+		remoteByPost.set(asset.source.post, entries);
+	}
+
+	for (const [post, assets] of remoteByPost) {
+		const relativePath = path.join("posts", post, "index.html");
+		const html = readDistFile(relativePath);
+		requireExcludes(`dist/${relativePath}`, html, ["cdn3.ldstatic.com"]);
+		const root = parse(html);
+		verifyLocalizedRepost(post, root, relativePath);
+		const images = root
+			.querySelectorAll("img[src]")
+			.filter((image) =>
+				String(image.getAttribute("src") || "").startsWith(
+					`${baseUrl}/`,
+				),
+			);
+		if (images.length !== assets.length) {
+			fail(
+				`dist/${relativePath} has ${images.length} CDN images, expected ${assets.length}`,
+			);
+		}
+
+		for (const asset of assets) {
+			const image = images.find(
+				(node) => node.getAttribute("src") === asset.primaryUrl,
+			);
+			if (!image) {
+				fail(
+					`dist/${relativePath} missing CDN image ${asset.primaryUrl}`,
+				);
+				continue;
+			}
+			for (const [attribute, expected] of [
+				["loading", "lazy"],
+				["decoding", "async"],
+				["width", String(asset.width)],
+				["height", String(asset.height)],
+			]) {
+				if (image.getAttribute(attribute) !== expected) {
+					fail(
+						`dist/${relativePath} image ${asset.hash} has invalid ${attribute}`,
+					);
+				}
+			}
+			if ((asset.variants || []).length > 1) {
+				const srcset = image.getAttribute("srcset") || "";
+				for (const variant of asset.variants) {
+					if (!srcset.includes(`${variant.url} ${variant.width}w`)) {
+						fail(
+							`dist/${relativePath} image ${asset.hash} is missing a srcset variant`,
+						);
+					}
+				}
+			}
+		}
+		pass(
+			`dist/${relativePath} maps ${assets.length} authorized images to the CDN`,
+		);
+	}
+}
+
+function verifyLocalizedRepost(post, root, relativePath) {
+	const expectations = {
+		"cross-app-tracking-device-fingerprinting": {
+			sourceUrl: "https://linux.do/t/topic/2598156",
+			localLinks: [
+				"/posts/rogue-app-advertising-user-traps/",
+				"/posts/mobile-app-ad-targeting-device-profiling/",
+			],
+			forbiddenLinks: [
+				"https://linux.do/t/topic/2161543",
+				"https://linux.do/t/topic/2502409",
+			],
+		},
+		"mobile-app-ad-targeting-device-profiling": {
+			sourceUrl: "https://linux.do/t/topic/2502409",
+			localLinks: ["/posts/rogue-app-advertising-user-traps/"],
+			forbiddenLinks: ["https://linux.do/t/topic/2161543?u=aichitangcupaigu"],
+		},
+		"rogue-app-advertising-user-traps": {
+			sourceUrl: "https://linux.do/t/topic/2161543",
+			localLinks: [],
+			forbiddenLinks: [],
+		},
+	};
+	const expected = expectations[post];
+	if (!expected) return;
+
+	const label = `dist/${relativePath}`;
+	const title = root.querySelector("title")?.textContent || "";
+	if (!title.startsWith("（转载）")) {
+		fail(`${label} title is missing the repost prefix`);
+	}
+
+	const details = root.querySelector("details.repost-source");
+	if (!details || details.hasAttribute("open")) {
+		fail(`${label} repost source must use a closed details element`);
+		return;
+	}
+	if (details.querySelector("summary")?.textContent.trim() !== "原文与授权") {
+		fail(`${label} repost source summary is missing`);
+	}
+	if (!details.textContent.includes("已获得原作者授权")) {
+		fail(`${label} repost authorization text is missing`);
+	}
+	const sourceLinks = root.querySelectorAll(`a[href="${expected.sourceUrl}"]`);
+	if (sourceLinks.length !== 1 || !details.querySelector(`a[href="${expected.sourceUrl}"]`)) {
+		fail(`${label} must expose the original URL only inside the source details`);
+	}
+	for (const href of expected.localLinks) {
+		if (!root.querySelector(`a[href="${href}"]`)) {
+			fail(`${label} is missing localized article link ${href}`);
+		}
+	}
+	for (const href of expected.forbiddenLinks) {
+		if (root.querySelector(`a[href="${href}"]`)) {
+			fail(`${label} still links a localized article back to ${href}`);
+		}
+	}
+	pass(`${label} keeps repost attribution collapsed and localizes article links`);
+}
+
+function walkAllFiles(directory) {
+	return fs
+		.readdirSync(directory, { withFileTypes: true })
+		.flatMap((entry) => {
+			const filePath = path.join(directory, entry.name);
+			if (entry.isDirectory()) return walkAllFiles(filePath);
+			return entry.isFile() ? [filePath] : [];
+		});
+}
+
 function verifyCssDelivery(html) {
 	const root = parse(html);
 	const inlineCssBytes = root
@@ -1038,6 +1214,7 @@ verifyAnalyticsScripts(indexHtml);
 verifyHomepageCriticalMedia(indexHtml);
 verifyCssDelivery(indexHtml);
 verifyLocalFontReferences();
+verifyBlogMediaOutput();
 verifyHomePagination(indexHtml);
 verifyPostDefaultImageMetadata();
 verifyArticleLandmarks();

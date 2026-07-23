@@ -17,6 +17,15 @@ CONTENT_DIR=./content pnpm run build
 posts, site configuration, images, and friend data are intentionally ignored by
 Git. Configure Cloudflare credentials only as GitHub Actions/Pages secrets.
 
+Production builds prepare post images for the private `sayori-media` R2 bucket
+and serve only content-addressed `blog/v1/` objects through
+`https://img.sayori.org`. Raster images receive responsive WebP variants;
+animated WebP keeps every frame, while GIF and SVG files keep their original
+format. Local development leaves
+`BLOG_MEDIA_BASE_URL` unset and continues to use the source images. The deploy
+workflow requires a dedicated `BLOG_MEDIA_CF_API_TOKEN` with write access to the
+target R2 bucket; API tokens are never written to the manifest or repository.
+
 The application remains licensed under Apache-2.0; the bundled MIT notices are
 preserved in `LICENSE.MIT`.
 

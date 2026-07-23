@@ -4,6 +4,7 @@
 	"version": "9.0",
 	"scripts": {
 		"test": "tsx --test",
+		"prepare-media": "node scripts/prepare-blog-media.mjs",
 		"sync-content": "node scripts/sync-content.js",
 		"generate-ai-summaries": "node scripts/generate-ai-summaries.mjs",
 		"init-content": "node scripts/init-content-repo.js",

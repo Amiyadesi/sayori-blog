@@ -15,6 +15,16 @@ const articlesRoot = configuredContentDir
 	: path.join(localReposRoot, "sayori-articles");
 const repoRoot = articlesRoot;
 const contentPathspec = ".";
+const BLOG_MEDIA_BASE_URL = String(process.env.BLOG_MEDIA_BASE_URL || "")
+	.trim()
+	.replace(/\/+$/, "");
+const BLOG_MEDIA_MANIFEST_PATH = path.resolve(
+	blogRoot,
+	String(process.env.BLOG_MEDIA_MANIFEST || path.join(".cache", "blog-media", "manifest.json")),
+);
+const BLOG_MEDIA_MANIFEST = loadBlogMediaManifest();
+const BLOG_MEDIA_INDEX = buildBlogMediaIndex(BLOG_MEDIA_MANIFEST);
+const USE_REMOTE_BLOG_MEDIA = Boolean(BLOG_MEDIA_BASE_URL);
 
 const POSTS_SRC = path.join(articlesRoot, "posts");
 const POSTS_DEST = path.join(blogRoot, "src", "content", "posts");
@@ -236,7 +246,11 @@ function syncPostFolder(srcDir, destDir, segments) {
 			// Sub-directories in a post folder are asset folders
 			const assetDestDir = path.join(POST_IMAGES_DEST, ...imageSegments);
 			fs.mkdirSync(path.join(assetDestDir, entry.name), { recursive: true });
-			copyDirectory(sourcePath, path.join(assetDestDir, entry.name), { transformMarkdown: false, slug: null });
+			copyDirectory(sourcePath, path.join(assetDestDir, entry.name), {
+				transformMarkdown: false,
+				slug: null,
+				skipImages: USE_REMOTE_BLOG_MEDIA,
+			});
 			continue;
 		}
 
@@ -261,6 +275,9 @@ function syncPostFolder(srcDir, destDir, segments) {
 		const assetDest = path.join(POST_IMAGES_DEST, ...imageSegments);
 		fs.mkdirSync(assetDest, { recursive: true });
 		for (const asset of assets) {
+			if (USE_REMOTE_BLOG_MEDIA && IMAGE_EXTS.has(path.extname(asset).toLowerCase())) {
+				continue;
+			}
 			fs.copyFileSync(path.join(srcDir, asset), path.join(assetDest, asset));
 		}
 	}
@@ -703,13 +720,33 @@ function renderImageFigure(item) {
 }
 
 function buildImageAttrs(item, options = {}) {
+	const media = resolveBlogMediaAsset(item.src);
+	const src = media?.primaryUrl || item.src;
+	let width = item.width || media?.width || "";
+	let height = item.height || media?.height || "";
+	if (item.width && !item.height && media?.width && media?.height) {
+		height = String(Math.max(1, Math.round((Number(item.width) * media.height) / media.width)));
+	}
+	if (item.height && !item.width && media?.width && media?.height) {
+		width = String(Math.max(1, Math.round((Number(item.height) * media.width) / media.height)));
+	}
+	const variants = (media?.variants || []).filter(
+		(variant) => Number.isFinite(variant.width) && variant.url,
+	);
 	return [
-		`src="${escapeHtml(item.src)}"`,
+		`src="${escapeHtml(src)}"`,
 		`alt="${escapeHtml(item.altText || "")}"`,
-		options.lazy ? 'loading="lazy"' : "",
-		item.width ? `width="${escapeHtml(item.width)}"` : "",
-		item.height ? `height="${escapeHtml(item.height)}"` : "",
-	].filter(Boolean).join(" ");
+		options.lazy || media ? 'loading="lazy"' : "",
+		width ? `width="${escapeHtml(width)}"` : "",
+		height ? `height="${escapeHtml(height)}"` : "",
+		variants.length > 1
+			? `srcset="${escapeHtml(variants.map((variant) => `${variant.url} ${variant.width}w`).join(", "))}"`
+			: "",
+		variants.length > 1 ? 'sizes="(max-width: 768px) 100vw, 46rem"' : "",
+		options.lazy || media ? 'decoding="async"' : "",
+	]
+		.filter(Boolean)
+		.join(" ");
 }
 
 function parseImageDimension(value) {
@@ -832,37 +869,36 @@ function normalizeMarkdownImageUrl(rawUrl, slug) {
 		return "";
 	}
 
-	if (
-		url.startsWith("http://") ||
-		url.startsWith("https://") ||
-		url.startsWith("data:")
-	) {
-		return url;
+	if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) {
+		return resolveBlogMediaAsset(url)?.primaryUrl || url;
 	}
 
 	if (url.startsWith("/")) {
-		return encodeInternalPath(url);
+		const normalizedPath = encodeInternalPath(url);
+		return resolveBlogMediaAsset(normalizedPath)?.primaryUrl || normalizedPath;
 	}
 
 	const normalized = url.replaceAll("\\", "/").replace(/^\.\//, "");
 
 	// Co-located image: relative path within post folder
 	if (slug && !normalized.includes("/")) {
-		return publicPath("images", "posts", slug, normalized);
+		return resolveBlogMediaUrl(publicPath("images", "posts", slug, normalized));
 	}
 
 	const imagesIndex = normalized.indexOf("images/posts/");
 	if (imagesIndex >= 0) {
-		return publicPath("images", "posts", normalized.slice(imagesIndex + "images/posts/".length));
+		return resolveBlogMediaUrl(
+			publicPath("images", "posts", normalized.slice(imagesIndex + "images/posts/".length)),
+		);
 	}
 
 	if (normalized.startsWith("../images/")) {
-		return publicPath("images", normalized.slice("../images/".length));
+		return resolveBlogMediaUrl(publicPath("images", normalized.slice("../images/".length)));
 	}
 
 	// Relative path with directories — resolve against slug
 	if (slug) {
-		return publicPath("images", "posts", slug, normalized);
+		return resolveBlogMediaUrl(publicPath("images", "posts", slug, normalized));
 	}
 
 	return "";
@@ -942,8 +978,74 @@ function copyDirectory(src, dest, options) {
 			continue;
 		}
 
+		if (options.skipImages && IMAGE_EXTS.has(path.extname(entry.name).toLowerCase())) {
+			continue;
+		}
+
 		fs.copyFileSync(sourcePath, targetPath);
 	}
+}
+
+function loadBlogMediaManifest() {
+	if (!BLOG_MEDIA_BASE_URL) return null;
+	if (!fs.existsSync(BLOG_MEDIA_MANIFEST_PATH)) {
+		failSync(`blog media manifest missing: ${BLOG_MEDIA_MANIFEST_PATH}`);
+	}
+	let manifest;
+	try {
+		manifest = JSON.parse(fs.readFileSync(BLOG_MEDIA_MANIFEST_PATH, "utf8"));
+	} catch (error) {
+		failSync(`blog media manifest parse failed: ${error.message}`);
+	}
+	if (manifest?.version !== 1 || !Array.isArray(manifest.assets)) {
+		failSync("blog media manifest must use version 1 and contain an assets array");
+	}
+	if (String(manifest.baseUrl || "").replace(/\/+$/, "") !== BLOG_MEDIA_BASE_URL) {
+		failSync("blog media manifest base URL does not match BLOG_MEDIA_BASE_URL");
+	}
+	return manifest;
+}
+
+function buildBlogMediaIndex(manifest) {
+	const index = new Map();
+	for (const asset of manifest?.assets || []) {
+		for (const value of [
+			asset.source?.path,
+			asset.source?.publicPath,
+			asset.source?.url,
+			asset.primaryUrl,
+			...(asset.variants || []).map((variant) => variant.url),
+		]) {
+			for (const key of blogMediaLookupKeys(value)) {
+				if (!index.has(key)) index.set(key, asset);
+			}
+		}
+	}
+	return index;
+}
+
+function resolveBlogMediaAsset(value) {
+	for (const key of blogMediaLookupKeys(value)) {
+		const asset = BLOG_MEDIA_INDEX.get(key);
+		if (asset) return asset;
+	}
+	return null;
+}
+
+function resolveBlogMediaUrl(value) {
+	return resolveBlogMediaAsset(value)?.primaryUrl || value;
+}
+
+function blogMediaLookupKeys(value) {
+	if (typeof value !== "string" || !value.trim()) return [];
+	const normalized = value.trim().replaceAll("\\", "/");
+	const keys = new Set([normalized]);
+	try {
+		keys.add(decodeURI(normalized));
+	} catch {
+		// Keep the original key when a source contains malformed escapes.
+	}
+	return [...keys];
 }
 
 // ─── Site settings/assets sync ────────────────────────────────────────────────

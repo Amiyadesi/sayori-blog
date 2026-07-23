@@ -255,11 +255,11 @@ try {
 	);
 	assert.match(
 		read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md")),
-		/<figure class="sayori-figure sayori-figure--center" style="--sayori-image-width: 520px;">\n<img src="\/images\/posts\/space-images\/Pasted%20image%2020260601203747\.png" alt="居中截图说明" loading="lazy" width="520" \/>\n<figcaption>居中截图说明<\/figcaption>\n<\/figure>/,
+		/<figure class="sayori-figure sayori-figure--center" style="--sayori-image-width: 520px;">\n<img src="\/images\/posts\/space-images\/Pasted%20image%2020260601203747\.png" alt="居中截图说明" loading="lazy" width="520" decoding="async" \/>\n<figcaption>居中截图说明<\/figcaption>\n<\/figure>/,
 	);
 	assert.match(
 		read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md")),
-		/<figure class="sayori-figure sayori-figure--right" style="--sayori-image-width: 480px;">\n<img src="\/images\/posts\/space-images\/Pasted%20image%2020260601203747\.png" alt="右侧截图说明" loading="lazy" width="480" \/>\n<figcaption>右侧截图说明<\/figcaption>\n<\/figure>/,
+		/<figure class="sayori-figure sayori-figure--right" style="--sayori-image-width: 480px;">\n<img src="\/images\/posts\/space-images\/Pasted%20image%2020260601203747\.png" alt="右侧截图说明" loading="lazy" width="480" decoding="async" \/>\n<figcaption>右侧截图说明<\/figcaption>\n<\/figure>/,
 	);
 	assert.match(
 		read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md")),
@@ -271,11 +271,11 @@ try {
 	);
 	assert.match(
 		read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md")),
-		/<div class="sayori-photo-grid" style="--photo-grid-columns: 2;">[\s\S]*<img src="\/images\/posts\/space-images\/Pasted%20image%2020260601203747\.png" alt="左边照片说明" loading="lazy" \/>[\s\S]*<figcaption>左边照片说明<\/figcaption>[\s\S]*<img src="\/images\/posts\/space-images\/second%20image\.jpg" alt="右边照片说明" loading="lazy" \/>[\s\S]*<figcaption>右边照片说明<\/figcaption>[\s\S]*<\/div>/,
+		/<div class="sayori-photo-grid" style="--photo-grid-columns: 2;">[\s\S]*<img src="\/images\/posts\/space-images\/Pasted%20image%2020260601203747\.png" alt="左边照片说明" loading="lazy" decoding="async" \/>[\s\S]*<figcaption>左边照片说明<\/figcaption>[\s\S]*<img src="\/images\/posts\/space-images\/second%20image\.jpg" alt="右边照片说明" loading="lazy" decoding="async" \/>[\s\S]*<figcaption>右边照片说明<\/figcaption>[\s\S]*<\/div>/,
 	);
 	assert.match(
 		read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md")),
-		/<div class="sayori-photo-grid" style="--photo-grid-columns: 3;">[\s\S]*<figure class="sayori-photo-grid-item" style="--sayori-image-width: 360px;">[\s\S]*<img src="\/images\/posts\/space-images\/Pasted%20image%2020260601203747\.png" alt="带宽度的左图" loading="lazy" width="360" \/>[\s\S]*<figcaption>带宽度的左图<\/figcaption>[\s\S]*<figure class="sayori-photo-grid-item sayori-figure--right" style="--sayori-image-width: 40%;">[\s\S]*<img src="\/images\/posts\/space-images\/second%20image\.jpg" alt="右对齐小图" loading="lazy" \/>[\s\S]*<figcaption>右对齐小图<\/figcaption>[\s\S]*<\/div>/,
+		/<div class="sayori-photo-grid" style="--photo-grid-columns: 3;">[\s\S]*<figure class="sayori-photo-grid-item" style="--sayori-image-width: 360px;">[\s\S]*<img src="\/images\/posts\/space-images\/Pasted%20image%2020260601203747\.png" alt="带宽度的左图" loading="lazy" width="360" decoding="async" \/>[\s\S]*<figcaption>带宽度的左图<\/figcaption>[\s\S]*<figure class="sayori-photo-grid-item sayori-figure--right" style="--sayori-image-width: 40%;">[\s\S]*<img src="\/images\/posts\/space-images\/second%20image\.jpg" alt="右对齐小图" loading="lazy" decoding="async" \/>[\s\S]*<figcaption>右对齐小图<\/figcaption>[\s\S]*<\/div>/,
 	);
 	assert.match(
 		read(path.join(fixtureBlog, "src", "content", "posts", "diary", "2026-06-07", "index.md")),
@@ -372,6 +372,94 @@ try {
 	const generatedAnime = read(path.join(fixtureBlog, "src", "data", "anime.ts"));
 	assert.match(generatedAnime, /const localAnimeList: AnimeItem\[\] = \[\];/);
 	assert.doesNotMatch(generatedAnime, /Old Anime/);
+
+	const mediaHash = "a".repeat(64);
+	const secondMediaHash = "b".repeat(64);
+	const mediaManifestPath = path.join(fixtureBlog, ".cache", "blog-media", "manifest.json");
+	write(
+		mediaManifestPath,
+		JSON.stringify(
+			{
+				version: 1,
+				baseUrl: "https://img.sayori.org/blog/v1",
+				assets: [
+					{
+						source: {
+							kind: "local",
+							path: "posts/space-images/Pasted image 20260601203747.png",
+							publicPath: "/images/posts/space-images/Pasted%20image%2020260601203747.png",
+						},
+						width: 1280,
+						height: 720,
+						primaryUrl: `https://img.sayori.org/blog/v1/${mediaHash}/1280.webp`,
+						variants: [
+							{
+								width: 640,
+								height: 360,
+								url: `https://img.sayori.org/blog/v1/${mediaHash}/640.webp`,
+							},
+							{
+								width: 1280,
+								height: 720,
+								url: `https://img.sayori.org/blog/v1/${mediaHash}/1280.webp`,
+							},
+						],
+					},
+					{
+						source: {
+							kind: "local",
+							path: "posts/space-images/second image.jpg",
+							publicPath: "/images/posts/space-images/second%20image.jpg",
+						},
+						width: 900,
+						height: 600,
+						primaryUrl: `https://img.sayori.org/blog/v1/${secondMediaHash}/900.webp`,
+						variants: [
+							{
+								width: 640,
+								height: 427,
+								url: `https://img.sayori.org/blog/v1/${secondMediaHash}/640.webp`,
+							},
+							{
+								width: 900,
+								height: 600,
+								url: `https://img.sayori.org/blog/v1/${secondMediaHash}/900.webp`,
+							},
+						],
+					},
+				],
+			},
+			null,
+			2,
+		),
+	);
+
+	const remoteResult = spawnSync(process.execPath, [path.join(fixtureBlog, "scripts", "sync-content.js")], {
+		cwd: fixtureRoot,
+		encoding: "utf8",
+		env: {
+			...process.env,
+			CONTENT_DIR: path.relative(fixtureBlog, fixtureArticles),
+			BLOG_MEDIA_BASE_URL: "https://img.sayori.org/blog/v1",
+			BLOG_MEDIA_MANIFEST: mediaManifestPath,
+		},
+	});
+	assert.equal(remoteResult.status, 0, remoteResult.stderr || remoteResult.stdout);
+	assert.equal(
+		fs.existsSync(path.join(fixtureBlog, "public", "images", "posts", "space-images", "Pasted image 20260601203747.png")),
+		false,
+	);
+	const remoteMarkdown = read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md"));
+	assert.match(
+		remoteMarkdown,
+		new RegExp(`!\\[Pasted image 20260601203747\\.png\\]\\(https://img\\.sayori\\.org/blog/v1/${mediaHash}/1280\\.webp\\)`),
+	);
+	assert.match(
+		remoteMarkdown,
+		new RegExp(
+			`<img src="https://img\\.sayori\\.org/blog/v1/${mediaHash}/1280\\.webp"[^>]*srcset="https://img\\.sayori\\.org/blog/v1/${mediaHash}/640\\.webp 640w, https://img\\.sayori\\.org/blog/v1/${mediaHash}/1280\\.webp 1280w"[^>]*decoding="async"`,
+		),
+	);
 } finally {
 	fs.rmSync(tmpRoot, { recursive: true, force: true });
 }
