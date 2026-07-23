@@ -128,3 +128,16 @@ jobs:
       - name: Verify custom domain
         if: github.event_name != 'pull_request'
         run: node scripts/verify-live-deployment.mjs https://blog.sayori.org
+
+      - name: Submit sitemap URLs to IndexNow when configured
+        if: github.event_name != 'pull_request'
+        shell: bash
+        env:
+          INDEXNOW_KEY: ${{ secrets.INDEXNOW_KEY }}
+          INDEXNOW_HOST: blog.sayori.org
+        run: |
+          if [[ -z "${INDEXNOW_KEY}" ]]; then
+            echo "INDEXNOW_KEY is not configured; skipping IndexNow submission."
+            exit 0
+          fi
+          pnpm run submit

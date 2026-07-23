@@ -369,6 +369,11 @@ export const ja: Translation = {
 	[Key.postCommentsUnavailable]: "コメントは利用できません",
 	[Key.postStatsUnavailable]: "統計は利用できません",
 	[Key.postInteractionFailed]: "統計に失敗しましたが、操作は続行できます",
+	[Key.postGeneratePoster]: "ポスターを作成",
+	[Key.postPosterDownloadStarted]: "ダウンロードを開始しました",
+	[Key.postPromote]: "この記事を宣伝",
+	[Key.postCopyFallbackLabel]: "選択済みのリンクを手動でコピーしてください",
+	[Key.postCopyFailedManual]: "自動コピーに失敗しました。リンクを選択しました。",
 	[Key.postLastEdited]: "最終編集",
 
 	// プロフィールの統計
@@ -390,4 +395,7 @@ export const ja: Translation = {
 	[Key.randomPosts]: "ランダムな投稿",
 	[Key.smartRecommend]: "スマート",
 	[Key.randomRecommend]: "ランダム",
+	[Key.topicReadingPath]: "トピック読書ルート",
+	[Key.topicCurrentPost]: "現在の記事",
+	[Key.topicViewAll]: "トピック全体を見る",
 };

@@ -17,6 +17,7 @@ const requiredFiles = [
 	"atom.xml",
 	"llms.txt",
 	"archive/index.html",
+	"admin/growth/index.html",
 	"essays/index.html",
 	"sponsor/index.html",
 	"topics/webmaster/index.html",
@@ -56,6 +57,16 @@ function readTextIfExists(filePath) {
 		return "";
 	}
 	return fs.readFileSync(filePath, "utf8");
+}
+
+function readLinkedAstroModules(html) {
+	const root = parse(html);
+	return root
+		.querySelectorAll('script[type="module"][src]')
+		.map((script) => script.getAttribute("src") || "")
+		.filter((src) => src.startsWith("/_astro/") && !src.includes(".."))
+		.map((src) => readTextIfExists(path.join(distDir, src.slice(1))))
+		.join("\n");
 }
 
 function walkDistTextFiles(dir) {
@@ -1046,6 +1057,17 @@ verifyArchivePage(archiveHtml);
 const topicHtml = files.get("topics/webmaster/index.html") || "";
 verifyTopicPage(topicHtml);
 
+const adminGrowthHtml = files.get("admin/growth/index.html") || "";
+requireIncludes("admin/growth/index.html", adminGrowthHtml, [
+	'<meta name="robots" content="noindex, nofollow, noarchive">',
+	"增长工作台",
+]);
+requireIncludes(
+	"admin/growth bundled modules",
+	readLinkedAstroModules(adminGrowthHtml),
+	["/api/admin/growth/overview"],
+);
+
 const robotsTxt = files.get("robots.txt") || "";
 requireIncludes("robots.txt", robotsTxt, [
 	"User-agent: *",
@@ -1085,6 +1107,7 @@ requireIncludes("sitemap-0.xml", sitemap, [
 	"<loc>https://blog.sayori.org/topics/webmaster/</loc>",
 	"<lastmod>",
 ]);
+requireExcludes("sitemap-0.xml", sitemap, ["https://blog.sayori.org/admin/"]);
 
 const rss = files.get("rss.xml") || "";
 requireIncludes("rss.xml", rss, [

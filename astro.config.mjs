@@ -139,7 +139,7 @@ export default defineConfig({
 			filter: (page) => {
 				const pathname = new URL(page).pathname;
 				return !(
-					pathname === "/admin/" ||
+					pathname.startsWith("/admin/") ||
 					pathname === "/404/" ||
 					disabledFeaturePathPrefixes.some((prefix) => pathname.startsWith(prefix)) ||
 					pathname.startsWith("/api/") ||

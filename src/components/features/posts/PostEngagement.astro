@@ -39,35 +39,7 @@ const {
 } = Astro.props;
 
 const finalAuthor = author || profileConfig.name;
-
-const encodedUrl = encodeURIComponent(url);
-const encodedTitle = encodeURIComponent(title);
-const shareLinks = [
-	{
-		target: "weibo",
-		label: "Weibo",
-		icon: "simple-icons:sinaweibo",
-		href: `https://service.weibo.com/share/share.php?url=${encodedUrl}&title=${encodedTitle}`,
-	},
-	{
-		target: "x",
-		label: "X",
-		icon: "simple-icons:x",
-		href: `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedTitle}`,
-	},
-	{
-		target: "telegram",
-		label: "Telegram",
-		icon: "simple-icons:telegram",
-		href: `https://t.me/share/url?url=${encodedUrl}&text=${encodedTitle}`,
-	},
-	{
-		target: "facebook",
-		label: "Facebook",
-		icon: "simple-icons:facebook",
-		href: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
-	},
-];
+const growthUrl = `/admin/growth/?post=${encodeURIComponent(path)}`;
 ---
 
 <section
@@ -78,26 +50,26 @@ const shareLinks = [
 	]}
 	data-post-engagement
 	data-path={path}
+	data-url={url}
+	data-title={title}
+	data-like-text={i18n(I18nKey.postLike)}
+	data-liked-text={i18n(I18nKey.postLiked)}
+	data-copy-failed-text={i18n(I18nKey.postCopyFailedManual)}
+	data-stats-failed-text={i18n(I18nKey.postInteractionFailed)}
 >
-	<div class="grid gap-3 md:grid-cols-3">
+	<div class="post-engagement-grid">
 		<div class="post-engagement-primary">
 			<div class="post-engagement-primary-header">
 				<div class="post-engagement-icon">
 					<Icon name="material-symbols:local-cafe-outline-rounded" />
 				</div>
 				<div>
-					<div class="post-engagement-title">
-						{i18n(I18nKey.postReward)}
-					</div>
+					<div class="post-engagement-title">{i18n(I18nKey.postReward)}</div>
 					<div class="post-engagement-count" data-reward-count>0</div>
 				</div>
 			</div>
 			<div class="post-engagement-links">
-				<a
-					href="/sponsor/"
-					data-post-action="reward"
-					data-post-target="sponsor"
-				>
+				<a href="/sponsor/" data-post-action="reward" data-post-target="sponsor">
 					{i18n(I18nKey.postReward)}
 				</a>
 			</div>
@@ -123,78 +95,45 @@ const shareLinks = [
 			</div>
 		</button>
 
-		<div class="post-engagement-primary">
+		<div class="post-engagement-primary post-share-actions">
 			<div class="post-engagement-primary-header">
 				<div class="post-engagement-icon">
 					<Icon name="material-symbols:ios-share-rounded" />
 				</div>
-				<div>
-					<div class="post-engagement-title">
-						{i18n(I18nKey.postShare)}
-					</div>
-					<div class="post-engagement-count" data-share-count>0</div>
-				</div>
+				<div class="post-engagement-title">{i18n(I18nKey.postShare)}</div>
 			</div>
 			<div class="post-engagement-links">
-				<button
-					type="button"
-					data-post-action="share"
-					data-post-target="copy"
-					data-copy-share
-				>
-					{i18n(I18nKey.copyLink)}
+				<button type="button" data-copy-share>
+					<Icon name="material-symbols:link-rounded" />
+					<span>{i18n(I18nKey.copyLink)}</span>
 				</button>
-				<button
-					type="button"
-					data-post-action="share"
-					data-post-target="native"
-					data-native-share
-				>
-					{i18n(I18nKey.postNativeShare)}
+				<button type="button" data-native-share hidden>
+					<Icon name="material-symbols:ios-share-rounded" />
+					<span>{i18n(I18nKey.postNativeShare)}</span>
 				</button>
+				<div class="post-poster-share">
+					<SharePoster
+						client:visible
+						{title}
+						author={finalAuthor}
+						description={description}
+						{pubDate}
+						coverImage={coverImage ?? null}
+						{url}
+						{siteTitle}
+						avatar={avatar ?? null}
+						buttonLabel={i18n(I18nKey.postGeneratePoster)}
+					/>
+				</div>
 			</div>
 		</div>
 	</div>
 
-	<div class="post-share-row">
-		<div class="post-share-label">
-			<Icon name="material-symbols:ios-share-rounded" />
-			<span>{i18n(I18nKey.postSharePlatform)}</span>
-		</div>
-		<div class="post-share-buttons">
-			{
-				shareLinks.map((shareLink) => (
-					<a
-						href={shareLink.href}
-						target="_blank"
-						rel="noopener noreferrer"
-						aria-label={`${i18n(I18nKey.postShare)} ${shareLink.label}`}
-						title={shareLink.label}
-						data-post-action="share"
-						data-post-target={shareLink.target}
-					>
-						<Icon name={shareLink.icon} />
-					</a>
-				))
-			}
-			<div
-				class="post-poster-share"
-				data-post-action="share"
-				data-post-target="poster"
-			>
-				<SharePoster
-					client:visible
-					{title}
-					author={finalAuthor}
-					description={description}
-					{pubDate}
-					coverImage={coverImage ?? null}
-					{url}
-					{siteTitle}
-					avatar={avatar ?? null}
-				/>
-			</div>
-		</div>
+	<div class="post-copy-fallback" data-copy-fallback hidden>
+		<label>
+			<span>{i18n(I18nKey.postCopyFallbackLabel)}</span>
+			<input type="text" readonly value={url} data-copy-fallback-input />
+		</label>
 	</div>
 
 	<div class="post-engagement-footer">
@@ -212,245 +151,71 @@ const shareLinks = [
 				)
 			}
 		</div>
-		<div class="post-last-edited">
-			<Icon name="material-symbols:edit-calendar-outline-rounded" />
-			<span>
-				{i18n(I18nKey.postLastEdited)}
-				{" "}
-				{formatDateToYYYYMMDD(lastEditedDate)}
-			</span>
+		<div class="post-engagement-meta">
+			<a class="post-promote-link" href={growthUrl} data-promote-post hidden>
+				<Icon name="material-symbols:monitoring-rounded" />
+				<span>{i18n(I18nKey.postPromote)}</span>
+			</a>
+			<div class="post-last-edited">
+				<Icon name="material-symbols:edit-calendar-outline-rounded" />
+				<span>
+					{i18n(I18nKey.postLastEdited)} {formatDateToYYYYMMDD(lastEditedDate)}
+				</span>
+			</div>
 		</div>
 	</div>
-	<p class="post-engagement-status" data-engagement-status hidden>
-		{i18n(I18nKey.postInteractionFailed)}
-	</p>
+	<p class="post-engagement-status" data-engagement-status aria-live="polite" hidden></p>
 </section>
 
-<script
-	is:inline
-	define:vars={{
-		path,
-		url,
-		title,
-		likeText: i18n(I18nKey.postLike),
-		likedText: i18n(I18nKey.postLiked),
-		copiedText: i18n(I18nKey.copied),
-		copyText: i18n(I18nKey.copyLink),
-		statsFailedText: i18n(I18nKey.postInteractionFailed),
-	}}
->
-	(function () {
-		const root = Array.from(
-			document.querySelectorAll("[data-post-engagement]"),
-		).find((element) => element.dataset.path === path);
-		if (!root || root.dataset.bound === "true") return;
-		root.dataset.bound = "true";
+<script>
+	import { initPostEngagement } from "@/scripts/post-engagement";
 
-		const status = root.querySelector("[data-engagement-status]");
-		const likeButton = root.querySelector(".post-like-button");
-		const likeLabel = root.querySelector("[data-like-label]");
-		const likeCount = root.querySelector("[data-like-count]");
-		const rewardCount = root.querySelector("[data-reward-count]");
-		const shareCount = root.querySelector("[data-share-count]");
-
-		function numberText(value) {
-			return String(Number(value || 0));
-		}
-
-		function showStatus(message) {
-			if (!status) return;
-			status.textContent = message || statsFailedText;
-			status.hidden = false;
-			window.setTimeout(() => {
-				status.hidden = true;
-			}, 2600);
-		}
-
-		function update(data) {
-			if (!data || data.path !== path) return;
-			if (likeCount) likeCount.textContent = numberText(data.likes);
-			if (rewardCount) {
-				rewardCount.textContent = numberText(data.rewardClicks);
-			}
-			if (shareCount)
-				shareCount.textContent = numberText(data.shareClicks);
-			if (likeButton) {
-				const liked = Boolean(data.viewerLiked);
-				likeButton.classList.toggle("is-liked", liked);
-				likeButton.setAttribute(
-					"aria-pressed",
-					liked ? "true" : "false",
-				);
-				if (likeLabel)
-					likeLabel.textContent = liked ? likedText : likeText;
-			}
-		}
-
-		async function loadCounts() {
-			try {
-				const response = await fetch(
-					`/api/post-interactions?path=${encodeURIComponent(path)}`,
-					{
-						headers: { accept: "application/json" },
-						credentials: "same-origin",
-					},
-				);
-				if (!response.ok) throw new Error(`HTTP ${response.status}`);
-				update(await response.json());
-			} catch (error) {
-				console.warn("[PostEngagement] stats unavailable", error);
-				showStatus(statsFailedText);
-			}
-		}
-
-		async function track(action, target, options = {}) {
-			try {
-				const response = await fetch("/api/post-interactions", {
-					method: "POST",
-					credentials: "same-origin",
-					keepalive: options.keepalive === true,
-					headers: {
-						"content-type": "application/json",
-						accept: "application/json",
-					},
-					body: JSON.stringify({ path, action, target }),
-				});
-				if (!response.ok) throw new Error(`HTTP ${response.status}`);
-				const data = await response.json();
-				update(data);
-				document.dispatchEvent(
-					new CustomEvent("post-interactions:loaded", {
-						detail: data,
-					}),
-				);
-				return data;
-			} catch (error) {
-				console.warn("[PostEngagement] tracking failed", error);
-				if (!options.quiet) showStatus(statsFailedText);
-				return null;
-			}
-		}
-
-		async function copyCurrentUrl(button) {
-			try {
-				if (!navigator.clipboard?.writeText) {
-					throw new Error("Clipboard API unavailable");
-				}
-				await navigator.clipboard.writeText(url);
-				const old = button.textContent;
-				button.textContent = copiedText;
-				window.setTimeout(() => {
-					button.textContent = old || copyText;
-				}, 1600);
-			} catch (error) {
-				console.warn("[PostEngagement] copy failed", error);
-				showStatus(statsFailedText);
-			}
-		}
-
-		root.addEventListener("click", (event) => {
-			const target = event.target;
-			if (!(target instanceof Element)) return;
-			const trigger = target.closest(
-				"[data-post-action][data-post-target]",
-			);
-			if (!trigger || !root.contains(trigger)) return;
-			const action = trigger.dataset.postAction;
-			const postTarget = trigger.dataset.postTarget;
-			if (!action || !postTarget) return;
-
-			if (action === "like") {
-				event.preventDefault();
-				void track("like", "like");
-				return;
-			}
-
-			if (postTarget === "copy") {
-				event.preventDefault();
-				void copyCurrentUrl(trigger).finally(() => {
-					void track("share", "copy");
-				});
-				return;
-			}
-
-			if (postTarget === "native") {
-				event.preventDefault();
-				(async () => {
-					if (navigator.share) {
-						try {
-							await navigator.share({ title, url });
-						} catch {
-							return;
-						}
-					} else {
-						await copyCurrentUrl(trigger);
-					}
-					await track("share", "native");
-				})();
-				return;
-			}
-
-			void track(action, postTarget, { keepalive: true, quiet: true });
-		});
-
-		document.addEventListener("post-interactions:loaded", (event) => {
-			update(event.detail);
-		});
-
-		loadCounts();
-		document.addEventListener("mizuki:page:loaded", loadCounts);
-	})();
+	initPostEngagement();
+	document.addEventListener("swup:pageView", initPostEngagement);
 </script>
 
 <style>
-	.post-engagement {
-		color: rgba(0, 0, 0, 0.72);
-	}
+	.post-engagement { color: rgba(0, 0, 0, 0.72); }
+	:global(.dark) .post-engagement { color: rgba(255, 255, 255, 0.72); }
 
-	:global(.dark) .post-engagement {
-		color: rgba(255, 255, 255, 0.72);
+	.post-engagement-grid {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 0.75rem;
 	}
 
 	.post-engagement-primary {
 		display: flex;
-		min-height: 6.5rem;
+		min-height: 6.4rem;
 		flex-direction: column;
 		justify-content: space-between;
 		gap: 1rem;
-		border-radius: 0.75rem;
 		border: 1px solid rgba(0, 0, 0, 0.08);
+		border-radius: 8px;
 		background: rgba(255, 255, 255, 0.46);
 		padding: 1rem;
 		text-align: left;
-		transition:
-			transform 0.2s ease,
-			border-color 0.2s ease,
-			background 0.2s ease;
+		transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
 	}
 
-	button.post-engagement-primary {
-		cursor: pointer;
-	}
-
+	button.post-engagement-primary { cursor: pointer; }
 	.post-engagement-primary:hover {
 		transform: translateY(-1px);
 		border-color: color-mix(in srgb, var(--primary) 30%, transparent);
 		background: rgba(255, 255, 255, 0.68);
 	}
-
 	:global(.dark) .post-engagement-primary {
 		border-color: rgba(255, 255, 255, 0.1);
 		background: rgba(255, 255, 255, 0.045);
 	}
 
-	:global(.dark) .post-engagement-primary:hover {
-		background: rgba(255, 255, 255, 0.075);
-	}
-
-	.post-engagement-primary-header {
+	.post-engagement-primary-header,
+	.post-engagement-meta,
+	.post-last-edited,
+	.post-promote-link {
 		display: flex;
 		align-items: center;
-		gap: 0.8rem;
+		gap: 0.55rem;
 	}
 
 	.post-engagement-icon {
@@ -460,7 +225,7 @@ const shareLinks = [
 		flex: 0 0 auto;
 		align-items: center;
 		justify-content: center;
-		border-radius: 0.7rem;
+		border-radius: 8px;
 		background: color-mix(in srgb, var(--primary) 14%, transparent);
 		color: var(--primary);
 		font-size: 1.55rem;
@@ -472,19 +237,12 @@ const shareLinks = [
 		line-height: 1.35;
 		color: rgba(0, 0, 0, 0.78);
 	}
-
-	:global(.dark) .post-engagement-title {
-		color: rgba(255, 255, 255, 0.82);
-	}
+	:global(.dark) .post-engagement-title { color: rgba(255, 255, 255, 0.82); }
 
 	.post-engagement-count {
 		margin-top: 0.15rem;
 		font-size: 0.82rem;
 		color: rgba(0, 0, 0, 0.46);
-	}
-
-	:global(.dark) .post-engagement-count {
-		color: rgba(255, 255, 255, 0.5);
 	}
 
 	.post-engagement-links {
@@ -494,101 +252,56 @@ const shareLinks = [
 	}
 
 	.post-engagement-links a,
-	.post-engagement-links button {
-		border-radius: 999px;
+	.post-engagement-links button,
+	:global(.post-poster-share > button),
+	.post-promote-link {
+		display: inline-flex;
+		min-height: 2.2rem;
+		align-items: center;
+		justify-content: center;
+		gap: 0.35rem;
+		border-radius: 8px;
 		background: rgba(0, 0, 0, 0.055);
-		padding: 0.38rem 0.7rem;
+		padding: 0.42rem 0.7rem;
 		font-size: 0.78rem;
 		font-weight: 700;
 		line-height: 1;
-		color: rgba(0, 0, 0, 0.6);
-		transition:
-			background 0.2s ease,
-			color 0.2s ease;
+		color: rgba(0, 0, 0, 0.62);
+		transition: background 0.2s ease, color 0.2s ease;
 	}
 
 	.post-engagement-links a:hover,
 	.post-engagement-links button:hover,
+	:global(.post-poster-share > button:hover),
+	.post-promote-link:hover,
 	.post-like-button.is-liked {
 		background: color-mix(in srgb, var(--primary) 18%, transparent);
 		color: var(--primary);
 	}
 
 	:global(.dark) .post-engagement-links a,
-	:global(.dark) .post-engagement-links button {
-		background: rgba(255, 255, 255, 0.08);
-		color: rgba(255, 255, 255, 0.68);
-	}
-
-	.post-share-row {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-		margin-top: 1rem;
-	}
-
-	.post-share-label,
-	.post-last-edited {
-		display: flex;
-		align-items: center;
-		gap: 0.4rem;
-		font-size: 0.85rem;
-		font-weight: 700;
-		color: rgba(0, 0, 0, 0.5);
-	}
-
-	:global(.dark) .post-share-label,
-	:global(.dark) .post-last-edited {
-		color: rgba(255, 255, 255, 0.54);
-	}
-
-	.post-share-buttons {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: 0.5rem;
-	}
-
-	.post-share-buttons > a,
-	:global(.post-poster-share > button) {
-		display: inline-flex;
-		min-height: 2.25rem;
-		align-items: center;
-		justify-content: center;
-		border-radius: 999px;
-		background: rgba(0, 0, 0, 0.055);
-		color: rgba(0, 0, 0, 0.58);
-		transition:
-			transform 0.2s ease,
-			background 0.2s ease,
-			color 0.2s ease;
-	}
-
-	.post-share-buttons > a {
-		width: 2.25rem;
-		font-size: 1rem;
-	}
-
-	:global(.post-poster-share > button) {
-		gap: 0.35rem;
-		padding: 0 0.85rem;
-		font-size: 0.82rem;
-		font-weight: 700;
-	}
-
-	.post-share-buttons > a:hover,
-	:global(.post-poster-share > button:hover) {
-		transform: translateY(-1px);
-		background: color-mix(in srgb, var(--primary) 18%, transparent);
-		color: var(--primary);
-	}
-
-	:global(.dark) .post-share-buttons > a,
-	:global(.dark .post-poster-share > button) {
+	:global(.dark) .post-engagement-links button,
+	:global(.dark .post-poster-share > button),
+	:global(.dark) .post-promote-link {
 		background: rgba(255, 255, 255, 0.08);
 		color: rgba(255, 255, 255, 0.7);
+	}
+
+	.post-copy-fallback {
+		margin-top: 0.85rem;
+		padding: 0.8rem;
+		border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
+		border-radius: 8px;
+		background: color-mix(in srgb, var(--card-bg) 92%, transparent);
+	}
+	.post-copy-fallback label { display: grid; gap: 0.45rem; font-size: 0.8rem; font-weight: 700; }
+	.post-copy-fallback input {
+		width: 100%;
+		border: 1px solid var(--line-divider);
+		border-radius: 6px;
+		background: var(--card-bg);
+		padding: 0.65rem;
+		color: var(--text-90);
 	}
 
 	.post-engagement-footer {
@@ -600,54 +313,32 @@ const shareLinks = [
 		margin-top: 1rem;
 	}
 
-	.post-engagement-tags {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.45rem;
-	}
-
+	.post-engagement-tags { display: flex; flex-wrap: wrap; gap: 0.45rem; }
 	.post-engagement-tags a,
 	.post-engagement-tags > span {
 		display: inline-flex;
 		align-items: center;
 		gap: 0.16rem;
-		border-radius: 999px;
+		border-radius: 8px;
 		background: rgba(0, 0, 0, 0.055);
 		padding: 0.36rem 0.68rem;
 		font-size: 0.78rem;
 		font-weight: 700;
 		color: rgba(0, 0, 0, 0.52);
 	}
-
-	.post-engagement-tags a:hover {
-		color: var(--primary);
-	}
-
 	:global(.dark) .post-engagement-tags a,
-	:global(.dark) .post-engagement-tags > span {
-		background: rgba(255, 255, 255, 0.08);
-		color: rgba(255, 255, 255, 0.64);
-	}
+	:global(.dark) .post-engagement-tags > span { background: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.64); }
 
-	.post-engagement-status {
-		margin-top: 0.7rem;
-		font-size: 0.78rem;
-		color: rgba(0, 0, 0, 0.48);
-	}
+	.post-engagement-meta { flex-wrap: wrap; justify-content: flex-end; }
+	.post-last-edited { font-size: 0.82rem; font-weight: 700; color: rgba(0, 0, 0, 0.48); }
+	:global(.dark) .post-last-edited { color: rgba(255, 255, 255, 0.54); }
 
-	:global(.dark) .post-engagement-status {
-		color: rgba(255, 255, 255, 0.52);
-	}
+	.post-engagement-status { margin-top: 0.7rem; font-size: 0.78rem; color: #b42318; }
 
 	@media (max-width: 767px) {
-		.post-engagement-primary {
-			min-height: 5.8rem;
-		}
-
-		.post-share-row,
-		.post-engagement-footer {
-			align-items: flex-start;
-			flex-direction: column;
-		}
+		.post-engagement-grid { grid-template-columns: 1fr; }
+		.post-engagement-primary { min-height: 5.6rem; }
+		.post-engagement-footer { align-items: flex-start; flex-direction: column; }
+		.post-engagement-meta { justify-content: flex-start; }
 	}
 </style>

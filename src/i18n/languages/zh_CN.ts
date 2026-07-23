@@ -354,6 +354,11 @@ export const zh_CN: Translation = {
 	[Key.postCommentsUnavailable]: "评论暂不可用",
 	[Key.postStatsUnavailable]: "统计暂不可用",
 	[Key.postInteractionFailed]: "统计暂时失败，不影响继续操作",
+	[Key.postGeneratePoster]: "生成海报",
+	[Key.postPosterDownloadStarted]: "已开始下载",
+	[Key.postPromote]: "推广本文",
+	[Key.postCopyFallbackLabel]: "请手动复制下面已选中的链接",
+	[Key.postCopyFailedManual]: "自动复制失败，已为你选中链接",
 	[Key.postLastEdited]: "最后编辑",
 
 	// 个人资料
@@ -375,4 +380,7 @@ export const zh_CN: Translation = {
 	[Key.randomPosts]: "随机文章",
 	[Key.smartRecommend]: "智能推荐",
 	[Key.randomRecommend]: "随机推荐",
+	[Key.topicReadingPath]: "专题阅读路径",
+	[Key.topicCurrentPost]: "当前文章",
+	[Key.topicViewAll]: "查看完整专题",
 };

@@ -1,0 +1,34 @@
+---
+import GrowthWorkbench from "@components/features/admin/GrowthWorkbench.astro";
+import MainGridLayout from "@layouts/MainGridLayout.astro";
+import { BLOG_ORIGIN } from "@utils/campaign-link";
+import {
+	getSortedPostsList,
+	isOrdinaryPublicPost,
+} from "@utils/content-utils";
+import { getPostPublicDescription } from "@utils/post-card-content";
+
+export const prerender = true;
+
+const posts = (await getSortedPostsList())
+	.filter(isOrdinaryPublicPost)
+	.map((post) => ({
+		id: post.id,
+		title: post.data.title,
+		path: new URL(post.url || "/", BLOG_ORIGIN).pathname,
+		url: new URL(post.url || "/", BLOG_ORIGIN).toString(),
+		description: getPostPublicDescription(post.data, post.data.title),
+		tags: post.data.tags || [],
+		published: post.data.published.toISOString(),
+	}));
+---
+
+<MainGridLayout
+	title="增长工作台"
+	description="Sayori 博客的专题、文章、人工分发与有效阅读复盘工作台"
+>
+	<script>
+		import("../../scripts/right-sidebar-layout.js");
+	</script>
+	<GrowthWorkbench {posts} />
+</MainGridLayout>

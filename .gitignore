@@ -3,6 +3,7 @@ node_modules/
 .wrangler/
 dist/
 .playwright-cli/
+output/
 .env
 content/
 *.log

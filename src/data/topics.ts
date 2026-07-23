@@ -159,6 +159,20 @@ export function getTopicBySlug(slug: string): TopicDefinition | undefined {
 	return topics.find((topic) => topic.slug === slug);
 }
 
+export function getPublishedTopicForPost(
+	postId: string,
+): TopicDefinition | undefined {
+	const normalizedId = postId.replace(/\.(md|mdx)$/i, "");
+	return topics.find(
+		(topic) =>
+			topic.includedPosts.some(
+				(reference) =>
+					reference.id.replace(/\.(md|mdx)$/i, "") === normalizedId ||
+					reference.slug.replace(/\.(md|mdx)$/i, "") === normalizedId,
+			),
+	);
+}
+
 export function getTopicUrl(topic: TopicDefinition): string {
 	return `/topics/${topic.slug}/`;
 }

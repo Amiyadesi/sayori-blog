@@ -355,6 +355,11 @@ export const zh_TW: Translation = {
 	[Key.postCommentsUnavailable]: "評論暫不可用",
 	[Key.postStatsUnavailable]: "統計暫不可用",
 	[Key.postInteractionFailed]: "統計暫時失敗，不影響繼續操作",
+	[Key.postGeneratePoster]: "產生海報",
+	[Key.postPosterDownloadStarted]: "已開始下載",
+	[Key.postPromote]: "推廣本文",
+	[Key.postCopyFallbackLabel]: "請手動複製下方已選取的連結",
+	[Key.postCopyFailedManual]: "自動複製失敗，已為你選取連結",
 	[Key.postLastEdited]: "最後編輯",
 
 	// 個人資料統計
@@ -376,4 +381,7 @@ export const zh_TW: Translation = {
 	[Key.randomPosts]: "隨機文章",
 	[Key.smartRecommend]: "智能推薦",
 	[Key.randomRecommend]: "隨機推薦",
+	[Key.topicReadingPath]: "專題閱讀路徑",
+	[Key.topicCurrentPost]: "目前文章",
+	[Key.topicViewAll]: "查看完整專題",
 };

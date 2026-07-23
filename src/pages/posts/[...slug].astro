@@ -5,7 +5,7 @@ import PostEngagement from "@components/features/posts/PostEngagement.astro";
 import PostMeta from "@components/features/posts/PostMeta.astro";
 import PostNavigation from "@components/features/posts/PostNavigation.astro";
 import RandomPosts from "@components/features/posts/RandomPosts.astro";
-import RelatedPosts from "@components/features/posts/RelatedPosts.astro";
+import TopicReadingPath from "@components/features/posts/TopicReadingPath.astro";
 import ReadingTime from "@components/features/posts/atoms/ReadingTime.astro";
 import WordCount from "@components/features/posts/atoms/WordCount.astro";
 import License from "@components/misc/License.astro";
@@ -13,7 +13,6 @@ import Markdown from "@components/misc/Markdown.astro";
 import MainGridLayout from "@layouts/MainGridLayout.astro";
 import {
 	getPostDisplayTags,
-	getRelatedPosts,
 	getSortedPosts,
 	isDiaryPost,
 } from "@utils/content-utils";
@@ -26,13 +25,13 @@ import { render } from "astro:content";
 import {
 	licenseConfig,
 	randomPostsConfig,
-	relatedPostsConfig,
 } from "src/config";
 
 import Image from "../../components/atoms/Image/Image.astro";
 import Encryptor from "../../components/features/auth/Encryptor.astro";
 import AiSummary from "../../components/features/posts/AiSummary.astro";
 import { profileConfig, siteConfig } from "../../config";
+import { getPublishedTopicForPost } from "../../data/topics";
 import { formatDateToYYYYMMDD } from "../../utils/date-utils";
 
 export async function getStaticPaths() {
@@ -44,14 +43,10 @@ const { entry } = Astro.props;
 const { Content, headings } = await render(entry);
 const { remarkPluginFrontmatter } = await render(entry);
 
-// 获取相关文章
-const relatedPosts = relatedPostsConfig.enable
-	? await getRelatedPosts(entry, relatedPostsConfig.maxCount)
-	: [];
-const showRelatedPosts = relatedPostsConfig.enable && relatedPosts.length > 0;
+const publishedTopic = getPublishedTopicForPost(entry.id);
 const showRandomPosts = randomPostsConfig.enable;
 const footerSuggestionCount =
-	Number(showRelatedPosts) + Number(showRandomPosts);
+	Number(Boolean(publishedTopic)) + Number(showRandomPosts);
 
 // Process cover image, for both OG and SharePoster
 let ogCoverUrl: string | undefined;
@@ -369,7 +364,7 @@ const jsonLd = {
 		nextTitle={entry.data.prevTitle}
 	/>
 
-	<!-- 相关文章与随机文章 -->
+	<!-- 人工维护的专题阅读路径与随机探索 -->
 	{
 		footerSuggestionCount > 0 && (
 			<section
@@ -380,8 +375,11 @@ const jsonLd = {
 						: "flex flex-col",
 				]}
 			>
-				{showRelatedPosts && (
-					<RelatedPosts relatedPosts={relatedPosts} />
+				{publishedTopic && (
+					<TopicReadingPath
+						topic={publishedTopic}
+						currentPostId={entry.id}
+					/>
 				)}
 				{showRandomPosts && (
 					<RandomPosts

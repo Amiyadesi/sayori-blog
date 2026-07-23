@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Icon from "@iconify/svelte";
 	import { onMount } from "svelte";
+	import { copyTextWithFeedback } from "../../utils/copy-feedback";
 
 	import I18nKey from "../../i18n/i18nKey";
 	import { i18n } from "../../i18n/translation";
@@ -24,6 +25,7 @@
 	export let url: string;
 	export let siteTitle: string;
 	export let avatar: string | null = null;
+	export let buttonLabel: string | null = null;
 
 	// Constants
 	const SCALE = 2;
@@ -36,6 +38,7 @@
 	let showModal = false;
 	let posterImage: string | null = null;
 	let generating = false;
+	let downloaded = false;
 	let themeColor = "#558e88";
 
 	function isDarkMode(): boolean {
@@ -347,6 +350,15 @@
 			a.href = posterImage;
 			a.download = `poster-${title.replace(/\s+/g, "-")}.png`;
 			a.click();
+			downloaded = true;
+			setTimeout(() => {
+				downloaded = false;
+			}, COPY_FEEDBACK_DURATION);
+			document.dispatchEvent(
+				new CustomEvent("sayori:share-success", {
+					detail: { target: "poster", url },
+				}),
+			);
 		}
 	}
 
@@ -359,12 +371,13 @@
 
 	async function copyLink() {
 		try {
-			if (!navigator.clipboard?.writeText) {
-				throw new Error("Clipboard API is not available");
-			}
-
-			await navigator.clipboard.writeText(url);
+			await copyTextWithFeedback(url);
 			copied = true;
+			document.dispatchEvent(
+				new CustomEvent("sayori:share-success", {
+					detail: { target: "poster-copy", url },
+				}),
+			);
 			setTimeout(() => {
 				copied = false;
 			}, COPY_FEEDBACK_DURATION);
@@ -388,9 +401,9 @@
 <button
 	class="btn-regular px-6 py-3 rounded-lg inline-flex items-center gap-2"
 	onclick={generatePoster}
-	aria-label="Generate Share Poster"
+	aria-label={buttonLabel || i18n(I18nKey.shareArticle)}
 >
-	<span>{i18n(I18nKey.shareArticle)}</span>
+	<span>{buttonLabel || i18n(I18nKey.shareArticle)}</span>
 </button>
 
 {#if showModal}
@@ -426,7 +439,7 @@
 				{#if posterImage}
 					<img
 						src={posterImage}
-						alt="Poster"
+						alt={title}
 						class="max-w-full h-auto shadow-lg rounded-lg"
 					/>
 				{:else}
@@ -481,12 +494,21 @@
 					onclick={downloadPoster}
 					disabled={!posterImage}
 				>
-					<Icon
-						icon="material-symbols:download"
-						width="20"
-						height="20"
-					/>
-					{i18n(I18nKey.savePoster)}
+					{#if downloaded}
+						<Icon
+							icon="material-symbols:check"
+							width="20"
+							height="20"
+						/>
+						{i18n(I18nKey.postPosterDownloadStarted)}
+					{:else}
+						<Icon
+							icon="material-symbols:download"
+							width="20"
+							height="20"
+						/>
+						{i18n(I18nKey.savePoster)}
+					{/if}
 				</button>
 			</div>
 		</div>

@@ -1,0 +1,456 @@
+---
+import { PageHeader } from "@components/features/page-header";
+import { Icon } from "astro-icon/components";
+
+interface GrowthPost {
+	id: string;
+	title: string;
+	path: string;
+	url: string;
+	description: string;
+	tags: string[];
+	published: string;
+}
+
+interface Props {
+	posts: GrowthPost[];
+}
+
+const { posts } = Astro.props;
+const serializedPosts = JSON.stringify(posts).replace(/</g, "\\u003c");
+---
+
+<article class="growth-shell card-base paper-note paper-note-lined" data-growth-workbench>
+	<PageHeader
+		title="增长工作台"
+		subtitle="专题 → 文章 → 需求与审计证据 → 人工分发 → 有效阅读复盘"
+	/>
+
+	<section class="growth-login" data-growth-login hidden>
+		<div>
+			<p class="growth-kicker">Private Growth Desk</p>
+			<h2>需要站长身份</h2>
+			<p>使用和评论后台相同的 GitHub OAuth 登录</p>
+		</div>
+		<a class="growth-primary" href="/api/auth/login">登录</a>
+	</section>
+
+	<div data-growth-app hidden>
+		<header class="growth-toolbar">
+			<div class="growth-user">
+				<img data-growth-avatar src="/assets/profile/avatar-sayori-optimized.jpg" alt="" />
+				<div>
+					<strong data-growth-user-name>Amiya</strong>
+					<span>所有发布和文章修改仍需人工审核</span>
+				</div>
+			</div>
+			<nav class="growth-toolbar-actions" aria-label="增长工作台操作">
+				<a href="/admin/">
+					<Icon name="material-symbols:admin-panel-settings-outline-rounded" />
+					<span>管理后台</span>
+				</a>
+				<a href="https://github.com/Amiyadesi/sayori-blog/blob/main/docs/GROWTH-WORKBENCH.md">
+					<Icon name="material-symbols:menu-book-outline-rounded" />
+					<span>使用文档</span>
+				</a>
+				<button type="button" data-growth-refresh>
+					<Icon name="material-symbols:refresh-rounded" />
+					<span>刷新</span>
+				</button>
+			</nav>
+		</header>
+
+		<section class="growth-section growth-priority" aria-labelledby="growth-next-title">
+			<div class="growth-section-head">
+				<div>
+					<p class="growth-kicker">Next Actions</p>
+					<h2 id="growth-next-title">下一步</h2>
+				</div>
+				<p data-growth-overview-status aria-live="polite">正在读取工作台状态</p>
+			</div>
+			<ol class="growth-action-list" data-growth-actions></ol>
+		</section>
+
+		<section class="growth-section" aria-labelledby="growth-analyze-title">
+			<div class="growth-section-head">
+				<div>
+					<p class="growth-kicker">Evidence Analysis</p>
+					<h2 id="growth-analyze-title">文章证据分析</h2>
+				</div>
+				<div class="growth-source-strip" data-growth-source-strip>
+					<span data-source-state="search_gateway">Search</span>
+					<span data-source-state="geoscore">GeoScore</span>
+					<span data-source-state="umami">Umami</span>
+					<span data-source-state="gsc">GSC</span>
+				</div>
+			</div>
+
+			<form class="growth-analysis-form" data-growth-analysis-form>
+				<label class="growth-field growth-span-2">
+					<span>文章</span>
+					<select data-growth-post-select>
+						{posts.map((post) => <option value={post.url}>{post.title}</option>)}
+					</select>
+				</label>
+				<label class="growth-field growth-span-2">
+					<span>目标 URL</span>
+					<input type="url" data-growth-target required />
+				</label>
+				<label class="growth-field">
+					<span>专题</span>
+					<select data-growth-topic-select>
+						<option value="">暂不关联专题</option>
+					</select>
+				</label>
+				<label class="growth-field growth-query-field">
+					<span>搜索查询，每行一条，最多三条</span>
+					<textarea rows="3" data-growth-queries required></textarea>
+				</label>
+				<label class="growth-check">
+					<input type="checkbox" data-growth-fresh />
+					<span>忽略 GeoScore 缓存重新审计</span>
+				</label>
+				<div class="growth-form-actions growth-span-2">
+					<button class="growth-primary" type="submit" data-growth-analyze>
+						<Icon name="material-symbols:manage-search-rounded" />
+						<span>开始分析</span>
+					</button>
+					<p data-growth-analysis-status aria-live="polite">选择文章后按需调用外部服务</p>
+				</div>
+			</form>
+			<div class="growth-source-results" data-growth-source-results hidden></div>
+		</section>
+
+		<section class="growth-section" aria-labelledby="growth-tasks-title">
+			<div class="growth-section-head">
+				<div>
+					<p class="growth-kicker">Evidence Tasks</p>
+					<h2 id="growth-tasks-title">证据任务</h2>
+				</div>
+				<span class="growth-muted">只从适用失败项和达标 GSC 查询生成</span>
+			</div>
+			<div class="growth-task-list" data-growth-tasks></div>
+		</section>
+
+		<section class="growth-section" aria-labelledby="growth-topics-title">
+			<div class="growth-section-head">
+				<div>
+					<p class="growth-kicker">Topic Pipeline</p>
+					<h2 id="growth-topics-title">专题管线</h2>
+				</div>
+				<span class="growth-muted">草稿不会自动进入公开源码</span>
+			</div>
+			<div class="growth-topic-list" data-growth-topics></div>
+		</section>
+
+		<section class="growth-section" aria-labelledby="growth-distribution-title">
+			<div class="growth-section-head">
+				<div>
+					<p class="growth-kicker">Distribution Evidence Pack</p>
+					<h2 id="growth-distribution-title">分发证据包</h2>
+				</div>
+				<span class="growth-muted">生成渠道骨架，不生成跨平台复制全文</span>
+			</div>
+
+			<form class="growth-distribution-form" data-growth-distribution-form>
+				<label class="growth-field growth-span-2">
+					<span>目标文章</span>
+					<select data-distribution-post>
+						{posts.map((post) => <option value={post.url}>{post.title}</option>)}
+					</select>
+				</label>
+				<label class="growth-field">
+					<span>渠道档案</span>
+					<select data-distribution-channel>
+						<option value="">自定义渠道</option>
+					</select>
+				</label>
+				<label class="growth-field">
+					<span>Source</span>
+					<input type="text" data-distribution-source required />
+				</label>
+				<label class="growth-field">
+					<span>Medium</span>
+					<select data-distribution-medium>
+						<option value="community">community</option>
+						<option value="video">video</option>
+						<option value="social">social</option>
+						<option value="repository">repository</option>
+						<option value="referral">referral</option>
+						<option value="feed">feed</option>
+						<option value="email">email</option>
+						<option value="offline">offline</option>
+					</select>
+				</label>
+				<label class="growth-field">
+					<span>Campaign</span>
+					<input type="text" data-distribution-campaign required />
+				</label>
+				<label class="growth-field">
+					<span>Content</span>
+					<input type="text" data-distribution-content placeholder="thread-op" />
+				</label>
+				<label class="growth-field growth-span-2">
+					<span>可核验事实，每行一条</span>
+					<textarea rows="4" data-distribution-facts></textarea>
+				</label>
+				<label class="growth-field growth-span-2">
+					<span>证据与出处，每行一条</span>
+					<textarea rows="5" data-distribution-evidence></textarea>
+				</label>
+				<label class="growth-field growth-span-2">
+					<span>讨论问题，每行一条</span>
+					<textarea rows="3" data-distribution-questions></textarea>
+				</label>
+				<div class="growth-form-actions growth-span-2">
+					<button class="growth-primary" type="submit">
+						<Icon name="material-symbols:package-outline-rounded" />
+						<span>生成证据包</span>
+					</button>
+					<p data-distribution-status aria-live="polite">分析后会自动带入可核验证据</p>
+				</div>
+			</form>
+			<div class="growth-package" data-distribution-output hidden>
+				<div class="growth-package-actions">
+					<button type="button" data-distribution-copy-link>
+						<Icon name="material-symbols:link-rounded" />
+						<span>复制 UTM 链接</span>
+					</button>
+					<button type="button" data-distribution-copy-package>
+						<Icon name="material-symbols:content-copy-outline-rounded" />
+						<span>复制证据包</span>
+					</button>
+				</div>
+				<input type="text" readonly data-distribution-url />
+				<textarea rows="18" readonly data-distribution-markdown></textarea>
+			</div>
+		</section>
+
+		<section class="growth-section" aria-labelledby="growth-channels-title">
+			<div class="growth-section-head">
+				<div>
+					<p class="growth-kicker">Channel Profiles</p>
+					<h2 id="growth-channels-title">渠道档案</h2>
+				</div>
+				<span class="growth-muted">不保存密码、Cookie 或登录状态</span>
+			</div>
+			<form class="growth-channel-form" data-growth-channel-form>
+				<label class="growth-field"><span>名称</span><input data-channel-name required /></label>
+				<label class="growth-field"><span>Source</span><input data-channel-source required /></label>
+				<label class="growth-field">
+					<span>Medium</span>
+					<select data-channel-medium>
+						<option value="community">community</option>
+						<option value="video">video</option>
+						<option value="social">social</option>
+						<option value="repository">repository</option>
+						<option value="referral">referral</option>
+						<option value="feed">feed</option>
+						<option value="email">email</option>
+						<option value="offline">offline</option>
+					</select>
+				</label>
+				<label class="growth-field"><span>入口</span><input type="url" data-channel-url /></label>
+				<label class="growth-field growth-span-2"><span>受众</span><textarea rows="2" data-channel-audience></textarea></label>
+				<label class="growth-field growth-span-2"><span>规则</span><textarea rows="3" data-channel-rules></textarea></label>
+				<label class="growth-field growth-span-2"><span>适合内容</span><textarea rows="2" data-channel-content></textarea></label>
+				<div class="growth-form-actions growth-span-2">
+					<button type="submit" class="growth-primary">
+						<Icon name="material-symbols:add-link-rounded" />
+						<span>保存渠道</span>
+					</button>
+					<p data-channel-status aria-live="polite"></p>
+				</div>
+			</form>
+			<div class="growth-channel-list" data-growth-channels></div>
+		</section>
+
+		<section class="growth-section" aria-labelledby="growth-campaigns-title">
+			<div class="growth-section-head">
+				<div>
+					<p class="growth-kicker">Campaign Review</p>
+					<h2 id="growth-campaigns-title">Campaign 复盘</h2>
+				</div>
+				<span class="growth-muted">发布七天后复盘，少于 20 次落地只标记证据不足</span>
+			</div>
+			<div class="growth-campaign-list" data-growth-campaigns></div>
+		</section>
+	</div>
+
+	<script is:inline type="application/json" data-growth-posts set:html={serializedPosts}></script>
+</article>
+
+<script>
+	import "../../../scripts/growth-workbench";
+</script>
+
+<style>
+	.growth-shell { padding: 1.5rem; overflow: hidden; }
+	.growth-shell [hidden] { display: none !important; }
+	.growth-login,
+	.growth-toolbar,
+	.growth-section {
+		border: 1px solid var(--line-divider);
+		border-radius: 8px;
+		background: color-mix(in srgb, var(--card-bg) 92%, transparent);
+	}
+	.growth-login,
+	.growth-toolbar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		padding: 1rem;
+		margin-top: 1rem;
+	}
+	.growth-login h2,
+	.growth-section h2 { margin: 0; color: var(--text-90); font-size: 1.12rem; }
+	.growth-login p { margin: 0.3rem 0 0; color: var(--text-50); }
+	.growth-kicker { margin: 0 0 0.2rem; color: var(--primary); font-size: 0.72rem; font-weight: 800; text-transform: uppercase; }
+	.growth-user { display: flex; align-items: center; gap: 0.75rem; }
+	.growth-user img { width: 2.75rem; height: 2.75rem; border-radius: 50%; object-fit: cover; }
+	.growth-user strong,
+	.growth-user span { display: block; }
+	.growth-user span,
+	.growth-muted { color: var(--text-30); font-size: 0.78rem; }
+	.growth-toolbar-actions,
+	.growth-package-actions,
+	.growth-form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.55rem; }
+	.growth-toolbar-actions a,
+	.growth-toolbar-actions button,
+	.growth-primary,
+	.growth-package-actions button,
+	.growth-row-actions button {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.4rem;
+		min-height: 2.35rem;
+		border: 1px solid var(--line-divider);
+		border-radius: 7px;
+		background: var(--card-bg);
+		padding: 0.48rem 0.75rem;
+		color: var(--btn-content);
+		font-weight: 700;
+		cursor: pointer;
+	}
+	.growth-primary { border-color: color-mix(in srgb, var(--primary) 45%, transparent); color: var(--primary); }
+	.growth-section { margin-top: 1rem; }
+	.growth-section-head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		padding: 1rem;
+		border-bottom: 1px solid var(--line-divider);
+	}
+	.growth-section-head > p { margin: 0; color: var(--text-30); font-size: 0.8rem; }
+	.growth-action-list,
+	.growth-task-list,
+	.growth-topic-list,
+	.growth-channel-list,
+	.growth-campaign-list { display: grid; gap: 0.65rem; padding: 1rem; }
+	:global(.growth-action),
+	:global(.growth-task),
+	:global(.growth-topic),
+	:global(.growth-channel),
+	:global(.growth-campaign) {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		gap: 1rem;
+		align-items: center;
+		border-bottom: 1px solid var(--line-divider);
+		padding: 0.2rem 0 0.75rem;
+	}
+	:global(.growth-action:last-child),
+	:global(.growth-task:last-child),
+	:global(.growth-topic:last-child),
+	:global(.growth-channel:last-child),
+	:global(.growth-campaign:last-child) { border-bottom: 0; padding-bottom: 0.2rem; }
+	:global(.growth-row-copy) { min-width: 0; }
+	:global(.growth-row-copy strong) { display: block; color: var(--text-90); overflow-wrap: anywhere; }
+	:global(.growth-row-copy p) { margin: 0.25rem 0 0; color: var(--text-50); font-size: 0.84rem; line-height: 1.65; overflow-wrap: anywhere; }
+	:global(.growth-topic-details) { margin-top: 0.65rem; color: var(--text-50); font-size: 0.78rem; }
+	:global(.growth-topic-details summary) { width: fit-content; cursor: pointer; color: var(--primary); font-weight: 700; }
+	:global(.growth-topic-details strong) { margin-top: 0.7rem; font-size: 0.78rem; }
+	:global(.growth-topic-details ul) { margin: 0.25rem 0 0; padding-left: 1.1rem; line-height: 1.65; }
+	:global(.growth-milestone-form) { display: grid; grid-template-columns: minmax(9rem, 0.7fr) minmax(12rem, 1.3fr) auto; gap: 0.45rem; margin-top: 0.8rem; }
+	:global(.growth-milestone-form input) { min-height: 2.35rem; border: 1px solid var(--line-divider); border-radius: 7px; background: var(--card-bg); padding: 0.48rem 0.65rem; color: var(--text-90); }
+	:global(.growth-milestone-form button) { min-height: 2.35rem; border: 1px solid var(--line-divider); border-radius: 7px; background: var(--card-bg); padding: 0.48rem 0.7rem; color: var(--primary); font-weight: 700; }
+	:global(.growth-row-meta) { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.45rem; }
+	:global(.growth-chip),
+	.growth-source-strip span {
+		display: inline-flex;
+		align-items: center;
+		min-height: 1.7rem;
+		border: 1px solid var(--line-divider);
+		border-radius: 6px;
+		padding: 0.2rem 0.45rem;
+		background: var(--btn-regular-bg);
+		color: var(--text-50);
+		font-size: 0.72rem;
+		font-weight: 700;
+	}
+	:global(.growth-chip[data-tone="bad"]),
+	.growth-source-strip span[data-status="error"] { color: #b42318; border-color: color-mix(in srgb, #b42318 32%, transparent); }
+	:global(.growth-chip[data-tone="good"]),
+	.growth-source-strip span[data-status="complete"] { color: #157347; border-color: color-mix(in srgb, #157347 32%, transparent); }
+	.growth-source-strip { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+	.growth-analysis-form,
+	.growth-distribution-form,
+	.growth-channel-form {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.8rem;
+		padding: 1rem;
+	}
+	.growth-field { display: grid; align-content: start; gap: 0.35rem; min-width: 0; }
+	.growth-field > span { color: var(--text-50); font-size: 0.78rem; font-weight: 800; }
+	.growth-field input,
+	.growth-field select,
+	.growth-field textarea,
+	.growth-package input,
+	.growth-package textarea,
+	:global(.growth-row-actions select) {
+		width: 100%;
+		min-height: 2.45rem;
+		border: 1px solid var(--line-divider);
+		border-radius: 7px;
+		background: var(--card-bg);
+		padding: 0.58rem 0.7rem;
+		color: var(--text-90);
+	}
+	.growth-field textarea,
+	.growth-package textarea { resize: vertical; line-height: 1.55; }
+	.growth-span-2 { grid-column: 1 / -1; }
+	.growth-check { display: flex; align-items: center; gap: 0.5rem; color: var(--text-50); font-size: 0.82rem; }
+	.growth-form-actions { justify-content: space-between; }
+	.growth-form-actions p { margin: 0; color: var(--text-30); font-size: 0.8rem; }
+	.growth-source-results { border-top: 1px solid var(--line-divider); padding: 1rem; }
+	:global(.growth-source-result) { padding: 0.85rem 0; border-bottom: 1px solid var(--line-divider); }
+	:global(.growth-source-result:last-child) { border-bottom: 0; }
+	:global(.growth-source-result h3) { margin: 0; color: var(--text-90); font-size: 0.95rem; }
+	:global(.growth-source-result p) { margin: 0.3rem 0 0; color: var(--text-50); font-size: 0.82rem; line-height: 1.6; }
+	:global(.growth-source-result ul) { margin: 0.55rem 0 0; padding-left: 1.1rem; color: var(--text-50); font-size: 0.82rem; line-height: 1.65; }
+	.growth-package { display: grid; gap: 0.7rem; border-top: 1px solid var(--line-divider); padding: 1rem; }
+	:global(.growth-row-actions) { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 0.45rem; }
+	:global(.growth-empty) { margin: 0; padding: 0.5rem; color: var(--text-30); text-align: center; }
+
+	@media (max-width: 780px) {
+		.growth-shell { padding: 1rem; }
+		.growth-login,
+		.growth-toolbar,
+		.growth-section-head { align-items: stretch; flex-direction: column; }
+		.growth-analysis-form,
+		.growth-distribution-form,
+		.growth-channel-form { grid-template-columns: 1fr; }
+		.growth-span-2 { grid-column: auto; }
+		:global(.growth-action),
+		:global(.growth-task),
+		:global(.growth-topic),
+		:global(.growth-channel),
+		:global(.growth-campaign) { grid-template-columns: 1fr; }
+		:global(.growth-row-actions) { justify-content: flex-start; }
+		:global(.growth-milestone-form) { grid-template-columns: 1fr; }
+	}
+</style>

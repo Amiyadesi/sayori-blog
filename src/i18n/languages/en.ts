@@ -366,6 +366,11 @@ export const en: Translation = {
 	[Key.postCommentsUnavailable]: "Comments unavailable",
 	[Key.postStatsUnavailable]: "Stats unavailable",
 	[Key.postInteractionFailed]: "Stats failed; action can continue",
+	[Key.postGeneratePoster]: "Create Poster",
+	[Key.postPosterDownloadStarted]: "Download started",
+	[Key.postPromote]: "Promote Post",
+	[Key.postCopyFallbackLabel]: "Copy the selected link manually",
+	[Key.postCopyFailedManual]: "Automatic copy failed. The link is selected.",
 	[Key.postLastEdited]: "Last edited",
 
 	// Profile Stats
@@ -387,4 +392,7 @@ export const en: Translation = {
 	[Key.randomPosts]: "Random Posts",
 	[Key.smartRecommend]: "Smart",
 	[Key.randomRecommend]: "Random",
+	[Key.topicReadingPath]: "Topic Reading Path",
+	[Key.topicCurrentPost]: "Current",
+	[Key.topicViewAll]: "View the full topic",
 };

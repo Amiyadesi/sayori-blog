@@ -1,5 +1,4 @@
 ---
-import CampaignLinkBuilder from "@components/features/admin/CampaignLinkBuilder.astro";
 import { PageHeader } from "@components/features/page-header";
 import MainGridLayout from "@layouts/MainGridLayout.astro";
 
@@ -45,6 +44,7 @@ export const prerender = true;
 					</div>
 				</div>
 				<div class="admin-actions">
+					<a href="/admin/growth/">增长工作台</a>
 					<a
 						href="https://github.com/Amiyadesi/sayori-blog"
 						target="_blank"
@@ -96,7 +96,19 @@ export const prerender = true;
 				</p>
 			</section>
 
-			<CampaignLinkBuilder />
+			<section class="admin-panel admin-growth-entry">
+				<div class="admin-panel-head">
+					<div>
+						<p class="admin-kicker">Growth Workbench</p>
+						<h2>专题与文章增长闭环</h2>
+						<p class="admin-note">
+							从真实文章进入 Search Gateway、GeoScore、Umami 和 GSC
+							分析，再生成渠道证据包和七天复盘任务
+						</p>
+					</div>
+					<a class="admin-primary" href="/admin/growth/">打开工作台</a>
+				</div>
+			</section>
 
 			<section class="admin-panel admin-comments-panel">
 				<div class="admin-panel-head">

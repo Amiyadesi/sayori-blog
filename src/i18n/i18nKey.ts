@@ -343,6 +343,11 @@ enum I18nKey {
 	postCommentsUnavailable = "postCommentsUnavailable",
 	postStatsUnavailable = "postStatsUnavailable",
 	postInteractionFailed = "postInteractionFailed",
+	postGeneratePoster = "postGeneratePoster",
+	postPosterDownloadStarted = "postPosterDownloadStarted",
+	postPromote = "postPromote",
+	postCopyFallbackLabel = "postCopyFallbackLabel",
+	postCopyFailedManual = "postCopyFailedManual",
 	postLastEdited = "postLastEdited",
 
 	// 个人资料统计
@@ -364,6 +369,9 @@ enum I18nKey {
 	randomPosts = "randomPosts",
 	smartRecommend = "smartRecommend",
 	randomRecommend = "randomRecommend",
+	topicReadingPath = "topicReadingPath",
+	topicCurrentPost = "topicCurrentPost",
+	topicViewAll = "topicViewAll",
 }
 
 export default I18nKey;

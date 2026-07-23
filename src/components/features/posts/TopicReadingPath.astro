@@ -1,0 +1,179 @@
+---
+import ListContainer from "@/components/misc/ListContainer.astro";
+import I18nKey from "@/i18n/i18nKey";
+import { i18n } from "@/i18n/translation";
+import { isOrdinaryPublicPost } from "@/utils/content-utils";
+import { getPostUrl, removeFileExtension } from "@/utils/url-utils";
+import { getCollection, type CollectionEntry } from "astro:content";
+
+import {
+	getTopicUrl,
+	type TopicDefinition,
+} from "../../../data/topics";
+
+interface Props {
+	topic: TopicDefinition;
+	currentPostId: string;
+}
+
+const { topic, currentPostId } = Astro.props;
+type PostEntry = CollectionEntry<"posts">;
+
+const normalizeId = (value: string) => removeFileExtension(value);
+const postByReference = new Map<string, PostEntry>();
+for (const post of await getCollection("posts")) {
+	postByReference.set(post.id, post);
+	postByReference.set(normalizeId(post.id), post);
+}
+
+const route = topic.includedPosts
+	.map((reference) => {
+		const post =
+			postByReference.get(reference.id) ??
+			postByReference.get(reference.slug) ??
+			postByReference.get(normalizeId(reference.id)) ??
+			postByReference.get(normalizeId(reference.slug));
+		return post && isOrdinaryPublicPost(post) && !post.data.password
+			? { reference, post, url: getPostUrl(post) }
+			: null;
+	})
+	.filter((item): item is NonNullable<typeof item> => Boolean(item));
+
+const normalizedCurrentId = normalizeId(currentPostId);
+const currentIndex = route.findIndex(
+	(item) => normalizeId(item.post.id) === normalizedCurrentId,
+);
+const windowStart = Math.max(
+	0,
+	Math.min(currentIndex - 1, Math.max(route.length - 3, 0)),
+);
+const visibleRoute = route.slice(windowStart, windowStart + 3);
+---
+
+{
+	currentIndex >= 0 && route.length > 1 && (
+		<ListContainer
+			title={i18n(I18nKey.topicReadingPath)}
+			badge={topic.title}
+			icon="material-symbols:alt-route-rounded"
+		>
+			<ol class="topic-reading-route">
+				{visibleRoute.map((item) => {
+					const index = route.indexOf(item);
+					const isCurrent = index === currentIndex;
+					return (
+						<li class:list={["topic-reading-step", { "is-current": isCurrent }]}>
+							<span class="topic-reading-index">{index + 1}</span>
+							<div class="topic-reading-copy">
+								{isCurrent ? (
+									<strong aria-current="page">{item.post.data.title}</strong>
+								) : (
+									<a href={item.url}>{item.post.data.title}</a>
+								)}
+								<p>{item.reference.why}</p>
+							</div>
+							{isCurrent && (
+								<span class="topic-current-label">
+									{i18n(I18nKey.topicCurrentPost)}
+								</span>
+							)}
+						</li>
+					);
+				})}
+			</ol>
+			<a class="topic-reading-all" href={getTopicUrl(topic)}>
+				{i18n(I18nKey.topicViewAll)}
+			</a>
+		</ListContainer>
+	)
+}
+
+<style>
+	.topic-reading-route {
+		display: grid;
+		gap: 0;
+	}
+
+	.topic-reading-step {
+		display: grid;
+		grid-template-columns: 2rem minmax(0, 1fr) auto;
+		align-items: start;
+		gap: 0.75rem;
+		padding: 0.9rem 0;
+		border-bottom: 1px dashed var(--line-divider);
+	}
+
+	.topic-reading-step:last-child {
+		border-bottom: 0;
+	}
+
+	.topic-reading-step.is-current {
+		color: var(--primary);
+	}
+
+	.topic-reading-index {
+		display: grid;
+		place-items: center;
+		width: 2rem;
+		height: 2rem;
+		border-radius: 6px;
+		background: var(--btn-regular-bg);
+		font-weight: 700;
+	}
+
+	.topic-reading-copy {
+		min-width: 0;
+	}
+
+	.topic-reading-copy a,
+	.topic-reading-copy strong {
+		display: block;
+		font-size: 0.92rem;
+		font-weight: 700;
+		color: var(--text-90);
+	}
+
+	.topic-reading-copy a:hover {
+		color: var(--primary);
+	}
+
+	.topic-reading-copy p {
+		margin-top: 0.3rem;
+		font-size: 0.78rem;
+		line-height: 1.6;
+		color: var(--text-50);
+	}
+
+	.topic-current-label {
+		white-space: nowrap;
+		border-radius: 999px;
+		background: var(--btn-regular-bg);
+		padding: 0.25rem 0.55rem;
+		font-size: 0.7rem;
+		color: var(--btn-content);
+	}
+
+	.topic-reading-all {
+		display: inline-flex;
+		margin-top: 0.8rem;
+		font-size: 0.82rem;
+		font-weight: 700;
+		color: var(--primary);
+	}
+
+	@media (max-width: 520px) {
+		.topic-reading-step {
+			grid-template-columns: 1.75rem minmax(0, 1fr);
+		}
+
+		.topic-reading-index {
+			width: 1.75rem;
+			height: 1.75rem;
+		}
+
+		.topic-current-label {
+			grid-column: 2;
+			justify-self: start;
+		}
+	}
+</style>

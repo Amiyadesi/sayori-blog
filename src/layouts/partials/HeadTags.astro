@@ -49,6 +49,7 @@ const {
 // 关键词
 const keywords = siteConfig.keywords;
 const canonicalUrl = new URL(Astro.url.pathname, siteConfig.siteURL).toString();
+const isPrivateAdminPage = Astro.url.pathname.startsWith("/admin/");
 const ogLocale = siteConfig.lang;
 const imageAlt = ogImageAlt || `${title} - ${siteConfig.title}`;
 const publishedIso = toIsoDate(publishedTime);
@@ -200,7 +201,12 @@ function toIsoDate(value?: Date | string) {
 <!-- SEO Meta Tags -->
 <title>{title}</title>
 <meta name="description" content={description || title} />
-<meta name="robots" content="index, follow, max-image-preview:large" />
+<meta
+	name="robots"
+	content={isPrivateAdminPage
+		? "noindex, nofollow, noarchive"
+		: "index, follow, max-image-preview:large"}
+/>
 <meta name="theme-color" content="#f4f3ef" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />

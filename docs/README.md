@@ -49,6 +49,15 @@
 - **[AUTO_BUILD_TRIGGER.md](./AUTO_BUILD_TRIGGER.md)** - 自动构建触发快速参考 🆕
   - 5 步快速配置，解决内容更新不触发部署的问题
 
+### 站长运营
+
+- **[GROWTH_WORKBENCH.md](./GROWTH-WORKBENCH.md)** - 私有增长工作台
+  - 专题、四源证据分析、任务、渠道档案、分发证据包和复盘
+  - GSC Service Account 与 Cloudflare Secrets 最小权限配置
+
+- **[PROMOTION-ATTRIBUTION.md](./PROMOTION-ATTRIBUTION.md)** - 推广归因口径
+  - UTM、Umami、GSC 和 `effective_read` 的职责边界
+
 ## 🚀 快速查找
 
 ### 我是新手，想快速开始
@@ -85,6 +94,8 @@ docs/
 ├── MIGRATION_GUIDE.md           # 迁移指南
 ├── DEPLOYMENT.md                # 部署完整指南
 ├── AUTO_BUILD_TRIGGER.md        # 自动构建触发快速参考
+├── GROWTH-WORKBENCH.md          # 增长工作台与外部证据配置
+├── PROMOTION-ATTRIBUTION.md     # 推广归因和有效阅读口径
 └── image/                       # 文档图片资源
 ```
 
