@@ -1,5 +1,6 @@
+import fs from "node:fs";
 import path from "node:path";
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 import { loadEnv } from "./load-env.js";
@@ -70,12 +71,13 @@ async function uploadObjects(objects) {
 	if (!missingObjects.length) return;
 
 	const version = process.env.WRANGLER_VERSION || "4.111.0";
-	const command = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+	const { command, prefixArgs } = resolvePnpmInvocation();
 	let completed = 0;
 	await runPool(missingObjects, 4, async (object) => {
-		await runCommand(
+		await runCommandWithRetry(
 			command,
 			[
+				...prefixArgs,
 				"dlx",
 				`wrangler@${version}`,
 				"r2",
@@ -102,6 +104,31 @@ async function uploadObjects(objects) {
 	});
 }
 
+async function runCommandWithRetry(
+	command,
+	args,
+	env,
+	{ maxAttempts = 3, retryDelayMs = 500 } = {},
+) {
+	let lastError;
+	for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+		try {
+			await runCommand(command, args, env);
+			return;
+		} catch (error) {
+			lastError = error;
+			if (attempt === maxAttempts) break;
+			console.warn(
+				`[blog-media] upload command failed; retrying ${attempt}/${maxAttempts - 1}`,
+			);
+			await new Promise((resolve) =>
+				setTimeout(resolve, retryDelayMs * 2 ** (attempt - 1)),
+			);
+		}
+	}
+	throw lastError;
+}
+
 function runCommand(command, args, env) {
 	return new Promise((resolve, reject) => {
 		const child = spawn(command, args, {
@@ -120,6 +147,34 @@ function runCommand(command, args, env) {
 			);
 		});
 	});
+}
+
+function resolvePnpmInvocation() {
+	if (process.platform !== "win32") {
+		return { command: "pnpm", prefixArgs: [] };
+	}
+
+	const shims = execFileSync("where.exe", ["pnpm.cmd"], {
+		encoding: "utf8",
+		windowsHide: true,
+	})
+		.split(/\r?\n/)
+		.map((value) => value.trim())
+		.filter(Boolean);
+	for (const shim of shims) {
+		const entry = path.join(
+			path.dirname(shim),
+			"node_modules",
+			"pnpm",
+			"bin",
+			"pnpm.mjs",
+		);
+		if (fs.existsSync(entry)) {
+			return { command: process.execPath, prefixArgs: [entry] };
+		}
+	}
+
+	throw new Error("Unable to resolve the pnpm JavaScript entrypoint");
 }
 
 async function runPool(items, concurrency, worker) {
