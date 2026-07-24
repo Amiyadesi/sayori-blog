@@ -8,6 +8,12 @@ import { fileURLToPath } from "node:url";
 const scriptPath = fileURLToPath(new URL("./sync-content.js", import.meta.url));
 const repoRoot = path.resolve(path.dirname(scriptPath), "..", "..");
 const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "blog-sync-"));
+const isolatedEnv = {
+	...process.env,
+	BLOG_MEDIA_BASE_URL: "",
+	BLOG_MEDIA_MANIFEST: "",
+	BLOG_MEDIA_REQUIRED: "",
+};
 
 try {
 	const fixtureRoot = tmpRoot;
@@ -217,7 +223,7 @@ try {
 		cwd: fixtureRoot,
 		encoding: "utf8",
 		env: {
-			...process.env,
+			...isolatedEnv,
 			CONTENT_DIR: path.relative(fixtureBlog, fixtureArticles),
 		},
 	});
@@ -438,7 +444,7 @@ try {
 		cwd: fixtureRoot,
 		encoding: "utf8",
 		env: {
-			...process.env,
+			...isolatedEnv,
 			CONTENT_DIR: path.relative(fixtureBlog, fixtureArticles),
 			BLOG_MEDIA_BASE_URL: "https://img.sayori.org/blog/v1",
 			BLOG_MEDIA_MANIFEST: mediaManifestPath,

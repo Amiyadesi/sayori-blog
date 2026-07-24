@@ -9,6 +9,12 @@ const scriptsRoot = path.dirname(
 	fileURLToPath(new URL("./sync-content.js", import.meta.url)),
 );
 const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "blog-sync-validation-"));
+const isolatedEnv = {
+	...process.env,
+	BLOG_MEDIA_BASE_URL: "",
+	BLOG_MEDIA_MANIFEST: "",
+	BLOG_MEDIA_REQUIRED: "",
+};
 
 try {
 	const blogRoot = path.join(tmpRoot, "sayori-blog");
@@ -31,7 +37,7 @@ try {
 	const result = spawnSync(process.execPath, [scriptPath], {
 		encoding: "utf8",
 		env: {
-			...process.env,
+			...isolatedEnv,
 			CONTENT_DIR: path.relative(blogRoot, contentRoot),
 		},
 	});
@@ -57,7 +63,7 @@ try {
 	const invalid = spawnSync(process.execPath, [invalidScriptPath], {
 		encoding: "utf8",
 		env: {
-			...process.env,
+			...isolatedEnv,
 			CONTENT_DIR: path.relative(invalidBlogRoot, invalidContentRoot),
 		},
 	});
@@ -73,7 +79,7 @@ try {
 	const missingManifest = spawnSync(process.execPath, [remoteMediaScriptPath], {
 		encoding: "utf8",
 		env: {
-			...process.env,
+			...isolatedEnv,
 			CONTENT_DIR: path.relative(remoteMediaBlogRoot, remoteMediaContentRoot),
 			BLOG_MEDIA_BASE_URL: "https://img.sayori.org/blog/v1",
 			BLOG_MEDIA_MANIFEST: path.join(remoteMediaBlogRoot, "missing.json"),
@@ -97,7 +103,7 @@ try {
 	const brokenLink = spawnSync(process.execPath, [brokenLinkScriptPath], {
 		encoding: "utf8",
 		env: {
-			...process.env,
+			...isolatedEnv,
 			CONTENT_DIR: path.relative(brokenLinkBlogRoot, brokenLinkContentRoot),
 		},
 	});
