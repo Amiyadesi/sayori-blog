@@ -167,7 +167,11 @@ export async function prepareBlogMedia({
 
 export async function verifyRemoteManifest(
 	manifest,
-	{ fetchImpl = globalThis.fetch, concurrency = 8 } = {},
+	{
+		fetchImpl = globalThis.fetch,
+		concurrency = 8,
+		retryDelayMs = 250,
+	} = {},
 ) {
 	if (typeof fetchImpl !== "function") {
 		throw new Error(
@@ -190,9 +194,8 @@ export async function verifyRemoteManifest(
 			const target = targets[cursor++];
 			const { url } = target;
 			try {
-				const response = await fetchImpl(url, {
-					method: "HEAD",
-					signal: AbortSignal.timeout(15_000),
+				const response = await fetchHeadWithRetry(fetchImpl, url, {
+					retryDelayMs,
 				});
 				const contentType = response.headers.get("content-type") || "";
 				if (!response.ok || !contentType.startsWith("image/")) {
@@ -231,7 +234,11 @@ export async function verifyRemoteManifest(
 
 export async function findMissingRemoteObjects(
 	objects,
-	{ fetchImpl = globalThis.fetch, concurrency = 8 } = {},
+	{
+		fetchImpl = globalThis.fetch,
+		concurrency = 8,
+		retryDelayMs = 250,
+	} = {},
 ) {
 	if (typeof fetchImpl !== "function") {
 		throw new Error(
@@ -245,9 +252,8 @@ export async function findMissingRemoteObjects(
 		while (cursor < objects.length) {
 			const object = objects[cursor++];
 			try {
-				const response = await fetchImpl(object.url, {
-					method: "HEAD",
-					signal: AbortSignal.timeout(15_000),
+				const response = await fetchHeadWithRetry(fetchImpl, object.url, {
+					retryDelayMs,
 				});
 				if (response.status === 404) {
 					missing.push(object);
@@ -284,6 +290,29 @@ export async function findMissingRemoteObjects(
 		);
 	}
 	return missing;
+}
+
+async function fetchHeadWithRetry(
+	fetchImpl,
+	url,
+	{ maxAttempts = 3, retryDelayMs = 250 } = {},
+) {
+	let lastError;
+	for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+		try {
+			return await fetchImpl(url, {
+				method: "HEAD",
+				signal: AbortSignal.timeout(15_000),
+			});
+		} catch (error) {
+			lastError = error;
+			if (attempt === maxAttempts) break;
+			await new Promise((resolve) =>
+				setTimeout(resolve, retryDelayMs * 2 ** (attempt - 1)),
+			);
+		}
+	}
+	throw lastError;
 }
 
 function collectLocalImageSources(postsRoot) {

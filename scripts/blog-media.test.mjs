@@ -239,3 +239,25 @@ test("remote verification rejects an object with unexpected bytes", async () => 
 		/content-length 11 != 12/,
 	);
 });
+
+test("remote object lookup retries transient connection failures", async () => {
+	const target = {
+		url: "https://img.sayori.org/blog/v1/transient/640.webp",
+		byteLength: 12,
+	};
+	let attempts = 0;
+	const fetchImpl = async () => {
+		attempts += 1;
+		if (attempts < 3) throw new TypeError("fetch failed");
+		return new Response(null, { status: 404 });
+	};
+
+	assert.deepEqual(
+		await findMissingRemoteObjects([target], {
+			fetchImpl,
+			retryDelayMs: 0,
+		}),
+		[target],
+	);
+	assert.equal(attempts, 3);
+});
