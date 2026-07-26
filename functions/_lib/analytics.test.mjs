@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+	ONLINE_TTL_MS,
 	getAdminAnalytics,
 	hashValue,
 	isAllowedAnalyticsOrigin,
@@ -10,6 +11,10 @@ import {
 	recordAnalyticsEvent,
 	sanitizeAnalyticsPayload,
 } from "./analytics.js";
+
+it("keeps online sessions visible across one delayed heartbeat", () => {
+	assert.ok(ONLINE_TTL_MS >= 2 * 60 * 1000);
+});
 
 function request(origin = "https://blog.sayori.org") {
 	return new Request("https://blog.sayori.org/api/analytics/event", {
@@ -165,6 +170,60 @@ describe("D1 event recording", () => {
 			false,
 		);
 		assert.equal(captured.length, 3);
+	});
+
+	it("uses one minimal session update for heartbeats", async () => {
+		const rawIp = "203.0.113.10";
+		const captured = [];
+		const db = {
+			prepare(sql) {
+				return {
+					bind(...values) {
+						captured.push({ sql, values });
+						return this;
+					},
+					first() {
+						return null;
+					},
+					run() {
+						return { success: true };
+					},
+				};
+			},
+		};
+		const heartbeatRequest = new Request(
+			"https://blog.sayori.org/api/analytics/event",
+			{
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+					"cf-connecting-ip": rawIp,
+					origin: "https://blog.sayori.org",
+				},
+				body: JSON.stringify({
+					event: "heartbeat",
+					site: "blog",
+					visitorId: "visitor-1234567890",
+					sessionId: "session-1234567890",
+					path: "/posts/hello/",
+					title: "Hello",
+				}),
+			},
+		);
+
+		const result = await recordAnalyticsEvent({
+			request: heartbeatRequest,
+			env: {
+				SAYORI_ANALYTICS_DB: db,
+				ANALYTICS_HASH_SECRET: "test-secret",
+			},
+		});
+
+		assert.equal(result.success, true);
+		assert.equal(captured.length, 1);
+		assert.match(captured[0].sql, /^UPDATE analytics_sessions/);
+		assert.doesNotMatch(captured[0].sql, /analytics_events/);
+		assert.equal(captured[0].values.includes(rawIp), false);
 	});
 });
 

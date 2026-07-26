@@ -4,8 +4,6 @@ on:
   push:
     branches: [main]
   pull_request:
-  repository_dispatch:
-    types: [content-updated]
   workflow_dispatch:
 
 concurrency:
@@ -17,6 +15,9 @@ permissions:
 
 env:
   WRANGLER_VERSION: 4.111.0
+  AGE_VERSION: 1.2.1
+  AGE_LINUX_AMD64_SHA256: 7df45a6cc87d4da11cc03a539a7470c15b1041ab2b396af088fe9990f7c79d50
+  D1_BACKUP_AGE_RECIPIENT: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBpgCenpdj2MdBOx5gBlqCTpGFQ9VttIOhkSqIaS/DFb
   CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
   CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
   CF_BROWSER_RENDERING_API_TOKEN: ${{ secrets.CF_BROWSER_RENDERING_API_TOKEN }}
@@ -118,8 +119,67 @@ jobs:
           pnpm run verify-build-output
           node scripts/write-deployment-manifest.mjs dist/deployment.json
 
-      - name: Apply D1 migrations
+      - name: Detect pending D1 migrations
+        id: d1_migrations
         if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$(pnpm dlx "wrangler@${WRANGLER_VERSION}" d1 migrations list sayori-analytics --remote 2>&1)"
+          printf '%s\n' "${output}"
+          if grep -Fq 'No migrations to apply!' <<< "${output}"; then
+            echo 'pending=false' >> "${GITHUB_OUTPUT}"
+          else
+            echo 'pending=true' >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Export and encrypt D1 before migration
+        if: github.event_name != 'pull_request' && steps.d1_migrations.outputs.pending == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="${RUNNER_TEMP}/age-v${AGE_VERSION}-linux-amd64.tar.gz"
+          curl -fsSL \
+            --retry 5 --retry-all-errors --retry-delay 3 \
+            "https://github.com/FiloSottile/age/releases/download/v${AGE_VERSION}/age-v${AGE_VERSION}-linux-amd64.tar.gz" \
+            -o "${archive}"
+          echo "${AGE_LINUX_AMD64_SHA256}  ${archive}" | sha256sum -c -
+          tar -xzf "${archive}" -C "${RUNNER_TEMP}"
+
+          backup_dir="${RUNNER_TEMP}/d1-backup"
+          mkdir -m 0700 "${backup_dir}"
+          backup="${backup_dir}/sayori-analytics-${GITHUB_RUN_ID}-${GITHUB_SHA}.sql"
+          encrypted="${backup}.age"
+          pnpm dlx "wrangler@${WRANGLER_VERSION}" d1 export sayori-analytics \
+            --remote \
+            --skip-confirmation \
+            --output "${backup}"
+          "${RUNNER_TEMP}/age/age" --encrypt \
+            --recipient "${D1_BACKUP_AGE_RECIPIENT}" \
+            --output "${encrypted}" \
+            "${backup}"
+          (
+            cd "${backup_dir}"
+            sha256sum "$(basename "${encrypted}")" > "$(basename "${encrypted}").sha256"
+          )
+          rm -f "${backup}"
+          test -s "${encrypted}"
+          test -s "${encrypted}.sha256"
+
+      - name: Upload encrypted D1 backup to GitHub
+        if: github.event_name != 'pull_request' && steps.d1_migrations.outputs.pending == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sayori-analytics-pre-migration-${{ github.run_id }}-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/d1-backup/*.age
+            ${{ runner.temp }}/d1-backup/*.sha256
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Apply D1 migrations
+        if: github.event_name != 'pull_request' && steps.d1_migrations.outputs.pending == 'true'
         run: pnpm dlx "wrangler@${WRANGLER_VERSION}" d1 migrations apply sayori-analytics --remote
 
       - name: Configure screenshot secret

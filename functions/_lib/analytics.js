@@ -6,7 +6,7 @@ const ALLOWED_RANGES = new Map([
 	["30d", 30 * 24 * 60 * 60 * 1000],
 ]);
 
-export const ONLINE_TTL_MS = 90 * 1000;
+export const ONLINE_TTL_MS = 150 * 1000;
 export const IP_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 export const EVENT_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
 const IP_LOOKUP_TIMEOUT_MS = 5000;
@@ -733,14 +733,34 @@ export async function recordAnalyticsEvent(context) {
 	const payload = await request.json().catch(() => ({}));
 	const event = sanitizeAnalyticsPayload(payload, request);
 	const now = Date.now();
+	const sessionHash = await hashValue(
+		env.ANALYTICS_HASH_SECRET,
+		`session:${event.site}:${event.sessionId}`,
+	);
+
+	if (event.eventType === "heartbeat") {
+		await env.SAYORI_ANALYTICS_DB.prepare(
+			`UPDATE analytics_sessions
+			 SET last_seen_at = ?,
+			     last_event_type = 'heartbeat',
+			     current_path = ?,
+			     current_title = ?,
+			     heartbeats = heartbeats + 1
+			 WHERE session_hash = ?`,
+		)
+			.bind(now, event.path, event.title, sessionHash)
+			.run();
+
+		return {
+			success: true,
+			onlineTtlSeconds: ONLINE_TTL_MS / 1000,
+		};
+	}
+
 	const ip = getClientIp(request);
 	const visitorHash = await hashValue(
 		env.ANALYTICS_HASH_SECRET,
 		`visitor:${event.site}:${event.visitorId}`,
-	);
-	const sessionHash = await hashValue(
-		env.ANALYTICS_HASH_SECRET,
-		`session:${event.site}:${event.sessionId}`,
 	);
 	const ipHash = await hashValue(env.ANALYTICS_HASH_SECRET, `ip:${ip}`);
 	const ipInfo = await lookupIpInfo(env, ip, ipHash, now, request.cf);
