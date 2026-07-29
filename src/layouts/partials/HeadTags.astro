@@ -304,6 +304,10 @@ function toIsoDate(value?: Date | string) {
 	))
 }
 
+<!-- Preconnect to analytics origins so the idle-deferred scripts warm faster -->
+<link rel="preconnect" href="https://www.googletagmanager.com" crossorigin />
+<link rel="dns-prefetch" href="https://stats.sayori.org" />
+
 <!-- 字体通过构建脚本压缩到 /assets/font/ 目录，此处不再预加载以避免 404 -->
 <!-- 字体在构建时通过 scripts/compress-fonts.js 处理并复制到 dist/ -->
 

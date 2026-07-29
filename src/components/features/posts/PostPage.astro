@@ -214,6 +214,21 @@ const initialLayoutClass = defaultLayout === "grid" ? "grid-mode" : "list-mode";
 		);
 	}
 
+	/* Hover lift for post cards.
+	   The entrance animation pins `transform` via fill-mode forwards, so a
+	   hover transform would be overridden. The individual `translate` property
+	   composes with (not overrides) the animated transform, so the lift works
+	   without fighting the entrance animation. */
+	#post-list-container > :global(.paper-note):hover {
+		translate: 0 -4px;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		#post-list-container > :global(.paper-note):hover {
+			translate: 0 0;
+		}
+	}
+
 	#post-list-container.grid-mode > :global(*) {
 		animation-name: fadeInScale;
 	}
