@@ -766,6 +766,8 @@ function slugify(value) {
 		.normalize("NFKD")
 		.toLowerCase()
 		.trim()
+		// Astro's content slugger removes apostrophes before splitting words.
+		.replace(/[\u0027\u2019]/g, "")
 		.replace(/[^\p{Letter}\p{Number}]+/gu, "-")
 		.replace(/^-+|-+$/g, "");
 }
