@@ -54,14 +54,21 @@
 		return tagList.map((t) => `#${t}`).join(" ");
 	}
 
+	function normalizeTagKey(value: string) {
+		return value.trim().replace(/\s+/g, " ").toLocaleLowerCase();
+	}
+
 	onMount(async () => {
 		let filteredPosts: Post[] = sortedPosts;
 
 		if (tags.length > 0) {
+			const requestedTags = tags.map(normalizeTagKey);
 			filteredPosts = filteredPosts.filter(
 				(post) =>
 					Array.isArray(post.data.tags) &&
-					post.data.tags.some((tag) => tags.includes(tag)),
+					post.data.tags.some((tag) =>
+						requestedTags.includes(normalizeTagKey(tag)),
+					),
 			);
 		}
 
