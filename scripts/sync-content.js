@@ -113,6 +113,7 @@ const contentIndex = buildContentIndex([
 	{ dir: POSTS_SRC, urlPrefix: "/posts/" },
 	{ dir: ESSAYS_SRC, urlPrefix: "/essays/#" },
 ]);
+const LOCAL_IMAGE_INDEX = buildLocalImageIndex(POSTS_SRC);
 
 // --- Sync global images ---
 const imagesSrc = path.join(articlesRoot, "images");
@@ -324,7 +325,7 @@ function transformMarkdownBody(content, sourcePath, slug) {
 		result = convertSpoilers(result);
 		result = convertObsidianEmbeds(result, sourcePath, slug);
 		result = convertWikiLinks(result, sourcePath);
-		result = normalizeImageLinks(result, slug);
+		result = normalizeImageLinks(result, slug, sourcePath);
 		result = convertObsidianBlockIds(result);
 		result = convertObsidianHighlights(result);
 		return result;
@@ -398,7 +399,7 @@ function convertObsidianHighlights(content) {
 }
 
 function convertSpoilers(content) {
-	return content.replace(/\{\{(?:spoiler|黑幕)\s*[:：]\s*([^|{}\n]+?)(?:\|([^{}\n]*))?\}\}/g, (_match, rawText, rawTooltip = "") => {
+	return content.replace(/\{\{(?:spoiler|黑幕|黑框)\s*[:：]\s*([^|{}\n]+?)(?:\|([^{}\n]*))?\}\}/g, (_match, rawText, rawTooltip = "") => {
 		const text = String(rawText || "").trim();
 		const tooltip = String(rawTooltip || "").trim();
 		const attrs = [
@@ -421,7 +422,7 @@ function convertPhotoGrids(content, sourcePath, slug) {
 				continue;
 			}
 
-			const item = parsePhotoGridItem(line, slug);
+			const item = parsePhotoGridItem(line, slug, sourcePath);
 			if (item) {
 				items.push(item);
 				continue;
@@ -455,7 +456,7 @@ function convertPhotoGrids(content, sourcePath, slug) {
 	});
 }
 
-function parsePhotoGridItem(line, slug) {
+function parsePhotoGridItem(line, slug, sourcePath) {
 	const obsidianMatch = line.match(/^!\[\[([^\]|]+)(?:\|([^\]]*))?\]\]$/);
 	if (obsidianMatch) {
 		const filename = obsidianMatch[1].trim();
@@ -468,9 +469,7 @@ function parsePhotoGridItem(line, slug) {
 		}
 
 		return {
-			src: slug
-				? publicPath("images", "posts", slug, filename)
-				: publicPath("images", "posts", filename),
+			src: resolveLocalImagePublicPath(filename, sourcePath, slug),
 			altText: display.altText,
 			caption: display.caption || (display.legacyCaption ? display.altText : ""),
 			width: display.width || "",
@@ -484,7 +483,7 @@ function parsePhotoGridItem(line, slug) {
 	const markdownMatch = line.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
 	if (markdownMatch) {
 		const altText = markdownMatch[1].trim();
-		const src = normalizeMarkdownImageUrl(markdownMatch[2], slug);
+		const src = normalizeMarkdownImageUrl(markdownMatch[2], slug, sourcePath);
 		if (!src || src.startsWith("#")) {
 			return null;
 		}
@@ -519,9 +518,7 @@ function convertObsidianEmbeds(content, sourcePath, slug) {
 		const ext = path.extname(stripUrlSuffix(filename)).toLowerCase();
 
 		if (IMAGE_EXTS.has(ext)) {
-			const src = slug
-				? publicPath("images", "posts", slug, filename)
-				: publicPath("images", "posts", filename);
+			const src = resolveLocalImagePublicPath(filename, sourcePath, slug);
 
 			if (display.rich) {
 				return renderImageFigure({
@@ -906,9 +903,9 @@ function convertWikiLinks(content, sourcePath) {
 	});
 }
 
-function normalizeImageLinks(content, slug) {
+function normalizeImageLinks(content, slug, sourcePath) {
 	return content.replace(/(!\[[^\]]*\]\()([^)]+)(\))/g, (match, start, rawUrl, end) => {
-		const normalizedUrl = normalizeMarkdownImageUrl(rawUrl, slug);
+		const normalizedUrl = normalizeMarkdownImageUrl(rawUrl, slug, sourcePath);
 		if (!normalizedUrl) {
 			return match;
 		}
@@ -917,7 +914,7 @@ function normalizeImageLinks(content, slug) {
 	});
 }
 
-function normalizeMarkdownImageUrl(rawUrl, slug) {
+function normalizeMarkdownImageUrl(rawUrl, slug, sourcePath) {
 	const url = String(rawUrl || "").trim();
 
 	if (!url || url.startsWith("#")) {
@@ -937,7 +934,7 @@ function normalizeMarkdownImageUrl(rawUrl, slug) {
 
 	// Co-located image: relative path within post folder
 	if (slug && !normalized.includes("/")) {
-		return resolveBlogMediaUrl(publicPath("images", "posts", slug, normalized));
+		return resolveBlogMediaUrl(resolveLocalImagePublicPath(normalized, sourcePath, slug));
 	}
 
 	const imagesIndex = normalized.indexOf("images/posts/");
@@ -953,7 +950,7 @@ function normalizeMarkdownImageUrl(rawUrl, slug) {
 
 	// Relative path with directories — resolve against slug
 	if (slug) {
-		return resolveBlogMediaUrl(publicPath("images", "posts", slug, normalized));
+		return resolveBlogMediaUrl(resolveLocalImagePublicPath(normalized, sourcePath, slug));
 	}
 
 	return "";
@@ -972,6 +969,57 @@ function normalizeObsidianAnchor(value) {
 
 function publicPath(...segments) {
 	return encodeInternalPath(`/${segments.join("/")}`);
+}
+
+function buildLocalImageIndex(postsRoot) {
+	const index = new Map();
+	const postRoots = Array.from(walk(postsRoot))
+		.filter((filePath) => /\.(md|mdx)$/i.test(filePath))
+		.map((filePath) => path.dirname(filePath))
+		.filter((directory, position, directories) => directories.indexOf(directory) === position)
+		.filter((directory) => isPostFolder(directory, path.basename(directory)));
+
+	for (const filePath of walk(postsRoot)) {
+		if (!IMAGE_EXTS.has(path.extname(filePath).toLowerCase())) continue;
+		const owner = postRoots
+			.filter((directory) => filePath.startsWith(`${directory}${path.sep}`))
+			.sort((a, b) => b.length - a.length)[0];
+		if (!owner) continue;
+		const slug = path.relative(postsRoot, owner)
+			.split(path.sep)
+			.filter(Boolean)
+			.map(slugify)
+			.join("/");
+		const key = normalizeImageLookupKey(path.basename(filePath));
+		const entries = index.get(key) || [];
+		entries.push({
+			publicPath: publicPath(
+				"images",
+				"posts",
+				slug,
+				path.relative(owner, filePath).replaceAll("\\", "/"),
+			),
+		});
+		index.set(key, entries);
+	}
+	return index;
+}
+
+function resolveLocalImagePublicPath(filename, sourcePath, slug) {
+	const normalized = String(filename || "").trim().replaceAll("\\", "/");
+	const localPath = sourcePath && path.resolve(path.dirname(sourcePath), normalized);
+	if (localPath && fs.existsSync(localPath)) {
+		return publicPath("images", "posts", slug, normalized);
+	}
+
+	const matches = LOCAL_IMAGE_INDEX.get(normalizeImageLookupKey(path.basename(normalized))) || [];
+	return matches.length === 1
+		? matches[0].publicPath
+		: publicPath("images", "posts", slug, normalized);
+}
+
+function normalizeImageLookupKey(value) {
+	return decodeURIComponentSafe(String(value || "").trim()).toLowerCase();
 }
 
 function stripUrlSuffix(value) {

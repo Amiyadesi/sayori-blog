@@ -267,6 +267,18 @@ export function isHomeListPost(post: PostVisibilityLike): boolean {
 	);
 }
 
+export function dedupePostsByUrl<
+	T extends { id: string; data: { alias?: string; permalink?: string } },
+>(posts: T[]): T[] {
+	const seen = new Set<string>();
+	return posts.filter((post) => {
+		const postUrl = getPostUrl(post);
+		if (seen.has(postUrl)) return false;
+		seen.add(postUrl);
+		return true;
+	});
+}
+
 export function isOrdinaryPublicPost(post: PostVisibilityLike): boolean {
 	return isPublishedPost(post) && !isDiaryPost(post) && !isEssayPost(post);
 }
@@ -386,8 +398,8 @@ async function getRawSortedPosts() {
 }
 
 export async function getSortedPosts() {
-	const sorted = (await getRawSortedPosts()).filter(
-		(post) => !isEssayPost(post),
+	const sorted = dedupePostsByUrl(
+		(await getRawSortedPosts()).filter((post) => !isEssayPost(post)),
 	);
 
 	for (const post of sorted) {
@@ -419,8 +431,8 @@ export interface PostForList {
 	url?: string; // 预计算的文章 URL
 }
 export async function getSortedPostsList(): Promise<PostForList[]> {
-	const sortedFullPosts = (await getRawSortedPosts()).filter(
-		(post) => !isEssayPost(post),
+	const sortedFullPosts = dedupePostsByUrl(
+		(await getRawSortedPosts()).filter((post) => !isEssayPost(post)),
 	);
 
 	// 初始化文章 ID 映射（用于 permalink 功能）

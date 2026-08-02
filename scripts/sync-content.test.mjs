@@ -104,10 +104,12 @@ try {
 		"![[Pasted image 20260601203747.png|width=520|align=center|caption=居中截图说明]]",
 		"![[Pasted image 20260601203747.png|480|right|右侧截图说明]]",
 		"![[Pasted image 20260601203747.png|https://example.com/guide|800x600|center|外链截图说明]]",
+		"![[Pasted image 20260601203747.png|width=800|align=center|caption=反向顺序外链截图|https://example.com/reversed]]",
 		"![[second image.jpg|caption=尺寸链接截图|width=320,height=180|link=https://example.com/image]]",
 		"![[second image.jpg|caption=不应产生脚本链接|javascript:alert(1)]]",
 		"{{spoiler:被遮住的答案|鼠标移上去会看到提示}}",
 		"{{黑幕:没有提示的文字}}",
+		"{{黑框:黑框文字}}",
 		"",
 		":::photo-grid",
 		"![[Pasted image 20260601203747.png|左边照片说明]]",
@@ -121,6 +123,21 @@ try {
 	].join("\n"));
 	write(path.join(fixtureArticles, "posts", "space-images", "Pasted image 20260601203747.png"), "image");
 	write(path.join(fixtureArticles, "posts", "space-images", "second image.jpg"), "second image");
+	write(path.join(fixtureArticles, "posts", "shared-image-source", "shared-image-source.md"), [
+		"---",
+		"title: Shared Image Source",
+		"published: 2026-05-28",
+		"description: Test",
+		"tags: [test]",
+		"category: Test",
+		"---",
+		"",
+		"source",
+	].join("\n"));
+	write(path.join(fixtureArticles, "posts", "shared-image-source", "shared.png"), "shared image");
+	write(path.join(fixtureArticles, "posts", "space-images", "shared-reference.md"), [
+		"![[shared.png|caption=共享图片|link=https://example.com/shared]]",
+	].join("\n"));
 	write(path.join(fixtureArticles, "spec", "about.md"), "# About\n");
 	write(path.join(fixtureArticles, "site", "profile.json"), JSON.stringify({
 		avatar: "profile/avatar.webp",
@@ -276,6 +293,10 @@ try {
 	);
 	assert.match(
 		read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md")),
+		/<figure class="sayori-figure sayori-figure--center" style="--sayori-image-width: 800px;">\n<a href="https:\/\/example\.com\/reversed" target="_blank" rel="noopener noreferrer"><img src="\/images\/posts\/space-images\/Pasted%20image%2020260601203747\.png" alt="反向顺序外链截图" loading="lazy" width="800" decoding="async" \/><\/a>\n<figcaption>反向顺序外链截图<\/figcaption>\n<\/figure>/,
+	);
+	assert.match(
+		read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md")),
 		/<figure class="sayori-figure sayori-figure--center" style="--sayori-image-width: 320px;">\n<a href="https:\/\/example\.com\/image" target="_blank" rel="noopener noreferrer"><img src="\/images\/posts\/space-images\/second%20image\.jpg" alt="尺寸链接截图" loading="lazy" width="320" height="180" decoding="async" \/><\/a>\n<figcaption>尺寸链接截图<\/figcaption>\n<\/figure>/,
 	);
 	assert.doesNotMatch(
@@ -289,6 +310,14 @@ try {
 	assert.match(
 		read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md")),
 		/<span class="sayori-spoiler" tabindex="0">没有提示的文字<\/span>/,
+	);
+	assert.match(
+		read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md")),
+		/<span class="sayori-spoiler" tabindex="0">黑框文字<\/span>/,
+	);
+	assert.match(
+		read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "shared-reference.md")),
+		/<figure class="sayori-figure sayori-figure--center">\n<a href="https:\/\/example\.com\/shared" target="_blank" rel="noopener noreferrer"><img src="\/images\/posts\/shared-image-source\/shared\.png" alt="共享图片" loading="lazy" decoding="async" \/><\/a>\n<figcaption>共享图片<\/figcaption>\n<\/figure>/,
 	);
 	assert.match(
 		read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md")),

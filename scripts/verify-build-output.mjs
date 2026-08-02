@@ -811,6 +811,9 @@ function getExpectedHomePostUrls() {
 			url: getPostUrl(post),
 		}))
 		.sort(comparePostsByLatestUpdate)
+		.filter((post, index, posts) =>
+			posts.findIndex((candidate) => candidate.url === post.url) === index,
+		)
 		.map((post) => post.url);
 }
 
