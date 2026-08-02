@@ -103,6 +103,9 @@ try {
 		"![[Pasted image 20260601203747.png|A pasted screenshot|640x360]]",
 		"![[Pasted image 20260601203747.png|width=520|align=center|caption=居中截图说明]]",
 		"![[Pasted image 20260601203747.png|480|right|右侧截图说明]]",
+		"![[Pasted image 20260601203747.png|https://example.com/guide|800x600|center|外链截图说明]]",
+		"![[second image.jpg|caption=尺寸链接截图|width=320,height=180|link=https://example.com/image]]",
+		"![[second image.jpg|caption=不应产生脚本链接|javascript:alert(1)]]",
 		"{{spoiler:被遮住的答案|鼠标移上去会看到提示}}",
 		"{{黑幕:没有提示的文字}}",
 		"",
@@ -266,6 +269,18 @@ try {
 	assert.match(
 		read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md")),
 		/<figure class="sayori-figure sayori-figure--right" style="--sayori-image-width: 480px;">\n<img src="\/images\/posts\/space-images\/Pasted%20image%2020260601203747\.png" alt="右侧截图说明" loading="lazy" width="480" decoding="async" \/>\n<figcaption>右侧截图说明<\/figcaption>\n<\/figure>/,
+	);
+	assert.match(
+		read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md")),
+		/<figure class="sayori-figure sayori-figure--center" style="--sayori-image-width: 800px;">\n<a href="https:\/\/example\.com\/guide" target="_blank" rel="noopener noreferrer"><img src="\/images\/posts\/space-images\/Pasted%20image%2020260601203747\.png" alt="外链截图说明" loading="lazy" width="800" height="600" decoding="async" \/><\/a>\n<figcaption>外链截图说明<\/figcaption>\n<\/figure>/,
+	);
+	assert.match(
+		read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md")),
+		/<figure class="sayori-figure sayori-figure--center" style="--sayori-image-width: 320px;">\n<a href="https:\/\/example\.com\/image" target="_blank" rel="noopener noreferrer"><img src="\/images\/posts\/space-images\/second%20image\.jpg" alt="尺寸链接截图" loading="lazy" width="320" height="180" decoding="async" \/><\/a>\n<figcaption>尺寸链接截图<\/figcaption>\n<\/figure>/,
+	);
+	assert.doesNotMatch(
+		read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md")),
+		/href="javascript:/,
 	);
 	assert.match(
 		read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md")),

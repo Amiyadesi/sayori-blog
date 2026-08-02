@@ -437,6 +437,7 @@ function convertPhotoGrids(content, sourcePath, slug) {
 		const columns = normalizePhotoGridColumns(rawColumns, items.length);
 		const figures = items.map((item) => {
 			const attrs = buildImageAttrs(item, { lazy: true });
+			const image = wrapImageLink(item, `<img ${attrs} />`);
 			const caption = item.caption
 				? `\n<figcaption>${escapeHtml(item.caption)}</figcaption>`
 				: "";
@@ -447,7 +448,7 @@ function convertPhotoGrids(content, sourcePath, slug) {
 			const style = item.cssWidth
 				? ` style="--sayori-image-width: ${escapeHtml(item.cssWidth)};"`
 				: "";
-			return `<figure class="${classes.join(" ")}"${style}>\n<img ${attrs} />${caption}\n</figure>`;
+			return `<figure class="${classes.join(" ")}"${style}>\n${image}${caption}\n</figure>`;
 		}).join("\n");
 
 		return `\n<div class="sayori-photo-grid" style="--photo-grid-columns: ${columns};">\n${figures}\n</div>\n`;
@@ -476,6 +477,7 @@ function parsePhotoGridItem(line, slug) {
 			height: display.height || "",
 			cssWidth: display.cssWidth || "",
 			align: display.align || "",
+			link: display.link || "",
 		};
 	}
 
@@ -495,6 +497,7 @@ function parsePhotoGridItem(line, slug) {
 			height: "",
 			cssWidth: "",
 			align: "",
+			link: "",
 		};
 	}
 
@@ -529,17 +532,18 @@ function convertObsidianEmbeds(content, sourcePath, slug) {
 					height: display.height || "",
 					cssWidth: display.cssWidth || "",
 					align: display.align || "center",
+					link: display.link || "",
 				});
 			}
 
-			if (display.width || display.height) {
+			if (display.width || display.height || display.link) {
 				const attrs = buildImageAttrs({
 					src,
 					altText: display.altText,
 					width: display.width,
 					height: display.height,
 				});
-				return `<img ${attrs} />`;
+				return wrapImageLink({ link: display.link }, `<img ${attrs} />`);
 			}
 
 			return `![${display.altText}](${src})`;
@@ -578,6 +582,7 @@ function parseObsidianEmbedOption(option, filename) {
 		cssWidth: "",
 		align: "",
 		caption: "",
+		link: "",
 		legacyCaption: false,
 		rich: false,
 	};
@@ -586,7 +591,10 @@ function parseObsidianEmbedOption(option, filename) {
 		return display;
 	}
 
-	const tokens = value.split("|").map((token) => token.trim()).filter(Boolean);
+	const tokens = value
+		.split("|")
+		.flatMap((token) => splitImageOptionToken(token))
+		.filter(Boolean);
 	const freeTextTokens = [];
 	let explicitAlt = "";
 	let explicitCaption = "";
@@ -650,6 +658,15 @@ function parseObsidianEmbedOption(option, filename) {
 				continue;
 			}
 
+			if (["link", "href", "url"].includes(key)) {
+				const link = parseImageLink(rawTokenValue);
+				if (link) {
+					display.link = link;
+					hasExplicitLayout = true;
+				}
+				continue;
+			}
+
 			if (["alt", "title"].includes(key)) {
 				explicitAlt = rawTokenValue;
 				continue;
@@ -675,6 +692,13 @@ function parseObsidianEmbedOption(option, filename) {
 			continue;
 		}
 
+		const link = parseImageLink(token);
+		if (link) {
+			display.link = link;
+			hasExplicitLayout = true;
+			continue;
+		}
+
 		freeTextTokens.push(token);
 	}
 
@@ -696,7 +720,7 @@ function parseObsidianEmbedOption(option, filename) {
 	}
 
 	display.legacyCaption = Boolean(freeText || explicitCaption);
-	display.rich = Boolean(display.caption || display.align || display.cssWidth && hasExplicitLayout);
+	display.rich = Boolean(display.caption || display.align || display.link || display.cssWidth && hasExplicitLayout);
 	if (display.rich && display.width && !display.cssWidth) {
 		display.cssWidth = `${display.width}px`;
 	}
@@ -705,6 +729,14 @@ function parseObsidianEmbedOption(option, filename) {
 	}
 
 	return display;
+}
+
+function splitImageOptionToken(token) {
+	const parts = String(token || "")
+		.split(/,(?=(?:width|w|height|h|size|dim|dimension|dimensions|align|alignment|position|caption|cap|figcaption|link|href|url|alt|title)\s*=)/i)
+		.map((part) => part.trim())
+		.filter(Boolean);
+	return parts.length > 1 ? parts : [String(token || "").trim()];
 }
 
 function renderImageFigure(item) {
@@ -716,7 +748,16 @@ function renderImageFigure(item) {
 	const caption = item.caption
 		? `\n<figcaption>${escapeHtml(item.caption)}</figcaption>`
 		: "";
-	return `\n<figure class="${classes.join(" ")}"${style}>\n<img ${buildImageAttrs(item, { lazy: true })} />${caption}\n</figure>\n`;
+	const image = wrapImageLink(item, `<img ${buildImageAttrs(item, { lazy: true })} />`);
+	return `\n<figure class="${classes.join(" ")}"${style}>\n${image}${caption}\n</figure>\n`;
+}
+
+function wrapImageLink(item, image) {
+	if (!item.link) {
+		return image;
+	}
+
+	return `<a href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer">${image}</a>`;
 }
 
 function buildImageAttrs(item, options = {}) {
@@ -811,6 +852,20 @@ function parseImageHeight(value) {
 	const text = String(value || "").trim().toLowerCase();
 	const numeric = text.match(/^(\d{1,5})(?:px)?$/);
 	return numeric ? numeric[1] : "";
+}
+
+function parseImageLink(value) {
+	const text = String(value || "").trim();
+	if (!/^https?:\/\//i.test(text) || /[\u0000-\u001f\u007f]/.test(text)) {
+		return "";
+	}
+
+	try {
+		const url = new URL(text);
+		return url.protocol === "http:" || url.protocol === "https:" ? url.href : "";
+	} catch {
+		return "";
+	}
 }
 
 function normalizeImageAlign(value) {
