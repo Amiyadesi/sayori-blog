@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { loadEnv } from "./load-env.js";
@@ -399,9 +400,23 @@ function convertObsidianHighlights(content) {
 }
 
 function convertSpoilers(content) {
-	return content.replace(/\{\{(?:spoiler|黑幕|黑框)\s*[:：]\s*([^|{}\n]+?)(?:\|([^{}\n]*))?\}\}/g, (_match, rawText, rawTooltip = "") => {
-		const text = String(rawText || "").trim();
-		const tooltip = String(rawTooltip || "").trim();
+	return content.replace(/\{\{([^{}\n]+)\}\}/g, (_match, rawInner = "") => {
+		const inner = String(rawInner).trim();
+		let text = inner;
+		let tooltip = "";
+		const named = inner.match(/^(?:spoiler|黑幕|黑框)\s*[:：]\s*([^|]+?)(?:\|([^|]*))?$/i);
+		const bracketed = inner.match(/^(?:spoiler|黑幕|黑框)\s*[<＜](.*?)[>＞]?$/i);
+		const generic = inner.match(/^([^|]+?)(?:\|([^|]*))?$/);
+		if (named) {
+			text = named[1];
+			tooltip = named[2] || "";
+		} else if (bracketed) {
+			text = bracketed[1].replace(/[>＞]\s*$/, "");
+		} else if (generic) {
+			text = generic[1];
+			tooltip = generic[2] || "";
+		}
+		text = text.trim();
 		const attrs = [
 			'class="sayori-spoiler"',
 			'tabindex="0"',
@@ -440,7 +455,7 @@ function convertPhotoGrids(content, sourcePath, slug) {
 			const attrs = buildImageAttrs(item, { lazy: true });
 			const image = wrapImageLink(item, `<img ${attrs} />`);
 			const caption = item.caption
-				? `\n<figcaption>${escapeHtml(item.caption)}</figcaption>`
+				? `\n<figcaption>${renderImageCaption(item)}</figcaption>`
 				: "";
 			const classes = ["sayori-photo-grid-item"];
 			if (item.align) {
@@ -743,7 +758,7 @@ function renderImageFigure(item) {
 		? ` style="--sayori-image-width: ${escapeHtml(item.cssWidth)};"`
 		: "";
 	const caption = item.caption
-		? `\n<figcaption>${escapeHtml(item.caption)}</figcaption>`
+		? `\n<figcaption>${renderImageCaption(item)}</figcaption>`
 		: "";
 	const image = wrapImageLink(item, `<img ${buildImageAttrs(item, { lazy: true })} />`);
 	return `\n<figure class="${classes.join(" ")}"${style}>\n${image}${caption}\n</figure>\n`;
@@ -757,8 +772,18 @@ function wrapImageLink(item, image) {
 	return `<a href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer">${image}</a>`;
 }
 
+function renderImageCaption(item) {
+	const caption = escapeHtml(item.caption);
+	return item.link
+		? `<a href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer">${caption}</a>`
+		: caption;
+}
+
 function buildImageAttrs(item, options = {}) {
 	const media = resolveBlogMediaAsset(item.src);
+	if (BLOG_MEDIA_BASE_URL && item.src.startsWith("/images/posts/") && !media) {
+		failSync(`blog media manifest missing local image: ${item.src}`);
+	}
 	const src = media?.primaryUrl || item.src;
 	let width = item.width || media?.width || "";
 	let height = item.height || media?.height || "";
@@ -852,7 +877,13 @@ function parseImageHeight(value) {
 }
 
 function parseImageLink(value) {
-	const text = String(value || "").trim();
+	let text = String(value || "").trim();
+	if ((text.startsWith("<") && text.endsWith(">")) || (text.startsWith("＜") && text.endsWith("＞"))) {
+		text = text.slice(1, -1).trim();
+	}
+	if ((text.startsWith("\"") && text.endsWith("\"")) || (text.startsWith("'") && text.endsWith("'"))) {
+		text = text.slice(1, -1).trim();
+	}
 	if (!/^https?:\/\//i.test(text) || /[\u0000-\u001f\u007f]/.test(text)) {
 		return "";
 	}
@@ -915,7 +946,13 @@ function normalizeImageLinks(content, slug, sourcePath) {
 }
 
 function normalizeMarkdownImageUrl(rawUrl, slug, sourcePath) {
-	const url = String(rawUrl || "").trim();
+	let url = String(rawUrl || "").trim();
+	if (url.startsWith("<")) {
+		const closingBracket = url.indexOf(">");
+		if (closingBracket > 0) {
+			url = url.slice(1, closingBracket).trim();
+		}
+	}
 
 	if (!url || url.startsWith("#")) {
 		return "";
@@ -993,6 +1030,7 @@ function buildLocalImageIndex(postsRoot) {
 		const key = normalizeImageLookupKey(path.basename(filePath));
 		const entries = index.get(key) || [];
 		entries.push({
+			contentHash: hashLocalImage(filePath),
 			publicPath: publicPath(
 				"images",
 				"posts",
@@ -1013,9 +1051,17 @@ function resolveLocalImagePublicPath(filename, sourcePath, slug) {
 	}
 
 	const matches = LOCAL_IMAGE_INDEX.get(normalizeImageLookupKey(path.basename(normalized))) || [];
-	return matches.length === 1
-		? matches[0].publicPath
-		: publicPath("images", "posts", slug, normalized);
+	if (matches.length === 1) {
+		return matches[0].publicPath;
+	}
+	if (matches.length > 1 && new Set(matches.map((match) => match.contentHash)).size === 1) {
+		return matches[0].publicPath;
+	}
+	return publicPath("images", "posts", slug, normalized);
+}
+
+function hashLocalImage(filePath) {
+	return createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
 }
 
 function normalizeImageLookupKey(value) {

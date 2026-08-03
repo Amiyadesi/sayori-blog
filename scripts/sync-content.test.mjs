@@ -110,6 +110,11 @@ try {
 		"{{spoiler:被遮住的答案|鼠标移上去会看到提示}}",
 		"{{黑幕:没有提示的文字}}",
 		"{{黑框:黑框文字}}",
+		"{{黑框<尖括号黑框>}}",
+		"{{黑框<缺少右尖括号}}",
+		"{{任意内容也转黑框}}",
+		"{{普通黑框|普通提示}}",
+		"![[second image.jpg|caption=尖括号链接|link=<https://example.com/angle>]]",
 		"",
 		":::photo-grid",
 		"![[Pasted image 20260601203747.png|左边照片说明]]",
@@ -135,6 +140,18 @@ try {
 		"source",
 	].join("\n"));
 	write(path.join(fixtureArticles, "posts", "shared-image-source", "shared.png"), "shared image");
+	write(path.join(fixtureArticles, "posts", "zz-shared-image-copy", "zz-shared-image-copy.md"), [
+		"---",
+		"title: Shared Image Copy",
+		"published: 2026-05-28",
+		"description: Test",
+		"tags: [test]",
+		"category: Test",
+		"---",
+		"",
+		"copy",
+	].join("\n"));
+	write(path.join(fixtureArticles, "posts", "zz-shared-image-copy", "shared.png"), "shared image");
 	write(path.join(fixtureArticles, "posts", "space-images", "shared-reference.md"), [
 		"![[shared.png|caption=共享图片|link=https://example.com/shared]]",
 	].join("\n"));
@@ -289,15 +306,15 @@ try {
 	);
 	assert.match(
 		read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md")),
-		/<figure class="sayori-figure sayori-figure--center" style="--sayori-image-width: 800px;">\n<a href="https:\/\/example\.com\/guide" target="_blank" rel="noopener noreferrer"><img src="\/images\/posts\/space-images\/Pasted%20image%2020260601203747\.png" alt="外链截图说明" loading="lazy" width="800" height="600" decoding="async" \/><\/a>\n<figcaption>外链截图说明<\/figcaption>\n<\/figure>/,
+		/<figure class="sayori-figure sayori-figure--center" style="--sayori-image-width: 800px;">\n<a href="https:\/\/example\.com\/guide" target="_blank" rel="noopener noreferrer"><img src="\/images\/posts\/space-images\/Pasted%20image%2020260601203747\.png" alt="外链截图说明" loading="lazy" width="800" height="600" decoding="async" \/><\/a>\n<figcaption><a href="https:\/\/example\.com\/guide" target="_blank" rel="noopener noreferrer">外链截图说明<\/a><\/figcaption>\n<\/figure>/,
 	);
 	assert.match(
 		read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md")),
-		/<figure class="sayori-figure sayori-figure--center" style="--sayori-image-width: 800px;">\n<a href="https:\/\/example\.com\/reversed" target="_blank" rel="noopener noreferrer"><img src="\/images\/posts\/space-images\/Pasted%20image%2020260601203747\.png" alt="反向顺序外链截图" loading="lazy" width="800" decoding="async" \/><\/a>\n<figcaption>反向顺序外链截图<\/figcaption>\n<\/figure>/,
+		/<figure class="sayori-figure sayori-figure--center" style="--sayori-image-width: 800px;">\n<a href="https:\/\/example\.com\/reversed" target="_blank" rel="noopener noreferrer"><img src="\/images\/posts\/space-images\/Pasted%20image%2020260601203747\.png" alt="反向顺序外链截图" loading="lazy" width="800" decoding="async" \/><\/a>\n<figcaption><a href="https:\/\/example\.com\/reversed" target="_blank" rel="noopener noreferrer">反向顺序外链截图<\/a><\/figcaption>\n<\/figure>/,
 	);
 	assert.match(
 		read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md")),
-		/<figure class="sayori-figure sayori-figure--center" style="--sayori-image-width: 320px;">\n<a href="https:\/\/example\.com\/image" target="_blank" rel="noopener noreferrer"><img src="\/images\/posts\/space-images\/second%20image\.jpg" alt="尺寸链接截图" loading="lazy" width="320" height="180" decoding="async" \/><\/a>\n<figcaption>尺寸链接截图<\/figcaption>\n<\/figure>/,
+		/<figure class="sayori-figure sayori-figure--center" style="--sayori-image-width: 320px;">\n<a href="https:\/\/example\.com\/image" target="_blank" rel="noopener noreferrer"><img src="\/images\/posts\/space-images\/second%20image\.jpg" alt="尺寸链接截图" loading="lazy" width="320" height="180" decoding="async" \/><\/a>\n<figcaption><a href="https:\/\/example\.com\/image" target="_blank" rel="noopener noreferrer">尺寸链接截图<\/a><\/figcaption>\n<\/figure>/,
 	);
 	assert.doesNotMatch(
 		read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md")),
@@ -316,8 +333,32 @@ try {
 		/<span class="sayori-spoiler" tabindex="0">黑框文字<\/span>/,
 	);
 	assert.match(
+		read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md")),
+		/<span class="sayori-spoiler" tabindex="0">尖括号黑框<\/span>/,
+	);
+	assert.match(
+		read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md")),
+		/<span class="sayori-spoiler" tabindex="0">缺少右尖括号<\/span>/,
+	);
+	assert.match(
+		read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md")),
+		/<span class="sayori-spoiler" tabindex="0">任意内容也转黑框<\/span>/,
+	);
+	assert.match(
+		read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md")),
+		/<span class="sayori-spoiler" tabindex="0" data-tooltip="普通提示" aria-label="普通提示">普通黑框<\/span>/,
+	);
+	assert.match(
+		read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md")),
+		/<figcaption><a href="https:\/\/example\.com\/angle" target="_blank" rel="noopener noreferrer">尖括号链接<\/a><\/figcaption>/,
+	);
+	assert.match(
 		read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "shared-reference.md")),
-		/<figure class="sayori-figure sayori-figure--center">\n<a href="https:\/\/example\.com\/shared" target="_blank" rel="noopener noreferrer"><img src="\/images\/posts\/shared-image-source\/shared\.png" alt="共享图片" loading="lazy" decoding="async" \/><\/a>\n<figcaption>共享图片<\/figcaption>\n<\/figure>/,
+		/<figure class="sayori-figure sayori-figure--center">\n<a href="https:\/\/example\.com\/shared" target="_blank" rel="noopener noreferrer"><img src="\/images\/posts\/shared-image-source\/shared\.png" alt="共享图片" loading="lazy" decoding="async" \/><\/a>\n<figcaption><a href="https:\/\/example\.com\/shared" target="_blank" rel="noopener noreferrer">共享图片<\/a><\/figcaption>\n<\/figure>/,
+	);
+	assert.equal(
+		fs.existsSync(path.join(fixtureBlog, "public", "images", "posts", "shared-image-source", "shared.png")),
+		true,
 	);
 	assert.match(
 		read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md")),
@@ -425,6 +466,7 @@ try {
 
 	const mediaHash = "a".repeat(64);
 	const secondMediaHash = "b".repeat(64);
+	const sharedMediaHash = "c".repeat(64);
 	const mediaManifestPath = path.join(fixtureBlog, ".cache", "blog-media", "manifest.json");
 	write(
 		mediaManifestPath,
@@ -474,6 +516,23 @@ try {
 								width: 900,
 								height: 600,
 								url: `https://img.sayori.org/blog/v1/${secondMediaHash}/900.webp`,
+							},
+						],
+					},
+					{
+						source: {
+							kind: "local",
+							path: "posts/shared-image-source/shared.png",
+							publicPath: "/images/posts/shared-image-source/shared.png",
+						},
+						width: 640,
+						height: 480,
+						primaryUrl: `https://img.sayori.org/blog/v1/${sharedMediaHash}/640.webp`,
+						variants: [
+							{
+								width: 640,
+								height: 480,
+								url: `https://img.sayori.org/blog/v1/${sharedMediaHash}/640.webp`,
 							},
 						],
 					},
