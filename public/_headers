@@ -34,3 +34,6 @@
 
 *.html
   Cache-Control: public, max-age=3600, must-revalidate
+
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate

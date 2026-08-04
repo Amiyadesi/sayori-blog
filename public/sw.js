@@ -1,4 +1,4 @@
-const CACHE_NAME = "sayori-blog-v1";
+const CACHE_NAME = "sayori-blog-v2";
 const CORE_ASSETS = [
 	"/",
 	"/manifest.webmanifest",
@@ -47,7 +47,7 @@ self.addEventListener("fetch", (event) => {
 
 	if (request.mode === "navigate") {
 		event.respondWith(
-			fetch(request)
+			fetch(request, { cache: "no-store" })
 				.then((response) => {
 					const copy = response.clone();
 					caches.open(CACHE_NAME).then((cache) => {

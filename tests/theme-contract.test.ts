@@ -39,4 +39,18 @@ describe("fixed paper theme contract", () => {
 		assert.match(variables, /--card-bg:\s*oklch\([^\n]*0\.00/);
 		assert.doesNotMatch(variables, /var\(--hue\)/);
 	});
+
+	it("keeps category count badges readable in both themes", () => {
+		const buttonLink = read("src/components/control/ButtonLink.astro");
+
+		assert.match(buttonLink, /class="[\s\S]*text-black[\s\S]*bg-\[var\(--btn-regular-bg\)\]/);
+		assert.doesNotMatch(buttonLink, /dark:text-\[var\(--deep-text\)\]/);
+	});
+
+	it("invalidates stale PWA assets after a deployment", () => {
+		const worker = read("public/sw.js");
+
+		assert.match(worker, /CACHE_NAME\s*=\s*["']sayori-blog-v2["']/);
+		assert.match(worker, /fetch\(request,\s*\{\s*cache:\s*["']no-store["']/);
+	});
 });
