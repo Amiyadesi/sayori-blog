@@ -372,11 +372,9 @@ function collectPostRoots(postsRoot) {
 }
 
 function isPostFolder(directory) {
-	const directoryName = path.basename(directory).toLowerCase();
 	return fs.readdirSync(directory, { withFileTypes: true }).some((entry) => {
 		if (!entry.isFile() || !/\.(md|mdx)$/i.test(entry.name)) return false;
-		const baseName = entry.name.replace(/\.(md|mdx)$/i, "").toLowerCase();
-		return baseName === directoryName || baseName === "index";
+		return !/\.en\.(md|mdx)$/i.test(entry.name);
 	});
 }
 

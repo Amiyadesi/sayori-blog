@@ -176,6 +176,50 @@ test("prepareBlogMedia uses actual dimensions and preserves animations", async (
 	}
 });
 
+test("accepts an article folder whose source filename differs from its slug", async () => {
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), "sayori-blog-media-slug-"));
+	const contentDir = path.join(root, "content");
+	const outputDir = path.join(root, "output");
+	const postDir = path.join(contentDir, "posts", "long-public-slug");
+	fs.mkdirSync(postDir, { recursive: true });
+
+	try {
+		fs.writeFileSync(
+			path.join(postDir, "short-title.md"),
+			"---\ntitle: Example\n---\n",
+		);
+		fs.writeFileSync(
+			path.join(postDir, "short-title.en.md"),
+			"---\ntitle: Example\nlang: en\n---\n",
+		);
+		await sharp({
+			create: {
+				width: 32,
+				height: 16,
+				channels: 4,
+				background: { r: 20, g: 80, b: 120, alpha: 1 },
+			},
+		})
+			.png()
+			.toFile(path.join(postDir, "screenshot.png"));
+
+		const result = await prepareBlogMedia({
+			contentDir,
+			outputDir,
+			baseUrl: "https://img.sayori.org/blog/v1",
+			remotePostSlugs: [],
+		});
+
+		assert.equal(result.manifest.assets.length, 1);
+		assert.equal(
+			result.manifest.assets[0].source.publicPath,
+			"/images/posts/long-public-slug/screenshot.png",
+		);
+	} finally {
+		fs.rmSync(root, { recursive: true, force: true });
+	}
+});
+
 test("remote object lookup uploads only 404 objects and verifies byte lengths", async () => {
 	const present = {
 		url: "https://img.sayori.org/blog/v1/present/640.webp",
