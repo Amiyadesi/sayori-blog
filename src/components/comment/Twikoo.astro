@@ -1,5 +1,6 @@
 ---
 import { commentConfig } from "@/config";
+import { isEnglishSite } from "../../utils/site-locale";
 
 interface Props {
 	path: string;
@@ -24,13 +25,18 @@ const ownerAvatar = "/assets/profile/avatar-sayori.png";
 	{
 		reviewOnly && (
 			<p class="twikoo-review-hint">
-				这里是友链申请投递区。提交后只会进入站长审核队列，不会直接公开展示。
+				{isEnglishSite
+					? "This is the friend-link submission area. Submissions enter the site owner's review queue and are not published immediately."
+					: "这里是友链申请投递区。提交后只会进入站长审核队列，不会直接公开展示。"}
 			</p>
 		)
 	}
 </div>
 
-<script is:inline define:vars={{ config, ownerNick, ownerAvatar, reviewOnly }}>
+<script
+	is:inline
+	define:vars={{ config, ownerNick, ownerAvatar, reviewOnly, isEnglishSite }}
+>
 	(function () {
 		const TWIKOO_CONTAINER_ID = "twikoo-container";
 		const TWIKOO_SCRIPT_URL = "/assets/js/twikoo.all.min.js";
@@ -187,8 +193,8 @@ const ownerAvatar = "/assets/profile/avatar-sayori.png";
 				const data = await response.json();
 				ownerIdentity.isOwner = Boolean(
 					data?.success &&
-						data?.user?.login &&
-						data.user.login === data?.config?.adminLogin,
+					data?.user?.login &&
+					data.user.login === data?.config?.adminLogin,
 				);
 			} catch {
 				ownerIdentity.isOwner = false;
@@ -206,8 +212,8 @@ const ownerAvatar = "/assets/profile/avatar-sayori.png";
 			return normalizeProfile({
 				...(readStoredProfile() || {}),
 				nick: ownerNick,
-				mail: 'me@sayori.org',
-				link: 'https://sayori.org',
+				mail: "me@sayori.org",
+				link: "https://sayori.org",
 			});
 		}
 
@@ -267,8 +273,9 @@ const ownerAvatar = "/assets/profile/avatar-sayori.png";
 			textarea?.focus();
 			const error = root.querySelector(".tk-error-message");
 			if (error) {
-				error.textContent =
-					"请先在后台用 GitHub 登录，再使用 Amiya_desi 评论。";
+				error.textContent = isEnglishSite
+					? "Please sign in with GitHub in the admin area before commenting as Amiya_desi."
+					: "请先在后台用 GitHub 登录，再使用 Amiya_desi 评论。";
 			}
 			return false;
 		}
@@ -322,17 +329,24 @@ const ownerAvatar = "/assets/profile/avatar-sayori.png";
 					captureProfileFromDom(root);
 				}
 			});
-			root.addEventListener("click", (event) => {
-				const target = event.target;
-				if (target instanceof Element && target.closest(".tk-send")) {
-					if (!guardReservedNick(root)) {
-						event.preventDefault();
-						event.stopPropagation();
-						return;
+			root.addEventListener(
+				"click",
+				(event) => {
+					const target = event.target;
+					if (
+						target instanceof Element &&
+						target.closest(".tk-send")
+					) {
+						if (!guardReservedNick(root)) {
+							event.preventDefault();
+							event.stopPropagation();
+							return;
+						}
+						captureProfileFromDom(root);
 					}
-					captureProfileFromDom(root);
-				}
-			}, true);
+				},
+				true,
+			);
 			const observer = new MutationObserver(() => {
 				applyStoredProfile(root);
 			});
@@ -395,42 +409,50 @@ const ownerAvatar = "/assets/profile/avatar-sayori.png";
 			}
 
 			if (!window[TWIKOO_GLOBAL_LOADER_KEY]) {
-				window[TWIKOO_GLOBAL_LOADER_KEY] = new Promise((resolve, reject) => {
-					let script = document.getElementById("twikoo-script-loaded");
-					const finish = () => resolve();
-					const fail = () =>
-						reject(new Error("Twikoo script failed to load."));
+				window[TWIKOO_GLOBAL_LOADER_KEY] = new Promise(
+					(resolve, reject) => {
+						let script = document.getElementById(
+							"twikoo-script-loaded",
+						);
+						const finish = () => resolve();
+						const fail = () =>
+							reject(new Error("Twikoo script failed to load."));
 
-					if (script) {
-						if (script.dataset.twikooState === "loaded") {
+						if (script) {
+							if (script.dataset.twikooState === "loaded") {
+								finish();
+								return;
+							}
+							if (script.dataset.twikooState === "error") {
+								fail();
+								return;
+							}
+							script.addEventListener("load", finish, {
+								once: true,
+							});
+							script.addEventListener("error", fail, {
+								once: true,
+							});
+							window.setTimeout(finish, 0);
+							return;
+						}
+
+						script = document.createElement("script");
+						script.id = "twikoo-script-loaded";
+						script.dataset.twikooState = "loading";
+						script.src = TWIKOO_SCRIPT_URL;
+						script.async = true;
+						script.onload = () => {
+							script.dataset.twikooState = "loaded";
 							finish();
-							return;
-						}
-						if (script.dataset.twikooState === "error") {
+						};
+						script.onerror = () => {
+							script.dataset.twikooState = "error";
 							fail();
-							return;
-						}
-						script.addEventListener("load", finish, { once: true });
-						script.addEventListener("error", fail, { once: true });
-						window.setTimeout(finish, 0);
-						return;
-					}
-
-					script = document.createElement("script");
-					script.id = "twikoo-script-loaded";
-					script.dataset.twikooState = "loading";
-					script.src = TWIKOO_SCRIPT_URL;
-					script.async = true;
-					script.onload = () => {
-						script.dataset.twikooState = "loaded";
-						finish();
-					};
-					script.onerror = () => {
-						script.dataset.twikooState = "error";
-						fail();
-					};
-					document.head.appendChild(script);
-				})
+						};
+						document.head.appendChild(script);
+					},
+				)
 					.then(() => waitForTwikooRuntime())
 					.catch((error) => {
 						window[TWIKOO_GLOBAL_LOADER_KEY] = null;
@@ -469,9 +491,21 @@ const ownerAvatar = "/assets/profile/avatar-sayori.png";
 		function showUnavailableMessage(commentEl, willRetry = false) {
 			commentEl.innerHTML = [
 				'<div class="twikoo-unavailable">',
-				"<strong>评论区暂时没接上。</strong>",
-				`<span>${willRetry ? "正在自动重试，也可以手动点一下。" : "晚点再来看看，或手动重新加载。"}</span>`,
-				'<button type="button" class="twikoo-retry-button" data-twikoo-retry>重新加载</button>',
+				isEnglishSite
+					? "<strong>Comments are temporarily unavailable.</strong>"
+					: "<strong>评论区暂时没接上。</strong>",
+				"<span>" +
+					(willRetry
+						? isEnglishSite
+							? "Retrying automatically; you can also try manually."
+							: "正在自动重试，也可以手动点一下。"
+						: isEnglishSite
+							? "Please come back later or reload manually."
+							: "晚点再来看看，或手动重新加载。") +
+					"</span>",
+				'<button type="button" class="twikoo-retry-button" data-twikoo-retry>' +
+					(isEnglishSite ? "Reload" : "重新加载") +
+					"</button>",
 				"</div>",
 			].join("");
 			commentEl
@@ -487,8 +521,12 @@ const ownerAvatar = "/assets/profile/avatar-sayori.png";
 		function renderLoadingMessage(commentEl) {
 			commentEl.innerHTML = [
 				'<div class="twikoo-loading">',
-				"<strong>评论区加载中。</strong>",
-				"<span>稍等一下。</span>",
+				isEnglishSite
+					? "<strong>Loading comments.</strong>"
+					: "<strong>评论区加载中。</strong>",
+				isEnglishSite
+					? "<span>Just a moment.</span>"
+					: "<span>稍等一下。</span>",
 				"</div>",
 			].join("");
 		}
@@ -550,7 +588,10 @@ const ownerAvatar = "/assets/profile/avatar-sayori.png";
 				}
 
 				blockquote.dataset.gfmAlert = "true";
-				blockquote.classList.add("tk-gfm-alert", `tk-gfm-alert-${type}`);
+				blockquote.classList.add(
+					"tk-gfm-alert",
+					`tk-gfm-alert-${type}`,
+				);
 				const title = document.createElement("div");
 				title.className = "tk-gfm-alert-title";
 				title.textContent = GITHUB_ALERTS[type] || type.toUpperCase();
@@ -703,7 +744,8 @@ const ownerAvatar = "/assets/profile/avatar-sayori.png";
 				if (
 					!cached ||
 					typeof cached !== "object" ||
-					Date.now() - Number(cached.savedAt || 0) > GITHUB_EMOJI_CACHE_TTL
+					Date.now() - Number(cached.savedAt || 0) >
+						GITHUB_EMOJI_CACHE_TTL
 				) {
 					return null;
 				}
@@ -720,7 +762,9 @@ const ownerAvatar = "/assets/profile/avatar-sayori.png";
 				const url = new URL(value);
 				return (
 					url.protocol === "https:" &&
-					["github.githubassets.com", "github.com"].includes(url.hostname)
+					["github.githubassets.com", "github.com"].includes(
+						url.hostname,
+					)
 				);
 			} catch {
 				return false;
@@ -920,7 +964,9 @@ const ownerAvatar = "/assets/profile/avatar-sayori.png";
 				if (textarea) {
 					textarea.setAttribute(
 						"placeholder",
-						"按上面的模板填写站点信息，提交后会进入审核队列。",
+						isEnglishSite
+							? "Fill in the site details using the template above; your submission will enter the review queue."
+							: "按上面的模板填写站点信息，提交后会进入审核队列。",
 					);
 				}
 			};
@@ -941,7 +987,9 @@ const ownerAvatar = "/assets/profile/avatar-sayori.png";
 			if (textarea && !textarea.getAttribute("placeholder")) {
 				textarea.setAttribute(
 					"placeholder",
-					"说点什么吧… 支持 Markdown 语法",
+					isEnglishSite
+						? "Say something… Markdown is supported"
+						: "说点什么吧… 支持 Markdown 语法",
 				);
 			}
 			setupReviewOnlyMode(root);
@@ -991,7 +1039,8 @@ const ownerAvatar = "/assets/profile/avatar-sayori.png";
 			} catch (error) {
 				console.error("[Twikoo] 初始化失败:", error);
 				initializedPath = "";
-				const willRetry = initRetryCount < TWIKOO_INIT_RETRY_DELAYS.length;
+				const willRetry =
+					initRetryCount < TWIKOO_INIT_RETRY_DELAYS.length;
 				showUnavailableMessage(commentEl, willRetry);
 				if (willRetry) {
 					scheduleInitRetry();
@@ -1081,10 +1130,11 @@ const ownerAvatar = "/assets/profile/avatar-sayori.png";
 		border-radius: var(--paper-radius);
 		color: var(--paper-muted);
 		background:
-			var(--paper-overlay),
-			var(--paper-line-image),
-			var(--paper-bg-soft);
-		background-position: 0 0, 0 var(--paper-line-offset), 0 0;
+			var(--paper-overlay), var(--paper-line-image), var(--paper-bg-soft);
+		background-position:
+			0 0,
+			0 var(--paper-line-offset),
+			0 0;
 		box-shadow: var(--paper-shadow-flat);
 		transition:
 			border-color 0.2s ease,
@@ -1108,9 +1158,7 @@ const ownerAvatar = "/assets/profile/avatar-sayori.png";
 	:global(.dark) .twikoo-unavailable {
 		color: var(--paper-muted);
 		background:
-			var(--paper-overlay),
-			var(--paper-line-image),
-			var(--paper-bg-soft);
+			var(--paper-overlay), var(--paper-line-image), var(--paper-bg-soft);
 		border-color: var(--paper-edge);
 	}
 

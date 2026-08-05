@@ -4,6 +4,7 @@
 
 	import type { MusicPlayerState } from "@/stores/musicPlayerStore";
 	import { musicPlayerStore } from "@/stores/musicPlayerStore";
+	import { isEnglishSite } from "@/utils/site-locale";
 
 	let state: MusicPlayerState = musicPlayerStore.getState();
 	let unsubscribe: (() => void) | undefined;
@@ -12,10 +13,12 @@
 		musicPlayerStore.toggleExpanded();
 	}
 
-	$: currentSongTitle = state.currentSong?.title || "音乐控制中心";
+	$: currentSongTitle =
+		state.currentSong?.title ||
+		(isEnglishSite ? "Music player" : "音乐控制中心");
 	$: ariaLabel = state.isExpanded
-		? `收起音乐控制中心：${currentSongTitle}`
-		: `打开音乐控制中心：${currentSongTitle}`;
+		? `${isEnglishSite ? "Collapse music player" : "收起音乐控制中心"}: ${currentSongTitle}`
+		: `${isEnglishSite ? "Open music player" : "打开音乐控制中心"}: ${currentSongTitle}`;
 	$: statusIcon = state.isLoading
 		? "svg-spinners:90-ring-with-bg"
 		: "material-symbols:music-note-rounded";

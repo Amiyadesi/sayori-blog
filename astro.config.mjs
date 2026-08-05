@@ -48,7 +48,7 @@ const disabledFeaturePathPrefixes = Object.entries(featurePagePaths)
 // https://astro.build/config
 export default defineConfig({
 	site: siteConfig.siteURL,
-	base: "/",
+	base: process.env.SITE_BASE || "/",
 	trailingSlash: "always",
 
 	output: "static",

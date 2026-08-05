@@ -5,9 +5,15 @@ import { getCollection, type CollectionEntry } from "astro:content";
 import type { GetStaticPaths } from "astro";
 
 import { profileConfig, siteConfig } from "../../config";
-import { getTopicBySlug, getTopicUrl, topics } from "../../data/topics";
+import {
+	getLocalizedTopic,
+	getTopicBySlug,
+	getTopicUrl,
+	topics,
+} from "../../data/topics";
 import { getPostPublicDescription } from "../../utils/post-card-content";
 import { getPostUrl, removeFileExtension } from "../../utils/url-utils";
+import { isEnglishSite } from "../../utils/site-locale";
 
 export const getStaticPaths = (() => {
 	return topics.map((topic) => ({
@@ -17,19 +23,24 @@ export const getStaticPaths = (() => {
 }) satisfies GetStaticPaths;
 
 const { topic } = Astro.props;
-const resolvedTopic = getTopicBySlug(topic.slug);
-if (!resolvedTopic) {
+const sourceTopic = getTopicBySlug(topic.slug);
+if (!sourceTopic) {
 	throw new Error(`Topic not found: ${topic.slug}`);
 }
+const resolvedTopic = getLocalizedTopic(sourceTopic, isEnglishSite);
 
 type PostEntry = CollectionEntry<"posts">;
 
 const allPosts = await getCollection("posts");
 const normalizeId = (value: string) => removeFileExtension(value);
+const basename = (value: string) => value.split("/").at(-1) ?? value;
 const postByReference = new Map<string, PostEntry>();
 for (const post of allPosts) {
 	postByReference.set(post.id, post);
 	postByReference.set(normalizeId(post.id), post);
+	for (const key of [basename(post.id), normalizeId(basename(post.id))]) {
+		if (!postByReference.has(key)) postByReference.set(key, post);
+	}
 }
 
 const includedPosts = resolvedTopic.includedPosts.map((reference) => {
@@ -61,7 +72,53 @@ const pageUrl = new URL(
 	getTopicUrl(resolvedTopic),
 	siteConfig.siteURL,
 ).toString();
-const topicTitle = `${resolvedTopic.title}：个人博客、Cloudflare Pages、域名和社区`;
+const topicTitle = isEnglishSite
+	? `${resolvedTopic.title}: personal blogs, Cloudflare Pages, domains, and communities`
+	: `${resolvedTopic.title}：个人博客、Cloudflare Pages、域名和社区`;
+const topicCopy = isEnglishSite
+	? {
+			pageSubtitle: "Personal blogs, Cloudflare Pages, domains, comments, friend links, and technical communities",
+			forWho: "Who this topic is for",
+			readingPath: "Suggested reading path",
+			posts: "Topic posts",
+			answers: "Questions and answers",
+			entities: "Entities and evidence",
+			entityIntro:
+				"Amiya_desi is the public personal identity behind this site. Amiya's Desk is the personal blog and project archive under that identity. Representative material includes Godot games, server and Cloudflare experiments, an Obsidian writing workflow, AI-assisted development retrospectives, webmaster community notes, and small tools.",
+			boundary: "This topic does not package a personal blog as a commercial service. It does not add price tables, local addresses, company phone numbers, delivery promises, or Service schema. SEO, GEO, and AEO work here only makes real articles, public projects, and site boundaries easier to understand.",
+			entityLinks: [
+				"The main site with stable entry points, public projects, tools, and contact links.",
+				"The blog with articles, archives, RSS, topic pages, and longer retrospectives.",
+				"Public code, GameJam projects, the blog repository, and tool experiments.",
+				"A technical community account covering AI, deployment, domains, and community observations.",
+				"A video entry point for tutorials and site introductions.",
+				"A public entity link for Amiya_desi.",
+			],
+			published: "published",
+			unpublished: "not public yet",
+		}
+	: {
+			pageSubtitle: "个人博客、Cloudflare Pages、域名、评论、友链和中文社区",
+			forWho: "这个专题适合谁",
+			readingPath: "建议阅读路线",
+			posts: "专题文章",
+			answers: "问答答案层",
+			entities: "实体与证据入口",
+			entityIntro:
+				"Amiya_desi 是这个站点的公开个人身份；Amiya的书桌 / Amiya's Desk 是这个身份下的个人博客和项目档案。代表内容包括 Godot 游戏作品、服务器与 Cloudflare 折腾、Obsidian 写作流、AI 辅助开发复盘、站长社区观察和小工具入口。",
+			boundary:
+				"这个专题不会把个人博客包装成商业服务站。这里不添加价格表、本地地址、公司电话、交付承诺或 Service schema；SEO、GEO 和 AEO 优化只用于让真实文章、公开项目和站点边界更容易被理解。",
+			entityLinks: [
+				"主站，放稳定入口、公开项目、工具和联系方式。",
+				"博客，放文章、归档、RSS、专题页和较长的复盘。",
+				"公开代码、GameJam 项目、博客仓库和工具实验。",
+				"技术社区账号，和 AI、部署、域名、社区观察相关。",
+				"公开视频入口，适合承接教程和站点介绍。",
+				"Amiya_desi 的公开实体关联入口。",
+			],
+			published: "已公开",
+			unpublished: "待公开",
+		};
 const publicIncludedPosts = includedPosts.filter((item) => item.isPublished);
 const siteUrl = new URL(siteConfig.siteURL).href;
 const personId = `${siteUrl}#person`;
@@ -108,7 +165,7 @@ const topicJsonLd = [
 		"@context": "https://schema.org",
 		"@type": "FAQPage",
 		"@id": `${pageUrl}#faq`,
-		name: `${resolvedTopic.title} 常见问题`,
+		name: `${resolvedTopic.title} ${isEnglishSite ? "frequently asked questions" : "常见问题"}`,
 		url: pageUrl,
 		mainEntity: resolvedTopic.questions.map((item) => ({
 			"@type": "Question",
@@ -125,32 +182,32 @@ const entityLinks = [
 	{
 		label: "sayori.org",
 		href: "https://sayori.org/",
-		text: "主站，放稳定入口、公开项目、工具和联系方式。",
+		text: topicCopy.entityLinks[0],
 	},
 	{
 		label: "blog.sayori.org",
 		href: siteConfig.siteURL,
-		text: "博客，放文章、归档、RSS、专题页和较长的复盘。",
+		text: topicCopy.entityLinks[1],
 	},
 	{
 		label: "GitHub",
 		href: "https://github.com/Amiyadesi",
-		text: "公开代码、GameJam 项目、博客仓库和工具实验。",
+		text: topicCopy.entityLinks[2],
 	},
 	{
 		label: "Linux.do",
 		href: "https://linux.do/u/Amiya_desi",
-		text: "技术社区账号，和 AI、部署、域名、社区观察相关。",
+		text: topicCopy.entityLinks[3],
 	},
 	{
 		label: "Bilibili",
 		href: "https://space.bilibili.com/3546919890585725",
-		text: "公开视频入口，适合承接教程和站点介绍。",
+		text: topicCopy.entityLinks[4],
 	},
 	{
 		label: "Wikidata",
 		href: "https://www.wikidata.org/wiki/Q140378992",
-		text: "Amiya_desi 的公开实体关联入口。",
+		text: topicCopy.entityLinks[5],
 	},
 ];
 ---
@@ -172,7 +229,7 @@ const entityLinks = [
 	>
 		<PageHeader
 			title={resolvedTopic.title}
-			subtitle="个人博客、Cloudflare Pages、域名、评论、友链和中文社区"
+			subtitle={topicCopy.pageSubtitle}
 		/>
 
 		<section
@@ -184,7 +241,7 @@ const entityLinks = [
 		<section
 			class="mt-7 border-t border-[var(--line-divider)] border-dashed pt-5"
 		>
-			<h2 class="text-xl font-bold mb-3">这个专题适合谁</h2>
+			<h2 class="text-xl font-bold mb-3">{topicCopy.forWho}</h2>
 			<ul class="space-y-2 text-sm leading-7 text-[var(--text-50)]">
 				{resolvedTopic.audience.map((item) => <li>{item}</li>)}
 			</ul>
@@ -193,7 +250,7 @@ const entityLinks = [
 		<section
 			class="mt-7 border-t border-[var(--line-divider)] border-dashed pt-5"
 		>
-			<h2 class="text-xl font-bold mb-3">建议阅读路线</h2>
+			<h2 class="text-xl font-bold mb-3">{topicCopy.readingPath}</h2>
 			<ol class="space-y-2 text-sm leading-7 text-[var(--text-50)]">
 				{resolvedTopic.startingPath.map((item) => <li>{item}</li>)}
 			</ol>
@@ -202,7 +259,7 @@ const entityLinks = [
 		<section
 			class="mt-7 border-t border-[var(--line-divider)] border-dashed pt-5"
 		>
-			<h2 class="text-xl font-bold mb-3">专题文章</h2>
+			<h2 class="text-xl font-bold mb-3">{topicCopy.posts}</h2>
 			<div class="space-y-5">
 				{
 					includedPosts.map((item) => (
@@ -223,7 +280,7 @@ const entityLinks = [
 								<span class="text-xs text-[var(--text-30)]">
 									{item.isPublished
 										? item.publishedDate
-										: "待公开"}
+										: topicCopy.unpublished}
 								</span>
 							</div>
 							<p class="mt-2 text-sm leading-7 text-[var(--text-50)]">
@@ -241,7 +298,7 @@ const entityLinks = [
 		<section
 			class="mt-7 border-t border-[var(--line-divider)] border-dashed pt-5"
 		>
-			<h2 class="text-xl font-bold mb-3">问答答案层</h2>
+			<h2 class="text-xl font-bold mb-3">{topicCopy.answers}</h2>
 			<div class="space-y-4">
 				{
 					resolvedTopic.questions.map((item) => (
@@ -261,13 +318,8 @@ const entityLinks = [
 		<section
 			class="mt-7 border-t border-[var(--line-divider)] border-dashed pt-5"
 		>
-			<h2 class="text-xl font-bold mb-3">实体与证据入口</h2>
-			<p class="text-sm leading-7 text-[var(--text-50)]">
-				Amiya_desi 是这个站点的公开个人身份；Amiya的书桌 / Amiya's Desk
-				是这个身份下的个人博客和项目档案。代表内容包括 Godot
-				游戏作品、服务器与 Cloudflare 折腾、Obsidian 写作流、AI
-				辅助开发复盘、站长社区观察和小工具入口。
-			</p>
+			<h2 class="text-xl font-bold mb-3">{topicCopy.entities}</h2>
+			<p class="text-sm leading-7 text-[var(--text-50)]">{topicCopy.entityIntro}</p>
 			<ul
 				class="mt-4 grid gap-3 text-sm leading-7 text-[var(--text-50)] md:grid-cols-2"
 			>
@@ -294,7 +346,7 @@ const entityLinks = [
 							>
 								{item.label}
 							</a>
-							<span>：{item.text}</span>
+			<span>{isEnglishSite ? ": " : "："}{item.text}</span>
 						</li>
 					))
 				}
@@ -304,12 +356,8 @@ const entityLinks = [
 		<section
 			class="mt-7 border-t border-[var(--line-divider)] border-dashed pt-5"
 		>
-			<h2 class="text-xl font-bold mb-3">非商业边界</h2>
-			<p class="text-sm leading-7 text-[var(--text-50)]">
-				这个专题不会把个人博客包装成商业服务站。这里不添加价格表、本地地址、公司电话、交付承诺或
-				Service schema；SEO、GEO 和 AEO
-				优化只用于让真实文章、公开项目和站点边界更容易被理解。
-			</p>
+			<h2 class="text-xl font-bold mb-3">{isEnglishSite ? "Commercial boundary" : "非商业边界"}</h2>
+			<p class="text-sm leading-7 text-[var(--text-50)]">{topicCopy.boundary}</p>
 		</section>
 	</article>
 </MainGridLayout>

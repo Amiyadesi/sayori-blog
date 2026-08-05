@@ -1,0 +1,32 @@
+---
+import { isEnglishSite, localizedPath, stripLocalePrefix } from "@utils/site-locale";
+
+const currentPath = stripLocalePrefix(Astro.url.pathname);
+const targetPath = localizedPath(currentPath, isEnglishSite ? "zh-CN" : "en");
+const label = isEnglishSite ? "Chinese" : "English";
+const ariaLabel = isEnglishSite ? "Switch to Chinese" : "Switch to English";
+---
+
+<a
+	class="transition link text-[var(--primary)] font-medium"
+	href={targetPath}
+	data-language-switch
+	data-target-locale={isEnglishSite ? "zh-CN" : "en"}
+	aria-label={ariaLabel}
+>
+	{label}
+</a>
+
+<script is:inline>
+	(() => {
+		const link = document.querySelector("[data-language-switch]");
+		if (!(link instanceof HTMLAnchorElement)) return;
+		link.addEventListener("click", () => {
+			try {
+				localStorage.setItem("sayori-locale", link.dataset.targetLocale || "");
+			} catch {
+				// Private browsing may block storage; navigation still works.
+			}
+		});
+	})();
+</script>

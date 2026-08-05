@@ -15,6 +15,12 @@ import {
 } from "../../constants/constants";
 import { defaultFavicons } from "../../constants/icon";
 import type { Favicon } from "../../types/config";
+import {
+	currentLocalePath,
+	isEnglishSite,
+	localizedPath,
+	stripLocalePrefix,
+} from "../../utils/site-locale";
 import { url } from "../../utils/url-utils";
 
 interface Props {
@@ -48,17 +54,18 @@ const {
 
 // 关键词
 const keywords = siteConfig.keywords;
-const canonicalUrl = new URL(Astro.url.pathname, siteConfig.siteURL).toString();
+const canonicalPath = currentLocalePath(Astro.url.pathname);
+const canonicalUrl = new URL(canonicalPath, siteConfig.siteURL).toString();
 const isPrivateAdminPage = Astro.url.pathname.startsWith("/admin/");
-const ogLocale = siteConfig.lang;
+const ogLocale = isEnglishSite ? "en_US" : "zh_CN";
 const imageAlt = ogImageAlt || `${title} - ${siteConfig.title}`;
 const publishedIso = toIsoDate(publishedTime);
 const modifiedIso = toIsoDate(modifiedTime);
-const rssUrl = new URL("rss.xml", siteConfig.siteURL).href;
-const atomUrl = new URL("atom.xml", siteConfig.siteURL).href;
-const sitemapUrl = new URL("sitemap.xml", siteConfig.siteURL).href;
-const llmsUrl = new URL("llms.txt", siteConfig.siteURL).href;
-const siteUrl = new URL(siteConfig.siteURL).href;
+const rssUrl = new URL(url("rss.xml"), siteConfig.siteURL).href;
+const atomUrl = new URL(url("atom.xml"), siteConfig.siteURL).href;
+const sitemapUrl = new URL(url("sitemap.xml"), siteConfig.siteURL).href;
+const llmsUrl = new URL(url("llms.txt"), siteConfig.siteURL).href;
+const siteUrl = new URL(localizedPath("/", isEnglishSite ? "en" : "zh-CN"), siteConfig.siteURL).href;
 const siteLanguage = siteConfig.lang.replace("_", "-");
 const personId = `${siteUrl}#person`;
 const organizationId = `${siteUrl}#organization`;
@@ -85,6 +92,12 @@ const personSameAs = [
 	"https://www.wikidata.org/wiki/Q140378992",
 	...(sameAs ?? []),
 ];
+const brandDescription = isEnglishSite
+	? "Amiya_desi's personal blog and project archive, covering game development, self-hosting, Cloudflare, Obsidian writing workflows, and AI-assisted development retrospectives."
+	: `${profileConfig.name} 的个人博客与项目记录站，聚焦游戏开发、服务器折腾、Cloudflare、Obsidian 写作流和 AI 辅助开发复盘。`;
+const localePath = stripLocalePrefix(Astro.url.pathname);
+const chineseUrl = new URL(localizedPath(localePath, "zh-CN"), siteConfig.siteURL).href;
+const englishUrl = new URL(localizedPath(localePath, "en"), siteConfig.siteURL).href;
 const breadcrumbItems = [
 	{
 		"@type": "ListItem",
@@ -160,7 +173,7 @@ const siteJsonLd = {
 			name: siteConfig.title,
 			url: siteUrl,
 			alternateName: ["Amiya's Desk", "Amiya的书桌"],
-			description: `${profileConfig.name} 的个人博客与项目记录站，聚焦游戏开发、服务器折腾、Cloudflare、Obsidian 写作流和 AI 辅助开发复盘。`,
+			description: brandDescription,
 			email: "mailto:me@sayori.org",
 			keywords: keywords,
 			owner: {
@@ -219,6 +232,9 @@ function toIsoDate(value?: Date | string) {
 }
 <meta name="author" content={profileConfig.name} />
 <link rel="canonical" href={canonicalUrl} />
+<link rel="alternate" hreflang="zh-CN" href={chineseUrl} />
+<link rel="alternate" hreflang="en" href={englishUrl} />
+<link rel="alternate" hreflang="x-default" href={chineseUrl} />
 
 <!-- Open Graph Tags -->
 <meta property="og:site_name" content={siteConfig.title} />
@@ -288,6 +304,26 @@ function toIsoDate(value?: Date | string) {
 	type="application/ld+json"
 	set:html={JSON.stringify(siteJsonLd)}
 />
+<script is:inline>
+	(() => {
+		const path = window.location.pathname;
+		const isEnglishPath = path === "/en" || path.startsWith("/en/");
+		let stored = "";
+		try {
+			stored = localStorage.getItem("sayori-locale") || "";
+		} catch {
+			stored = "";
+		}
+		if (stored || isEnglishPath || !navigator.language.toLowerCase().startsWith("en")) return;
+		const target = path === "/" ? "/en/" : `/en${path}`;
+		try {
+			localStorage.setItem("sayori-locale", "en");
+		} catch {
+			// Navigation still works when storage is unavailable.
+		}
+		window.location.replace(`${target}${window.location.search}${window.location.hash}`);
+	})();
+</script>
 <!-- Viewport and Generator -->
 <meta name="viewport" content="width=device-width" />
 <meta name="generator" content={Astro.generator} />

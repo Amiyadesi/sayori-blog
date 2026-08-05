@@ -20,10 +20,14 @@ const { topic, currentPostId } = Astro.props;
 type PostEntry = CollectionEntry<"posts">;
 
 const normalizeId = (value: string) => removeFileExtension(value);
+const basename = (value: string) => value.split("/").at(-1) ?? value;
 const postByReference = new Map<string, PostEntry>();
 for (const post of await getCollection("posts")) {
 	postByReference.set(post.id, post);
 	postByReference.set(normalizeId(post.id), post);
+	for (const key of [basename(post.id), normalizeId(basename(post.id))]) {
+		if (!postByReference.has(key)) postByReference.set(key, post);
+	}
 }
 
 const route = topic.includedPosts

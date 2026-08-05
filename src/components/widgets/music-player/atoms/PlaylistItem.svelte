@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Icon from "@iconify/svelte";
+	import { isEnglishSite } from "../../../../utils/site-locale";
 
 	import type { Song } from "../types";
 
@@ -45,7 +46,11 @@
 	}}
 	role="button"
 	tabindex="0"
-	aria-label="播放 {song.title} - {song.artist}"
+	aria-label={(isEnglishSite ? "Play" : "播放") +
+		" " +
+		song.title +
+		" - " +
+		song.artist}
 >
 	<div class="w-6 h-6 flex items-center justify-center">
 		{#if isCurrent && isPlaying}

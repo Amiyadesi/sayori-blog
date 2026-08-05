@@ -4,6 +4,7 @@ import { Icon } from "astro-icon/components";
 import { announcementConfig } from "../../../config";
 import I18nKey from "../../../i18n/i18nKey";
 import { i18n } from "../../../i18n/translation";
+import { isEnglishSite } from "../../../utils/site-locale";
 
 const config = announcementConfig;
 const announcementId = config.id || "default";
@@ -12,7 +13,14 @@ const announcementContent = config.content;
 const announcementParagraphs = announcementContent
 	.split(/\n{2,}/)
 	.filter(Boolean);
-const updatedLabel = config.updated ? `更新于 ${config.updated}` : "";
+const updatedLabel = config.updated
+	? `${isEnglishSite ? "Updated " : "更新于 "}${config.updated}`
+	: "";
+const closeLabel = isEnglishSite ? "Close announcement" : "关闭公告";
+const confirmLabel = isEnglishSite ? "Got it" : "确认";
+const reminderLabel = isEnglishSite
+	? "It will stay closed until the next announcement."
+	: "下次不再自动弹出；有新公告时仍会提醒。";
 const links = (config.links || []).filter((link) => link.enable !== false);
 ---
 
@@ -46,7 +54,7 @@ const links = (config.links || []).filter((link) => link.enable !== false);
 		type="button"
 		class="announcement-modal-backdrop"
 		data-announcement-close
-		aria-label="关闭公告"
+		aria-label={closeLabel}
 	/>
 	<section
 		class="announcement-dialog"
@@ -65,7 +73,7 @@ const links = (config.links || []).filter((link) => link.enable !== false);
 				type="button"
 				class="btn-plain rounded-lg h-9 w-9 active:scale-90"
 				data-announcement-close
-				aria-label="关闭公告"
+				aria-label={closeLabel}
 			>
 				<Icon name="fa7-solid:xmark" class="text-sm" />
 			</button>
@@ -99,9 +107,9 @@ const links = (config.links || []).filter((link) => link.enable !== false);
 				class="btn-regular rounded-lg h-10 px-5 text-sm font-semibold active:scale-95"
 				data-announcement-confirm
 			>
-				确认
+				{confirmLabel}
 			</button>
-			<p>下次不再自动弹出；有新公告时仍会提醒。</p>
+			<p>{reminderLabel}</p>
 		</footer>
 	</section>
 </div>
@@ -261,7 +269,7 @@ const links = (config.links || []).filter((link) => link.enable !== false);
 	}
 </style>
 
-<script is:inline define:vars={{ announcementId }}>
+<script is:inline define:vars={{ announcementId, isEnglishSite }}>
 	(() => {
 		const STORAGE_KEY = "sayori-announcement-read-id";
 		const MODAL_ID = "announcement-modal";
@@ -311,7 +319,16 @@ const links = (config.links || []).filter((link) => link.enable !== false);
 			document.getElementById(DOT_ID)?.toggleAttribute("hidden", !unread);
 			document
 				.getElementById(ENTRY_ID)
-				?.setAttribute("aria-label", unread ? "公告，有新内容" : "公告");
+				?.setAttribute(
+					"aria-label",
+					unread
+						? isEnglishSite
+							? "Announcement, new content"
+							: "公告，有新内容"
+						: isEnglishSite
+							? "Announcement"
+							: "公告",
+				);
 			document.dispatchEvent(
 				new CustomEvent(STATE_EVENT, {
 					detail: { id: announcementId, unread },

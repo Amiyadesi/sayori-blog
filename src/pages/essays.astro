@@ -10,10 +10,12 @@ import { removeFileExtension } from "@utils/url-utils";
 import { render } from "astro:content";
 
 import { profileConfig } from "../config";
+import { isEnglishSite } from "../utils/site-locale";
 
-const title = "随笔";
-const description =
-	"一些暂时不必单独展开的短记录，按发布时间从新到旧放在这里。点开标题即可展开正文。";
+const title = isEnglishSite ? "Essays" : "随笔";
+const description = isEnglishSite
+	? "Short records that do not need their own long-form post, arranged from newest to oldest. Open a title to read the full text."
+	: "一些暂时不必单独展开的短记录，按发布时间从新到旧放在这里。点开标题即可展开正文。";
 
 const essays = await Promise.all(
 	(await getEssayPosts()).map(async (post) => {
@@ -136,7 +138,9 @@ const essays = await Promise.all(
 						})}
 					</div>
 				) : (
-					<div class="empty-state">暂时还没有公开随笔。</div>
+					<div class="empty-state">
+						{isEnglishSite ? "No public essays yet." : "暂时还没有公开随笔。"}
+					</div>
 				)
 			}
 		</div>

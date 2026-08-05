@@ -6,6 +6,7 @@ import { getEntry, render } from "astro:content";
 import { Icon } from "astro-icon/components";
 
 import { profileConfig, siteConfig, sponsorConfig } from "../config";
+import { currentLocalePath } from "../utils/site-locale";
 
 const sponsorPost = await getEntry("site", "sponsor");
 
@@ -14,8 +15,11 @@ if (!sponsorPost) {
 }
 
 const { Content } = await render(sponsorPost);
-const title = "赞助";
-const description = "通过 Ko-fi 或爱发电支持 Amiya_desi 的博客和公开项目。";
+const isEnglish = siteConfig.lang.startsWith("en");
+const title = isEnglish ? "Support" : "赞助";
+const description = isEnglish
+	? "Support Amiya_desi's blog and public projects through Ko-fi or Afdian."
+	: "通过 Ko-fi 或爱发电支持 Amiya_desi 的博客和公开项目。";
 const findProfileLink = (match: (value: string) => boolean) =>
 	profileConfig.links.find((link) => match(`${link.name} ${link.url}`))?.url;
 const kofiUrl =
@@ -29,25 +33,30 @@ const sponsorOptions = [
 		name: "Ko-fi",
 		href: kofiUrl,
 		image: "/assets/sponsor/amiya_desi-Sharable-Profile-Vertical.jpg",
-		description: "通过 Ko-fi 支持",
+		description: siteConfig.lang.startsWith("en")
+			? "Support via Ko-fi"
+			: "通过 Ko-fi 支持",
 		icon: "material-symbols:local-cafe",
 	},
 	{
-		name: "爱发电",
+		name: isEnglish ? "Afdian" : "爱发电",
 		href: afdianUrl,
 		image: "/assets/sponsor/afdian-Amiya_desi.jpg",
-		description: "通过爱发电支持",
+		description: isEnglish ? "Support via Afdian" : "通过爱发电支持",
 		icon: "material-symbols:favorite",
 	},
 	{
-		name: "赞赏码",
+		name: isEnglish ? "Reward code" : "赞赏码",
 		image: "/assets/sponsor/amiya-desi-reward-code.png",
-		description: "扫描赞赏码支持",
+		description: isEnglish ? "Scan to support" : "扫描赞赏码支持",
 		icon: "material-symbols:qr-code-2",
 		fit: "contain",
 	},
 ];
-const pageUrl = new URL(Astro.url.pathname, siteConfig.siteURL).toString();
+const pageUrl = new URL(
+	currentLocalePath(Astro.url.pathname),
+	siteConfig.siteURL,
+).toString();
 const jsonLd = {
 	"@context": "https://schema.org",
 	"@type": "WebPage",
@@ -72,22 +81,31 @@ const jsonLd = {
 		import("../scripts/right-sidebar-layout.js");
 	</script>
 
-	<section class="flex w-full rounded-[var(--radius-large)] overflow-visible relative min-h-32">
-		<div class="card-base paper-note paper-note-lined paper-tape sponsor-page z-10 px-5 sm:px-9 py-6 relative w-full" style="padding-top: 1.75rem;">
+	<section
+		class="flex w-full rounded-[var(--radius-large)] overflow-visible relative min-h-32"
+	>
+		<div
+			class="card-base paper-note paper-note-lined paper-tape sponsor-page z-10 px-5 sm:px-9 py-6 relative w-full"
+			style="padding-top: 1.75rem;"
+		>
 			<PageHeader title={title} subtitle={description} />
 
 			<Markdown class="sponsor-copy mt-2">
 				<Content />
 			</Markdown>
 
-			<div class="sponsor-options" aria-label="赞助方式">
+			<div
+				class="sponsor-options"
+				aria-label={isEnglish ? "Support options" : "赞助方式"}
+			>
 				{
 					sponsorOptions.map((option) => {
 						const content = (
 							<>
 								<img
 									class:list={{
-										"sponsor-option-image-contain": option.fit === "contain",
+										"sponsor-option-image-contain":
+											option.fit === "contain",
 									}}
 									src={option.image}
 									alt={option.description}
@@ -122,20 +140,31 @@ const jsonLd = {
 				}
 			</div>
 
-			<section class="sponsor-thanks" aria-labelledby="sponsor-thanks-title">
-				<h2 id="sponsor-thanks-title">感谢赞助</h2>
+			<section
+				class="sponsor-thanks"
+				aria-labelledby="sponsor-thanks-title"
+			>
+				<h2 id="sponsor-thanks-title">
+					{isEnglish ? "Thanks for your support" : "感谢赞助"}
+				</h2>
 				{
 					sponsorConfig.supporters.length > 0 ? (
 						<ul>
 							{sponsorConfig.supporters.map((supporter) => (
 								<li>
 									<span>{supporter.name}</span>
-									{supporter.source && <small>{supporter.source}</small>}
+									{supporter.source && (
+										<small>{supporter.source}</small>
+									)}
 								</li>
 							))}
 						</ul>
 					) : (
-						<p>感谢每一个愿意支持这里的人。</p>
+						<p>
+							{isEnglish
+								? "Thank you to everyone willing to support this desk."
+								: "感谢每一个愿意支持这里的人。"}
+						</p>
 					)
 				}
 			</section>
@@ -145,7 +174,11 @@ const jsonLd = {
 
 <style>
 	.sponsor-page {
-		--sponsor-border: color-mix(in srgb, var(--primary) 18%, var(--line-divider));
+		--sponsor-border: color-mix(
+			in srgb,
+			var(--primary) 18%,
+			var(--line-divider)
+		);
 	}
 
 	.sponsor-options {
@@ -170,7 +203,11 @@ const jsonLd = {
 
 	.sponsor-option:not(.sponsor-option-static):hover {
 		transform: translateY(-2px);
-		border-color: color-mix(in srgb, var(--primary) 42%, var(--line-divider));
+		border-color: color-mix(
+			in srgb,
+			var(--primary) 42%,
+			var(--line-divider)
+		);
 		box-shadow: 0 12px 28px rgba(84, 50, 67, 0.1);
 	}
 

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Icon from "@iconify/svelte";
+	import { isEnglishSite } from "../../../../utils/site-locale";
 
 	import type { Song } from "../../music-player/types";
 
@@ -36,7 +37,11 @@
 	role="option"
 	tabindex="0"
 	aria-selected={isCurrent}
-	aria-label={`播放 ${song.title} - ${song.artist}`}
+	aria-label={(isEnglishSite ? "Play" : "播放") +
+		" " +
+		song.title +
+		" - " +
+		song.artist}
 >
 	<div class="cover-shell">
 		<img

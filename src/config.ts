@@ -31,13 +31,29 @@ import { LinkPreset } from "./types/config";
 // 移除i18n导入以避免循环依赖
 
 // 定义站点语言
-const SITE_LANG = "zh_CN"; // 语言代码，例如：'en', 'zh_CN', 'ja' 等。
+const SITE_LANG = (process.env.SITE_LANG || "zh_CN") as SiteConfig["lang"]; // build locale: zh_CN or en
+const IS_ENGLISH_BUILD = SITE_LANG.toLowerCase().startsWith("en");
 const baseSiteConfig: SiteConfig = {
-	title: "Amiya的书桌",
-	subtitle: "笔记、项目和一点日常折腾",
+	title: IS_ENGLISH_BUILD ? "Amiya's Desk" : "Amiya的书桌",
+	subtitle: IS_ENGLISH_BUILD
+		? "Notes, projects, and a little everyday tinkering"
+		: "笔记、项目和一点日常折腾",
 	siteURL: "https://blog.sayori.org/", // 请替换为你的站点URL，以斜杠结尾
 	siteStartDate: "2026-05-21", // 站点开始运行日期，用于站点统计组件计算运行天数
-	keywords: [
+	keywords: IS_ENGLISH_BUILD
+		? [
+				"Amiya's Desk",
+				"Amiya_desi",
+				"personal blog",
+				"Godot",
+				"indie games",
+				"self-hosting",
+				"Cloudflare",
+				"Obsidian",
+				"AI-assisted development",
+				"Vaultwarden",
+			]
+		: [
 		"Amiya的书桌",
 		"Amiya_desi",
 		"个人博客",
@@ -48,7 +64,7 @@ const baseSiteConfig: SiteConfig = {
 		"Obsidian",
 		"AI辅助开发",
 		"Vaultwarden",
-	],
+		],
 
 	lang: SITE_LANG,
 
@@ -74,7 +90,7 @@ const baseSiteConfig: SiteConfig = {
 		// 显示模式："text-icon" 显示图标+文本，"logo" 仅显示Logo
 		mode: "text-icon",
 		// 顶栏标题文本
-		text: "Amiya的书桌",
+		text: IS_ENGLISH_BUILD ? "Amiya's Desk" : "Amiya的书桌",
 		// 顶栏标题图标路径，默认使用 public/assets/home/home.webp
 		icon: "assets/home/amiya-desk.png",
 		// 网站Logo图片路径
@@ -186,12 +202,19 @@ const baseSiteConfig: SiteConfig = {
 			enable: true, // 在主页显示自定义文本
 			title: "Amiya的书桌", // 主页横幅主标题
 
-			subtitle: [
+			subtitle: IS_ENGLISH_BUILD
+				? [
+						"Writing down servers, tools, and everyday experiments",
+						"Turning Obsidian notes into things worth rereading",
+						"Keep it light, keep it stable, do not grow another server",
+						"This is where Hello Sayori starts",
+					]
+				: [
 				"把服务器折腾、工具链和日常笔记慢慢写下来",
 				"从 Obsidian 出发，整理成可以长期阅读的文章",
 				"轻一点，稳定一点，别把博客养成另一台服务器",
 				"这里先放 Hello Sayori，然后慢慢变多",
-			],
+				],
 			typewriter: {
 				enable: true, // 启用副标题打字机效果
 

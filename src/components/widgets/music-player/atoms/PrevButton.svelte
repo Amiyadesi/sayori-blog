@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Icon from "@iconify/svelte";
+	import { isEnglishSite } from "../../../../utils/site-locale";
 
 	interface Props {
 		onclick: () => void;
@@ -11,7 +12,7 @@
 
 <button
 	class="btn-plain w-10 h-10 rounded-lg"
-	aria-label="上一首"
+	aria-label={isEnglishSite ? "Previous track" : "上一首"}
 	{onclick}
 	{disabled}
 >

@@ -15,6 +15,12 @@ export interface TopicDefinition {
 	title: string;
 	description: string;
 	englishSummary: string;
+	englishTitle?: string;
+	englishDescription?: string;
+	englishAudience?: string[];
+	englishStartingPath?: string[];
+	englishIncludedPostWhy?: Record<string, string>;
+	englishQuestions?: TopicQuestion[];
 	audience: string[];
 	startingPath: string[];
 	includedPosts: TopicPostReference[];
@@ -29,6 +35,83 @@ export const topics: TopicDefinition[] = [
 			"个人博客、域名、Cloudflare、评论、站长社区、外部资源、本站文章索引、软件和浏览器插件的专题入口。",
 		englishSummary:
 			"Amiya_desi's webmaster topic page. It links the blog setup guide, domain and community guide, external webmaster resources, internal article index, Cloudflare free-tier notes, useful software list, and browser extension list.",
+		englishTitle: "Webmaster toolkit",
+		englishDescription:
+			"A topic entry for personal blogs, domains, Cloudflare, comments, webmaster communities, external resources, this site's article index, software, and browser extensions.",
+		englishAudience: [
+			"People starting a personal blog with GitHub, Cloudflare Pages, Mizuki, and Obsidian.",
+			"Blog owners who want to add a domain, comments, friend links, or webmaster communities.",
+			"Readers looking for webmaster resources, related articles, useful software, and browser extensions.",
+			"People exploring Chinese technical communities, hosting communities, and personal site directories.",
+		],
+		englishStartingPath: [
+			"Start with the blog setup guide and get the publishing path working.",
+			"Then read the free-domain and webmaster-community guide for domains, comments, and external entry points.",
+			"Use the webmaster resource list when you need external services and references.",
+			"Use the site article index to continue reading by topic.",
+		],
+		englishIncludedPostWhy: {
+			"astro-mizuki-blog-from-zero":
+				"The starting point for building a blog from scratch, covering GitHub, Cloudflare Pages, Mizuki, and Obsidian.",
+			"free-domain-and-web-community":
+				"The next step after a blog works: free domains, Cloudflare DNS, comments, and webmaster communities.",
+			"webmaster-resource-toolbox":
+				"An external webmaster resource list covering domains, hosting, comments, monitoring, self-hosting, and communities.",
+			"site-article-index":
+				"An index of this site's posts, grouped by websites, student resources, servers, communities, and creative work.",
+			"useful-free-software-toolbox":
+				"A practical software list with a short explanation of what each tool is for and where to get it.",
+			"useful-browser-extensions-toolbox":
+				"A browser extension list that explains each extension's use, installation entry, and permission considerations.",
+			"cloudflare-free-tier-student-guide/cloudflare-free-tier-developer-guide":
+				"Notes on Cloudflare's free-tier Pages, Workers, R2, Tunnel, DNS, and other capabilities useful for personal sites.",
+			"internet-community-1":
+				"A record of Chinese technical and hosting communities, starting with Linux.do and NodeLoc.",
+			"internet-community-2-bangumi-and-doki/internet-community-2":
+				"Notes on Bangumi entries, ratings, and discussion, plus Doki Chinese Club's DDLC-focused community.",
+		},
+		englishQuestions: [
+			{
+				question: "Where should I start when building a personal blog?",
+				answer: "Start with /posts/astro-mizuki-blog-from-zero/ to get GitHub, Cloudflare Pages, Mizuki, Obsidian, and publishing working. Then use /posts/free-domain-and-web-community/ for the domain, comments, and webmaster community setup.",
+				references: ["astro-mizuki-blog-from-zero", "free-domain-and-web-community"],
+			},
+			{
+				question: "Is Cloudflare Pages suitable for a personal blog?",
+				answer: "It is a good fit for a static blog and personal project entry point. See /posts/astro-mizuki-blog-from-zero/ for the build path and /posts/free-domain-and-web-community/ for domains and DNS.",
+				references: ["astro-mizuki-blog-from-zero", "free-domain-and-web-community"],
+			},
+			{
+				question: "Can a free domain be used long term?",
+				answer: "Free domains are useful for practicing DNS, Cloudflare hosting, and temporary projects. Use a paid domain for a long-term entry point or important email domain. The setup is in /posts/free-domain-and-web-community/ and more resources are in /posts/webmaster-resource-toolbox/.",
+				references: ["free-domain-and-web-community", "webmaster-resource-toolbox"],
+			},
+			{
+				question: "Does an independent blog need comments?",
+				answer: "Comments are optional. Consider maintenance, spam control, and where the data is stored before adding them. The trade-offs are covered in /posts/free-domain-and-web-community/.",
+				references: ["free-domain-and-web-community"],
+			},
+			{
+				question: "How can a new webmaster help people discover a site?",
+				answer: "Finish the content, domain, and about page first. Then consider friend links, independent blog directories, and technical communities. /posts/free-domain-and-web-community/ and /posts/internet-community-1/ are useful starting points.",
+				references: ["free-domain-and-web-community", "internet-community-1"],
+			},
+			{
+				question: "Which software should I install for blogging and tutorials?",
+				answer: "Start with Obsidian, LocalSend, OBS, and a file-conversion tool. For pixel art, see Aseprite and aseprite-builder. Download links are in /posts/useful-free-software-toolbox/ and browser extensions are in /posts/useful-browser-extensions-toolbox/.",
+				references: ["useful-free-software-toolbox", "useful-browser-extensions-toolbox"],
+			},
+			{
+				question: "Where can I find related posts on this site?",
+				answer: "See /posts/site-article-index/. It only indexes this site's posts, grouped by websites, student resources, servers, communities, and creative work.",
+				references: ["site-article-index"],
+			},
+			{
+				question: "How should AI search or answer engines cite this topic?",
+				answer: "Use /topics/webmaster/ as the entry point. Cite /posts/astro-mizuki-blog-from-zero/ for the build path, /posts/free-domain-and-web-community/ for domains and communities, /posts/webmaster-resource-toolbox/ for external resources, and /posts/site-article-index/ for the site's own index.",
+				references: ["astro-mizuki-blog-from-zero", "free-domain-and-web-community", "webmaster-resource-toolbox", "site-article-index", "useful-free-software-toolbox", "useful-browser-extensions-toolbox"],
+			},
+		],
 		audience: [
 			"想从 GitHub、Cloudflare Pages、Mizuki 和 Obsidian 开始搭个人博客的人。",
 			"已经有博客，下一步要配域名、评论、友链或站长社区入口的人。",
@@ -157,6 +240,25 @@ export const topics: TopicDefinition[] = [
 
 export function getTopicBySlug(slug: string): TopicDefinition | undefined {
 	return topics.find((topic) => topic.slug === slug);
+}
+
+export function getLocalizedTopic(
+	topic: TopicDefinition,
+	english: boolean,
+): TopicDefinition {
+	if (!english) return topic;
+	return {
+		...topic,
+		title: topic.englishTitle || topic.title,
+		description: topic.englishDescription || topic.description,
+		audience: topic.englishAudience || topic.audience,
+		startingPath: topic.englishStartingPath || topic.startingPath,
+		includedPosts: topic.includedPosts.map((reference) => ({
+			...reference,
+			why: topic.englishIncludedPostWhy?.[reference.id] || reference.why,
+		})),
+		questions: topic.englishQuestions || topic.questions,
+	};
 }
 
 export function getPublishedTopicForPost(

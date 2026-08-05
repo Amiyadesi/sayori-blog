@@ -4,6 +4,7 @@
 
 	import I18nKey from "../../../i18n/i18nKey";
 	import { i18n } from "../../../i18n/translation";
+	import { isEnglishSite } from "../../../utils/site-locale";
 	import { navigateToPage } from "../../../utils/navigation-utils";
 	import { panelManager } from "../../../utils/panel-manager.js";
 	import {
@@ -263,7 +264,7 @@
 					icon="material-symbols:article-outline"
 					class="text-2xl mb-2"
 				/>
-				<p>暂无文章</p>
+				<p>{isEnglishSite ? "No articles yet" : "暂无文章"}</p>
 			</div>
 		{:else}
 			<div class="post-content">

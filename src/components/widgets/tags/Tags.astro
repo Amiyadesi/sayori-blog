@@ -4,6 +4,7 @@ import { i18n } from "../../../i18n/translation";
 import { getTagList } from "../../../utils/content-utils";
 import { getTagUrl } from "../../../utils/url-utils";
 import { widgetManager } from "../../../utils/widget-manager";
+import { isEnglishSite } from "../../../utils/site-locale";
 import ButtonTag from "../../control/ButtonTag.astro";
 import WidgetLayout from "../common/WidgetLayout.astro";
 
@@ -44,7 +45,11 @@ const style = Astro.props.style;
 			tags.map((t) => (
 				<ButtonTag
 					href={getTagUrl(t.name)}
-					label={`${t.name.trim()} 标签，共 ${t.count} 篇文章`}
+					label={
+						isEnglishSite
+							? t.name.trim() + " tag, " + t.count + " posts"
+							: t.name.trim() + " 标签，共 " + t.count + " 篇文章"
+					}
 				>
 					<span>{t.name.trim()}</span>
 					<span

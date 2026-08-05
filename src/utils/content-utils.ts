@@ -3,6 +3,7 @@ import { i18n } from "@i18n/translation";
 import { initPostIdMap } from "@utils/permalink-utils";
 import { getCategoryUrl, getPostUrl } from "@utils/url-utils";
 import { type CollectionEntry, getCollection } from "astro:content";
+import { isEnglishSite } from "@utils/site-locale";
 
 type PostVisibilityLike = {
 	id: string;
@@ -35,9 +36,10 @@ type PostPublishedDateLike = {
 	};
 };
 
-const DIARY_DISPLAY_TAG = "日记";
+const DIARY_DISPLAY_TAG = isEnglishSite ? "Diary" : "日记";
 const DIARY_SYSTEM_TAGS = new Set([
-	DIARY_DISPLAY_TAG,
+	"日记",
+	"Diary",
 	"日常回声",
 	"公开整理版",
 ]);

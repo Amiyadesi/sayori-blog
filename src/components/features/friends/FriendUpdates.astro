@@ -1,4 +1,6 @@
 ---
+import { isEnglishSite } from "../../../utils/site-locale";
+
 interface FriendUpdate {
 	title: string;
 	url: string;
@@ -25,7 +27,7 @@ const formatDate = (date: string) => {
 	if (Number.isNaN(parsed.getTime())) {
 		return date;
 	}
-	return new Intl.DateTimeFormat("zh-CN", {
+	return new Intl.DateTimeFormat(isEnglishSite ? "en-US" : "zh-CN", {
 		month: "2-digit",
 		day: "2-digit",
 	}).format(parsed);
@@ -56,24 +58,33 @@ const formatDate = (date: string) => {
 							id="friend-updates-title"
 							class="text-2xl font-bold text-black/85 dark:text-white/85"
 						>
-							朋友动态
+							{isEnglishSite ? "Friends' updates" : "朋友动态"}
 						</h2>
 					</div>
 					<p class="mt-2 text-sm text-black/55 dark:text-white/55">
-						去朋友们的文章看看吗
+						{isEnglishSite
+							? "See what your friends have been writing"
+							: "去朋友们的文章看看吗"}
 					</p>
 				</div>
 				<div class="friend-updates-actions">
-					<span class="friend-updates-status" data-friend-updates-status>
-						正在更新
+					<span
+						class="friend-updates-status"
+						data-friend-updates-status
+					>
+						{isEnglishSite ? "Updating" : "正在更新"}
 					</span>
 					<button
 						type="button"
 						class="friend-updates-refresh"
 						data-friend-updates-refresh
-						aria-label="刷新朋友动态"
+						aria-label={
+							isEnglishSite
+								? "Refresh friends' updates"
+								: "刷新朋友动态"
+						}
 					>
-						刷新
+						{isEnglishSite ? "Refresh" : "刷新"}
 					</button>
 				</div>
 			</div>
@@ -127,12 +138,14 @@ const formatDate = (date: string) => {
 	)
 }
 
-<script is:inline>
+<script is:inline define:vars={{ isEnglishSite }}>
 	(() => {
 		const section = document.querySelector("[data-friend-updates]");
 		const grid = section?.querySelector("[data-friend-updates-grid]");
 		const status = section?.querySelector("[data-friend-updates-status]");
-		const refreshButton = section?.querySelector("[data-friend-updates-refresh]");
+		const refreshButton = section?.querySelector(
+			"[data-friend-updates-refresh]",
+		);
 		if (!section || !grid) {
 			return;
 		}
@@ -151,7 +164,7 @@ const formatDate = (date: string) => {
 			if (Number.isNaN(parsed.getTime())) {
 				return String(value);
 			}
-			return new Intl.DateTimeFormat("zh-CN", {
+			return new Intl.DateTimeFormat(isEnglishSite ? "en-US" : "zh-CN", {
 				month: "2-digit",
 				day: "2-digit",
 			}).format(parsed);
@@ -230,12 +243,18 @@ const formatDate = (date: string) => {
 		const setRefreshing = (refreshing) => {
 			if (refreshButton instanceof HTMLButtonElement) {
 				refreshButton.disabled = refreshing;
-				refreshButton.textContent = refreshing ? "更新中" : "刷新";
+				refreshButton.textContent = refreshing
+					? isEnglishSite
+						? "Updating"
+						: "更新中"
+					: isEnglishSite
+						? "Refresh"
+						: "刷新";
 			}
 		};
 
 		const loadLiveUpdates = () => {
-			setStatus("正在更新");
+			setStatus(isEnglishSite ? "Updating" : "正在更新");
 			setRefreshing(true);
 			fetch("/api/friend-updates?limit=6&fresh=1", {
 				cache: "no-store",
@@ -259,21 +278,27 @@ const formatDate = (date: string) => {
 						if (section.dataset.hasStaticUpdates !== "true") {
 							section.hidden = true;
 						} else {
-							setStatus("暂无新内容");
+							setStatus(
+								isEnglishSite ? "No new updates" : "暂无新内容",
+							);
 						}
 						return;
 					}
 					grid.replaceChildren(...updates.map(renderUpdate));
 					section.hidden = false;
 					setStatus(
-						`更新于 ${formatDate(String(data?.updatedAt || "").slice(0, 10))}`,
+						`${isEnglishSite ? "Updated " : "更新于 "}${formatDate(String(data?.updatedAt || "").slice(0, 10))}`,
 					);
 				})
 				.catch(() => {
 					if (section.dataset.hasStaticUpdates !== "true") {
 						section.hidden = true;
 					} else {
-						setStatus("显示本地记录");
+						setStatus(
+							isEnglishSite
+								? "Showing local records"
+								: "显示本地记录",
+						);
 					}
 				})
 				.finally(() => {
@@ -346,7 +371,11 @@ const formatDate = (date: string) => {
 
 	:global(.dark .friend-updates-status),
 	:global(.dark .friend-updates-refresh) {
-		background: color-mix(in srgb, var(--primary) 18%, rgba(24, 22, 29, 0.82));
+		background: color-mix(
+			in srgb,
+			var(--primary) 18%,
+			rgba(24, 22, 29, 0.82)
+		);
 		color: color-mix(in srgb, var(--primary) 58%, white 42%);
 	}
 

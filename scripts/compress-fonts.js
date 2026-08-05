@@ -1262,7 +1262,7 @@ function escapeRegExp(value) {
 
 function localTtfPattern(baseName) {
 	return new RegExp(
-		`url\\(\\s*["']?/assets/font/${escapeRegExp(baseName)}\\.ttf(?:\\?[^"')\\s]*)?["']?\\s*\\)(?:\\s*format\\(\\s*["']?truetype["']?\\s*\\))?`,
+		`url\\(\\s*["']?/(?:[^/"'\\s]+/)?assets/font/${escapeRegExp(baseName)}\\.ttf(?:\\?[^"')\\s]*)?["']?\\s*\\)(?:\\s*format\\(\\s*["']?truetype["']?\\s*\\))?`,
 		"g",
 	);
 }

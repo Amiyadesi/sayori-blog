@@ -1,24 +1,25 @@
 ---
 import FloatingButton from "@components/common/FloatingButton.astro";
+import { isEnglishSite } from "../../utils/site-locale";
 ---
 
 <FloatingButton
 	id="reading-width-btn"
 	icon="material-symbols:format-align-left-rounded"
-	ariaLabel="切换阅读宽度"
+	ariaLabel={isEnglishSite ? "Change reading width" : "切换阅读宽度"}
 	onclick="toggleReadingWidth()"
 	class="hide"
 />
 
-<script is:inline>
+<script is:inline define:vars={{ isEnglishSite }}>
 	(() => {
 		const STORAGE_KEY = "sayoriReadingWidthMode";
 		const MODES = ["comfortable", "wide", "focus"];
 		const DEFAULT_MODE = "wide";
 		const LABELS = {
-			comfortable: "舒适宽度",
-			wide: "宽屏阅读",
-			focus: "专注阅读",
+			comfortable: isEnglishSite ? "Comfortable width" : "舒适宽度",
+			wide: isEnglishSite ? "Wide reading" : "宽屏阅读",
+			focus: isEnglishSite ? "Focus reading" : "专注阅读",
 		};
 
 		function normalizeMode(mode) {
@@ -56,7 +57,11 @@ import FloatingButton from "@components/common/FloatingButton.astro";
 			button.classList.toggle("active", visible && mode !== "comfortable");
 			button.setAttribute(
 				"title",
-				visible ? `当前：${LABELS[mode]}。点击切换。` : "",
+				visible
+					? isEnglishSite
+						? `Current: ${LABELS[mode]}. Click to change.`
+						: `当前：${LABELS[mode]}。点击切换。`
+					: "",
 			);
 			button.setAttribute("data-reading-mode", mode);
 		}

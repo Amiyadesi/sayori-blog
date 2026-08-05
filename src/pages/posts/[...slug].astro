@@ -31,8 +31,9 @@ import Image from "../../components/atoms/Image/Image.astro";
 import Encryptor from "../../components/features/auth/Encryptor.astro";
 import AiSummary from "../../components/features/posts/AiSummary.astro";
 import { profileConfig, siteConfig } from "../../config";
-import { getPublishedTopicForPost } from "../../data/topics";
+import { getLocalizedTopic, getPublishedTopicForPost } from "../../data/topics";
 import { formatDateToYYYYMMDD } from "../../utils/date-utils";
+import { currentLocalePath, isEnglishSite } from "../../utils/site-locale";
 
 export async function getStaticPaths() {
 	const blogEntries = await getSortedPosts();
@@ -43,7 +44,10 @@ const { entry } = Astro.props;
 const { Content, headings } = await render(entry);
 const { remarkPluginFrontmatter } = await render(entry);
 
-const publishedTopic = getPublishedTopicForPost(entry.id);
+const topicSource = getPublishedTopicForPost(entry.id);
+const publishedTopic = topicSource
+	? getLocalizedTopic(topicSource, isEnglishSite)
+	: undefined;
 const showRandomPosts = randomPostsConfig.enable;
 const footerSuggestionCount =
 	Number(Boolean(publishedTopic)) + Number(showRandomPosts);
@@ -124,11 +128,11 @@ const lastEditedDate =
 const updateCount = entry.data.updateCount;
 const displayTags = getPostDisplayTags(entry);
 const siteUrl = new URL(siteConfig.siteURL).href;
-const pageUrl = new URL(Astro.url.pathname, siteConfig.siteURL).toString();
+const pageUrl = new URL(currentLocalePath(Astro.url.pathname), siteConfig.siteURL).toString();
 const personId = `${siteUrl}#person`;
 const organizationId = `${siteUrl}#organization`;
 const blogId = `${siteUrl}#blog`;
-const interactionPath = Astro.url.pathname;
+const interactionPath = currentLocalePath(Astro.url.pathname);
 const commentPath = `/posts/${removeFileExtension(entry.id)}`;
 const canUseAiSummary = !isEncrypted && !isDiary;
 const jsonLdImage = new URL(

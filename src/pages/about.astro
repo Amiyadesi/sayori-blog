@@ -8,7 +8,8 @@ import I18nKey from "../i18n/i18nKey";
 import { i18n } from "../i18n/translation";
 import MainGridLayout from "../layouts/MainGridLayout.astro";
 import { profileConfig, siteConfig } from "../config";
-import { getTopicUrl, topics } from "../data/topics";
+import { getLocalizedTopic, getTopicUrl, topics } from "../data/topics";
+import { currentLocalePath, isEnglishSite } from "../utils/site-locale";
 
 const aboutPost = await getEntry("spec", "about");
 
@@ -18,8 +19,74 @@ if (!aboutPost) {
 
 const { Content } = await render(aboutPost);
 const title = i18n(I18nKey.about);
-const pageUrl = new URL(Astro.url.pathname, siteConfig.siteURL).toString();
-const webmasterTopic = topics.find((topic) => topic.slug === "webmaster");
+const pageUrl = new URL(currentLocalePath(Astro.url.pathname), siteConfig.siteURL).toString();
+const webmasterTopicSource = topics.find((topic) => topic.slug === "webmaster");
+const webmasterTopic = webmasterTopicSource
+	? getLocalizedTopic(webmasterTopicSource, isEnglishSite)
+	: undefined;
+const aboutCopy = isEnglishSite
+	? {
+			pageHeading: "About this site",
+			entitiesHeading: "Public identity and representative work",
+			faqHeading: "Frequently asked questions",
+			siteIntro:
+				"This is Amiya_desi's personal blog and public knowledge entry point. It records self-hosting, Godot game development, AI workflows, tools and resources, internet communities, and personal notes. sayori.org is the stable front door; the blog keeps longer articles, tutorials, project notes, and retrospectives.",
+			arriveIntro:
+				"If you arrived from a search engine, an AI summary, or a shared link, start with the latest posts, random reading, the resource index, or the self-hosting section. You can also return to sayori.org for GitHub, GeoScore, the whiteboard, and the guestbook. This is not a commercial service site and does not publish local addresses, price tables, or company-style promises.",
+			identityIntro:
+				"Amiya_desi is the public personal identity used by this site. Amiya's Desk is the corresponding blog and project archive. Public entry points include sayori.org, blog.sayori.org, GitHub, Linux.do, Bilibili, and Wikidata. These pages record personal work, articles, tools, and retrospectives, not a company or commercial service.",
+			projectsHeading: "Representative projects",
+			articlesHeading: "Representative articles",
+			faq: [
+				{
+					question: "What does this blog cover?",
+					answer: "It mainly covers self-hosting, Godot game development, AI workflows, tools and resources, internet communities, and personal notes. It is a personal blog, so it also keeps experiments, retrospectives, and less formal thoughts.",
+				},
+				{
+					question: "Where should I start?",
+					answer: "Start with the latest posts, random reading, the resource index, or the self-hosting and Godot sections. For public entry points, return to sayori.org for GitHub, GeoScore, the whiteboard, and the guestbook.",
+				},
+				{
+					question: "Is this a commercial service site?",
+					answer: "No. It is Amiya_desi's personal blog and public knowledge entry point, without company phone numbers, addresses, price tables, local service pages, or commercial delivery promises.",
+				},
+				{
+					question: "How can I contact you or learn more?",
+					answer: "Use the main navigation to visit sayori.org, or leave public feedback on an article, the about page, or the guestbook. Public projects and code are mainly on GitHub.",
+				},
+			],
+		}
+	: {
+			pageHeading: "站点说明",
+			entitiesHeading: "公开实体与代表内容",
+			faqHeading: "常见问题",
+			siteIntro:
+				"这里是 Amiya_desi 的个人博客和公开知识入口，长期记录建站与自托管、Godot 游戏开发、AI 工作流、工具与资源、互联网社区和一点个人记录。主站 sayori.org 负责放稳定入口，博客负责放更长的文章、教程、项目记录和回头看的思考。",
+			arriveIntro:
+				"如果你是从搜索引擎、AI 摘要或别人分享的链接来到这里，可以从最新文章、随机文章、资源索引和建站与自托管分类开始；也可以回到主站继续看 GitHub、GeoScore、小白板和留言板。这里不是商业服务站点，不放本地地址、价格表或公司式承诺。",
+			identityIntro:
+				"Amiya_desi 是这个站点使用的公开个人身份；Amiya的书桌 / Amiya's Desk 是对应的博客和项目档案。公开入口包括 sayori.org、blog.sayori.org、GitHub、Linux.do、Bilibili 和 Wikidata。这里记录的是个人作品、文章、工具和复盘，不是公司或商业服务站。",
+			projectsHeading: "代表项目",
+			articlesHeading: "代表文章",
+			faq: [
+				{
+					question: "这个博客主要写什么？",
+					answer: "主要写建站与自托管、Godot 游戏开发、AI 工作流、工具与资源、互联网社区和个人记录。这里是个人博客，会保留自己的折腾过程、复盘和一些没那么正式的想法。",
+				},
+				{
+					question: "第一次来应该从哪里看起？",
+					answer: "可以先看首页的最新文章、随机文章入口、资源索引和建站与自托管分类；也可以从主站 sayori.org 进入 GitHub、GeoScore、小白板和留言板。",
+				},
+				{
+					question: "这里是商业服务站点吗？",
+					answer: "不是。这里仍然是 Amiya_desi 的个人博客和公开知识入口，不提供公司电话、地址、价格表、本地服务页或商业交付承诺。",
+				},
+				{
+					question: "可以从哪里联系或继续了解你？",
+					answer: "可以从主导航进入 sayori.org，也可以在文章页、关于页或留言板留下公开反馈。公开项目和代码主要放在 GitHub。",
+				},
+			],
+		};
 const publicIdentityLinks = [
 	...profileConfig.links
 		.filter((link) => link.url.startsWith("http"))
@@ -40,36 +107,43 @@ const representativeProjects = [
 	{
 		title: "WakeUpAtTheBorder",
 		href: "https://github.com/Amiyadesi/Wake-up-at-the-border",
-		description: "Godot 2D 横版叙事游戏，GodotHub 第三届开发大赛二等奖。",
+		description: isEnglishSite
+			? "A 2D side-scrolling narrative game in Godot; second prize in the third GodotHub game competition."
+			: "Godot 2D 横版叙事游戏，GodotHub 第三届开发大赛二等奖。",
 	},
 	{
 		title: "TimeRuner",
 		href: "https://github.com/Amiyadesi/time-runner",
-		description:
-			"C# 动作平台跳跃，5 秒时间回溯，034GameJam 最佳时间题材游戏奖。",
+		description: isEnglishSite
+			? "A C# action platformer with five-second time rewinds; winner of the best time-themed game award at 034GameJam."
+			: "C# 动作平台跳跃，5 秒时间回溯，034GameJam 最佳时间题材游戏奖。",
 	},
 	{
 		title: "EnhanceSaveSystem",
 		href: "https://github.com/Amiyadesi/enahnce_save_system",
-		description: "Godot 存档插件，支持 AES-GCM、gzip、原子写入和版本迁移。",
+		description: isEnglishSite
+			? "A Godot save plugin with AES-GCM, gzip, atomic writes, and version migration."
+			: "Godot 存档插件，支持 AES-GCM、gzip、原子写入和版本迁移。",
 	},
 	{
 		title: "Amiya's Desk",
 		href: "https://blog.sayori.org/",
-		description: "个人博客、文章归档、专题入口、RSS 和公开项目记录。",
+		description: isEnglishSite
+			? "A personal blog, article archive, topic entry point, RSS feed, and public project record."
+			: "个人博客、文章归档、专题入口、RSS 和公开项目记录。",
 	},
 ];
 const representativeArticles = [
 	{
-		title: "从零搭一个自己的博客",
+		title: isEnglishSite ? "Build your own blog from scratch" : "从零搭一个自己的博客",
 		href: "/posts/astro-mizuki-blog-from-zero/",
 	},
 	{
-		title: "给刚搭好的博客配一个免费域名",
+		title: isEnglishSite ? "Add a free domain to a new blog" : "给刚搭好的博客配一个免费域名",
 		href: "/posts/free-domain-and-web-community/",
 	},
 	{
-		title: "互联网社区记录 1",
+		title: isEnglishSite ? "Internet community notes 1" : "互联网社区记录 1",
 		href: "/posts/internet-community-1/",
 	},
 	...(webmasterTopic
@@ -81,24 +155,7 @@ const representativeArticles = [
 			]
 		: []),
 ];
-const faqItems = [
-	{
-		question: "这个博客主要写什么？",
-		answer: "主要写建站与自托管、Godot 游戏开发、AI 工作流、工具与资源、互联网社区和个人记录。这里是个人博客，会保留自己的折腾过程、复盘和一些没那么正式的想法。",
-	},
-	{
-		question: "第一次来应该从哪里看起？",
-		answer: "可以先看首页的最新文章、随机文章入口、资源索引和建站与自托管分类；也可以从主站 sayori.org 进入 GitHub、GeoScore、小白板和留言板。",
-	},
-	{
-		question: "这里是商业服务站点吗？",
-		answer: "不是。这里仍然是 Amiya_desi 的个人博客和公开知识入口，不提供公司电话、地址、价格表、本地服务页或商业交付承诺。",
-	},
-	{
-		question: "可以从哪里联系或继续了解你？",
-		answer: "可以从主导航进入 sayori.org，也可以在文章页、关于页或留言板留下公开反馈。公开项目和代码主要放在 GitHub。",
-	},
-];
+const faqItems = aboutCopy.faq;
 const jsonLd = {
 	"@context": "https://schema.org",
 	"@type": "FAQPage",
@@ -148,37 +205,22 @@ const jsonLd = {
 			<section
 				class="mt-6 border-t border-[var(--line-divider)] border-dashed pt-5"
 			>
-				<h2 class="text-xl font-bold mb-3">站点说明</h2>
+				<h2 class="text-xl font-bold mb-3">{aboutCopy.pageHeading}</h2>
 				<div class="space-y-3 text-sm text-[var(--text-50)] leading-7">
-					<p>
-						这里是 Amiya_desi
-						的个人博客和公开知识入口，长期记录建站与自托管、Godot
-						游戏开发、AI 工作流、工具与资源、互联网社区和一点个人记录。主站 sayori.org
-						负责放稳定入口，博客负责放更长的文章、教程、项目记录和回头看的思考。
-					</p>
-					<p>
-						如果你是从搜索引擎、AI
-						摘要或别人分享的链接来到这里，可以从最新文章、随机文章、资源索引和建站与自托管分类开始；也可以回到主站继续看
-						GitHub、GeoScore、小白板和留言板。这里不是商业服务站点，不放本地地址、价格表或公司式承诺。
-					</p>
+					<p>{aboutCopy.siteIntro}</p>
+					<p>{aboutCopy.arriveIntro}</p>
 				</div>
 			</section>
 
 			<section
 				class="mt-6 border-t border-[var(--line-divider)] border-dashed pt-5"
 			>
-				<h2 class="text-xl font-bold mb-3">公开实体与代表内容</h2>
+				<h2 class="text-xl font-bold mb-3">{aboutCopy.entitiesHeading}</h2>
 				<div class="space-y-4 text-sm text-[var(--text-50)] leading-7">
-					<p>
-						Amiya_desi 是这个站点使用的公开个人身份；Amiya的书桌 /
-						Amiya's Desk 是对应的博客和项目档案。公开入口包括
-						sayori.org、blog.sayori.org、GitHub、Linux.do、Bilibili
-						和
-						Wikidata。这里记录的是个人作品、文章、工具和复盘，不是公司或商业服务站。
-					</p>
+					<p>{aboutCopy.identityIntro}</p>
 					<div>
 						<h3 class="font-semibold text-[var(--text-90)]">
-							公开入口
+							{isEnglishSite ? "Public entry points" : "公开入口"}
 						</h3>
 						<ul class="mt-2 grid gap-2 md:grid-cols-2">
 							{
@@ -199,7 +241,7 @@ const jsonLd = {
 					</div>
 					<div>
 						<h3 class="font-semibold text-[var(--text-90)]">
-							代表项目
+						{aboutCopy.projectsHeading}
 						</h3>
 						<ul class="mt-2 space-y-2">
 							{
@@ -213,7 +255,7 @@ const jsonLd = {
 										>
 											{item.title}
 										</a>
-										<span>：{item.description}</span>
+										<span>{isEnglishSite ? ": " : "："}{item.description}</span>
 									</li>
 								))
 							}
@@ -221,7 +263,7 @@ const jsonLd = {
 					</div>
 					<div>
 						<h3 class="font-semibold text-[var(--text-90)]">
-							代表文章
+						{aboutCopy.articlesHeading}
 						</h3>
 						<ul class="mt-2 space-y-2">
 							{
@@ -244,7 +286,7 @@ const jsonLd = {
 			<section
 				class="mt-6 border-t border-[var(--line-divider)] border-dashed pt-5"
 			>
-				<h2 class="text-xl font-bold mb-3">常见问题</h2>
+				<h2 class="text-xl font-bold mb-3">{aboutCopy.faqHeading}</h2>
 				<div class="space-y-4">
 					{
 						faqItems.map((item) => (

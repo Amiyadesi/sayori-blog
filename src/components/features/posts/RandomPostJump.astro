@@ -2,6 +2,7 @@
 import { Icon } from "astro-icon/components";
 
 import { getSortedPostsList, isHomeListPost } from "@/utils/content-utils";
+import { isEnglishSite } from "@/utils/site-locale";
 
 const allPosts = await getSortedPostsList();
 const publicPosts = allPosts.filter(
@@ -24,10 +25,12 @@ const candidates = (articlePosts.length > 0 ? articlePosts : publicPosts)
 							name="material-symbols:shuffle-rounded"
 							class="text-xl"
 						/>
-						<span>随机翻一页</span>
+						<span>{isEnglishSite ? "Open a random page" : "随机翻一页"}</span>
 					</div>
 					<p class="mt-1 text-sm text-75">
-						不知道先看哪篇的话，让书桌随手递一张纸条过来。
+						{isEnglishSite
+							? "Not sure where to start? Let the desk hand you a note."
+							: "不知道先看哪篇的话，让书桌随手递一张纸条过来。"}
 					</p>
 				</div>
 
@@ -41,7 +44,7 @@ const candidates = (articlePosts.length > 0 ? articlePosts : publicPosts)
 						name="material-symbols:shuffle-rounded"
 						class="mr-2 text-xl transition group-hover:rotate-12"
 					/>
-					<span>随机文章</span>
+					<span>{isEnglishSite ? "Random article" : "随机文章"}</span>
 				</button>
 			</div>
 		</section>

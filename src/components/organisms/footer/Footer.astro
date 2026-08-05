@@ -3,11 +3,72 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 import { footerConfig, profileConfig } from "../../../config";
-import { getTopicUrl, topics } from "../../../data/topics";
+import LanguageSwitch from "../../control/LanguageSwitch.astro";
+import { getLocalizedTopic, getTopicUrl, topics } from "../../../data/topics";
 import { url } from "../../../utils/url-utils";
+import { isEnglishSite } from "../../../utils/site-locale";
 
 const currentYear = new Date().getFullYear();
-const webmasterTopic = topics.find((topic) => topic.slug === "webmaster");
+const webmasterTopicSource = topics.find((topic) => topic.slug === "webmaster");
+const webmasterTopic = webmasterTopicSource
+	? getLocalizedTopic(webmasterTopicSource, isEnglishSite)
+	: undefined;
+const registrationLinks = [
+	{
+		label: isEnglishSite ? "Moe ICP filing" : "萌ICP备20260605号",
+		href: "https://icp.gov.moe/?keyword=20260605",
+	},
+	{
+		label: isEnglishSite ? "Tea ICP filing" : "茶ICP备2026070378号",
+		href: "https://icp.redcha.cn/beian/ICP-2026070378.html",
+	},
+];
+const blogNetworkLinks = [
+	{
+		label: isEnglishSite ? "Travellings" : "开往 Travellings",
+		href: "https://www.travellings.cn/go.html",
+	},
+	{
+		label: isEnglishSite ? "Moe ICP" : "萌备",
+		href: "https://icp.gov.moe/",
+	},
+	{
+		label: isEnglishSite ? "Forever Blog" : "十年之约",
+		href: "https://www.foreverblog.cn/",
+	},
+	{
+		label: isEnglishSite ? "JiuChan" : "揪蝉",
+		href: "https://hi.jiuchan.org/docs",
+	},
+	{
+		label: isEnglishSite ? "Chinese Independent Blogs" : "中文独立博客列表",
+		href: "https://github.com/timqian/chinese-independent-blogs",
+	},
+	{
+		label: "BlogFinder",
+		href: "https://bf.zzxworld.com/",
+	},
+	{
+		label: isEnglishSite ? "Blog Friends Circle" : "博友圈",
+		href: "https://www.boyouquan.com/",
+	},
+	{
+		label: isEnglishSite ? "Firewood" : "积薪",
+		href: "https://firewood.news/",
+	},
+	{
+		label: isEnglishSite ? "BlogsClub Shuttle" : "BlogsClub 空间穿梭",
+		href: "https://www.blogsclub.org/shuttle.html",
+	},
+	{
+		label: isEnglishSite ? "Blogscn sponsorship" : "笔墨迹招商",
+		href: "https://blogscn.fun/pages/zhaoshang",
+	},
+	{
+		label: isEnglishSite ? "Blog Alliance" : "博客大联盟",
+		href: "https://bo.ke/",
+	},
+];
 
 // 页脚自定义内容逻辑
 let customFooterHtml = "";
@@ -47,7 +108,47 @@ if (footerConfig.enable) {
 	class="transition border-dashed border-[var(--line-color)] rounded-2xl mb-12 flex flex-col items-center justify-center px-6"
 >
 	<div class="transition text-50 text-sm text-center">
-		{customFooterHtml && <div class="mb-2" set:html={customFooterHtml} />}
+		{isEnglishSite ? (
+			<div class="mb-2 inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+				{registrationLinks.map((item, index) => (
+					<>
+						{index > 0 && <span aria-hidden="true">/</span>}
+						<a
+							class="transition link text-[var(--primary)] font-medium"
+							href={item.href}
+							target="_blank"
+							rel="noopener noreferrer"
+						>
+							{item.label}
+						</a>
+					</>
+				))}
+			</div>
+		) : (
+			customFooterHtml && <div class="mb-2" set:html={customFooterHtml} />
+		)}
+
+		<div
+			class="mb-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1"
+			aria-label={isEnglishSite ? "Blog networks and directories" : "博客圈与目录"}
+		>
+			<span class="font-medium text-[var(--text-70)]">
+				{isEnglishSite ? "Blog networks & directories" : "博客圈与目录"}
+			</span>
+			{blogNetworkLinks.map((item) => (
+				<>
+					<span aria-hidden="true">/</span>
+					<a
+						class="transition link text-[var(--primary)] font-medium"
+						href={item.href}
+						target="_blank"
+						rel="noopener noreferrer"
+					>
+						{item.label}
+					</a>
+				</>
+			))}
+		</div>
 
 		<div class="mb-2">
 			&copy; <span id="copyright-year">{currentYear}</span>
@@ -69,6 +170,7 @@ if (footerConfig.enable) {
 				target="_blank"
 				href={url("sitemap-index.xml")}>Sitemap</a
 			>
+			 / <LanguageSwitch />
 			{
 				webmasterTopic && (
 					<>

@@ -81,23 +81,46 @@ const className = Astro.props.class;
 			isMuted?: boolean;
 		},
 	) {
+		const isEnglish = document.documentElement.lang
+			.toLowerCase()
+			.startsWith("en");
 		card.dataset.state = state;
 		card.classList.toggle("is-loading", state === "loading");
 		card.classList.toggle("is-playing", state === "playing");
 		card.classList.toggle("is-muted", Boolean(playback?.isMuted));
-		const playLabel = card.querySelector<HTMLElement>(".music-track-play-label");
-		const playIcon = card.querySelector<HTMLElement>(".music-track-play-icon");
+		const playLabel = card.querySelector<HTMLElement>(
+			".music-track-play-label",
+		);
+		const playIcon = card.querySelector<HTMLElement>(
+			".music-track-play-icon",
+		);
 		if (playLabel) {
 			playLabel.textContent =
-				state === "playing" ? "播放中" : state === "loading" ? "加载" : "播放";
+				state === "playing"
+					? isEnglish
+						? "Playing"
+						: "播放中"
+					: state === "loading"
+						? isEnglish
+							? "Loading"
+							: "加载"
+						: isEnglish
+							? "Play"
+							: "播放";
 		}
 		if (playIcon) {
 			playIcon.textContent = state === "playing" ? "Ⅱ" : "▶";
 		}
 
-		const currentTime = card.querySelector<HTMLElement>("[data-music-track-time]");
-		const duration = card.querySelector<HTMLElement>("[data-music-track-duration]");
-		const progress = card.querySelector<HTMLElement>("[data-music-track-progress]");
+		const currentTime = card.querySelector<HTMLElement>(
+			"[data-music-track-time]",
+		);
+		const duration = card.querySelector<HTMLElement>(
+			"[data-music-track-duration]",
+		);
+		const progress = card.querySelector<HTMLElement>(
+			"[data-music-track-progress]",
+		);
 		if (currentTime) {
 			currentTime.textContent = formatMusicTime(playback?.currentTime);
 		}
@@ -110,7 +133,13 @@ const className = Astro.props.class;
 		if (progress) {
 			const ratio =
 				playback?.duration && playback.duration > 0
-					? Math.max(0, Math.min(1, (playback.currentTime || 0) / playback.duration))
+					? Math.max(
+							0,
+							Math.min(
+								1,
+								(playback.currentTime || 0) / playback.duration,
+							),
+						)
 					: state === "playing"
 						? 0.18
 						: 0;
@@ -121,16 +150,28 @@ const className = Astro.props.class;
 			"[data-music-track-volume-fill]",
 		);
 		if (volumeFill) {
-			const volume = playback?.isMuted ? 0 : playback?.volume ?? 0.7;
+			const volume = playback?.isMuted ? 0 : (playback?.volume ?? 0.7);
 			volumeFill.style.inlineSize = `${Math.round(Math.max(0, Math.min(1, volume)) * 100)}%`;
 		}
 
-		const statusElement = card.querySelector<HTMLElement>("[data-music-track-status]");
+		const statusElement = card.querySelector<HTMLElement>(
+			"[data-music-track-status]",
+		);
 		if (!statusElement) {
 			return;
 		}
 		statusElement.textContent =
-			state === "playing" ? "播放中" : state === "loading" ? "加载中" : "待播放";
+			state === "playing"
+				? isEnglish
+					? "Playing"
+					: "播放中"
+				: state === "loading"
+					? isEnglish
+						? "Loading"
+						: "加载中"
+					: isEnglish
+						? "Ready"
+						: "待播放";
 	}
 
 	async function syncMusicTrackCards() {
@@ -143,7 +184,9 @@ const className = Astro.props.class;
 		const module = await import("@/stores/musicPlayerStore");
 		const state = module.musicPlayerStore.getState();
 		for (const card of cards) {
-			const isCurrent = module.musicPlayerStore.isCurrentTrack(getCardTrack(card));
+			const isCurrent = module.musicPlayerStore.isCurrentTrack(
+				getCardTrack(card),
+			);
 			const nextState = isCurrent
 				? state.isLoading
 					? "loading"
@@ -199,17 +242,26 @@ const className = Astro.props.class;
 		});
 	}
 
-	async function setMusicTrackVolumeFromEvent(event: MouseEvent, slider: HTMLElement) {
+	async function setMusicTrackVolumeFromEvent(
+		event: MouseEvent,
+		slider: HTMLElement,
+	) {
 		const module = await import("@/stores/musicPlayerStore");
 		const rect = slider.getBoundingClientRect();
 		if (rect.width <= 0) {
 			return;
 		}
-		const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+		const ratio = Math.max(
+			0,
+			Math.min(1, (event.clientX - rect.left) / rect.width),
+		);
 		module.musicPlayerStore.setVolume(ratio);
 	}
 
-	async function setMusicTrackProgressFromEvent(event: MouseEvent, slider: HTMLElement) {
+	async function setMusicTrackProgressFromEvent(
+		event: MouseEvent,
+		slider: HTMLElement,
+	) {
 		const module = await import("@/stores/musicPlayerStore");
 		const state = module.musicPlayerStore.getState();
 		if (!state.duration || state.duration <= 0) {
@@ -219,7 +271,10 @@ const className = Astro.props.class;
 		if (rect.width <= 0) {
 			return;
 		}
-		const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+		const ratio = Math.max(
+			0,
+			Math.min(1, (event.clientX - rect.left) / rect.width),
+		);
 		module.musicPlayerStore.setProgress(ratio);
 	}
 
@@ -237,7 +292,9 @@ const className = Astro.props.class;
 				}
 				code = lines.join("\n");
 			} else {
-				const codeElements = codeEle.querySelectorAll(".code:not(summary *)");
+				const codeElements = codeEle.querySelectorAll(
+					".code:not(summary *)",
+				);
 				if (codeElements.length > 0) {
 					const lines: string[] = [];
 					for (let i = 0; i < codeElements.length; i++) {
@@ -269,8 +326,12 @@ const className = Astro.props.class;
 	}
 
 	function localizeCopyButtons() {
-		const messages = getCopyFeedbackMessages(document.documentElement.lang || "en");
-		for (const button of document.querySelectorAll<HTMLButtonElement>(".copy-btn")) {
+		const messages = getCopyFeedbackMessages(
+			document.documentElement.lang || "en",
+		);
+		for (const button of document.querySelectorAll<HTMLButtonElement>(
+			".copy-btn",
+		)) {
 			if (button.getAttribute("aria-busy") === "true") continue;
 			button.setAttribute("aria-label", messages.action);
 			button.title = messages.action;
@@ -310,7 +371,9 @@ const className = Astro.props.class;
 			return;
 		}
 
-		const musicButton = target?.closest<HTMLElement>("[data-music-track-play]");
+		const musicButton = target?.closest<HTMLElement>(
+			"[data-music-track-play]",
+		);
 		if (musicButton) {
 			e.preventDefault();
 			handleMusicTrackPlay(musicButton).catch((error) => {
@@ -359,14 +422,17 @@ const className = Astro.props.class;
 			e.preventDefault();
 			if (copyButton.getAttribute("aria-busy") === "true") return;
 
-			const messages = getCopyFeedbackMessages(document.documentElement.lang || "en");
+			const messages = getCopyFeedbackMessages(
+				document.documentElement.lang || "en",
+			);
 			const code = extractCode(copyButton);
 			copyButton.setAttribute("aria-busy", "true");
 			copyButton.setAttribute("aria-label", messages.working);
 			copyButton.title = messages.working;
 			copyTextWithFeedback(code)
 				.then(() => {
-					const timeoutId = copyButton.getAttribute("data-timeout-id");
+					const timeoutId =
+						copyButton.getAttribute("data-timeout-id");
 					if (timeoutId) {
 						clearTimeout(parseInt(timeoutId));
 					}
@@ -379,7 +445,10 @@ const className = Astro.props.class;
 						copyButton.setAttribute("aria-label", messages.action);
 						copyButton.title = messages.action;
 					}, 1600);
-					copyButton.setAttribute("data-timeout-id", newTimeoutId.toString());
+					copyButton.setAttribute(
+						"data-timeout-id",
+						newTimeoutId.toString(),
+					);
 				})
 				.catch((err) => {
 					console.error("复制失败:", err);

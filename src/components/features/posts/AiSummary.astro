@@ -1,5 +1,6 @@
 ---
 import { Icon } from "astro-icon/components";
+import { isEnglishSite } from "../../../utils/site-locale";
 
 type AiSummaryData = {
 	generatedAt?: string;
@@ -31,9 +32,9 @@ const hasStaticSummary = staticItems.length > 0;
 					<span class="ai-summary-icon" aria-hidden="true">
 						<Icon name="material-symbols:auto-awesome-rounded" />
 					</span>
-					<span>文章速览</span>
+					<span>{isEnglishSite ? "Article at a glance" : "文章速览"}</span>
 				</span>
-				<span class="ai-summary-note">快速扫读</span>
+				<span class="ai-summary-note">{isEnglishSite ? "Quick scan" : "快速扫读"}</span>
 			</summary>
 			<ul class="ai-summary-list">
 				{staticItems.map((item) => <li>{item}</li>)}

@@ -3,6 +3,7 @@ import { Icon } from "astro-icon/components";
 
 import I18nKey from "../../../i18n/i18nKey";
 import { i18n } from "../../../i18n/translation";
+import { isEnglishSite } from "../../../utils/site-locale";
 
 interface Props {
 	id: string;
@@ -41,8 +42,10 @@ const widgetShellClass = [
 					type="button"
 					class="widget-tear-trigger absolute right-1 top-1/2"
 					data-paper-tear-trigger
-					aria-label="撕掉这张纸条"
-					title="撕掉这张纸条"
+					aria-label={
+						isEnglishSite ? "Remove this note" : "撕掉这张纸条"
+					}
+					title={isEnglishSite ? "Remove this note" : "撕掉这张纸条"}
 				>
 					<Icon
 						name="material-symbols:content-cut-rounded"

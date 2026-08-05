@@ -16,6 +16,8 @@ const articlesRoot = configuredContentDir
 	: path.join(localReposRoot, "sayori-articles");
 const repoRoot = articlesRoot;
 const contentPathspec = ".";
+const SITE_LANG = String(process.env.SITE_LANG || "zh_CN").toLowerCase();
+const IS_ENGLISH_BUILD = SITE_LANG.startsWith("en");
 const BLOG_MEDIA_BASE_URL = String(process.env.BLOG_MEDIA_BASE_URL || "")
 	.trim()
 	.replace(/\/+$/, "");
@@ -155,7 +157,7 @@ const specDest = path.join(blogRoot, "src", "content", "spec");
 if (fs.existsSync(specSrc)) {
 	fs.rmSync(specDest, { recursive: true, force: true });
 	fs.mkdirSync(specDest, { recursive: true });
-	copyDirectory(specSrc, specDest, { transformMarkdown: true, slug: null });
+	syncLocalizedDirectory(specSrc, specDest);
 	console.log(`[sync-content] spec: articles/spec -> blog/src/content/spec`);
 }
 
@@ -213,10 +215,12 @@ function syncPosts(srcDir, destDir, segments) {
 		}
 
 		if (/\.(md|mdx)$/i.test(entry.name)) {
-			const slug = [...segments, entry.name.replace(/\.(md|mdx)$/i, "")].join("/");
+			if (!shouldSyncLocalizedFile(sourcePath, entry.name, srcDir)) continue;
+			const outputName = stripLocaleSuffix(entry.name);
+			const slug = [...segments, outputName.replace(/\.(md|mdx)$/i, "")].join("/");
 			const original = fs.readFileSync(sourcePath, "utf8");
 			const transformed = transformMarkdown(original, sourcePath, slug);
-			fs.writeFileSync(path.join(destDir, entry.name), transformed);
+			fs.writeFileSync(path.join(destDir, outputName), transformed);
 		}
 	}
 }
@@ -225,7 +229,7 @@ function isPostFolder(dirPath, dirName) {
 	const entries = fs.readdirSync(dirPath);
 	return entries.some(
 		(e) => /\.(md|mdx)$/i.test(e) && (
-			e.replace(/\.(md|mdx)$/i, "").toLowerCase() === dirName.toLowerCase() ||
+			stripLocaleStem(e.replace(/\.(md|mdx)$/i, "")).toLowerCase() === dirName.toLowerCase() ||
 			e.toLowerCase() === "index.md" || e.toLowerCase() === "index.mdx"
 		),
 	);
@@ -257,13 +261,15 @@ function syncPostFolder(srcDir, destDir, segments) {
 		}
 
 		if (/\.(md|mdx)$/i.test(entry.name)) {
+			if (!shouldSyncLocalizedFile(sourcePath, entry.name, srcDir)) continue;
 			const baseName = entry.name.replace(/\.(md|mdx)$/i, "").toLowerCase();
-			if (baseName === dirName.toLowerCase() || baseName === "index") {
+			const normalizedBaseName = stripLocaleStem(baseName);
+			if (normalizedBaseName === dirName.toLowerCase() || normalizedBaseName === "index") {
 				mainMd = sourcePath;
 			} else {
 				// Additional markdown files in the folder — copy as-is
 				const content = fs.readFileSync(sourcePath, "utf8");
-				fs.writeFileSync(path.join(postDestDir, entry.name), transformMarkdown(content, sourcePath, slug));
+				fs.writeFileSync(path.join(postDestDir, stripLocaleSuffix(entry.name)), transformMarkdown(content, sourcePath, slug));
 			}
 		} else if (MEDIA_EXTS.has(path.extname(entry.name).toLowerCase())) {
 			assets.push(entry.name);
@@ -303,11 +309,31 @@ function syncEssays(srcDir, destDir) {
 			continue;
 		}
 
-		const slug = entry.name.replace(/\.(md|mdx)$/i, "");
+		if (!shouldSyncLocalizedFile(sourcePath, entry.name, srcDir)) continue;
+		const outputName = stripLocaleSuffix(entry.name);
+		const slug = outputName.replace(/\.(md|mdx)$/i, "");
 		const original = fs.readFileSync(sourcePath, "utf8");
 		const transformed = transformMarkdown(original, sourcePath, slug);
-		fs.writeFileSync(path.join(destDir, entry.name), transformed);
+		fs.writeFileSync(path.join(destDir, outputName), transformed);
 	}
+}
+
+function stripLocaleSuffix(filename) {
+	return String(filename).replace(/\.en(?=\.(?:md|mdx|json)$)/i, "");
+}
+
+function stripLocaleStem(value) {
+	return String(value).replace(/\.en$/i, "");
+}
+
+function shouldSyncLocalizedFile(filePath, filename, parentDir) {
+	const isEnglishVariant = /\.en\.(?:md|mdx)$/i.test(filename);
+	if (IS_ENGLISH_BUILD) {
+		if (isEnglishVariant) return true;
+		const variantPath = path.join(parentDir, filename.replace(/\.(md|mdx)$/i, ".en.$1"));
+		return !fs.existsSync(variantPath);
+	}
+	return !isEnglishVariant;
 }
 
 // ─── Markdown transformation ──────────────────────────────────────────────────
@@ -1135,6 +1161,30 @@ function copyDirectory(src, dest, options) {
 	}
 }
 
+function syncLocalizedDirectory(src, dest) {
+	for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+		const sourcePath = path.join(src, entry.name);
+		if (entry.isDirectory()) {
+			const targetPath = path.join(dest, entry.name);
+			fs.mkdirSync(targetPath, { recursive: true });
+			syncLocalizedDirectory(sourcePath, targetPath);
+			continue;
+		}
+		if (/\.(md|mdx)$/i.test(entry.name)) {
+			if (!shouldSyncLocalizedFile(sourcePath, entry.name, path.dirname(sourcePath))) {
+				continue;
+			}
+			const original = fs.readFileSync(sourcePath, "utf8");
+			fs.writeFileSync(
+				path.join(dest, stripLocaleSuffix(entry.name)),
+				transformMarkdown(original, sourcePath, null),
+			);
+			continue;
+		}
+		fs.copyFileSync(sourcePath, path.join(dest, entry.name));
+	}
+}
+
 function loadBlogMediaManifest() {
 	if (!BLOG_MEDIA_BASE_URL) return null;
 	if (!fs.existsSync(BLOG_MEDIA_MANIFEST_PATH)) {
@@ -1276,7 +1326,7 @@ function syncSiteContent() {
 	fs.mkdirSync(SITE_CONTENT_DEST, { recursive: true });
 
 	for (const filename of ["sponsor.md"]) {
-		const sourcePath = path.join(SITE_CONFIG_SRC, filename);
+		const sourcePath = resolveLocalizedSource(SITE_CONFIG_SRC, filename);
 		if (!fs.existsSync(sourcePath)) {
 			continue;
 		}
@@ -1295,6 +1345,10 @@ function syncFriendsData() {
 	if (fs.existsSync(FRIENDS_SRC)) {
 		for (const filePath of walk(FRIENDS_SRC)) {
 			if (!/\.(md|mdx)$/i.test(filePath)) {
+				continue;
+			}
+			const filename = path.basename(filePath);
+			if (!shouldSyncLocalizedFile(filePath, filename, path.dirname(filePath))) {
 				continue;
 			}
 
@@ -1408,6 +1462,9 @@ function syncAnimeData() {
 					continue;
 				}
 				const sourcePath = path.join(dir, entry.name);
+				if (!shouldSyncLocalizedFile(sourcePath, entry.name, dir)) {
+					continue;
+				}
 				const content = fs.readFileSync(sourcePath, "utf8");
 				const frontmatter = parseFrontmatter(content);
 				if (!frontmatter.title) {
@@ -1925,7 +1982,7 @@ function normalizeFriendFeedUrl(value, siteurl) {
 }
 
 function readJson(filename, fallback) {
-	const filePath = path.join(SITE_CONFIG_SRC, filename);
+	const filePath = resolveLocalizedSource(SITE_CONFIG_SRC, filename);
 	if (!fs.existsSync(filePath)) {
 		return fallback;
 	}
@@ -1935,6 +1992,14 @@ function readJson(filename, fallback) {
 		warnings.push(`${path.relative(repoRoot, filePath)}: JSON 解析失败：${error.message}`);
 		return fallback;
 	}
+}
+
+function resolveLocalizedSource(directory, filename) {
+	if (IS_ENGLISH_BUILD) {
+		const localized = path.join(directory, filename.replace(/\.(json|md|mdx)$/i, ".en.$1"));
+		if (fs.existsSync(localized)) return localized;
+	}
+	return path.join(directory, filename);
 }
 
 function normalizeProfileConfig(profile) {

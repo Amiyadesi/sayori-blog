@@ -1,6 +1,7 @@
 ---
 import I18nKey from "../../../i18n/i18nKey";
 import { i18n } from "../../../i18n/translation";
+import { isEnglishSite } from "../../../utils/site-locale";
 
 interface Props {
 	friend: {
@@ -57,8 +58,9 @@ const hasScreenshot = Boolean(friend.screenshotUrl);
 		type="button"
 		class="friend-tear-trigger"
 		data-paper-tear-trigger
-		aria-label="撕掉这张卡片"
-	>×</button>
+		aria-label={isEnglishSite ? "Remove this card" : "撕掉这张卡片"}
+		>×</button
+	>
 	<div class="relative z-10 p-5">
 		<!-- 头像和标题区 -->
 		<div class="flex items-start gap-4 mb-4">
@@ -176,7 +178,10 @@ const hasScreenshot = Boolean(friend.screenshotUrl);
 		cursor: pointer;
 		padding: 0.1rem 0.25rem;
 		opacity: 0;
-		transition: opacity 160ms ease, color 160ms ease, transform 160ms ease;
+		transition:
+			opacity 160ms ease,
+			color 160ms ease,
+			transform 160ms ease;
 	}
 
 	.friend-card:hover .friend-tear-trigger {
@@ -194,12 +199,24 @@ const hasScreenshot = Boolean(friend.screenshotUrl);
 		padding-top: 1.2rem;
 	}
 
-	.friend-card:nth-child(6n+1) { transform: rotate(-1deg); }
-	.friend-card:nth-child(6n+2) { transform: rotate(0.7deg); }
-	.friend-card:nth-child(6n+3) { transform: rotate(-0.4deg); }
-	.friend-card:nth-child(6n+4) { transform: rotate(1.2deg); }
-	.friend-card:nth-child(6n+5) { transform: rotate(-0.6deg); }
-	.friend-card:nth-child(6n+6) { transform: rotate(0.9deg); }
+	.friend-card:nth-child(6n + 1) {
+		transform: rotate(-1deg);
+	}
+	.friend-card:nth-child(6n + 2) {
+		transform: rotate(0.7deg);
+	}
+	.friend-card:nth-child(6n + 3) {
+		transform: rotate(-0.4deg);
+	}
+	.friend-card:nth-child(6n + 4) {
+		transform: rotate(1.2deg);
+	}
+	.friend-card:nth-child(6n + 5) {
+		transform: rotate(-0.6deg);
+	}
+	.friend-card:nth-child(6n + 6) {
+		transform: rotate(0.9deg);
+	}
 
 	.friend-card:hover {
 		transform: rotate(0deg) translateY(-4px) !important;

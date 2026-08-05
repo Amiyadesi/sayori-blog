@@ -15,6 +15,7 @@ import {
 import { formatDateToYYYYMMDD } from "../utils/date-utils";
 import { getPostPublicDescription } from "../utils/post-card-content";
 import { getPostUrl, getPostUrlBySlug } from "../utils/url-utils";
+import { isEnglishSite } from "../utils/site-locale";
 
 if (!siteConfig.featurePages.timeline) {
 	return Astro.redirect("/404/");
@@ -111,13 +112,13 @@ const filterTabs = [
 	},
 	{
 		value: "article",
-		label: "文章",
+		label: isEnglishSite ? "Articles" : "文章",
 		icon: "material-symbols:article",
 		count: timelinePosts.filter((post) => post.kind === "article").length,
 	},
 	{
 		value: "diary",
-		label: "日记",
+		label: isEnglishSite ? "Diary" : "日记",
 		icon: "material-symbols:edit-note",
 		count: timelinePosts.filter((post) =>
 			post.filterKinds.includes("diary"),
@@ -126,7 +127,7 @@ const filterTabs = [
 ];
 
 const formatDayTitle = (date: Date) =>
-	date.toLocaleDateString("zh-CN", {
+	date.toLocaleDateString(isEnglishSite ? "en-US" : "zh-CN", {
 		year: "numeric",
 		month: "long",
 		day: "numeric",
@@ -139,7 +140,16 @@ const getKindIcon = (kind: TimelinePostKind) =>
 		: "material-symbols:article";
 
 const title = i18n(I18nKey.timeline);
-const subtitle = "按发布时间整理文章和日记，每一天都能回到当时写下的那张纸。";
+const subtitle = isEnglishSite
+	? "Articles and diary entries arranged by publication date, so each day leads back to what was written then."
+	: "按发布时间整理文章和日记，每一天都能回到当时写下的那张纸。";
+const formatCount = (count: number, kind: "article" | "diary") => {
+	if (isEnglishSite) {
+		const label = kind === "article" ? "article" : "diary entry";
+		return `${count} ${count === 1 ? label : `${label}s`}`;
+	}
+	return `${count} 篇${kind === "article" ? "文章" : "日记"}`;
+};
 ---
 
 <MainGridLayout title={title} description={subtitle}>
@@ -182,13 +192,13 @@ const subtitle = "按发布时间整理文章和日记，每一天都能回到�
 										</p>
 										<p class="timeline-day-count">
 											<span data-day-count>
-												{day.articleCount > 0 &&
-													`${day.articleCount} 篇文章`}
+										{day.articleCount > 0 &&
+											formatCount(day.articleCount, "article")}
 												{day.articleCount > 0 &&
 													day.diaryCount > 0 &&
 													" · "}
-												{day.diaryCount > 0 &&
-													`${day.diaryCount} 篇日记`}
+										{day.diaryCount > 0 &&
+											formatCount(day.diaryCount, "diary")}
 											</span>
 										</p>
 									</div>
@@ -225,8 +235,12 @@ const subtitle = "按发布时间整理文章和日记，每一天都能回到�
 														]}
 													>
 														{entry.kind === "diary"
-															? "日记"
-															: "文章"}
+										? isEnglishSite
+											? "Diary"
+											: "日记"
+										: isEnglishSite
+											? "Article"
+											: "文章"}
 													</span>
 													{entry.category && (
 														<span>
@@ -286,7 +300,7 @@ const subtitle = "按发布时间整理文章和日记，每一天都能回到�
 		</div>
 	</section>
 
-	<script is:inline>
+	<script is:inline define:vars={{ isEnglishSite }}>
 		function initPostTimelineFilter() {
 			const root = document.querySelector("[data-post-timeline]");
 			if (!root || root.dataset.timelineFilterInitialized === "true") {
@@ -324,10 +338,18 @@ const subtitle = "按发布时间整理文章和日记，每一天都能回到�
 					if (dayCount) {
 						const parts = [];
 						if (visibleArticles > 0) {
-							parts.push(`${visibleArticles} 篇文章`);
+							parts.push(
+								isEnglishSite
+									? `${visibleArticles} ${visibleArticles === 1 ? "article" : "articles"}`
+									: `${visibleArticles} 篇文章`,
+							);
 						}
 						if (visibleDiaries > 0) {
-							parts.push(`${visibleDiaries} 篇日记`);
+							parts.push(
+								isEnglishSite
+									? `${visibleDiaries} ${visibleDiaries === 1 ? "diary entry" : "diary entries"}`
+									: `${visibleDiaries} 篇日记`,
+							);
 						}
 						dayCount.textContent = parts.join(" · ");
 					}

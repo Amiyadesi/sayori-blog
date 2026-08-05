@@ -1,17 +1,18 @@
 ---
 import { Icon } from "astro-icon/components";
+import { isEnglishSite } from "../../../utils/site-locale";
 ---
 
 <div id="pwa-install-prompt" class="pwa-install-prompt" hidden>
 	<div class="pwa-install-copy">
-		<strong>把书桌装到设备上</strong>
-		<span>下次可以像打开 App 一样回来。</span>
+		<strong>{isEnglishSite ? "Install the desk on this device" : "把书桌装到设备上"}</strong>
+		<span>{isEnglishSite ? "Come back like opening an app next time." : "下次可以像打开 App 一样回来。"}</span>
 	</div>
 	<div class="pwa-install-actions">
-		<button id="pwa-install-dismiss" type="button">稍后</button>
-		<button id="pwa-install-action" type="button" aria-label="安装站点">
+		<button id="pwa-install-dismiss" type="button">{isEnglishSite ? "Later" : "稍后"}</button>
+		<button id="pwa-install-action" type="button" aria-label={isEnglishSite ? "Install site" : "安装站点"}>
 			<Icon name="material-symbols:install-mobile-rounded" />
-			<span>安装</span>
+			<span>{isEnglishSite ? "Install" : "安装"}</span>
 		</button>
 	</div>
 </div>

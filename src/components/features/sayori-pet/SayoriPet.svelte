@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from "svelte";
+	import { isEnglishSite } from "@/utils/site-locale";
 
 	type PetMode = "open" | "sleeping";
 
@@ -8,22 +9,39 @@
 	const layoutVersion = "8-mobile-left";
 	const spriteStatic = "/assets/pet/sayori-neutral.webp";
 	const spriteAnimated = "/assets/pet/sayori-idle.gif";
-	const lines = [
-		"嘿嘿，我在这里哦。",
-		"慢慢来，今天也不急。",
-		"写不出来就先喝口水。",
-		"我刚刚只是在发呆啦。",
-		"你点我一下，我就醒一点。",
-		"这一页看起来挺温柔的。",
-		"累了也可以先停一下。",
-		"别担心，我会帮你守着书桌。",
-		"今天也把小事写下来吧。",
-		"摸鱼可以，但要记得回来哦。",
-		"我没有睡着，只是在省电。",
-		"这里风很轻，适合慢慢看。",
-		"你来啦，那我也精神一点。",
-		"把难的事拆小一点就好。",
-	];
+	const lines = isEnglishSite
+		? [
+				"Hey, I am here.",
+				"Take it slowly. There is no rush today.",
+				"If the words will not come, have some water first.",
+				"I was only spacing out for a moment.",
+				"Tap me once and I will wake up a little.",
+				"This page feels rather gentle.",
+				"It is okay to pause when you are tired.",
+				"Do not worry. I will keep watch over the desk.",
+				"Write down one small thing today.",
+				"Take a break, then remember to come back.",
+				"I am not asleep. I am saving power.",
+				"The breeze is light here. Take your time.",
+				"You are here. I will be a little more awake too.",
+				"Break the hard thing into smaller pieces.",
+			]
+		: [
+				"嘿嘿，我在这里哦。",
+				"慢慢来，今天也不急。",
+				"写不出来就先喝口水。",
+				"我刚刚只是在发呆啦。",
+				"你点我一下，我就醒一点。",
+				"这一页看起来挺温柔的。",
+				"累了也可以先停一下。",
+				"别担心，我会帮你守着书桌。",
+				"今天也把小事写下来吧。",
+				"摸鱼可以，但要记得回来哦。",
+				"我没有睡着，只是在省电。",
+				"这里风很轻，适合慢慢看。",
+				"你来啦，那我也精神一点。",
+				"把难的事拆小一点就好。",
+			];
 
 	let mode: PetMode = "open";
 	let lineIndex = 0;
@@ -257,7 +275,7 @@
 			<button
 				type="button"
 				class="pet-sleep-btn"
-				aria-label="让 Sayori 休息"
+		aria-label={isEnglishSite ? "Let Sayori rest" : "让 Sayori 休息"}
 				on:click|stopPropagation={sleep}
 			>
 				<svg
@@ -292,7 +310,7 @@
 		type="button"
 		class="sayori-pet-tab"
 		on:click={wake}
-		aria-label="叫醒 Sayori"
+		aria-label={isEnglishSite ? "Wake Sayori" : "叫醒 Sayori"}
 	>
 		<span class="tab-avatar" aria-hidden="true"></span>
 		<span class="tab-zzz" aria-hidden="true">z z z</span>

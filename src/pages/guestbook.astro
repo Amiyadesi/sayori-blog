@@ -2,27 +2,30 @@
 import Comment from "@components/comment/index.astro";
 import { PageHeader } from "@components/features/page-header";
 import MainGridLayout from "@layouts/MainGridLayout.astro";
+import { isEnglishSite } from "../utils/site-locale";
 
 export const prerender = true;
 ---
 
 <MainGridLayout
-	title="留言板"
-	description="给 Amiya 的书桌留一张小纸条。"
+	title={isEnglishSite ? "Guestbook" : "留言板"}
+	description={isEnglishSite ? "Leave a note on Amiya's Desk." : "给 Amiya 的书桌留一张小纸条。"}
 >
 	<div
 		class="flex w-full rounded-[var(--radius-large)] overflow-visible relative min-h-32"
 	>
 		<div class="card-base paper-note paper-note-lined paper-tape guestbook-card z-10 px-9 py-6 relative w-full" style="padding-top: 1.75rem;">
 			<PageHeader
-				title="留言板"
-				subtitle="路过的话，可以在这里塞一张小纸条。"
+				title={isEnglishSite ? "Guestbook" : "留言板"}
+				subtitle={isEnglishSite ? "If you are passing by, leave a small note here." : "路过的话，可以在这里塞一张小纸条。"}
 			/>
 
 			<div class="guestbook-note">
 				<div class="guestbook-note__tape" aria-hidden="true"></div>
 				<p>
-					路过可以留一句话。读后感、建议，或者单纯打个招呼都行。友链申请请走友链页里的邮件入口，审核后才会公开展示。
+					{isEnglishSite
+						? "Leave a thought, a suggestion, or simply say hello. Friend-link requests should use the email entry on the friends page and will be shown publicly only after review."
+						: "路过可以留一句话。读后感、建议，或者单纯打个招呼都行。友链申请请走友链页里的邮件入口，审核后才会公开展示。"}
 				</p>
 			</div>
 		</div>
