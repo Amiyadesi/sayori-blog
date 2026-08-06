@@ -39,8 +39,8 @@ describe("public footer records", () => {
 
 	it("keeps the public blog-network entry points in the footer", () => {
 		for (const href of [
-			"https://www.blogsclub.org/shuttle.html",
-			"https://blogscn.fun/pages/zhaoshang",
+			"https://www.blogsclub.org/",
+			"https://blogscn.fun/",
 			"https://bo.ke/",
 			"https://www.travellings.cn/go.html",
 		]) {

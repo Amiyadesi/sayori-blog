@@ -27,7 +27,7 @@ export const zh_TW: Translation = {
 
 	[Key.comments]: "評論",
 	[Key.friends]: "友鏈",
-	[Key.friendsSubtitle]: "發現更多優秀網站",
+	[Key.friendsSubtitle]: "友鏈、部落格組織與站點目錄",
 	[Key.friendsSearchPlaceholder]: "搜索友鏈名稱或描述...",
 	[Key.friendsFilterAll]: "全部",
 	[Key.friendsNoResults]: "未找到匹配的友鏈",
