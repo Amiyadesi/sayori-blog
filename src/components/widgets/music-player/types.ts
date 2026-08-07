@@ -8,6 +8,7 @@ export interface Song {
 	category?: string;
 	youtube?: string;
 	netease?: string;
+	lyrics?: string;
 }
 
 export type PlayerMode = "local" | "meting";

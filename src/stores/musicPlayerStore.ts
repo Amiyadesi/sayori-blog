@@ -824,6 +824,7 @@ class MusicPlayerStore {
 			category: song.category,
 			youtube: song.youtube,
 			netease: song.netease,
+			lyrics: song.lyrics,
 		};
 		this.loadSong(transientSong, true, options);
 	}

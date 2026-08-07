@@ -67,6 +67,14 @@ jobs:
           restore-keys: |
             blog-media-downloads-
 
+      - name: Restore ChKSz metadata cache
+        uses: actions/cache@v5
+        with:
+          path: .cache/chksz-music
+          key: chksz-music-${{ hashFiles('content/site/music.json') }}
+          restore-keys: |
+            chksz-music-
+
       - name: Record immutable deployment metadata
         shell: bash
         run: |
@@ -101,6 +109,15 @@ jobs:
           BLOG_MEDIA_VERIFY_REMOTE: ${{ github.event_name != 'pull_request' && 'true' || 'false' }}
           BLOG_MEDIA_CF_API_TOKEN: ${{ secrets.BLOG_MEDIA_CF_API_TOKEN }}
         run: pnpm run prepare-media
+
+      - name: Enrich music metadata when ChKSz is configured
+        env:
+          CONTENT_DIR: ./content
+          CHKSZ_API_KEY: ${{ secrets.CHKSZ_API_KEY }}
+          CHKSZ_CACHE_DIR: .cache/chksz-music
+          CHKSZ_MUSIC_WRITE: "true"
+          CHKSZ_MUSIC_MAX_REQUESTS: "20"
+        run: pnpm run enrich-music
 
       - name: Sync public content
         env:

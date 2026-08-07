@@ -2,6 +2,7 @@ node_modules/
 .astro/
 .wrangler/
 dist/
+.codex-tmp/
 .playwright-cli/
 output/
 .cache/blog-media/

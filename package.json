@@ -5,6 +5,7 @@
 	"scripts": {
 		"test": "tsx --test",
 		"prepare-media": "node scripts/prepare-blog-media.mjs",
+		"enrich-music": "node scripts/enrich-music.mjs",
 		"sync-content": "node scripts/sync-content.js",
 		"translate-content": "node scripts/translate-content.mjs",
 		"generate-ai-summaries": "node scripts/generate-ai-summaries.mjs",

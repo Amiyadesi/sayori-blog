@@ -2188,6 +2188,7 @@ function normalizeMusicTracks(music) {
 		category: track.category ?? "",
 		youtube: track.youtube ?? "",
 		netease: track.netease ?? "",
+		lyrics: track.lyrics ? toPublicAssetPath("music", track.lyrics) : "",
 	}));
 }
 
