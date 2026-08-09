@@ -2,7 +2,7 @@ name: Check Sayori Friend Links
 
 on:
   schedule:
-    - cron: "17 1,13 * * *"
+    - cron: "17 1 * * 1,4"
   workflow_dispatch:
     inputs:
       target:
