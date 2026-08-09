@@ -1,0 +1,59 @@
+name: Check Sayori Friend Links
+
+on:
+  schedule:
+    - cron: "17 1,13 * * *"
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Optional friend title or URL to check"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sayori-friend-check
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout blog
+        uses: actions/checkout@v6
+
+      - name: Checkout public content
+        uses: actions/checkout@v6
+        with:
+          repository: Amiyadesi/sayori-articles
+          ref: main
+          path: content
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Check friend links
+        env:
+          CONTENT_DIR: ./content
+          FRIEND_TARGET: ${{ github.event.inputs.target || '' }}
+          FRIEND_CHECK_ATTEMPTS: "2"
+          FRIEND_CHECK_TIMEOUT_MS: "8000"
+        run: node scripts/check-friends.mjs
+
+      - name: Commit changed status
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/data/friend-status.json
+          if git diff --cached --quiet; then
+            echo "No friend status changes."
+            exit 0
+          fi
+          git commit -m "chore: update friend link status"
+          git push origin HEAD:main
