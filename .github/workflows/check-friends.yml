@@ -45,6 +45,7 @@ jobs:
         run: node scripts/check-friends.mjs
 
       - name: Commit changed status
+        id: commit_status
         shell: bash
         run: |
           set -euo pipefail
@@ -53,7 +54,15 @@ jobs:
           git add public/data/friend-status.json
           if git diff --cached --quiet; then
             echo "No friend status changes."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git commit -m "chore: update friend link status"
           git push origin HEAD:main
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy changed status
+        if: steps.commit_status.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run deploy.yml --repo "$GITHUB_REPOSITORY" --ref main
