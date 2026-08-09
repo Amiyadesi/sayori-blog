@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Check Sayori Friend Links"]
+    types: [completed]
 
 concurrency:
   group: sayori-blog-${{ github.ref }}
@@ -27,17 +30,20 @@ env:
 jobs:
   verify:
     name: verify
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
       - name: Require main for production events
-        if: github.event_name != 'pull_request' && github.ref != 'refs/heads/main'
+        if: github.event_name != 'pull_request' && github.event_name != 'workflow_run' && github.ref != 'refs/heads/main'
         run: |
           echo "::error::Production verification and deploy must run from main."
           exit 1
 
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && 'main' || github.sha }}
 
       - name: Checkout public content
         uses: actions/checkout@v6
@@ -78,7 +84,7 @@ jobs:
       - name: Record immutable deployment metadata
         shell: bash
         run: |
-          echo "DEPLOYMENT_CODE_SHA=${GITHUB_SHA}" >> "${GITHUB_ENV}"
+          echo "DEPLOYMENT_CODE_SHA=$(git rev-parse HEAD)" >> "${GITHUB_ENV}"
           echo "DEPLOYMENT_CONTENT_SHA=$(git -C content rev-parse HEAD)" >> "${GITHUB_ENV}"
           echo "DEPLOYMENT_BUILT_AT=$(date -u +'%Y-%m-%dT%H:%M:%S.000Z')" >> "${GITHUB_ENV}"
           echo "DEPLOYMENT_WORKFLOW_RUN=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" >> "${GITHUB_ENV}"
@@ -220,7 +226,7 @@ jobs:
           pnpm dlx "wrangler@${WRANGLER_VERSION}" pages deploy dist
           --project-name sayori-blog
           --branch main
-          --commit-hash "${GITHUB_SHA}"
+          --commit-hash "${DEPLOYMENT_CODE_SHA}"
           --commit-message "Deploy blog.sayori.org from GitHub Actions"
 
       - name: Verify custom domain
