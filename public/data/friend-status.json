@@ -1,32 +1,19 @@
 {
   "version": 1,
-  "checkedAt": "2026-08-09T07:14:46.196Z",
+  "checkedAt": "2026-08-09T07:35:00.377Z",
   "target": null,
   "results": [
-    {
-      "title": "睿朗的小窝",
-      "siteUrl": "https://iamcrl.cn/",
-      "status": "up",
-      "httpStatus": 200,
-      "latencyMs": 884,
-      "attempts": 1,
-      "backlink": {
-        "status": "not_configured"
-      },
-      "checkedAt": "2026-08-09T07:14:35.075Z",
-      "source": "睿朗的小窝.md"
-    },
     {
       "title": "AIOVTUE-雪",
       "siteUrl": "https://daily.yybb.us/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 475,
+      "latencyMs": 397,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-08-09T07:14:35.555Z",
+      "checkedAt": "2026-08-09T07:34:51.761Z",
       "source": "AIOVTUE-雪.md"
     },
     {
@@ -34,12 +21,12 @@
       "siteUrl": "https://www.amisweb.cn/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 601,
+      "latencyMs": 714,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-08-09T07:14:36.157Z",
+      "checkedAt": "2026-08-09T07:34:52.476Z",
       "source": "amisweb.md"
     },
     {
@@ -47,12 +34,12 @@
       "siteUrl": "https://www.caiguoyu.cn/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 87,
+      "latencyMs": 2306,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-08-09T07:14:36.243Z",
+      "checkedAt": "2026-08-09T07:34:54.782Z",
       "source": "caiguoyu.md"
     },
     {
@@ -60,38 +47,38 @@
       "siteUrl": "https://ftz.is-a.dev/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 1167,
+      "latencyMs": 96,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-08-09T07:14:37.411Z",
+      "checkedAt": "2026-08-09T07:34:54.879Z",
       "source": "for-the-zero.md"
     },
     {
       "title": "fqzlr",
       "siteUrl": "https://fqzlr.com/",
-      "status": "network_error",
-      "latencyMs": 353,
+      "status": "up",
+      "httpStatus": 200,
+      "latencyMs": 135,
       "attempts": 1,
-      "error": "fetch failed",
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-08-09T07:14:37.764Z",
+      "checkedAt": "2026-08-09T07:34:55.014Z",
       "source": "fqzlr.md"
     },
     {
       "title": "H2Sxxa",
       "siteUrl": "https://h2sxxa.github.io/",
-      "status": "network_error",
-      "latencyMs": 164,
+      "status": "up",
+      "httpStatus": 200,
+      "latencyMs": 53,
       "attempts": 1,
-      "error": "fetch failed",
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-08-09T07:14:37.928Z",
+      "checkedAt": "2026-08-09T07:34:55.067Z",
       "source": "H2Sxxa.md"
     },
     {
@@ -99,38 +86,38 @@
       "siteUrl": "https://homulilly.com/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 2840,
+      "latencyMs": 704,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-08-09T07:14:40.769Z",
+      "checkedAt": "2026-08-09T07:34:55.772Z",
       "source": "homulilly.md"
     },
     {
       "title": "Jiwac的个人博客",
       "siteUrl": "https://jmk.gv.uy/posts/blog-anniversary",
       "status": "network_error",
-      "latencyMs": 419,
-      "attempts": 1,
+      "latencyMs": 274,
+      "attempts": 2,
       "error": "fetch failed",
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-08-09T07:14:41.188Z",
+      "checkedAt": "2026-08-09T07:34:56.568Z",
       "source": "jiwac.md"
     },
     {
       "title": "墨然",
       "siteUrl": "https://moran.cc.cd/",
-      "status": "network_error",
-      "latencyMs": 1073,
+      "status": "up",
+      "httpStatus": 200,
+      "latencyMs": 338,
       "attempts": 1,
-      "error": "fetch failed",
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-08-09T07:14:42.261Z",
+      "checkedAt": "2026-08-09T07:34:56.907Z",
       "source": "moran.md"
     },
     {
@@ -138,12 +125,12 @@
       "siteUrl": "https://pasule.com/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 2389,
+      "latencyMs": 92,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-08-09T07:14:44.651Z",
+      "checkedAt": "2026-08-09T07:34:57.000Z",
       "source": "Pasule.md"
     },
     {
@@ -151,12 +138,12 @@
       "siteUrl": "https://taoran.weppp.cyou/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 743,
+      "latencyMs": 240,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-08-09T07:14:45.394Z",
+      "checkedAt": "2026-08-09T07:34:57.240Z",
       "source": "taoran.md"
     },
     {
@@ -164,12 +151,12 @@
       "siteUrl": "https://daydreammadman.cn/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 307,
+      "latencyMs": 1267,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-08-09T07:14:45.702Z",
+      "checkedAt": "2026-08-09T07:34:58.508Z",
       "source": "tomoto.md"
     },
     {
@@ -177,13 +164,26 @@
       "siteUrl": "https://upxuu.com/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 490,
+      "latencyMs": 723,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-08-09T07:14:46.196Z",
+      "checkedAt": "2026-08-09T07:34:59.231Z",
       "source": "upxuu.md"
+    },
+    {
+      "title": "睿朗的小窝",
+      "siteUrl": "https://iamcrl.cn/",
+      "status": "up",
+      "httpStatus": 200,
+      "latencyMs": 1145,
+      "attempts": 1,
+      "backlink": {
+        "status": "not_configured"
+      },
+      "checkedAt": "2026-08-09T07:35:00.376Z",
+      "source": "睿朗的小窝.md"
     }
   ]
 }
