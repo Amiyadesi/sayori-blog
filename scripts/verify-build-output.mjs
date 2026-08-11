@@ -576,6 +576,7 @@ function verifySourceSecurityHeaders() {
 	}
 
 	requireIncludes("blog/public/_headers", headers, [
+		"Strict-Transport-Security: max-age=31536000",
 		"X-Frame-Options: SAMEORIGIN",
 		"X-Content-Type-Options: nosniff",
 		"Referrer-Policy: strict-origin-when-cross-origin",
@@ -1017,6 +1018,7 @@ function verifyHomePagination(indexHtml) {
 	const expectedUrls = getExpectedHomePostUrls();
 	const expectedPageCount = Math.ceil(expectedUrls.length / pageSize);
 	const actualUrls = [];
+	const seenTitles = new Set();
 
 	for (let pageIndex = 0; pageIndex < expectedPageCount; pageIndex += 1) {
 		const pageNumber = pageIndex + 1;
@@ -1032,6 +1034,28 @@ function verifyHomePagination(indexHtml) {
 			pageHtml,
 			`dist/${relativePath}`,
 		);
+		const pageTitle = parse(pageHtml).querySelector("title")?.text.trim() || "";
+		if (!pageTitle || seenTitles.has(pageTitle)) {
+			fail(`dist/${relativePath} must have a unique document title`);
+		} else {
+			seenTitles.add(pageTitle);
+			pass(`dist/${relativePath} has a unique document title`);
+		}
+		if (pageNumber > 1) {
+			if (pageTitle.includes(`第 ${pageNumber} 页`)) {
+				pass(`dist/${relativePath} identifies pagination page ${pageNumber}`);
+			} else {
+				fail(`dist/${relativePath} title is missing page number ${pageNumber}`);
+			}
+			const englishPath = `en/${pageNumber}/index.html`;
+			const englishTitle = parse(readDistFile(englishPath))
+				.querySelector("title")?.text.trim() || "";
+			if (englishTitle.includes(`Page ${pageNumber}`)) {
+				pass(`dist/${englishPath} identifies pagination page ${pageNumber}`);
+			} else {
+				fail(`dist/${englishPath} title is missing page number ${pageNumber}`);
+			}
+		}
 		requireSameList(
 			`dist/${relativePath}`,
 			actualPageUrls,

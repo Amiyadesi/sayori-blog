@@ -11,6 +11,7 @@ interface Props {
 	loading?: "eager" | "lazy";
 	fetchpriority?: "high" | "low" | "auto";
 	widths?: number[];
+	srcset?: string;
 	sizes?: string;
 	width?: number;
 	height?: number;
@@ -30,6 +31,7 @@ const {
 	loading = "lazy",
 	fetchpriority,
 	widths,
+	srcset,
 	sizes,
 	width,
 	height,
@@ -97,6 +99,8 @@ const referrerPolicy = !isLocal && isBilibiliImage ? "no-referrer" : undefined;
 				loading={loading}
 				width={width}
 				height={height}
+				srcset={srcset}
+				sizes={sizes}
 				referrerpolicy={referrerPolicy}
 				crossorigin={isBilibiliImage ? "anonymous" : undefined}
 				fetchpriority={fetchpriority}

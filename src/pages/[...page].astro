@@ -103,6 +103,11 @@ const homeFaqItems = isEnglishSite
 const pageDescription = isHomeFirstPage
 	? homeCopy.description
 	: `${siteConfig.title} - ${siteConfig.subtitle}`;
+const pageTitle = isHomeFirstPage
+	? undefined
+	: isEnglishSite
+		? `Page ${page.currentPage}`
+		: `第 ${page.currentPage} 页`;
 const pageUrl = new URL(currentLocalePath(Astro.url.pathname), siteConfig.siteURL).toString();
 const siteLanguage = siteConfig.lang.replace("_", "-");
 const siteUrl = new URL(siteConfig.siteURL).href;
@@ -161,7 +166,7 @@ if (isHomeFirstPage) {
 }
 ---
 
-<MainGridLayout description={pageDescription}>
+<MainGridLayout title={pageTitle} description={pageDescription}>
 	<script
 		is:inline
 		slot="head"

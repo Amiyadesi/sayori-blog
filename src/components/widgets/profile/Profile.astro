@@ -29,6 +29,8 @@ import { i18n } from "../../../i18n/translation";
 			class="mx-auto lg:w-full h-full lg:mt-0"
 			loading="eager"
 			fetchpriority="high"
+			srcset={`${url("/assets/profile/avatar-sayori-192.jpg")} 192w, ${url("/assets/profile/avatar-sayori-optimized.jpg")} 256w`}
+			sizes="(max-width: 1024px) 192px, 256px"
 			width={256}
 			height={221}
 		/>
