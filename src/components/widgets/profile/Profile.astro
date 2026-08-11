@@ -61,7 +61,7 @@ import { i18n } from "../../../i18n/translation";
 		<div class="flex flex-wrap gap-2 justify-center mb-1">
 			{
 				profileConfig.links.length > 1 &&
-				profileConfig.links.map((item) => (
+					profileConfig.links.map((item) => (
 						<a
 							rel="me"
 							aria-label={item.name}
@@ -71,8 +71,14 @@ import { i18n } from "../../../i18n/translation";
 						>
 							{item.image ? (
 								<img
-									src={item.image.startsWith("/") ? url(item.image) : item.image}
+									src={
+										item.image.startsWith("/")
+											? url(item.image)
+											: item.image
+									}
 									alt=""
+									width="24"
+									height="24"
 									class="h-6 w-6 rounded-[0.35rem] object-contain"
 									loading="lazy"
 								/>
@@ -93,10 +99,14 @@ import { i18n } from "../../../i18n/translation";
 					>
 						{profileConfig.links[0].image ? (
 							<img
-								src={profileConfig.links[0].image.startsWith("/")
-									? url(profileConfig.links[0].image)
-									: profileConfig.links[0].image}
+								src={
+									profileConfig.links[0].image.startsWith("/")
+										? url(profileConfig.links[0].image)
+										: profileConfig.links[0].image
+								}
 								alt=""
+								width="24"
+								height="24"
 								class="h-6 w-6 rounded-[0.35rem] object-contain"
 								loading="lazy"
 							/>

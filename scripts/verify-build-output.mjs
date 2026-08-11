@@ -1188,8 +1188,7 @@ if (!fs.existsSync(distDir)) {
 const files = new Map(requiredFiles.map((file) => [file, readDistFile(file)]));
 
 const indexHtml = files.get("index.html") || "";
-const expectedHomeTitle =
-	"Amiya的书桌 - 笔记、项目和一点日常折腾 | Amiya's Desk";
+const expectedHomeTitle = "Amiya的书桌｜笔记与项目";
 requireDocumentTitle("index.html", indexHtml, expectedHomeTitle);
 requireIncludes("index.html", indexHtml, [
 	'<meta name="description"',

@@ -112,12 +112,10 @@ let pageTitle: string;
 if (title) {
 	pageTitle = `${title} - ${siteConfig.title}`;
 } else {
-	// 首页文档标题追加英文品牌名，让标题在中英双语下都完整，
-	// 长度也落入搜索引擎偏好的区间。仅影响 <title>，不改动 siteConfig.title
-	// （导航栏、schema 品牌名、OG 标题仍使用中文原值）。
-	pageTitle = siteConfig.subtitle
-		? `${siteConfig.title} - ${siteConfig.subtitle} | Amiya's Desk`
-		: `${siteConfig.title} | Amiya's Desk`;
+	// 首页标题保持短而明确；长描述继续放在 meta description 和页面正文中。
+	pageTitle = siteConfig.lang.toLowerCase().startsWith("en")
+		? `${siteConfig.title} | Notes & Projects`
+		: `${siteConfig.title}｜笔记与项目`;
 }
 
 let ogImageUrl: string | undefined;
@@ -244,6 +242,13 @@ if (siteConfig.font) {
 		style={bodyFontFamily ? `font-family: ${bodyFontFamily};` : ""}
 		data-overlayscrollbars-initialize
 	>
+		<a class="skip-link" href="#swup-container">
+			{
+				siteLang.toLowerCase().startsWith("en")
+					? "Skip to main content"
+					: "跳到主要内容"
+			}
+		</a>
 		<noscript
 			><iframe
 				src="https://www.googletagmanager.com/ns.html?id=GTM-KRX3XGVH"
@@ -288,6 +293,31 @@ if (siteConfig.font) {
 	@reference "../styles/main.css";
 
 	@layer components {
+		.skip-link {
+			position: fixed;
+			inset-block-start: 0.75rem;
+			inset-inline-start: 0.75rem;
+			z-index: 9999;
+			padding: 0.55rem 0.8rem;
+			border-radius: 999px;
+			background: var(--card-bg);
+			color: var(--primary);
+			font-weight: 700;
+			text-decoration: none;
+			transform: translateY(-200%);
+			transition: transform 150ms ease;
+		}
+		.skip-link:focus-visible {
+			transform: translateY(0);
+			outline: 3px solid var(--primary);
+			outline-offset: 3px;
+		}
+		@media (prefers-reduced-motion: reduce) {
+			.skip-link {
+				transition: none;
+			}
+		}
+
 		.is-admin-page .sayori-pet,
 		.is-admin-page .sayori-pet-tab {
 			display: none !important;
