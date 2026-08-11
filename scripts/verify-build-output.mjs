@@ -707,6 +707,10 @@ function getPostPublishedDate(post) {
 	return parseDateField(post, "published", { required: true }) ?? new Date(0);
 }
 
+function getPostListingDate(post) {
+	return parseDateField(post, "majorUpdated") ?? getPostPublishedDate(post);
+}
+
 function getPostPriority(post) {
 	if (post.data.priority === undefined || post.data.priority === "") {
 		return undefined;
@@ -742,10 +746,10 @@ function comparePostsByLatestUpdate(a, b) {
 		}
 	}
 
-	const activityDiff =
-		getPostActivityDate(b).getTime() - getPostActivityDate(a).getTime();
-	if (activityDiff !== 0) {
-		return activityDiff;
+	const listingDiff =
+		getPostListingDate(b).getTime() - getPostListingDate(a).getTime();
+	if (listingDiff !== 0) {
+		return listingDiff;
 	}
 
 	const publishedDiff =
@@ -755,6 +759,32 @@ function comparePostsByLatestUpdate(a, b) {
 	}
 
 	return a.id.localeCompare(b.id);
+}
+
+function verifyListingDateRule() {
+	const recentlyEdited = {
+		id: "older-post",
+		data: { published: "2026-01-01", lastEdited: "2026-08-11" },
+	};
+	const newlyPublished = {
+		id: "newer-post",
+		data: { published: "2026-08-10" },
+	};
+	if (comparePostsByLatestUpdate(recentlyEdited, newlyPublished) <= 0) {
+		fail("Minor edits must not move an older post ahead of a newer publication");
+	} else {
+		pass("Minor edits do not change publication order");
+	}
+
+	const majorUpdate = {
+		id: "major-update-post",
+		data: { published: "2026-01-01", majorUpdated: "2026-08-12" },
+	};
+	if (comparePostsByLatestUpdate(majorUpdate, newlyPublished) < 0) {
+		pass("Explicit major updates can move a post forward");
+	} else {
+		fail("Explicit major updates must be able to move a post forward");
+	}
 }
 
 function trimUrlPath(value) {
@@ -1006,7 +1036,7 @@ function verifyHomePagination(indexHtml) {
 			`dist/${relativePath}`,
 			actualPageUrls,
 			expectedPageUrls,
-			"latest-update order",
+			"publication/major-update order",
 		);
 		actualUrls.push(...actualPageUrls);
 	}
@@ -1219,6 +1249,7 @@ verifyHomepageCriticalMedia(indexHtml);
 verifyCssDelivery(indexHtml);
 verifyLocalFontReferences();
 verifyBlogMediaOutput();
+verifyListingDateRule();
 verifyHomePagination(indexHtml);
 verifyPostDefaultImageMetadata();
 verifyArticleLandmarks();

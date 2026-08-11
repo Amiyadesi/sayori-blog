@@ -319,7 +319,7 @@ function normalizeEnglishMetadata(source, translated, sourceName) {
 	};
 	setLine("lang", "en");
 	setLine("translationKey", sourceName.replace(/\.(md|mdx)$/i, ""));
-	for (const key of ["draft", "published", "created", "updated", "lastEdited", "encrypted"]) {
+	for (const key of ["draft", "published", "created", "updated", "lastEdited", "majorUpdated", "encrypted"]) {
 		const original = sourceLines.find((line) => new RegExp(`^${key}:`).test(line));
 		if (original) setLine(key, original.slice(key.length + 1).trim());
 	}

@@ -36,6 +36,12 @@ type PostPublishedDateLike = {
 	};
 };
 
+type PostListingDateLike = PostPublishedDateLike & {
+	data: {
+		majorUpdated?: Date;
+	};
+};
+
 const DIARY_DISPLAY_TAG = isEnglishSite ? "Diary" : "日记";
 const DIARY_SYSTEM_TAGS = new Set([
 	"日记",
@@ -321,14 +327,18 @@ export function getPostActivityDate(post: PostActivityDateLike): Date {
 	);
 }
 
-function comparePostsByActivity(
-	a: PostActivityDateLike,
-	b: PostActivityDateLike,
+function getPostListingDate(post: PostListingDateLike): Date {
+	return post.data.majorUpdated ?? post.data.published;
+}
+
+function comparePostsByListingDate(
+	a: PostListingDateLike,
+	b: PostListingDateLike,
 ): number {
-	const activityDiff =
-		getPostActivityDate(b).getTime() - getPostActivityDate(a).getTime();
-	if (activityDiff !== 0) {
-		return activityDiff;
+	const listingDiff =
+		getPostListingDate(b).getTime() - getPostListingDate(a).getTime();
+	if (listingDiff !== 0) {
+		return listingDiff;
 	}
 
 	const publishedDiff =
@@ -363,7 +373,7 @@ export function sortPostsByPublishedDateDesc<T extends PostPublishedDateLike>(
 	return [...posts].sort(comparePostsByPublishedDate);
 }
 
-// Retrieve posts and sort them by activity date.
+// Retrieve posts in publication order; only an explicit major update can move one forward.
 async function getRawSortedPosts() {
 	const allBlogPosts = await getCollection("posts", ({ data }) => {
 		return data.draft !== true;
@@ -393,8 +403,7 @@ async function getRawSortedPosts() {
 			}
 		}
 
-		// 否则按最后活动时间排序，让近期修改过的文章回到列表前面。
-		return comparePostsByActivity(a, b);
+		return comparePostsByListingDate(a, b);
 	});
 	return sorted;
 }
