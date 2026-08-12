@@ -43,9 +43,22 @@ for (const locale of [
 }
 
 run(["run", "sync-content"], { SITE_LANG: "zh_CN", SITE_BASE: "/" });
-run(["node", "scripts/prune-disabled-pages.mjs"]);
+for (const localeBase of ["", "en"]) {
+	run(["node", "scripts/prune-disabled-pages.mjs"], {
+		PRUNE_BASE: localeBase,
+	});
+}
+
+// Keep the submitted root sitemap index aware of both locale sitemaps.
+// The English build lives under /en/, so Astro's generated root index alone
+// would otherwise leave the translated pages undiscoverable.
+const localeSitemapIndex = `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n\t<sitemap><loc>https://blog.sayori.org/sitemap-0.xml</loc></sitemap>\n\t<sitemap><loc>https://blog.sayori.org/en/sitemap-0.xml</loc></sitemap>\n</sitemapindex>\n`;
+fs.writeFileSync(path.join(dist, "sitemap-index.xml"), localeSitemapIndex);
+fs.writeFileSync(path.join(dist, "sitemap.xml"), localeSitemapIndex);
 run(["pagefind", "--site", "dist"]);
 run(["node", "scripts/compress-fonts.js"]);
 run(["node", "scripts/optimize-html-assets.mjs"]);
 
-console.log("[build-locales] zh-CN and en builds merged into dist/ and dist/en/");
+console.log(
+	"[build-locales] zh-CN and en builds merged into dist/ and dist/en/",
+);

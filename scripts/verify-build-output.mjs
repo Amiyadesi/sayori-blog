@@ -13,6 +13,7 @@ const requiredFiles = [
 	"sitemap.xml",
 	"sitemap-index.xml",
 	"sitemap-0.xml",
+	"en/sitemap-0.xml",
 	"rss.xml",
 	"atom.xml",
 	"llms.txt",
@@ -73,7 +74,9 @@ function walkDistTextFiles(dir) {
 	return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
 		const fullPath = path.join(dir, entry.name);
 		if (entry.isDirectory()) return walkDistTextFiles(fullPath);
-		return entry.isFile() && /\.(?:css|html)$/i.test(entry.name) ? [fullPath] : [];
+		return entry.isFile() && /\.(?:css|html)$/i.test(entry.name)
+			? [fullPath]
+			: [];
 	});
 }
 
@@ -81,8 +84,14 @@ function verifyLocalFontReferences() {
 	const stale = [];
 	for (const filePath of walkDistTextFiles(distDir)) {
 		const content = fs.readFileSync(filePath, "utf8");
-		if (/url\([^)]*\/assets\/font\/[^)]*\.ttf(?:[?#][^)]*)?\)/i.test(content)) {
-			stale.push(path.relative(distDir, filePath).replaceAll(path.sep, "/"));
+		if (
+			/url\([^)]*\/assets\/font\/[^)]*\.ttf(?:[?#][^)]*)?\)/i.test(
+				content,
+			)
+		) {
+			stale.push(
+				path.relative(distDir, filePath).replaceAll(path.sep, "/"),
+			);
 		}
 	}
 	if (stale.length > 0) {
@@ -213,7 +222,9 @@ function verifyLocalizedRepost(post, root, relativePath) {
 		"mobile-app-ad-targeting-device-profiling": {
 			sourceUrl: "https://linux.do/t/topic/2502409",
 			localLinks: ["/posts/rogue-app-advertising-user-traps/"],
-			forbiddenLinks: ["https://linux.do/t/topic/2161543?u=aichitangcupaigu"],
+			forbiddenLinks: [
+				"https://linux.do/t/topic/2161543?u=aichitangcupaigu",
+			],
 		},
 		"rogue-app-advertising-user-traps": {
 			sourceUrl: "https://linux.do/t/topic/2161543",
@@ -241,9 +252,16 @@ function verifyLocalizedRepost(post, root, relativePath) {
 	if (!details.textContent.includes("已获得原作者授权")) {
 		fail(`${label} repost authorization text is missing`);
 	}
-	const sourceLinks = root.querySelectorAll(`a[href="${expected.sourceUrl}"]`);
-	if (sourceLinks.length !== 1 || !details.querySelector(`a[href="${expected.sourceUrl}"]`)) {
-		fail(`${label} must expose the original URL only inside the source details`);
+	const sourceLinks = root.querySelectorAll(
+		`a[href="${expected.sourceUrl}"]`,
+	);
+	if (
+		sourceLinks.length !== 1 ||
+		!details.querySelector(`a[href="${expected.sourceUrl}"]`)
+	) {
+		fail(
+			`${label} must expose the original URL only inside the source details`,
+		);
 	}
 	for (const href of expected.localLinks) {
 		if (!root.querySelector(`a[href="${href}"]`)) {
@@ -255,7 +273,9 @@ function verifyLocalizedRepost(post, root, relativePath) {
 			fail(`${label} still links a localized article back to ${href}`);
 		}
 	}
-	pass(`${label} keeps repost attribution collapsed and localizes article links`);
+	pass(
+		`${label} keeps repost attribution collapsed and localizes article links`,
+	);
 }
 
 function walkAllFiles(directory) {
@@ -272,10 +292,18 @@ function verifyCssDelivery(html) {
 	const root = parse(html);
 	const inlineCssBytes = root
 		.querySelectorAll("style")
-		.reduce((total, style) => total + Buffer.byteLength(style.innerHTML, "utf8"), 0);
-	const linkedStylesheets = root.querySelectorAll('link[rel="stylesheet"]').length;
+		.reduce(
+			(total, style) =>
+				total + Buffer.byteLength(style.innerHTML, "utf8"),
+			0,
+		);
+	const linkedStylesheets = root.querySelectorAll(
+		'link[rel="stylesheet"]',
+	).length;
 	if (inlineCssBytes > 128 * 1024) {
-		fail(`index.html inlines ${inlineCssBytes} CSS bytes; expected at most 131072`);
+		fail(
+			`index.html inlines ${inlineCssBytes} CSS bytes; expected at most 131072`,
+		);
 	} else {
 		pass(`index.html inline CSS is bounded (${inlineCssBytes} bytes)`);
 	}
@@ -460,24 +488,28 @@ function verifyAnalyticsScripts(html) {
 			!body.includes("googleAnalyticsId") ||
 			/\b(?:const|let|var)\s+googleAnalyticsId\b/.test(body);
 		if (hasEnableBinding && hasIdBinding) {
-			pass("index.html analytics script has local Google Analytics bindings");
+			pass(
+				"index.html analytics script has local Google Analytics bindings",
+			);
 		} else {
-			fail("index.html analytics script references an undefined Google Analytics binding");
+			fail(
+				"index.html analytics script references an undefined Google Analytics binding",
+			);
 		}
 	}
 
-	const umamiScripts = root
-		.querySelectorAll("script")
-		.filter((script) => {
-			const src = script.getAttribute("src") || "";
-			return (
-				src.includes("stats.sayori.org") ||
-				script.hasAttribute("data-website-id")
-			);
-		});
+	const umamiScripts = root.querySelectorAll("script").filter((script) => {
+		const src = script.getAttribute("src") || "";
+		return (
+			src.includes("stats.sayori.org") ||
+			script.hasAttribute("data-website-id")
+		);
+	});
 
 	if (umamiScripts.length === 0) {
-		pass("index.html has no Umami script until a real websiteId is configured");
+		pass(
+			"index.html has no Umami script until a real websiteId is configured",
+		);
 		return;
 	}
 
@@ -490,29 +522,41 @@ function verifyAnalyticsScripts(html) {
 		) {
 			pass("index.html Umami script has a valid websiteId");
 		} else {
-			fail("index.html Umami script is present without a valid websiteId");
+			fail(
+				"index.html Umami script is present without a valid websiteId",
+			);
 		}
 	}
 }
 
 function verifyHomepageCriticalMedia(html) {
 	const root = parse(html);
-	const fullscreenWallpaper = root.querySelector("[data-fullscreen-wallpaper]");
+	const fullscreenWallpaper = root.querySelector(
+		"[data-fullscreen-wallpaper]",
+	);
 	if (!fullscreenWallpaper) {
 		fail("index.html missing fullscreen wallpaper container");
 	} else if (fullscreenWallpaper.querySelectorAll("img").length > 0) {
-		fail("index.html fullscreen wallpaper must not render images before fullscreen mode is selected");
+		fail(
+			"index.html fullscreen wallpaper must not render images before fullscreen mode is selected",
+		);
 	} else {
-		pass("index.html fullscreen wallpaper defers images until fullscreen mode is selected");
+		pass(
+			"index.html fullscreen wallpaper defers images until fullscreen mode is selected",
+		);
 	}
 
 	const eagerBannerImages = root
 		.querySelectorAll("#banner-carousel img[loading='eager']")
-		.filter((image) => (image.getAttribute("src") || "").includes("-banner/"));
+		.filter((image) =>
+			(image.getAttribute("src") || "").includes("-banner/"),
+		);
 	if (eagerBannerImages.length === 1) {
 		pass("index.html has one eager banner image for the active viewport");
 	} else {
-		fail(`index.html expected one eager banner image, found ${eagerBannerImages.length}`);
+		fail(
+			`index.html expected one eager banner image, found ${eagerBannerImages.length}`,
+		);
 	}
 
 	const mobileBannerSource = root.querySelector(
@@ -772,7 +816,9 @@ function verifyListingDateRule() {
 		data: { published: "2026-08-10" },
 	};
 	if (comparePostsByLatestUpdate(recentlyEdited, newlyPublished) <= 0) {
-		fail("Minor edits must not move an older post ahead of a newer publication");
+		fail(
+			"Minor edits must not move an older post ahead of a newer publication",
+		);
 	} else {
 		pass("Minor edits do not change publication order");
 	}
@@ -793,14 +839,16 @@ function trimUrlPath(value) {
 }
 
 function slugify(value) {
-	return value
-		.normalize("NFKD")
-		.toLowerCase()
-		.trim()
-		// Astro's content slugger removes apostrophes before splitting words.
-		.replace(/[\u0027\u2019]/g, "")
-		.replace(/[^\p{Letter}\p{Number}]+/gu, "-")
-		.replace(/^-+|-+$/g, "");
+	return (
+		value
+			.normalize("NFKD")
+			.toLowerCase()
+			.trim()
+			// Astro's content slugger removes apostrophes before splitting words.
+			.replace(/[\u0027\u2019]/g, "")
+			.replace(/[^\p{Letter}\p{Number}]+/gu, "-")
+			.replace(/^-+|-+$/g, "")
+	);
 }
 
 function getPostUrl(post) {
@@ -842,8 +890,10 @@ function getExpectedHomePostUrls() {
 			url: getPostUrl(post),
 		}))
 		.sort(comparePostsByLatestUpdate)
-		.filter((post, index, posts) =>
-			posts.findIndex((candidate) => candidate.url === post.url) === index,
+		.filter(
+			(post, index, posts) =>
+				posts.findIndex((candidate) => candidate.url === post.url) ===
+				index,
 		)
 		.map((post) => post.url);
 }
@@ -1034,7 +1084,8 @@ function verifyHomePagination(indexHtml) {
 			pageHtml,
 			`dist/${relativePath}`,
 		);
-		const pageTitle = parse(pageHtml).querySelector("title")?.text.trim() || "";
+		const pageTitle =
+			parse(pageHtml).querySelector("title")?.text.trim() || "";
 		if (!pageTitle || seenTitles.has(pageTitle)) {
 			fail(`dist/${relativePath} must have a unique document title`);
 		} else {
@@ -1043,17 +1094,27 @@ function verifyHomePagination(indexHtml) {
 		}
 		if (pageNumber > 1) {
 			if (pageTitle.includes(`第 ${pageNumber} 页`)) {
-				pass(`dist/${relativePath} identifies pagination page ${pageNumber}`);
+				pass(
+					`dist/${relativePath} identifies pagination page ${pageNumber}`,
+				);
 			} else {
-				fail(`dist/${relativePath} title is missing page number ${pageNumber}`);
+				fail(
+					`dist/${relativePath} title is missing page number ${pageNumber}`,
+				);
 			}
 			const englishPath = `en/${pageNumber}/index.html`;
-			const englishTitle = parse(readDistFile(englishPath))
-				.querySelector("title")?.text.trim() || "";
+			const englishTitle =
+				parse(readDistFile(englishPath))
+					.querySelector("title")
+					?.text.trim() || "";
 			if (englishTitle.includes(`Page ${pageNumber}`)) {
-				pass(`dist/${englishPath} identifies pagination page ${pageNumber}`);
+				pass(
+					`dist/${englishPath} identifies pagination page ${pageNumber}`,
+				);
 			} else {
-				fail(`dist/${englishPath} title is missing page number ${pageNumber}`);
+				fail(
+					`dist/${englishPath} title is missing page number ${pageNumber}`,
+				);
 			}
 		}
 		requireSameList(
@@ -1121,7 +1182,11 @@ function verifyEssayPage(essayHtml) {
 	);
 
 	for (const essay of expectedEssays) {
-		const relativePath = path.join("posts", trimUrlPath(essay.id), "index.html");
+		const relativePath = path.join(
+			"posts",
+			trimUrlPath(essay.id),
+			"index.html",
+		);
 		const fullPath = path.join(distDir, relativePath);
 		if (fs.existsSync(fullPath)) {
 			fail(`Essay ${essay.id} should not generate dist/${relativePath}`);
@@ -1328,12 +1393,14 @@ const sitemapCompat = files.get("sitemap.xml") || "";
 requireIncludes("sitemap.xml", sitemapCompat, [
 	"<sitemapindex",
 	"https://blog.sayori.org/sitemap-0.xml",
+	"https://blog.sayori.org/en/sitemap-0.xml",
 ]);
 
 const sitemapIndex = files.get("sitemap-index.xml") || "";
 requireIncludes("sitemap-index.xml", sitemapIndex, [
 	"<sitemapindex",
 	"https://blog.sayori.org/sitemap-0.xml",
+	"https://blog.sayori.org/en/sitemap-0.xml",
 ]);
 
 const sitemap = files.get("sitemap-0.xml") || "";
@@ -1341,9 +1408,33 @@ requireIncludes("sitemap-0.xml", sitemap, [
 	"<urlset",
 	"<loc>https://blog.sayori.org/</loc>",
 	"<loc>https://blog.sayori.org/topics/webmaster/</loc>",
-	"<lastmod>",
+	"https://blog.sayori.org/posts/diary/",
 ]);
 requireExcludes("sitemap-0.xml", sitemap, ["https://blog.sayori.org/admin/"]);
+requireExcludes("sitemap-0.xml", sitemap, [
+	"https://blog.sayori.org/2/",
+	"https://blog.sayori.org/rss/",
+	"https://blog.sayori.org/atom/",
+	"<lastmod>",
+]);
+
+const englishSitemap = files.get("en/sitemap-0.xml") || "";
+requireIncludes("en/sitemap-0.xml", englishSitemap, [
+	"<urlset",
+	"https://blog.sayori.org/en/posts/diary/",
+]);
+requireExcludes("en/sitemap-0.xml", englishSitemap, [
+	"https://blog.sayori.org/en/admin/",
+	"https://blog.sayori.org/en/albums/",
+	"https://blog.sayori.org/en/devices/",
+	"https://blog.sayori.org/en/diary/",
+	"https://blog.sayori.org/en/projects/",
+	"https://blog.sayori.org/en/skills/",
+	"https://blog.sayori.org/en/2/",
+	"https://blog.sayori.org/en/rss/",
+	"https://blog.sayori.org/en/atom/",
+	"<lastmod>",
+]);
 
 const rss = files.get("rss.xml") || "";
 requireIncludes("rss.xml", rss, [

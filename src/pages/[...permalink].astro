@@ -91,6 +91,7 @@ const { remarkPluginFrontmatter } = await render(entry);
 let encryptedContent = "";
 const isEncrypted = !!(entry.data.encrypted && entry.data.password);
 const isDiary = isDiaryPost(entry);
+const isIndexablePost = !isEncrypted;
 const publicDescription = getPostPublicDescription(
 	entry.data,
 	entry.data.title,
@@ -101,7 +102,10 @@ const lastEditedDate =
 const updateCount = entry.data.updateCount;
 const displayTags = getPostDisplayTags(entry);
 const siteUrl = new URL(siteConfig.siteURL).href;
-const pageUrl = new URL(currentLocalePath(Astro.url.pathname), siteConfig.siteURL).toString();
+const pageUrl = new URL(
+	currentLocalePath(Astro.url.pathname),
+	siteConfig.siteURL,
+).toString();
 const personId = `${siteUrl}#person`;
 const organizationId = `${siteUrl}#organization`;
 const blogId = `${siteUrl}#blog`;
@@ -224,6 +228,7 @@ const jsonLd = {
 	publishedTime={entry.data.published}
 	modifiedTime={lastEditedDate}
 	tags={displayTags}
+	noindex={!isIndexablePost}
 >
 	<script
 		is:inline
@@ -345,9 +350,7 @@ const jsonLd = {
 				)
 			}
 
-			{canUseAiSummary && (
-				<AiSummary summary={entry.data.aiSummary} />
-			)}
+			{canUseAiSummary && <AiSummary summary={entry.data.aiSummary} />}
 
 			{
 				isEncrypted ? (

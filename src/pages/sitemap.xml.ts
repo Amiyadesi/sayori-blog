@@ -2,6 +2,9 @@ import type { APIRoute } from "astro";
 
 const sitemapIndexUrl = new URL("sitemap-index.xml", import.meta.env.SITE).href;
 const sitemapUrl = new URL("sitemap-0.xml", import.meta.env.SITE).href;
+const englishSitemapUrl = new URL("en/sitemap-0.xml", import.meta.env.SITE)
+	.href;
+const includeEnglishSitemap = import.meta.env.BASE_URL === "/";
 
 export const GET: APIRoute = () => {
 	const body = `<?xml version="1.0" encoding="UTF-8"?>
@@ -9,6 +12,7 @@ export const GET: APIRoute = () => {
 	<sitemap>
 		<loc>${sitemapUrl}</loc>
 	</sitemap>
+	${includeEnglishSitemap ? `<sitemap>\n\t\t<loc>${englishSitemapUrl}</loc>\n\t</sitemap>` : ""}
 </sitemapindex>
 `;
 

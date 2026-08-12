@@ -1,5 +1,5 @@
 import sitemap from "@astrojs/sitemap";
-import mdx from '@astrojs/mdx';
+import mdx from "@astrojs/mdx";
 import svelte, { vitePreprocess } from "@astrojs/svelte";
 import { pluginCollapsibleSections } from "@expressive-code/plugin-collapsible-sections";
 import { pluginLineNumbers } from "@expressive-code/plugin-line-numbers";
@@ -138,11 +138,18 @@ export default defineConfig({
 		}),
 		sitemap({
 			filter: (page) => {
-				const pathname = new URL(page).pathname;
+				const pathname = new URL(page).pathname.replace(
+					/^\/en(?=\/|$)/,
+					"",
+				);
 				return !(
 					pathname.startsWith("/admin/") ||
+					/^\/\d+\/$/.test(pathname) ||
+					/^\/(?:rss|atom)\/$/.test(pathname) ||
 					pathname === "/404/" ||
-					disabledFeaturePathPrefixes.some((prefix) => pathname.startsWith(prefix)) ||
+					disabledFeaturePathPrefixes.some((prefix) =>
+						pathname.startsWith(prefix),
+					) ||
 					pathname.startsWith("/api/") ||
 					pathname.startsWith("/og/") ||
 					pathname.endsWith(".xml") ||
@@ -152,13 +159,22 @@ export default defineConfig({
 				);
 			},
 			serialize: (item) => {
-				const pathname = new URL(item.url).pathname;
-				item.lastmod = new Date().toISOString();
+				const pathname = new URL(item.url).pathname.replace(
+					/^\/en(?=\/|$)/,
+					"",
+				);
+				// Do not claim every page changed on every build. A fake lastmod
+				// weakens crawl prioritisation and makes the sitemap noisy.
+				item.lastmod = undefined;
 				item.changefreq = pathname.startsWith("/posts/")
 					? "monthly"
 					: "weekly";
 				item.priority =
-					pathname === "/" ? 1 : pathname.startsWith("/posts/") ? 0.8 : 0.6;
+					pathname === "/"
+						? 1
+						: pathname.startsWith("/posts/")
+							? 0.8
+							: 0.6;
 				return item;
 			},
 		}),

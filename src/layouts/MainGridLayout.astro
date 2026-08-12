@@ -37,6 +37,7 @@ interface Props {
 	publishedTime?: Date | string;
 	modifiedTime?: Date | string;
 	tags?: string[];
+	noindex?: boolean;
 }
 
 // 获取 banner 图片
@@ -54,6 +55,7 @@ const {
 	publishedTime,
 	modifiedTime,
 	tags,
+	noindex,
 	headings = [],
 } = Astro.props;
 const hasBannerCredit = siteConfig.banner.credit.enable;
@@ -122,6 +124,7 @@ const isPostPage = !!postSlug;
 	publishedTime={publishedTime}
 	modifiedTime={modifiedTime}
 	tags={tags}
+	noindex={noindex}
 >
 	{
 		isHomePage && mobileBannerPreloadHref && (

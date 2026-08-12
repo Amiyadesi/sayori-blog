@@ -36,6 +36,7 @@ interface Props {
 	publishedTime?: Date | string;
 	modifiedTime?: Date | string;
 	tags?: string[];
+	noindex?: boolean;
 }
 
 let {
@@ -50,6 +51,7 @@ let {
 	publishedTime,
 	modifiedTime,
 	tags,
+	noindex,
 } = Astro.props;
 
 // apply a class to the body element to decide the height of the banner, only used for initial page load
@@ -208,6 +210,7 @@ if (siteConfig.font) {
 			modifiedTime={modifiedTime}
 			tags={tags}
 			configHue={configHue}
+			noindex={noindex}
 		/>
 
 		<!-- defines global css variables. This will be applied to <html> <body> and some other elements idk why -->

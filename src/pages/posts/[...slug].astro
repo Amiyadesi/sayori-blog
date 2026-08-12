@@ -22,10 +22,7 @@ import { buildPostPaths } from "@utils/post-url";
 import { getFileDirFromPath, removeFileExtension } from "@utils/url-utils";
 import { getImage } from "astro:assets";
 import { render } from "astro:content";
-import {
-	licenseConfig,
-	randomPostsConfig,
-} from "src/config";
+import { licenseConfig, randomPostsConfig } from "src/config";
 
 import Image from "../../components/atoms/Image/Image.astro";
 import Encryptor from "../../components/features/auth/Encryptor.astro";
@@ -118,6 +115,7 @@ if (profileConfig.avatar) {
 // 判断是否为加密文章
 const isEncrypted = !!(entry.data.encrypted && entry.data.password);
 const isDiary = isDiaryPost(entry);
+const isIndexablePost = !isEncrypted;
 const publicDescription = getPostPublicDescription(
 	entry.data,
 	entry.data.title,
@@ -128,7 +126,10 @@ const lastEditedDate =
 const updateCount = entry.data.updateCount;
 const displayTags = getPostDisplayTags(entry);
 const siteUrl = new URL(siteConfig.siteURL).href;
-const pageUrl = new URL(currentLocalePath(Astro.url.pathname), siteConfig.siteURL).toString();
+const pageUrl = new URL(
+	currentLocalePath(Astro.url.pathname),
+	siteConfig.siteURL,
+).toString();
 const personId = `${siteUrl}#person`;
 const organizationId = `${siteUrl}#organization`;
 const blogId = `${siteUrl}#blog`;
@@ -182,6 +183,7 @@ const jsonLd = {
 	publishedTime={entry.data.published}
 	modifiedTime={lastEditedDate}
 	tags={displayTags}
+	noindex={!isIndexablePost}
 >
 	<script
 		is:inline
@@ -289,9 +291,7 @@ const jsonLd = {
 				)
 			}
 
-			{canUseAiSummary && (
-				<AiSummary summary={entry.data.aiSummary} />
-			)}
+			{canUseAiSummary && <AiSummary summary={entry.data.aiSummary} />}
 
 			{
 				isEncrypted ? (
@@ -438,7 +438,8 @@ const jsonLd = {
 		transform: none;
 		margin-bottom: 0.75rem;
 		padding-top: 0.9rem;
-		box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--primary) 8%, transparent);
+		box-shadow: inset 0 0 0 1px
+			color-mix(in oklch, var(--primary) 8%, transparent);
 	}
 
 	.post-footer-suggestions :global(.post-list-note:hover) {
