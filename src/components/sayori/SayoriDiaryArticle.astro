@@ -1,0 +1,55 @@
+---
+import type { CollectionEntry } from "astro:content";
+import { render } from "astro:content";
+
+import Comment from "../comment/index.astro";
+import Image from "../atoms/Image/Image.astro";
+import Markdown from "../misc/Markdown.astro";
+import { getFileDirFromPath } from "../../utils/url-utils";
+import { isEnglishSite } from "../../utils/site-locale";
+
+interface Props {
+	entry: CollectionEntry<"posts">;
+}
+
+const { entry } = Astro.props as Props;
+const { Content } = await render(entry);
+const date = new Date(entry.data.published);
+const homeUrl = isEnglishSite ? "/en/" : "/";
+---
+
+<main class="sayori-diary-article" id="sayori-diary-main">
+	<header class="sayori-diary-article-head">
+		<a class="sayori-diary-back" href={homeUrl}>
+			{isEnglishSite ? "← Back to the notebook" : "← 回到日记本"}
+		</a>
+		<p class="sayori-diary-article-meta">
+			{date.toLocaleDateString(isEnglishSite ? "en-US" : "zh-CN", {
+				year: "numeric",
+				month: "long",
+				day: "numeric",
+			})}
+		</p>
+		<h1>{entry.data.title}</h1>
+	</header>
+
+	<article class="sayori-diary-article-paper">
+		{entry.data.image && (
+			<Image
+				src={entry.data.image}
+				basePath={getFileDirFromPath(entry.filePath || "")}
+				alt={entry.data.title}
+				class="sayori-diary-article-cover"
+				widths={[640, 1024, 1536]}
+				sizes="(max-width: 820px) 100vw, 820px"
+			/>
+		)}
+		<Markdown class="sayori-diary-markdown">
+			<Content />
+		</Markdown>
+	</article>
+
+	<div class="sayori-diary-comments">
+		<Comment post={entry} />
+	</div>
+</main>

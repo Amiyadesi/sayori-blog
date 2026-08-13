@@ -7,6 +7,13 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const tempRoot = path.join(root, ".codex-tmp", "locales");
 const dist = path.join(root, "dist");
 const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+const siteOrigin = String(
+	process.env.SITE_URL ||
+		(process.env.SITE_VARIANT === "sayori-diary"
+			? "https://diary.sayori.org/"
+			: "https://blog.sayori.org/"),
+)
+	.replace(/\/+$/, "");
 
 function run(args, env = {}) {
 	console.log(`[build-locales] ${pnpm} ${args.join(" ")}`);
@@ -22,7 +29,9 @@ fs.rmSync(tempRoot, { recursive: true, force: true });
 fs.rmSync(dist, { recursive: true, force: true });
 fs.mkdirSync(tempRoot, { recursive: true });
 
-run(["run", "update-anime"], { SITE_LANG: "zh_CN", SITE_BASE: "/" });
+if (process.env.SITE_VARIANT !== "sayori-diary") {
+	run(["run", "update-anime"], { SITE_LANG: "zh_CN", SITE_BASE: "/" });
+}
 
 for (const locale of [
 	{ name: "zh", lang: "zh_CN", base: "/" },
@@ -52,12 +61,17 @@ for (const localeBase of ["", "en"]) {
 // Keep the submitted root sitemap index aware of both locale sitemaps.
 // The English build lives under /en/, so Astro's generated root index alone
 // would otherwise leave the translated pages undiscoverable.
-const localeSitemapIndex = `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n\t<sitemap><loc>https://blog.sayori.org/sitemap-0.xml</loc></sitemap>\n\t<sitemap><loc>https://blog.sayori.org/en/sitemap-0.xml</loc></sitemap>\n</sitemapindex>\n`;
+const localeSitemapIndex = `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n\t<sitemap><loc>${siteOrigin}/sitemap-0.xml</loc></sitemap>\n\t<sitemap><loc>${siteOrigin}/en/sitemap-0.xml</loc></sitemap>\n</sitemapindex>\n`;
 fs.writeFileSync(path.join(dist, "sitemap-index.xml"), localeSitemapIndex);
 fs.writeFileSync(path.join(dist, "sitemap.xml"), localeSitemapIndex);
-run(["pagefind", "--site", "dist"]);
+if (process.env.SITE_VARIANT !== "sayori-diary") {
+	run(["pagefind", "--site", "dist"]);
+}
 run(["node", "scripts/compress-fonts.js"]);
 run(["node", "scripts/optimize-html-assets.mjs"]);
+if (process.env.SITE_VARIANT === "sayori-diary") {
+	run(["node", "scripts/prune-sayori-diary.mjs"]);
+}
 
 console.log(
 	"[build-locales] zh-CN and en builds merged into dist/ and dist/en/",

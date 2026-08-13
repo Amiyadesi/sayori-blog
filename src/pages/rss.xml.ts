@@ -8,7 +8,11 @@ import { parse as htmlParser } from "node-html-parser";
 import sanitizeHtml from "sanitize-html";
 
 import { siteConfig } from "@/config";
-import { getSortedPosts, isOrdinaryPublicPost } from "@/utils/content-utils";
+import {
+	getSortedPosts,
+	isOrdinaryPublicPost,
+	isSayoriDiaryPost,
+} from "@/utils/content-utils";
 import { initPostIdMap } from "@/utils/permalink-utils";
 import { getPostPublicDescription } from "@/utils/post-card-content";
 import { getPostUrl } from "@/utils/url-utils";
@@ -27,7 +31,11 @@ export async function GET(context: APIContext) {
 
 	// Use the same ordering as site listing (pinned first, then by activity date desc)
 	const posts = (await getSortedPosts()).filter(
-		(post) => !post.data.encrypted && isOrdinaryPublicPost(post),
+		(post) =>
+			!post.data.encrypted &&
+			(process.env.SITE_VARIANT === "sayori-diary"
+				? isSayoriDiaryPost(post)
+				: isOrdinaryPublicPost(post)),
 	);
 
 	// 初始化文章 ID 映射（用于 permalink 功能）

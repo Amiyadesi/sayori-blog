@@ -33,14 +33,30 @@ import { LinkPreset } from "./types/config";
 // 定义站点语言
 const SITE_LANG = (process.env.SITE_LANG || "zh_CN") as SiteConfig["lang"]; // build locale: zh_CN or en
 const IS_ENGLISH_BUILD = SITE_LANG.toLowerCase().startsWith("en");
+const IS_SAYORI_DIARY = process.env.SITE_VARIANT === "sayori-diary";
+const SITE_URL = IS_SAYORI_DIARY
+	? "https://diary.sayori.org/"
+	: process.env.SITE_URL || "https://blog.sayori.org/";
 const baseSiteConfig: SiteConfig = {
-	title: IS_ENGLISH_BUILD ? "Amiya's Desk" : "Amiya的书桌",
-	subtitle: IS_ENGLISH_BUILD
-		? "Notes, projects, and a little everyday tinkering"
-		: "笔记、项目和一点日常折腾",
-	siteURL: "https://blog.sayori.org/", // 请替换为你的站点URL，以斜杠结尾
+	title: IS_SAYORI_DIARY
+		? "Sayori's Diary"
+		: IS_ENGLISH_BUILD
+			? "Amiya's Desk"
+			: "Amiya的书桌",
+	subtitle: IS_SAYORI_DIARY
+		? IS_ENGLISH_BUILD
+			? "Sayori's public notes, letters, and little everyday moments"
+			: "Sayori 写下的公开日记、小信和日常片段"
+		: IS_ENGLISH_BUILD
+			? "Notes, projects, and a little everyday tinkering"
+			: "笔记、项目和一点日常折腾",
+	siteURL: SITE_URL,
 	siteStartDate: "2026-05-21", // 站点开始运行日期，用于站点统计组件计算运行天数
-	keywords: IS_ENGLISH_BUILD
+	keywords: IS_SAYORI_DIARY
+		? IS_ENGLISH_BUILD
+			? ["Sayori", "Sayori's Diary", "DDLC", "public diary", "poems"]
+			: ["Sayori", "Sayori 的日记", "DDLC", "公开日记", "诗句"]
+		: IS_ENGLISH_BUILD
 		? [
 				"Amiya's Desk",
 				"Amiya_desi",
@@ -54,17 +70,17 @@ const baseSiteConfig: SiteConfig = {
 				"Vaultwarden",
 			]
 		: [
-		"Amiya的书桌",
-		"Amiya_desi",
-		"个人博客",
-		"Godot",
-		"独立游戏",
-		"服务器折腾",
-		"Cloudflare",
-		"Obsidian",
-		"AI辅助开发",
-		"Vaultwarden",
-		],
+				"Amiya的书桌",
+				"Amiya_desi",
+				"个人博客",
+				"Godot",
+				"独立游戏",
+				"服务器折腾",
+				"Cloudflare",
+				"Obsidian",
+				"AI辅助开发",
+				"Vaultwarden",
+			],
 
 	lang: SITE_LANG,
 
@@ -90,7 +106,11 @@ const baseSiteConfig: SiteConfig = {
 		// 显示模式："text-icon" 显示图标+文本，"logo" 仅显示Logo
 		mode: "text-icon",
 		// 顶栏标题文本
-		text: IS_ENGLISH_BUILD ? "Amiya's Desk" : "Amiya的书桌",
+		text: IS_SAYORI_DIARY
+			? "Sayori's Diary"
+			: IS_ENGLISH_BUILD
+				? "Amiya's Desk"
+				: "Amiya的书桌",
 		// 顶栏标题图标路径，默认使用 public/assets/home/home.webp
 		icon: "assets/home/amiya-desk.png",
 		// 网站Logo图片路径
@@ -210,11 +230,11 @@ const baseSiteConfig: SiteConfig = {
 						"This is where Hello Sayori starts",
 					]
 				: [
-				"把服务器折腾、工具链和日常笔记慢慢写下来",
-				"从 Obsidian 出发，整理成可以长期阅读的文章",
-				"轻一点，稳定一点，别把博客养成另一台服务器",
-				"这里先放 Hello Sayori，然后慢慢变多",
-				],
+						"把服务器折腾、工具链和日常笔记慢慢写下来",
+						"从 Obsidian 出发，整理成可以长期阅读的文章",
+						"轻一点，稳定一点，别把博客养成另一台服务器",
+						"这里先放 Hello Sayori，然后慢慢变多",
+					],
 			typewriter: {
 				enable: true, // 启用副标题打字机效果
 
@@ -288,11 +308,11 @@ const baseSiteConfig: SiteConfig = {
 	},
 
 	thirdPartyAnalytics: {
-		enable: true, // 是否启用第三方统计脚本
+		enable: !IS_SAYORI_DIARY, // 是否启用第三方统计脚本
 		clarityId: "", // Clarity 项目 ID
 		googleAnalyticsId: "G-JCZEYGZX7Z",
 		umami: {
-			enable: true,
+			enable: !IS_SAYORI_DIARY,
 			src: "https://stats.sayori.org/script.js",
 			websiteId: "75b35688-bffd-47f1-ad79-a1bf92269977",
 			hostUrl: "https://stats.sayori.org",
@@ -340,12 +360,14 @@ export const fullscreenWallpaperConfig: FullscreenWallpaperConfig = {
 };
 
 export const navBarConfig: NavBarConfig = {
-	links: navBarConfigOverride.links ?? [
-		LinkPreset.Home,
-		LinkPreset.Archive,
-		LinkPreset.Anime,
-		LinkPreset.Timeline,
-	],
+	links: IS_SAYORI_DIARY
+		? [LinkPreset.Home]
+		: (navBarConfigOverride.links ?? [
+				LinkPreset.Home,
+				LinkPreset.Archive,
+				LinkPreset.Anime,
+				LinkPreset.Timeline,
+			]),
 };
 
 const baseProfileConfig: ProfileConfig = {
@@ -387,7 +409,27 @@ const baseProfileConfig: ProfileConfig = {
 
 export const profileConfig: ProfileConfig = {
 	...baseProfileConfig,
-	...profileConfigOverride,
+	...(IS_SAYORI_DIARY
+		? {
+				avatar: "/assets/pet/sayori-neutral.webp",
+				name: "Sayori",
+				bio: IS_ENGLISH_BUILD
+					? "A small public notebook of letters, poems, and everyday moments"
+					: "写下小信、诗句和日常片段的公开笔记",
+				links: [
+					{
+						name: "Sayori's Diary",
+						icon: "material-symbols:home-pin-outline",
+						url: "https://diary.sayori.org/",
+					},
+					{
+						name: "RSS",
+						icon: "material-symbols:rss-feed",
+						url: "https://diary.sayori.org/rss.xml",
+					},
+				],
+			}
+		: profileConfigOverride),
 };
 
 const baseSponsorConfig: SponsorConfig = {
@@ -504,7 +546,9 @@ const baseMusicPlayerConfig: MusicPlayerConfig = {
 
 export const musicPlayerConfig: MusicPlayerConfig = {
 	...baseMusicPlayerConfig,
-	...musicPlayerConfigOverride,
+	...(IS_SAYORI_DIARY
+		? { enable: false, showFloatingPlayer: false }
+		: musicPlayerConfigOverride),
 };
 
 export const footerConfig: FooterConfig = {

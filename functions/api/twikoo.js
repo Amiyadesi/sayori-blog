@@ -7,9 +7,24 @@ import {
 
 const OWNER_NICK = "Amiya_desi";
 const OWNER_AVATAR = "https://blog.sayori.org/assets/profile/avatar-sayori.png";
+const SAYORI_NICK = "Sayori";
+const SAYORI_AVATAR =
+	"https://blog.sayori.org/assets/profile/avatar-sayori.png";
 
 function isOwnerNick(value) {
-	return String(value || "").trim().toLowerCase() === OWNER_NICK.toLowerCase();
+	return (
+		String(value || "")
+			.trim()
+			.toLowerCase() === OWNER_NICK.toLowerCase()
+	);
+}
+
+function isSayoriNick(value) {
+	return (
+		String(value || "")
+			.trim()
+			.toLowerCase() === SAYORI_NICK.toLowerCase()
+	);
 }
 
 function getSubmitNick(event) {
@@ -17,11 +32,41 @@ function getSubmitNick(event) {
 }
 
 function shouldAttachAdminToken(event) {
-	return event.event === "COMMENT_SUBMIT" && isOwnerNick(getSubmitNick(event));
+	return (
+		event.event === "COMMENT_SUBMIT" && isOwnerNick(getSubmitNick(event))
+	);
+}
+
+function shouldAttachSayoriToken(event) {
+	return (
+		event.event === "COMMENT_SUBMIT" && isSayoriNick(getSubmitNick(event))
+	);
 }
 
 function getAdminToken(env) {
 	return getTwikooAdminToken(env);
+}
+
+async function hasValidSayoriToken(request, env) {
+	const expected = String(env.SAYORI_COMMENT_TOKEN || "").trim();
+	const provided = String(
+		request.headers.get("x-sayori-comment-token") || "",
+	).trim();
+	if (!expected || !provided || expected.length !== provided.length) {
+		return false;
+	}
+	const encoder = new TextEncoder();
+	const [expectedHash, providedHash] = await Promise.all([
+		crypto.subtle.digest("SHA-256", encoder.encode(expected)),
+		crypto.subtle.digest("SHA-256", encoder.encode(provided)),
+	]);
+	const left = new Uint8Array(expectedHash);
+	const right = new Uint8Array(providedHash);
+	let difference = 0;
+	for (let index = 0; index < left.length; index += 1) {
+		difference |= left[index] ^ right[index];
+	}
+	return difference === 0;
 }
 
 function normalizeOwnerProfile(payload) {
@@ -32,6 +77,17 @@ function normalizeOwnerProfile(payload) {
 	if (payload.comment && isOwnerNick(payload.comment.nick)) {
 		payload.comment.nick = OWNER_NICK;
 		payload.comment.avatar = OWNER_AVATAR;
+	}
+}
+
+function normalizeSayoriProfile(payload) {
+	if (isSayoriNick(payload.nick)) {
+		payload.nick = SAYORI_NICK;
+		payload.avatar = SAYORI_AVATAR;
+	}
+	if (payload.comment && isSayoriNick(payload.comment.nick)) {
+		payload.comment.nick = SAYORI_NICK;
+		payload.comment.avatar = SAYORI_AVATAR;
 	}
 }
 
@@ -60,6 +116,28 @@ async function tryAttachAdminIdentity(request, env, payload) {
 	} catch {
 		return false;
 	}
+}
+
+async function attachSayoriIdentity(request, env, payload) {
+	if (!(await hasValidSayoriToken(request, env))) {
+		throw json(
+			{ success: false, error: "Sayori 评论身份验证失败" },
+			{ status: 403 },
+		);
+	}
+	const token = getAdminToken(env);
+	if (!token) {
+		throw json(
+			{
+				success: false,
+				error: "Cloudflare 缺少 TWIKOO_ADMIN_PASSWORD，不能使用 Sayori 评论身份",
+			},
+			{ status: 500 },
+		);
+	}
+	payload.accessToken = token;
+	normalizeSayoriProfile(payload);
+	return true;
 }
 
 async function readPayload(request) {
@@ -98,7 +176,9 @@ function buildSubmitDiagnostics(payload, hasAdminIdentity, tokenInjected) {
 	}
 	return {
 		"x-sayori-twikoo-event": "COMMENT_SUBMIT",
-		"x-sayori-owner-nick": isOwnerNick(getSubmitNick(payload)) ? "yes" : "no",
+		"x-sayori-owner-nick": isOwnerNick(getSubmitNick(payload))
+			? "yes"
+			: "no",
 		"x-sayori-admin-session": hasAdminIdentity ? "present" : "missing",
 		"x-sayori-admin-token": tokenInjected ? "injected" : "not-injected",
 	};
@@ -131,14 +211,21 @@ export async function onRequest(context) {
 			return new Response(null, { status: 204 });
 		}
 		if (request.method !== "POST") {
-			return json({ success: false, error: "Twikoo proxy only accepts POST" }, { status: 405 });
+			return json(
+				{ success: false, error: "Twikoo proxy only accepts POST" },
+				{ status: 405 },
+			);
 		}
 
 		const payload = await readPayload(request);
 		const needsAdminIdentity = shouldAttachAdminToken(payload);
+		const needsSayoriIdentity = shouldAttachSayoriToken(payload);
 		let hasAdminIdentity = false;
 		let tokenInjected = false;
-		if (needsAdminIdentity) {
+		if (needsSayoriIdentity) {
+			tokenInjected = await attachSayoriIdentity(request, env, payload);
+			hasAdminIdentity = true;
+		} else if (needsAdminIdentity) {
 			tokenInjected = await attachAdminIdentity(request, env, payload, {
 				requireToken: true,
 			});
@@ -150,7 +237,11 @@ export async function onRequest(context) {
 
 		let response = await forwardTwikoo(env, payload);
 		let result = await readTwikooJson(response);
-		if (!hasAdminIdentity && getAdminToken(env) && shouldRetryWithAdmin(payload, result)) {
+		if (
+			!hasAdminIdentity &&
+			getAdminToken(env) &&
+			shouldRetryWithAdmin(payload, result)
+		) {
 			tokenInjected = await tryAttachAdminIdentity(request, env, payload);
 			hasAdminIdentity = tokenInjected;
 			if (tokenInjected) {

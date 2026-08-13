@@ -58,6 +58,11 @@ const {
 const keywords = siteConfig.keywords;
 const canonicalPath = currentLocalePath(Astro.url.pathname);
 const canonicalUrl = new URL(canonicalPath, siteConfig.siteURL).toString();
+const isSayoriDiarySite = process.env.SITE_VARIANT === "sayori-diary";
+const isSayoriDiaryPath =
+	Astro.url.pathname === "/" ||
+	Astro.url.pathname === "/en/" ||
+	/^\/(?:en\/)?posts\/sayori-diary\//.test(Astro.url.pathname);
 const isPrivateAdminPage = /^\/(?:en\/)?admin\//.test(Astro.url.pathname);
 const isIndexUtilityPage = /^\/(?:en\/)?(?:rss|atom)\/$/.test(
 	Astro.url.pathname,
@@ -94,16 +99,20 @@ const sameAs = profileConfig.links
 // 品牌实体（Amiya's Desk）的 Wikidata 条目，用于增强知识图谱关联。
 // 注意：这是站点/品牌的 QID，不是个人 QID。
 const brandSameAs = [
-	"https://www.wikidata.org/wiki/Q140378510",
+	...(isSayoriDiarySite ? [] : ["https://www.wikidata.org/wiki/Q140378510"]),
 	...(sameAs ?? []),
 ];
 const personSameAs = [
-	"https://www.wikidata.org/wiki/Q140378992",
+	...(isSayoriDiarySite ? [] : ["https://www.wikidata.org/wiki/Q140378992"]),
 	...(sameAs ?? []),
 ];
 const brandDescription = isEnglishSite
-	? "Amiya_desi's personal blog and project archive, covering game development, self-hosting, Cloudflare, Obsidian writing workflows, and AI-assisted development retrospectives."
-	: `${profileConfig.name} 的个人博客与项目记录站，聚焦游戏开发、服务器折腾、Cloudflare、Obsidian 写作流和 AI 辅助开发复盘。`;
+	? isSayoriDiarySite
+		? "Sayori's public notebook of letters, poems, and small everyday moments."
+		: "Amiya_desi's personal blog and project archive, covering game development, self-hosting, Cloudflare, Obsidian writing workflows, and AI-assisted development retrospectives."
+	: isSayoriDiarySite
+		? "Sayori 写下的小信、诗句和日常片段组成的公开笔记。"
+		: `${profileConfig.name} 的个人博客与项目记录站，聚焦游戏开发、服务器折腾、Cloudflare、Obsidian 写作流和 AI 辅助开发复盘。`;
 const localePath = stripLocalePrefix(Astro.url.pathname);
 const chineseUrl = new URL(
 	localizedPath(localePath, "zh-CN"),
@@ -153,7 +162,7 @@ const siteJsonLd = {
 			"@type": "Person",
 			"@id": personId,
 			name: profileConfig.name,
-			url: "https://sayori.org/",
+			url: isSayoriDiarySite ? "https://diary.sayori.org/" : "https://sayori.org/",
 			description: profileConfig.bio,
 			...(avatarUrl ? { image: avatarUrl } : {}),
 			...(personSameAs.length ? { sameAs: personSameAs } : {}),
@@ -185,9 +194,9 @@ const siteJsonLd = {
 			"@id": organizationId,
 			name: siteConfig.title,
 			url: siteUrl,
-			alternateName: ["Amiya's Desk", "Amiya的书桌"],
+			alternateName: isSayoriDiarySite ? ["Sayori's Diary"] : ["Amiya's Desk", "Amiya的书桌"],
 			description: brandDescription,
-			email: "mailto:me@sayori.org",
+			...(isSayoriDiarySite ? {} : { email: "mailto:me@sayori.org" }),
 			keywords: keywords,
 			owner: {
 				"@id": personId,
@@ -198,8 +207,8 @@ const siteJsonLd = {
 			contactPoint: {
 				"@type": "ContactPoint",
 				contactType: "public contact",
-				email: "me@sayori.org",
-				url: "https://sayori.org/",
+				...(isSayoriDiarySite ? {} : { email: "me@sayori.org" }),
+				url: isSayoriDiarySite ? "https://diary.sayori.org/" : "https://sayori.org/",
 				availableLanguage: ["zh-CN", "en"],
 			},
 			...(logoUrl ? { logo: logoUrl } : {}),
@@ -230,6 +239,7 @@ function toIsoDate(value?: Date | string) {
 <meta
 	name="robots"
 	content={noindex ||
+	(isSayoriDiarySite && !isSayoriDiaryPath) ||
 	isPrivateAdminPage ||
 	isIndexUtilityPage ||
 	isArchivePagination

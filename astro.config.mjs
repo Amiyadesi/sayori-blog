@@ -44,6 +44,7 @@ const featurePagePaths = {
 const disabledFeaturePathPrefixes = Object.entries(featurePagePaths)
 	.filter(([feature]) => siteConfig.featurePages[feature] === false)
 	.flatMap(([, paths]) => paths);
+const isSayoriDiarySite = process.env.SITE_VARIANT === "sayori-diary";
 
 // https://astro.build/config
 export default defineConfig({
@@ -57,11 +58,15 @@ export default defineConfig({
 	},
 
 	integrations: [
-		oddmisc({
-			umami: {
-				shareUrl: false,
-			},
-		}),
+		...(isSayoriDiarySite
+			? []
+			: [
+					oddmisc({
+						umami: {
+							shareUrl: false,
+						},
+					}),
+				]),
 		swup({
 			theme: false,
 			animationClass: "transition-swup-",
@@ -142,6 +147,12 @@ export default defineConfig({
 					/^\/en(?=\/|$)/,
 					"",
 				);
+				if (isSayoriDiarySite) {
+					return (
+						pathname === "/" ||
+						pathname.startsWith("/posts/sayori-diary/")
+					);
+				}
 				return !(
 					pathname.startsWith("/admin/") ||
 					/^\/\d+\/$/.test(pathname) ||

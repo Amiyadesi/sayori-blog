@@ -1,0 +1,138 @@
+---
+import type { Page } from "astro";
+import type { CollectionEntry } from "astro:content";
+import { render } from "astro:content";
+
+import Image from "../atoms/Image/Image.astro";
+import { getPostPublicDescription } from "../../utils/post-card-content";
+import { getFileDirFromPath, getPostUrl } from "../../utils/url-utils";
+import { isEnglishSite } from "../../utils/site-locale";
+
+interface Props {
+	page: Page<CollectionEntry<"posts">>;
+}
+
+const { page } = Astro.props as Props;
+const entries = await Promise.all(
+	page.data.map(async (entry) => {
+		const { remarkPluginFrontmatter } = await render(entry);
+		return {
+			entry,
+			description: getPostPublicDescription(
+				entry.data,
+				remarkPluginFrontmatter.excerpt,
+			),
+		};
+	}),
+);
+
+const dateLocale = isEnglishSite ? "en-US" : "zh-CN";
+const pageCountLabel = isEnglishSite
+	? `Page ${page.currentPage}`
+	: `第 ${page.currentPage} 页`;
+const homeUrl = isEnglishSite ? "/en/" : "/";
+const rssUrl = isEnglishSite ? "/en/rss.xml" : "/rss.xml";
+const alternateHomeUrl = isEnglishSite ? "/" : "/en/";
+---
+
+<main class="sayori-diary-shell sayori-diary-home" id="sayori-diary-main">
+	<header class="sayori-diary-header">
+		<div>
+			<p class="sayori-diary-kicker">A little place for sunny days</p>
+			<h1>{isEnglishSite ? "Sayori's Diary" : "Sayori 的日记"}</h1>
+			<p>
+				{isEnglishSite
+					? "Letters, poems, and small pieces of an ordinary day. Only pages Sayori chooses to share live here."
+					: "小信、诗句，还有普通日子里被轻轻记下来的片段。这里只放 Sayori 愿意分享的页面。"}
+			</p>
+			<nav class="sayori-diary-links" aria-label="Diary links">
+				<a href={homeUrl}>{isEnglishSite ? "Latest pages" : "最新日记"}</a>
+				<a href={rssUrl}>RSS</a>
+				<a href={alternateHomeUrl}>{isEnglishSite ? "中文" : "EN"}</a>
+			</nav>
+		</div>
+		<div class="sayori-diary-portrait">
+			<img src="/assets/pet/sayori-neutral.webp" alt="Sayori" width="420" height="420" />
+		</div>
+	</header>
+
+	<section class="sayori-diary-stream" aria-labelledby="diary-stream-title">
+		<div class="sayori-diary-stream-head">
+			<div>
+				<p class="sayori-diary-section-label">Open pages</p>
+				<h2 id="diary-stream-title">
+					{isEnglishSite ? "Pages from the notebook" : "本子里翻开的页面"}
+				</h2>
+			</div>
+			<span class="sayori-diary-stream-count">{pageCountLabel}</span>
+		</div>
+
+		{
+			entries.length > 0 ? (
+				<div class="sayori-diary-entries">
+					{entries.map(({ entry, description }) => {
+						const url = getPostUrl(entry);
+						const date = new Date(entry.data.published);
+						return (
+							<article class="sayori-diary-entry">
+								<div class="sayori-diary-date">
+									<time datetime={date.toISOString()}>
+										{date.toLocaleDateString(dateLocale, {
+											year: "numeric",
+											month: "short",
+											day: "numeric",
+										})}
+									</time>
+									<span>{isEnglishSite ? "a note" : "一页"}</span>
+								</div>
+								<div class="sayori-diary-sheet">
+									{entry.data.image && (
+										<Image
+											src={entry.data.image}
+											basePath={getFileDirFromPath(entry.filePath || "")}
+											alt={entry.data.title}
+											class="sayori-diary-sheet-cover"
+											widths={[320, 640]}
+											sizes="(max-width: 700px) 38vw, 180px"
+										/>
+									)}
+									<h3><a href={url}>{entry.data.title}</a></h3>
+									<p>{description || entry.data.title}</p>
+									<a class="sayori-diary-read" href={url}>
+										{isEnglishSite ? "Read this page →" : "翻开这一页 →"}
+									</a>
+								</div>
+							</article>
+						);
+					})}
+				</div>
+			) : (
+				<div class="sayori-diary-empty">
+					<strong>{isEnglishSite ? "The notebook is still open" : "本子还摊在桌上"}</strong>
+					<p>
+						{isEnglishSite
+							? "There are no public pages yet. Sayori will decide what belongs here."
+							: "还没有公开日记。以后写下什么、留下什么，会由 Sayori 自己决定。"}
+					</p>
+				</div>
+			)
+		}
+
+		{(page.url.prev || page.url.next) && (
+			<nav class="sayori-diary-pager" aria-label="Diary pages">
+				{page.url.prev ? (
+					<a href={page.url.prev}>{isEnglishSite ? "← Newer pages" : "← 更新的日记"}</a>
+				) : <span />}
+				{page.url.next && (
+					<a href={page.url.next}>{isEnglishSite ? "Older pages →" : "更早的日记 →"}</a>
+				)}
+			</nav>
+		)}
+	</section>
+
+	<footer class="sayori-diary-footer">
+		{isEnglishSite
+			? "A public notebook, never a window into private pages."
+			: "这是公开的本子，不是通往私密页面的窗口。"}
+	</footer>
+</main>

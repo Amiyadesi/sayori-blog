@@ -11,10 +11,13 @@ import WordCount from "@components/features/posts/atoms/WordCount.astro";
 import License from "@components/misc/License.astro";
 import Markdown from "@components/misc/Markdown.astro";
 import MainGridLayout from "@layouts/MainGridLayout.astro";
+import SayoriDiaryArticle from "@components/sayori/SayoriDiaryArticle.astro";
+import SayoriDiaryLayout from "@layouts/SayoriDiaryLayout.astro";
 import {
 	getPostDisplayTags,
 	getSortedPosts,
 	isDiaryPost,
+	isSayoriDiaryPost,
 } from "@utils/content-utils";
 import { resolveLocalImage } from "@utils/local-image";
 import { getPostPublicDescription } from "@utils/post-card-content";
@@ -33,7 +36,11 @@ import { formatDateToYYYYMMDD } from "../../utils/date-utils";
 import { currentLocalePath, isEnglishSite } from "../../utils/site-locale";
 
 export async function getStaticPaths() {
-	const blogEntries = await getSortedPosts();
+	const blogEntries = (await getSortedPosts()).filter((post) =>
+		process.env.SITE_VARIANT === "sayori-diary"
+			? isSayoriDiaryPost(post)
+			: true,
+	);
 	return buildPostPaths(blogEntries);
 }
 
@@ -136,8 +143,12 @@ const blogId = `${siteUrl}#blog`;
 const interactionPath = currentLocalePath(Astro.url.pathname);
 const commentPath = `/posts/${removeFileExtension(entry.id)}`;
 const canUseAiSummary = !isEncrypted && !isDiary;
+const isSayoriDiarySite = process.env.SITE_VARIANT === "sayori-diary";
 const jsonLdImage = new URL(
-	ogCoverUrl || "/assets/desktop-banner/1.webp",
+	ogCoverUrl ||
+		(isSayoriDiarySite
+			? "/assets/pet/sayori-neutral.webp"
+			: "/assets/desktop-banner/1.webp"),
 	siteConfig.siteURL,
 ).toString();
 
@@ -170,7 +181,27 @@ const jsonLd = {
 };
 ---
 
-<MainGridLayout
+{isSayoriDiarySite ? (
+	<SayoriDiaryLayout
+		title={entry.data.title}
+		description={publicDescription}
+		lang={entry.data.lang}
+		setOGTypeArticle={true}
+		publishedTime={entry.data.published}
+		modifiedTime={lastEditedDate}
+		tags={displayTags}
+		noindex={!isIndexablePost}
+	>
+		<script
+			is:inline
+			slot="head"
+			type="application/ld+json"
+			set:html={JSON.stringify(jsonLd)}
+		/>
+		<SayoriDiaryArticle entry={entry} />
+	</SayoriDiaryLayout>
+) : (
+	<MainGridLayout
 	banner={entry.data.image}
 	title={entry.data.title}
 	description={publicDescription}
@@ -394,7 +425,8 @@ const jsonLd = {
 			</section>
 		)
 	}
-</MainGridLayout>
+	</MainGridLayout>
+)}
 
 <style>
 	.post-paper-note {

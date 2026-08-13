@@ -10,6 +10,7 @@ import {
 	getPostActivityDate,
 	getSortedPosts,
 	isOrdinaryPublicPost,
+	isSayoriDiaryPost,
 } from "@/utils/content-utils";
 import { initPostIdMap } from "@/utils/permalink-utils";
 import { getPostPublicDescription } from "@/utils/post-card-content";
@@ -30,7 +31,11 @@ export async function GET(context: APIContext) {
 	// Use the same ordering as site listing (pinned first, then by activity date desc)
 	// 过滤掉加密文章和非普通公开文章。
 	const posts = (await getSortedPosts()).filter(
-		(post) => !post.data.encrypted && isOrdinaryPublicPost(post),
+		(post) =>
+			!post.data.encrypted &&
+			(process.env.SITE_VARIANT === "sayori-diary"
+				? isSayoriDiaryPost(post)
+				: isOrdinaryPublicPost(post)),
 	);
 
 	// 初始化文章 ID 映射（用于 permalink 功能）

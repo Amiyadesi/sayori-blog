@@ -2,12 +2,20 @@ import type { APIRoute } from "astro";
 
 import { profileConfig, siteConfig } from "../config";
 import { getTopicUrl, topics } from "../data/topics";
-import { getSortedPosts, isOrdinaryPublicPost } from "../utils/content-utils";
+import {
+	getSortedPosts,
+	isOrdinaryPublicPost,
+	isSayoriDiaryPost,
+} from "../utils/content-utils";
 import { getPostPublicDescription } from "../utils/post-card-content";
 import { getPostUrl } from "../utils/url-utils";
 
 export const GET: APIRoute = async () => {
-	const posts = (await getSortedPosts()).filter(isOrdinaryPublicPost);
+	const posts = (await getSortedPosts()).filter((post) =>
+		process.env.SITE_VARIANT === "sayori-diary"
+			? isSayoriDiaryPost(post)
+			: isOrdinaryPublicPost(post),
+	);
 	const normalizePostId = (value: string) =>
 		value.replace(/\.(md|mdx|markdown)$/i, "").replace(/\/index$/i, "");
 	const postById = new Map(

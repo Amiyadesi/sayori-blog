@@ -1,0 +1,497 @@
+---
+import HeadTags from "./partials/HeadTags.astro";
+import { siteConfig } from "../config";
+
+interface Props {
+	title?: string;
+	description?: string;
+	ogImageUrl?: string;
+	ogImageAlt?: string;
+	setOGTypeArticle?: boolean;
+	publishedTime?: Date | string;
+	modifiedTime?: Date | string;
+	tags?: string[];
+	noindex?: boolean;
+	lang?: string;
+}
+
+const {
+	title,
+	description,
+	ogImageUrl = "/assets/pet/sayori-neutral.webp",
+	ogImageAlt = "Sayori",
+	setOGTypeArticle = false,
+	publishedTime,
+	modifiedTime,
+	tags = [],
+	noindex = false,
+	lang = siteConfig.lang,
+} = Astro.props as Props;
+
+const pageTitle = title ? `${title} · Sayori's Diary` : "Sayori's Diary";
+const pageDescription =
+	description || "Sayori 写下的公开日记、小信和日常片段。";
+const siteLang = lang.replace("_", "-");
+const resolvedOgImage = ogImageUrl.startsWith("http")
+	? ogImageUrl
+	: new URL(ogImageUrl, "https://diary.sayori.org/").href;
+---
+
+<!doctype html>
+<html lang={siteLang} class="sayori-diary-document">
+	<head>
+		<meta charset="UTF-8" />
+		<HeadTags
+			title={pageTitle}
+			description={pageDescription}
+			ogImageUrl={resolvedOgImage}
+			ogImageAlt={ogImageAlt}
+			setOGTypeArticle={setOGTypeArticle}
+			publishedTime={publishedTime}
+			modifiedTime={modifiedTime}
+			tags={tags}
+			configHue={80}
+			noindex={noindex}
+		/>
+		<slot name="head" />
+	</head>
+	<body class="sayori-diary-body">
+		<div class="sayori-diary-canvas">
+			<slot />
+		</div>
+	</body>
+</html>
+
+<style is:global>
+	@font-face {
+		font-family: "Sayori Round";
+		src: url("/assets/font/ZenMaruGothic-Medium.ttf") format("truetype");
+		font-weight: 500;
+		font-display: swap;
+	}
+
+	:root {
+		--sayori-ink: #3e3a45;
+		--sayori-muted: #7d7883;
+		--sayori-paper: #fffdf7;
+		--sayori-paper-deep: #fff7e5;
+		--sayori-sky: #dceff2;
+		--sayori-blue: #6bb8c9;
+		--sayori-pink: #f2b5c0;
+		--sayori-yellow: #f2d36f;
+		--sayori-line: #d7e4e5;
+		--sayori-shadow: 0 18px 42px rgba(70, 104, 111, 0.14);
+	}
+
+	html.sayori-diary-document {
+		background: var(--sayori-sky);
+	}
+
+	body.sayori-diary-body {
+		margin: 0;
+		min-width: 320px;
+		background: var(--sayori-sky);
+		color: var(--sayori-ink);
+		font-family: "Sayori Round", "Noto Sans SC", system-ui, sans-serif;
+		font-size: 16px;
+		line-height: 1.7;
+	}
+
+	.sayori-diary-body a {
+		color: inherit;
+	}
+
+	.sayori-diary-canvas {
+		min-height: 100vh;
+		padding: clamp(1rem, 3vw, 3.5rem) 1rem 4rem;
+	}
+
+	.sayori-diary-shell {
+		width: min(100%, 1040px);
+		margin-inline: auto;
+	}
+
+	.sayori-diary-header {
+		position: relative;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(180px, 270px);
+		gap: clamp(1.5rem, 5vw, 4.5rem);
+		align-items: center;
+		min-height: 330px;
+		padding: clamp(1.5rem, 5vw, 4rem);
+		background: var(--sayori-paper);
+		border: 2px solid rgba(107, 184, 201, 0.45);
+		border-radius: 28px 22px 30px 18px;
+		box-shadow: var(--sayori-shadow);
+		overflow: hidden;
+	}
+
+	.sayori-diary-header::before {
+		content: "";
+		position: absolute;
+		top: 1rem;
+		right: 12%;
+		width: 110px;
+		height: 25px;
+		background: rgba(242, 211, 111, 0.68);
+		transform: rotate(4deg);
+	}
+
+	.sayori-diary-kicker,
+	.sayori-diary-section-label {
+		margin: 0 0 0.75rem;
+		color: var(--sayori-blue);
+		font-size: 0.78rem;
+		font-weight: 700;
+		letter-spacing: 0.14em;
+		text-transform: uppercase;
+	}
+
+	.sayori-diary-header h1 {
+		max-width: 12ch;
+		margin: 0;
+		font-size: clamp(2.6rem, 7vw, 5.6rem);
+		line-height: 0.98;
+		letter-spacing: 0;
+		color: var(--sayori-ink);
+	}
+
+	.sayori-diary-header p {
+		max-width: 34rem;
+		margin: 1.25rem 0 0;
+		color: var(--sayori-muted);
+		font-size: 1.05rem;
+	}
+
+	.sayori-diary-links {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.65rem;
+		margin-top: 1.5rem;
+	}
+
+	.sayori-diary-links a,
+	.sayori-diary-back {
+		display: inline-flex;
+		align-items: center;
+		min-height: 2.5rem;
+		padding: 0.45rem 0.85rem;
+		border: 1px solid var(--sayori-line);
+		border-radius: 999px;
+		background: #ffffff;
+		font-size: 0.86rem;
+		font-weight: 700;
+		text-decoration: none;
+		transition: transform 160ms ease, border-color 160ms ease;
+	}
+
+	.sayori-diary-links a:hover,
+	.sayori-diary-back:hover {
+		border-color: var(--sayori-blue);
+		transform: translateY(-2px) rotate(-1deg);
+	}
+
+	.sayori-diary-portrait {
+		position: relative;
+		align-self: end;
+		justify-self: center;
+		width: min(100%, 245px);
+		aspect-ratio: 1 / 1;
+		padding: 1rem;
+		border: 2px solid rgba(242, 181, 192, 0.65);
+		border-radius: 50% 46% 52% 44%;
+		background: #f9d9df;
+		transform: rotate(3deg);
+	}
+
+	.sayori-diary-portrait img {
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: contain;
+		object-position: center bottom;
+	}
+
+	.sayori-diary-portrait::after {
+		content: "♡";
+		position: absolute;
+		right: -0.2rem;
+		bottom: 0.5rem;
+		color: var(--sayori-pink);
+		font-size: 2.2rem;
+		transform: rotate(-12deg);
+	}
+
+	.sayori-diary-stream {
+		margin-top: clamp(2.5rem, 6vw, 5rem);
+	}
+
+	.sayori-diary-stream-head {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 1rem;
+		margin-bottom: 1.5rem;
+		padding-inline: 0.4rem;
+	}
+
+	.sayori-diary-stream-head h2 {
+		margin: 0;
+		font-size: clamp(1.45rem, 3vw, 2.1rem);
+		letter-spacing: 0;
+	}
+
+	.sayori-diary-stream-count {
+		color: var(--sayori-muted);
+		font-size: 0.85rem;
+	}
+
+	.sayori-diary-entries {
+		display: grid;
+		gap: 1.35rem;
+	}
+
+	.sayori-diary-entry {
+		display: grid;
+		grid-template-columns: 116px minmax(0, 1fr);
+		gap: 1rem;
+		align-items: start;
+	}
+
+	.sayori-diary-date {
+		padding-top: 1.2rem;
+		color: var(--sayori-blue);
+		font-size: 0.83rem;
+		font-weight: 700;
+		text-align: right;
+	}
+
+	.sayori-diary-date time {
+		display: block;
+		color: var(--sayori-ink);
+		font-size: 1rem;
+	}
+
+	.sayori-diary-sheet {
+		position: relative;
+		padding: clamp(1.25rem, 3vw, 2rem);
+		background: var(--sayori-paper);
+		border: 1px solid rgba(107, 184, 201, 0.3);
+		border-radius: 16px 22px 14px 20px;
+		box-shadow: 0 8px 22px rgba(70, 104, 111, 0.08);
+	}
+
+	.sayori-diary-sheet::before {
+		content: "";
+		position: absolute;
+		top: -0.65rem;
+		left: 1.5rem;
+		width: 76px;
+		height: 20px;
+		background: rgba(242, 181, 192, 0.68);
+		transform: rotate(-3deg);
+	}
+
+	.sayori-diary-sheet h3 {
+		margin: 0;
+		font-size: clamp(1.3rem, 3vw, 1.85rem);
+		line-height: 1.25;
+	}
+
+	.sayori-diary-sheet h3 a {
+		text-decoration: none;
+	}
+
+	.sayori-diary-sheet h3 a:hover {
+		color: var(--sayori-blue);
+	}
+
+	.sayori-diary-sheet p {
+		margin: 0.85rem 0 0;
+		color: var(--sayori-muted);
+	}
+
+	.sayori-diary-sheet-cover {
+		float: right;
+		width: min(32%, 180px);
+		aspect-ratio: 4 / 3;
+		margin: 0 0 0.75rem 1rem;
+		border-radius: 10px;
+		object-fit: cover;
+	}
+
+	.sayori-diary-read {
+		display: inline-flex;
+		margin-top: 1rem;
+		color: var(--sayori-blue);
+		font-size: 0.9rem;
+		font-weight: 700;
+		text-decoration: none;
+	}
+
+	.sayori-diary-read:hover {
+		text-decoration: underline;
+		text-underline-offset: 0.25rem;
+	}
+
+	.sayori-diary-empty {
+		padding: clamp(2rem, 8vw, 5rem) 1.5rem;
+		background: rgba(255, 253, 247, 0.72);
+		border: 1px dashed rgba(107, 184, 201, 0.65);
+		border-radius: 18px;
+		text-align: center;
+	}
+
+	.sayori-diary-empty strong {
+		display: block;
+		font-size: 1.4rem;
+	}
+
+	.sayori-diary-footer {
+		margin-top: 3rem;
+		color: var(--sayori-muted);
+		font-size: 0.82rem;
+		text-align: center;
+	}
+
+	.sayori-diary-article {
+		width: min(100%, 820px);
+		margin-inline: auto;
+	}
+
+	.sayori-diary-article-head {
+		margin-bottom: 1.25rem;
+	}
+
+	.sayori-diary-back {
+		margin-bottom: 1.5rem;
+		background: rgba(255, 255, 255, 0.72);
+	}
+
+	.sayori-diary-article-meta {
+		margin: 0 0 0.6rem;
+		color: var(--sayori-blue);
+		font-size: 0.85rem;
+		font-weight: 700;
+	}
+
+	.sayori-diary-article-head h1 {
+		margin: 0;
+		font-size: clamp(2.15rem, 6vw, 4.2rem);
+		line-height: 1.08;
+		letter-spacing: 0;
+	}
+
+	.sayori-diary-article-paper {
+		position: relative;
+		padding: clamp(1.35rem, 5vw, 3.5rem);
+		background: var(--sayori-paper);
+		border: 1px solid rgba(107, 184, 201, 0.34);
+		border-radius: 19px 24px 16px 22px;
+		box-shadow: var(--sayori-shadow);
+	}
+
+	.sayori-diary-article-paper::before {
+		content: "";
+		position: absolute;
+		top: 1.4rem;
+		left: -0.7rem;
+		width: 1.1rem;
+		height: 4.5rem;
+		background: var(--sayori-yellow);
+		border-radius: 0 0.4rem 0.4rem 0;
+		transform: rotate(-2deg);
+	}
+
+	.sayori-diary-article-cover {
+		display: block;
+		width: 100%;
+		max-height: 440px;
+		margin: 0 0 2rem;
+		border-radius: 12px;
+		object-fit: cover;
+	}
+
+	.sayori-diary-markdown {
+		color: var(--sayori-ink);
+	}
+
+	.sayori-diary-markdown :where(h2, h3, h4) {
+		color: var(--sayori-ink);
+		letter-spacing: 0;
+	}
+
+	.sayori-diary-markdown :where(blockquote) {
+		border-inline-start-color: var(--sayori-pink);
+		background: #fff7f7;
+	}
+
+	.sayori-diary-comments {
+		margin-top: 1.25rem;
+	}
+
+	.sayori-diary-pager {
+		display: flex;
+		justify-content: space-between;
+		gap: 1rem;
+		margin-top: 1.5rem;
+	}
+
+	.sayori-diary-pager a {
+		max-width: 48%;
+		color: var(--sayori-blue);
+		font-weight: 700;
+		text-decoration: none;
+	}
+
+	.sayori-diary-pager a:hover {
+		text-decoration: underline;
+		text-underline-offset: 0.25rem;
+	}
+
+	@media (max-width: 700px) {
+		.sayori-diary-header {
+			grid-template-columns: 1fr;
+			min-height: unset;
+		}
+
+		.sayori-diary-portrait {
+			width: min(52vw, 190px);
+			margin-top: -0.5rem;
+		}
+
+		.sayori-diary-entry {
+			grid-template-columns: 1fr;
+			gap: 0.35rem;
+		}
+
+		.sayori-diary-date {
+			padding: 0 0.5rem;
+			text-align: left;
+		}
+
+		.sayori-diary-date time {
+			display: inline;
+			margin-right: 0.5rem;
+		}
+
+		.sayori-diary-sheet-cover {
+			width: 38%;
+		}
+
+		.sayori-diary-pager {
+			flex-direction: column;
+		}
+
+		.sayori-diary-pager a {
+			max-width: 100%;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.sayori-diary-links a,
+		.sayori-diary-back {
+			transition: none;
+		}
+	}
+</style>

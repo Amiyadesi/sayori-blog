@@ -258,6 +258,10 @@ export function isDiaryPost(post: PostVisibilityLike): boolean {
 	);
 }
 
+export function isSayoriDiaryPost(post: PostVisibilityLike): boolean {
+	return post.id.startsWith("sayori-diary/");
+}
+
 export function isPublishedPost(post: PostVisibilityLike): boolean {
 	return post.data.draft !== true;
 }

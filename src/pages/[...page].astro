@@ -4,6 +4,8 @@ import CategoryBar from "@components/features/posts/CategoryBar.astro";
 import PostPage from "@components/features/posts/PostPage.astro";
 import RandomPostJump from "@components/features/posts/RandomPostJump.astro";
 import MainGridLayout from "@layouts/MainGridLayout.astro";
+import SayoriDiaryLayout from "@layouts/SayoriDiaryLayout.astro";
+import SayoriDiaryHome from "@components/sayori/SayoriDiaryHome.astro";
 import type { GetStaticPaths } from "astro";
 
 import { siteConfig } from "../config";
@@ -13,6 +15,7 @@ import {
 	dedupePostsByUrl,
 	getSortedPosts,
 	isHomeListPost,
+	isSayoriDiaryPost,
 } from "../utils/content-utils";
 import { initPostIdMap } from "../utils/permalink-utils";
 import { getPostPublicDescription } from "../utils/post-card-content";
@@ -20,6 +23,7 @@ import { getPostUrl } from "../utils/url-utils";
 import { currentLocalePath, isEnglishSite } from "../utils/site-locale";
 
 const showCategoryBar = siteConfig.postListLayout.categoryBar?.enable ?? false;
+const isSayoriDiarySite = process.env.SITE_VARIANT === "sayori-diary";
 
 export const getStaticPaths = (async ({ paginate }) => {
 	const allBlogPosts = await getSortedPosts();
@@ -27,7 +31,13 @@ export const getStaticPaths = (async ({ paginate }) => {
 	initPostIdMap(allBlogPosts);
 	// Keep pagination boundaries stable even if content sync briefly exposes
 	// duplicate entries with the same public URL.
-	const homePosts = dedupePostsByUrl(allBlogPosts.filter(isHomeListPost));
+	const homePosts = dedupePostsByUrl(
+		allBlogPosts.filter((post) =>
+			process.env.SITE_VARIANT === "sayori-diary"
+				? isSayoriDiaryPost(post)
+				: isHomeListPost(post),
+		),
+	);
 	return paginate(homePosts, { pageSize: PAGE_SIZE });
 }) satisfies GetStaticPaths;
 // https://github.com/withastro/astro/issues/6507#issuecomment-1489916992
@@ -100,8 +110,20 @@ const homeFaqItems = isEnglishSite
 		answer: "可以把这里理解为 Amiya_desi 的公开博客与项目档案：文章正文、标签、归档、RSS、sitemap 和 llms.txt 用来帮助搜索、实时 AI 引用和公开内容训练抓取理解内容；robots.txt 保持 Google 可解析的标准语法。",
 	},
 	];
+const diaryCopy = isEnglishSite
+	? {
+			scopeHeading: "About this diary",
+			scope: "This is Sayori's public diary. It contains only notes she chooses to publish; private notes and private conversations never appear here.",
+			description: "Sayori's public diary, letters, and everyday notes.",
+		}
+	: {
+			scopeHeading: "关于这本日记",
+			scope: "这里是 Sayori 自己选择公开的日记。私人笔记和私聊内容不会出现在这里。",
+			description: "Sayori 的公开日记、小信和日常记录。",
+		};
+const activeCopy = isSayoriDiarySite ? diaryCopy : homeCopy;
 const pageDescription = isHomeFirstPage
-	? homeCopy.description
+	? activeCopy.description
 	: `${siteConfig.title} - ${siteConfig.subtitle}`;
 const pageTitle = isHomeFirstPage
 	? undefined
@@ -166,18 +188,23 @@ if (isHomeFirstPage) {
 }
 ---
 
-<MainGridLayout title={pageTitle} description={pageDescription}>
+{isSayoriDiarySite ? (
+	<SayoriDiaryLayout title={pageTitle} description={pageDescription}>
+		<SayoriDiaryHome page={page} />
+	</SayoriDiaryLayout>
+) : (
+	<MainGridLayout title={pageTitle} description={pageDescription}>
 	<script
 		is:inline
 		slot="head"
 		type="application/ld+json"
 		set:html={JSON.stringify(jsonLd)}
 	/>
-	{showCategoryBar && <CategoryBar />}
-	{isHomeFirstPage && <RandomPostJump />}
+	{!isSayoriDiarySite && showCategoryBar && <CategoryBar />}
+	{!isSayoriDiarySite && isHomeFirstPage && <RandomPostJump />}
 	<PostPage page={page} />
 	{
-		isHomeFirstPage && webmasterTopic && (
+		!isSayoriDiarySite && isHomeFirstPage && webmasterTopic && (
 			<section class="card-base px-5 py-4 mt-4 text-sm leading-7 text-[var(--text-50)]">
 				<h2 class="text-base font-semibold text-[var(--text-90)]">
 					{homeCopy.topicHeading}
@@ -197,11 +224,11 @@ if (isHomeFirstPage) {
 			<section class="card-base px-5 py-4 mt-4 text-sm leading-7 text-[var(--text-50)]">
 				<details>
 					<summary class="cursor-pointer font-semibold text-[var(--text-90)]">
-						{homeCopy.scopeHeading}
+						{activeCopy.scopeHeading}
 					</summary>
 					<div class="mt-3 space-y-3">
-						<p>{homeCopy.scope}</p>
-						{homeFaqItems.map((item) => (
+						<p>{activeCopy.scope}</p>
+						{(isSayoriDiarySite ? [] : homeFaqItems).map((item) => (
 							<article>
 								<h2 class="text-base font-semibold text-[var(--text-90)]">
 									{item.question}
@@ -219,4 +246,5 @@ if (isHomeFirstPage) {
 		page={page}
 		style={`animation-delay: calc(var(--content-delay) + ${len * 50}ms)`}
 	/>
-</MainGridLayout>
+	</MainGridLayout>
+)}
