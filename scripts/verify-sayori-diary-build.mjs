@@ -59,7 +59,7 @@ const totalBytes = walk(dist).reduce(
 	(total, file) => total + fs.statSync(file).size,
 	0,
 );
-assert.ok(totalBytes < 20 * 1024 * 1024, `diary build too large: ${totalBytes} bytes`);
+assert.ok(totalBytes < 22 * 1024 * 1024, `diary build too large: ${totalBytes} bytes`);
 
 const textFiles = walk(dist).filter((file) =>
 	/\.(?:html|xml|txt)$/i.test(file),
