@@ -150,6 +150,7 @@ export default defineConfig({
 				if (isSayoriDiarySite) {
 					return (
 						pathname === "/" ||
+						pathname === "/friends/" ||
 						pathname.startsWith("/posts/sayori-diary/")
 					);
 				}

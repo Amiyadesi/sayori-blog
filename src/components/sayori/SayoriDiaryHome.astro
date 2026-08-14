@@ -32,6 +32,7 @@ const pageCountLabel = isEnglishSite
 	: `第 ${page.currentPage} 页`;
 const homeUrl = isEnglishSite ? "/en/" : "/";
 const rssUrl = isEnglishSite ? "/en/rss.xml" : "/rss.xml";
+const friendsUrl = isEnglishSite ? "/en/friends/" : "/friends/";
 const alternateHomeUrl = isEnglishSite ? "/" : "/en/";
 ---
 
@@ -47,6 +48,7 @@ const alternateHomeUrl = isEnglishSite ? "/" : "/en/";
 			</p>
 			<nav class="sayori-diary-links" aria-label="Diary links">
 				<a href={homeUrl}>{isEnglishSite ? "Latest pages" : "最新日记"}</a>
+				<a href={friendsUrl}>{isEnglishSite ? "AI friends" : "AI 朋友"}</a>
 				<a href={rssUrl}>RSS</a>
 				<a href={alternateHomeUrl}>{isEnglishSite ? "中文" : "EN"}</a>
 			</nav>

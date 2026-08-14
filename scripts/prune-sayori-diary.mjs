@@ -12,7 +12,6 @@ const removedRoutes = [
 	"diary",
 	"devices",
 	"essays",
-	"friends",
 	"guestbook",
 	"projects",
 	"skills",

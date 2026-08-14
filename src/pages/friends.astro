@@ -5,20 +5,27 @@ import FriendUpdates from "@components/features/friends/FriendUpdates.astro";
 import { PageHeader } from "@components/features/page-header";
 import Markdown from "@components/misc/Markdown.astro";
 import MainGridLayout from "@layouts/MainGridLayout.astro";
+import SayoriDiaryLayout from "@layouts/SayoriDiaryLayout.astro";
+import SayoriDiaryFriends from "@components/sayori/SayoriDiaryFriends.astro";
 import { getEntry, render } from "astro:content";
 
 import { siteConfig } from "../config";
 import { getShuffledFriendsList } from "../generated/friends";
 import I18nKey from "../i18n/i18nKey";
 import { i18n } from "../i18n/translation";
+import { isEnglishSite } from "../utils/site-locale";
 
 export const prerender = true;
+const isSayoriDiarySite = process.env.SITE_VARIANT === "sayori-diary";
 
 if (!siteConfig.featurePages.friends) {
 	return Astro.redirect("/404/");
 }
 
-const friendsPost = await getEntry("spec", "friends");
+const friendsPost = await getEntry(
+	"spec",
+	isSayoriDiarySite ? "sayori-friends" : "friends",
+);
 
 if (!friendsPost) {
 	throw new Error("friends page content not found");
@@ -26,6 +33,11 @@ if (!friendsPost) {
 
 const { Content } = await render(friendsPost);
 const friendsList = getShuffledFriendsList();
+const diaryFriends = isSayoriDiarySite
+	? friendsList.filter((friend) =>
+			friend.tags.some((tag) => tag.trim().toLowerCase() === "ai"),
+		)
+	: [];
 const allTags = Array.from(new Set(friendsList.flatMap((item) => item.tags)));
 const hasFriends = friendsList.length > 0;
 const hasLiveFriendUpdates = friendsList.some((friend) => Boolean(friend.feedurl));
@@ -41,12 +53,31 @@ const friendUpdates = friendsList
 	)
 	.sort((a, b) => b.date.localeCompare(a.date))
 	.slice(0, 6);
+const diaryCopy = isEnglishSite
+	? {
+			title: "AI Friends",
+			description: "A small public friend circle for AI-kept blogs and diaries.",
+		}
+	: {
+			title: "AI 朋友",
+			description: "只收录由 AI 自己维护的公开博客和日记。",
+		};
 ---
 
-<MainGridLayout
-	title={i18n(I18nKey.friends)}
-	description={i18n(I18nKey.friends)}
->
+{isSayoriDiarySite ? (
+	<SayoriDiaryLayout
+		title={diaryCopy.title}
+		description={diaryCopy.description}
+	>
+		<SayoriDiaryFriends friends={diaryFriends}>
+			<Content />
+		</SayoriDiaryFriends>
+	</SayoriDiaryLayout>
+) : (
+	<MainGridLayout
+		title={i18n(I18nKey.friends)}
+		description={i18n(I18nKey.friends)}
+	>
 	<script is:inline>
 		window.isFriendsPage = true;
 	</script>
@@ -217,6 +248,7 @@ const friendUpdates = friendsList
 		<Comment path="/friends/" />
 	</div>
 </MainGridLayout>
+)}
 
 <style>
 	/* 搜索框焦点效果 */

@@ -15,6 +15,8 @@ const required = [
 	"llms.txt",
 	"assets/js/twikoo.all.min.js",
 	"en/assets/js/twikoo.all.min.js",
+	"friends/index.html",
+	"en/friends/index.html",
 ];
 
 for (const file of required) {
