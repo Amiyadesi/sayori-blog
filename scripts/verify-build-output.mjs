@@ -867,7 +867,9 @@ function getEssayUrl(post) {
 
 function isDiaryPost(post) {
 	return (
-		post.id.startsWith("diary/") || post.data.title?.startsWith("日记：")
+		post.id.startsWith("diary/") ||
+		post.id.startsWith("sayori-diary/") ||
+		post.data.title?.startsWith("日记：")
 	);
 }
 
