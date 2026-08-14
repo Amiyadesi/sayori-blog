@@ -13,6 +13,8 @@ const required = [
 	"sitemap-0.xml",
 	"en/sitemap-0.xml",
 	"llms.txt",
+	"assets/js/twikoo.all.min.js",
+	"en/assets/js/twikoo.all.min.js",
 ];
 
 for (const file of required) {

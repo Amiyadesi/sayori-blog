@@ -52,7 +52,7 @@ for (const root of [
 	if (!fs.existsSync(root)) continue;
 	const relativeRoot = path.relative(dist, root).replaceAll("\\", "/");
 	const keep = relativeRoot.endsWith("assets")
-		? new Set(["font", "pet"])
+		? new Set(["font", "pet", "js"])
 		: new Set(["posts"]);
 	for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
 		if (!keep.has(entry.name)) {
@@ -68,6 +68,17 @@ for (const root of [
 					recursive: true,
 					force: true,
 				});
+			}
+		}
+		const scriptsRoot = path.join(root, "js");
+		if (fs.existsSync(scriptsRoot)) {
+			for (const script of fs.readdirSync(scriptsRoot, { withFileTypes: true })) {
+				if (script.name !== "twikoo.all.min.js") {
+					fs.rmSync(path.join(scriptsRoot, script.name), {
+						recursive: true,
+						force: true,
+					});
+				}
 			}
 		}
 	}
@@ -87,7 +98,7 @@ for (const root of [
 }
 
 for (const root of localeRoots) {
-	for (const directory of ["pio", "js", "data"]) {
+	for (const directory of ["pio", "data"]) {
 		fs.rmSync(path.join(root, directory), { recursive: true, force: true });
 	}
 }
