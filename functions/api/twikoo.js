@@ -6,10 +6,11 @@ import {
 } from "../_lib/twikoo.js";
 
 const OWNER_NICK = "Amiya_desi";
-const OWNER_AVATAR = "https://blog.sayori.org/assets/profile/avatar-sayori.png";
+const OWNER_AVATAR =
+	"https://blog.sayori.org/assets/profile/avatar-sayori-192.jpg";
 const SAYORI_NICK = "Sayori";
 const SAYORI_AVATAR =
-	"https://blog.sayori.org/assets/profile/avatar-sayori.png";
+	"https://blog.sayori.org/assets/profile/avatar-sayori-192.jpg";
 
 function isOwnerNick(value) {
 	return (

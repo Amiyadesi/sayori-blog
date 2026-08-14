@@ -34,7 +34,7 @@ export const prerender = true;
 				<div class="admin-user">
 					<img
 						id="admin-avatar"
-						src="/assets/profile/avatar-sayori.png"
+						src="/assets/profile/avatar-sayori-192.jpg"
 						alt=""
 					/>
 					<div>
@@ -481,7 +481,7 @@ export const prerender = true;
 		el.login.hidden = true;
 		el.app.hidden = false;
 		el.avatar.src =
-			state.user.avatar_url || "/assets/profile/avatar-sayori.png";
+			state.user.avatar_url || "/assets/profile/avatar-sayori-192.jpg";
 		el.userName.textContent = state.user.name || state.user.login;
 		el.loginName.textContent = `${state.user.login} · ${config.adminLogin || "Amiyadesi"}`;
 		el.ownerNick.textContent = config.commentOwnerNick || "Amiya_desi";
