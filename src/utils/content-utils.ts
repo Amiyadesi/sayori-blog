@@ -49,6 +49,7 @@ const DIARY_SYSTEM_TAGS = new Set([
 	"日常回声",
 	"公开整理版",
 ]);
+const IS_SAYORI_DIARY_SITE = process.env.SITE_VARIANT === "sayori-diary";
 
 // Public posts use this small, stable vocabulary. Legacy aliases remain below
 // so old content can still render cleanly while the authoring source is updated.
@@ -262,6 +263,12 @@ export function isSayoriDiaryPost(post: PostVisibilityLike): boolean {
 	return post.id.startsWith("sayori-diary/");
 }
 
+export function isPostInSiteVariant(post: PostVisibilityLike): boolean {
+	return IS_SAYORI_DIARY_SITE
+		? isSayoriDiaryPost(post)
+		: !isSayoriDiaryPost(post);
+}
+
 export function isPublishedPost(post: PostVisibilityLike): boolean {
 	return post.data.draft !== true;
 }
@@ -379,8 +386,8 @@ export function sortPostsByPublishedDateDesc<T extends PostPublishedDateLike>(
 
 // Retrieve posts in publication order; only an explicit major update can move one forward.
 async function getRawSortedPosts() {
-	const allBlogPosts = await getCollection("posts", ({ data }) => {
-		return data.draft !== true;
+	const allBlogPosts = await getCollection("posts", (post) => {
+		return post.data.draft !== true && isPostInSiteVariant(post);
 	});
 
 	const sorted = allBlogPosts.sort((a, b) => {

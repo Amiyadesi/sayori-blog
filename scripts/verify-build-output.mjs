@@ -80,6 +80,36 @@ function walkDistTextFiles(dir) {
 	});
 }
 
+function verifySayoriDiaryIsolation() {
+	const diaryRoutes = walkAllFiles(distDir).filter((filePath) => {
+		const relative = path.relative(distDir, filePath).replaceAll(path.sep, "/");
+		return /^(?:en\/)?posts\/sayori-diary\//.test(relative);
+	});
+	if (diaryRoutes.length > 0) {
+		fail(
+			`Main blog output contains ${diaryRoutes.length} Sayori diary route(s)`,
+		);
+	} else {
+		pass("Main blog output contains no Sayori diary routes");
+	}
+
+	const diaryPath = "/posts/sayori-diary/";
+	for (const relativePath of [
+		"rss.xml",
+		"atom.xml",
+		"llms.txt",
+		"sitemap-0.xml",
+		"en/sitemap-0.xml",
+		"timeline/index.html",
+		"en/timeline/index.html",
+	]) {
+		const content = readTextIfExists(path.join(distDir, relativePath));
+		if (content.includes(diaryPath) || content.includes("/en" + diaryPath)) {
+			fail(`Main blog output references ${diaryPath}: ${relativePath}`);
+		}
+	}
+}
+
 function verifyLocalFontReferences() {
 	const stale = [];
 	for (const filePath of walkDistTextFiles(distDir)) {
@@ -1467,6 +1497,8 @@ requireExcludes("llms.txt", llms, [
 	"ai-train=no",
 	"Content-Signal declaration in robots.txt",
 ]);
+
+verifySayoriDiaryIsolation();
 
 if (failed) {
 	throw new Error("Build output verification failed.");
