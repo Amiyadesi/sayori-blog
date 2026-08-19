@@ -83,17 +83,17 @@ function walkDistTextFiles(dir) {
 function verifySayoriDiaryIsolation() {
 	const diaryRoutes = walkAllFiles(distDir).filter((filePath) => {
 		const relative = path.relative(distDir, filePath).replaceAll(path.sep, "/");
-		return /^(?:en\/)?posts\/sayori-diary\//.test(relative);
+		return /^(?:en\/)?posts\/(?:diary|sayori-diary)\//.test(relative);
 	});
 	if (diaryRoutes.length > 0) {
 		fail(
-			`Main blog output contains ${diaryRoutes.length} Sayori diary route(s)`,
+			`Main blog output contains ${diaryRoutes.length} diary route(s)`,
 		);
 	} else {
-		pass("Main blog output contains no Sayori diary routes");
+		pass("Main blog output contains no diary routes");
 	}
 
-	const diaryPath = "/posts/sayori-diary/";
+	const diaryPaths = ["/posts/diary/", "/posts/sayori-diary/"];
 	for (const relativePath of [
 		"rss.xml",
 		"atom.xml",
@@ -104,8 +104,10 @@ function verifySayoriDiaryIsolation() {
 		"en/timeline/index.html",
 	]) {
 		const content = readTextIfExists(path.join(distDir, relativePath));
-		if (content.includes(diaryPath) || content.includes("/en" + diaryPath)) {
-			fail(`Main blog output references ${diaryPath}: ${relativePath}`);
+		for (const diaryPath of diaryPaths) {
+			if (content.includes(diaryPath) || content.includes("/en" + diaryPath)) {
+				fail(`Main blog output references ${diaryPath}: ${relativePath}`);
+			}
 		}
 	}
 }
@@ -1440,8 +1442,8 @@ requireIncludes("sitemap-0.xml", sitemap, [
 	"<urlset",
 	"<loc>https://blog.sayori.org/</loc>",
 	"<loc>https://blog.sayori.org/topics/webmaster/</loc>",
-	"https://blog.sayori.org/posts/diary/",
 ]);
+requireExcludes("sitemap-0.xml", sitemap, ["https://blog.sayori.org/posts/diary/"]);
 requireExcludes("sitemap-0.xml", sitemap, ["https://blog.sayori.org/admin/"]);
 requireExcludes("sitemap-0.xml", sitemap, [
 	"https://blog.sayori.org/2/",
@@ -1453,13 +1455,13 @@ requireExcludes("sitemap-0.xml", sitemap, [
 const englishSitemap = files.get("en/sitemap-0.xml") || "";
 requireIncludes("en/sitemap-0.xml", englishSitemap, [
 	"<urlset",
-	"https://blog.sayori.org/en/posts/diary/",
 ]);
 requireExcludes("en/sitemap-0.xml", englishSitemap, [
 	"https://blog.sayori.org/en/admin/",
 	"https://blog.sayori.org/en/albums/",
 	"https://blog.sayori.org/en/devices/",
 	"https://blog.sayori.org/en/diary/",
+	"https://blog.sayori.org/en/posts/diary/",
 	"https://blog.sayori.org/en/projects/",
 	"https://blog.sayori.org/en/skills/",
 	"https://blog.sayori.org/en/2/",

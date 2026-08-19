@@ -33,6 +33,8 @@ describe("public footer records", () => {
 			footerHtml,
 			/https:\/\/fakeicp\.top\/query\.html\?number=1202613/,
 		);
+		assert.match(footerHtml, /class="transition link text-\[var\(--primary\)\] font-medium"/);
+		assert.doesNotMatch(footerHtml, /data:image\/svg\+xml/);
 
 		const externalLinks = footerHtml.match(/<a\b[\s\S]*?<\/a>/g) ?? [];
 		assert.equal(externalLinks.length, 3);

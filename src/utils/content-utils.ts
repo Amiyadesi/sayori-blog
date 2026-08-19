@@ -266,7 +266,7 @@ export function isSayoriDiaryPost(post: PostVisibilityLike): boolean {
 export function isPostInSiteVariant(post: PostVisibilityLike): boolean {
 	return IS_SAYORI_DIARY_SITE
 		? isSayoriDiaryPost(post)
-		: !isSayoriDiaryPost(post);
+		: !isSayoriDiaryPost(post) && !isDiaryPost(post);
 }
 
 export function isPublishedPost(post: PostVisibilityLike): boolean {
