@@ -7,21 +7,15 @@ import { Icon } from "astro-icon/components";
 import { siteConfig } from "../config";
 import I18nKey from "../i18n/i18nKey";
 import { i18n } from "../i18n/translation";
-import {
-	getPostDisplayTags,
-	getSortedPosts,
-	isDiaryPost,
-} from "../utils/content-utils";
+import { getPostDisplayTags, getSortedPosts } from "../utils/content-utils";
 import { formatDateToYYYYMMDD } from "../utils/date-utils";
 import { getPostPublicDescription } from "../utils/post-card-content";
-import { getPostUrl, getPostUrlBySlug } from "../utils/url-utils";
+import { getPostUrl } from "../utils/url-utils";
 import { isEnglishSite } from "../utils/site-locale";
 
 if (!siteConfig.featurePages.timeline) {
 	return Astro.redirect("/404/");
 }
-
-type TimelinePostKind = "article" | "diary";
 
 interface TimelinePostEntry {
 	id: string;
@@ -30,8 +24,6 @@ interface TimelinePostEntry {
 	description: string;
 	published: Date;
 	dateKey: string;
-	kind: TimelinePostKind;
-	filterKinds: TimelinePostKind[];
 	category: string;
 	tags: string[];
 }
@@ -41,35 +33,7 @@ const publicPosts = (await getSortedPosts())
 	.slice()
 	.sort((a, b) => b.data.published.getTime() - a.data.published.getTime());
 
-const postsByUrl = new Map<string, (typeof publicPosts)[number]>();
-for (const post of publicPosts) {
-	postsByUrl.set(getPostUrl(post), post);
-	postsByUrl.set(getPostUrlBySlug(post.id), post);
-}
-const diaryReferencedArticleIds = new Set<string>();
-for (const post of publicPosts) {
-	if (!isDiaryPost(post)) {
-		continue;
-	}
-
-	for (const match of (post.body ?? "").matchAll(
-		/\]\((\/posts\/[^)#?]+\/?)/g,
-	)) {
-		const target = postsByUrl.get(
-			match[1].endsWith("/") ? match[1] : `${match[1]}/`,
-		);
-		if (target && !isDiaryPost(target)) {
-			diaryReferencedArticleIds.add(target.id);
-		}
-	}
-}
-
 const timelinePosts: TimelinePostEntry[] = publicPosts.map((post) => {
-	const kind = isDiaryPost(post) ? "diary" : "article";
-	const filterKinds: TimelinePostKind[] =
-		kind === "article" && diaryReferencedArticleIds.has(post.id)
-			? ["article", "diary"]
-			: [kind];
 	return {
 		id: post.id,
 		title: post.data.title,
@@ -77,9 +41,7 @@ const timelinePosts: TimelinePostEntry[] = publicPosts.map((post) => {
 		description: getPostPublicDescription(post.data, ""),
 		published: post.data.published,
 		dateKey: formatDateToYYYYMMDD(post.data.published),
-		kind,
-		filterKinds,
-		category: kind === "diary" ? "" : post.data.category || "",
+		category: post.data.category || "",
 		tags: getPostDisplayTags(post),
 	};
 });
@@ -92,14 +54,11 @@ for (const post of timelinePosts) {
 }
 
 const timelineDays = Array.from(grouped.entries()).map(([dateKey, posts]) => {
-	const kinds = [...new Set(posts.map((post) => post.kind))];
 	return {
 		dateKey,
 		date: posts[0].published,
 		posts,
-		kinds: kinds.join(","),
-		articleCount: posts.filter((post) => post.kind === "article").length,
-		diaryCount: posts.filter((post) => post.kind === "diary").length,
+		articleCount: posts.length,
 	};
 });
 
@@ -114,15 +73,7 @@ const filterTabs = [
 		value: "article",
 		label: isEnglishSite ? "Articles" : "文章",
 		icon: "material-symbols:article",
-		count: timelinePosts.filter((post) => post.kind === "article").length,
-	},
-	{
-		value: "diary",
-		label: isEnglishSite ? "Diary" : "日记",
-		icon: "material-symbols:edit-note",
-		count: timelinePosts.filter((post) =>
-			post.filterKinds.includes("diary"),
-		).length,
+		count: timelinePosts.length,
 	},
 ];
 
@@ -134,21 +85,17 @@ const formatDayTitle = (date: Date) =>
 		weekday: "short",
 	});
 
-const getKindIcon = (kind: TimelinePostKind) =>
-	kind === "diary"
-		? "material-symbols:edit-note"
-		: "material-symbols:article";
+const getKindIcon = () => "material-symbols:article";
 
 const title = i18n(I18nKey.timeline);
 const subtitle = isEnglishSite
-	? "Articles and diary entries arranged by publication date, so each day leads back to what was written then."
-	: "按发布时间整理文章和日记，每一天都能回到当时写下的那张纸。";
-const formatCount = (count: number, kind: "article" | "diary") => {
+	? "Articles arranged by publication date, so each day leads back to what was written then."
+	: "按发布时间整理文章，每一天都能回到当时写下的那张纸。";
+const formatCount = (count: number) => {
 	if (isEnglishSite) {
-		const label = kind === "article" ? "article" : "diary entry";
-		return `${count} ${count === 1 ? label : `${label}s`}`;
+		return `${count} ${count === 1 ? "article" : "articles"}`;
 	}
-	return `${count} 篇${kind === "article" ? "文章" : "日记"}`;
+	return `${count} 篇文章`;
 };
 ---
 
@@ -166,7 +113,10 @@ const formatCount = (count: number, kind: "article" | "diary") => {
 		class="flex w-full rounded-[var(--radius-large)] overflow-visible relative min-h-32"
 		data-post-timeline
 	>
-		<div class="card-base paper-note paper-note-lined paper-tape z-10 px-5 sm:px-9 py-6 relative w-full" style="padding-top: 1.75rem;">
+		<div
+			class="card-base paper-note paper-note-lined paper-tape z-10 px-5 sm:px-9 py-6 relative w-full"
+			style="padding-top: 1.75rem;"
+		>
 			<PageHeader title={title} subtitle={subtitle} />
 
 			<div class="mb-8">
@@ -176,7 +126,7 @@ const formatCount = (count: number, kind: "article" | "diary") => {
 			<div id="timeline-list" class="timeline-list">
 				{
 					timelineDays.map((day) => (
-						<article class="timeline-day" data-kind={day.kinds}>
+						<article class="timeline-day">
 							<div class="timeline-node">
 								<Icon
 									name="material-symbols:calendar-today-outline-rounded"
@@ -192,13 +142,7 @@ const formatCount = (count: number, kind: "article" | "diary") => {
 										</p>
 										<p class="timeline-day-count">
 											<span data-day-count>
-										{day.articleCount > 0 &&
-											formatCount(day.articleCount, "article")}
-												{day.articleCount > 0 &&
-													day.diaryCount > 0 &&
-													" · "}
-										{day.diaryCount > 0 &&
-											formatCount(day.diaryCount, "diary")}
+												{formatCount(day.articleCount)}
 											</span>
 										</p>
 									</div>
@@ -212,35 +156,21 @@ const formatCount = (count: number, kind: "article" | "diary") => {
 										<a
 											href={entry.url}
 											class="timeline-post-item group"
-											data-entry-kind={entry.kind}
-											data-filter-kinds={entry.filterKinds.join(
-												",",
-											)}
+											data-entry-kind="article"
 										>
 											<div class="timeline-post-icon">
 												<Icon
-													name={getKindIcon(
-														entry.kind,
-													)}
+													name={getKindIcon()}
 													class="w-4 h-4"
 												/>
 											</div>
 
 											<div class="min-w-0 flex-1">
 												<div class="timeline-post-meta timeline-post-meta-top">
-													<span
-														class:list={[
-															"timeline-kind-badge",
-															`is-${entry.kind}`,
-														]}
-													>
-														{entry.kind === "diary"
-										? isEnglishSite
-											? "Diary"
-											: "日记"
-										: isEnglishSite
-											? "Article"
-											: "文章"}
+													<span class="timeline-kind-badge">
+														{isEnglishSite
+															? "Article"
+															: "文章"}
 													</span>
 													{entry.category && (
 														<span>
@@ -250,11 +180,7 @@ const formatCount = (count: number, kind: "article" | "diary") => {
 													{entry.tags
 														.filter(
 															(tag) =>
-																tag !==
-																(entry.kind ===
-																"diary"
-																	? "日记"
-																	: "文章"),
+																tag !== "文章",
 														)
 														.slice(0, 3)
 														.map((tag) => (
@@ -315,43 +241,20 @@ const formatCount = (count: number, kind: "article" | "diary") => {
 				let visibleDays = 0;
 				root.querySelectorAll(".timeline-day").forEach((day) => {
 					let visibleRows = 0;
-					let visibleArticles = 0;
-					let visibleDiaries = 0;
 					day.querySelectorAll("[data-entry-kind]").forEach((row) => {
-						const filterKinds =
-							row.dataset.filterKinds?.split(",") ?? [];
 						const match =
-							value === "all" || filterKinds.includes(value);
+							value === "all" || row.dataset.entryKind === value;
 						row.classList.toggle("hidden", !match);
 						if (match) {
 							visibleRows += 1;
-							if (row.dataset.entryKind === "article") {
-								visibleArticles += 1;
-							}
-							if (row.dataset.entryKind === "diary") {
-								visibleDiaries += 1;
-							}
 						}
 					});
 
 					const dayCount = day.querySelector("[data-day-count]");
 					if (dayCount) {
-						const parts = [];
-						if (visibleArticles > 0) {
-							parts.push(
-								isEnglishSite
-									? `${visibleArticles} ${visibleArticles === 1 ? "article" : "articles"}`
-									: `${visibleArticles} 篇文章`,
-							);
-						}
-						if (visibleDiaries > 0) {
-							parts.push(
-								isEnglishSite
-									? `${visibleDiaries} ${visibleDiaries === 1 ? "diary entry" : "diary entries"}`
-									: `${visibleDiaries} 篇日记`,
-							);
-						}
-						dayCount.textContent = parts.join(" · ");
+						dayCount.textContent = isEnglishSite
+							? `${visibleRows} ${visibleRows === 1 ? "article" : "articles"}`
+							: `${visibleRows} 篇文章`;
 					}
 
 					day.classList.toggle("filtered-out", visibleRows === 0);
@@ -444,39 +347,58 @@ const formatCount = (count: number, kind: "article" | "diary") => {
 		position: relative;
 		background: var(--paper-bg);
 		background-image: var(--paper-overlay), var(--paper-line-image);
-		background-position: 0 0, 0 var(--paper-line-offset);
+		background-position:
+			0 0,
+			0 var(--paper-line-offset);
 		border: 1px dashed var(--paper-edge);
 		border-radius: var(--paper-radius);
 		box-shadow: var(--paper-shadow);
 		overflow: hidden;
-		transition: transform 0.2s ease, box-shadow 0.2s ease;
+		transition:
+			transform 0.2s ease,
+			box-shadow 0.2s ease;
 	}
 
 	.timeline-day-card::before {
-		content: '';
+		content: "";
 		position: absolute;
 		top: -6px;
 		left: 40%;
 		transform: translateX(-50%) rotate(-1.5deg);
 		width: clamp(50px, 28%, 85px);
 		height: 20px;
-		background: linear-gradient(135deg, var(--tape-blue) 0%, rgba(200, 225, 255, 0.4) 50%, var(--tape-blue) 100%);
+		background: linear-gradient(
+			135deg,
+			var(--tape-blue) 0%,
+			rgba(200, 225, 255, 0.4) 50%,
+			var(--tape-blue) 100%
+		);
 		border-radius: 2px;
 		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 		z-index: 2;
 		pointer-events: none;
 	}
 
-	.timeline-day:nth-child(3n+2) .timeline-day-card::before {
+	.timeline-day:nth-child(3n + 2) .timeline-day-card::before {
 		left: 55%;
 		transform: translateX(-50%) rotate(2deg);
-		background: linear-gradient(135deg, var(--tape-pink) 0%, rgba(255, 220, 235, 0.45) 50%, var(--tape-pink) 100%);
+		background: linear-gradient(
+			135deg,
+			var(--tape-pink) 0%,
+			rgba(255, 220, 235, 0.45) 50%,
+			var(--tape-pink) 100%
+		);
 	}
 
-	.timeline-day:nth-child(3n+3) .timeline-day-card::before {
+	.timeline-day:nth-child(3n + 3) .timeline-day-card::before {
 		left: 35%;
 		transform: translateX(-50%) rotate(-0.5deg);
-		background: linear-gradient(135deg, var(--tape-yellow) 0%, rgba(255, 245, 215, 0.55) 50%, var(--tape-yellow) 100%);
+		background: linear-gradient(
+			135deg,
+			var(--tape-yellow) 0%,
+			rgba(255, 245, 215, 0.55) 50%,
+			var(--tape-yellow) 100%
+		);
 	}
 
 	.timeline-day-card:hover {
@@ -586,11 +508,6 @@ const formatCount = (count: number, kind: "article" | "diary") => {
 		font-weight: 700;
 		background: color-mix(in srgb, var(--primary) 10%, transparent);
 		color: var(--primary);
-	}
-
-	.timeline-kind-badge.is-diary {
-		background: color-mix(in srgb, #ec4899 12%, transparent);
-		color: #db2777;
 	}
 
 	.timeline-post-desc {
