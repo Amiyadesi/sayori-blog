@@ -310,6 +310,113 @@
     transform: translate(-50%, 0) rotate(45deg);
   }
 
+  img {
+    display: block;
+    max-width: 100%;
+    margin-inline: auto;
+  }
+
+  .sayori-spoiler-image {
+    display: grid;
+    gap: 0.55rem;
+    width: min(100%, 46rem);
+    margin: 1.35rem auto;
+  }
+
+  .sayori-spoiler-image__toggle {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: 0.75rem;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .sayori-spoiler-image__media {
+    width: 100%;
+    height: auto;
+    border-radius: 0.75rem;
+    filter: blur(18px) saturate(0.7);
+    transform: scale(1.02);
+    transition: filter 180ms ease, transform 180ms ease;
+  }
+
+  .sayori-spoiler-image__toggle[aria-expanded="true"] .sayori-spoiler-image__media {
+    filter: none;
+    transform: none;
+  }
+
+  .sayori-spoiler-image figcaption {
+    margin: 0;
+    color: rgb(0 0 0 / 0.55);
+    font-size: 0.88rem;
+    line-height: 1.55;
+    text-align: center;
+  }
+
+  .sayori-photo-carousel {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.55rem;
+    width: 100%;
+    margin: 1.35rem 0;
+  }
+
+  .sayori-photo-carousel-track {
+    display: flex;
+    min-width: 0;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+  }
+
+  .sayori-photo-carousel-track::-webkit-scrollbar {
+    display: none;
+  }
+
+  .sayori-photo-carousel-item {
+    flex: 0 0 100%;
+    min-width: 0;
+    margin: 0;
+    scroll-snap-align: center;
+  }
+
+  .sayori-photo-carousel-item img {
+    width: min(100%, 46rem);
+    height: auto;
+  }
+
+  .sayori-photo-carousel-item figcaption {
+    margin: 0.55rem 0 0;
+    color: rgb(0 0 0 / 0.55);
+    font-size: 0.88rem;
+    line-height: 1.55;
+    text-align: center;
+  }
+
+  .sayori-photo-carousel__button {
+    display: grid;
+    place-items: center;
+    width: 2.2rem;
+    height: 2.2rem;
+    padding: 0;
+    border: 1px solid color-mix(in srgb, var(--primary) 25%, var(--paper-edge));
+    border-radius: 50%;
+    background: var(--paper-bg-soft);
+    color: var(--paper-text);
+    cursor: pointer;
+    font-size: 1.2rem;
+    line-height: 1;
+  }
+
+  .sayori-photo-carousel__button:hover,
+  .sayori-photo-carousel__button:focus-visible {
+    background: color-mix(in srgb, var(--primary) 12%, var(--paper-bg-soft));
+  }
+
   .sayori-figure {
     --sayori-image-width: min(100%, 46rem);
 
@@ -851,5 +958,10 @@
 }
 
 :root.dark .custom-md .sayori-figure figcaption {
+  color: rgb(255 255 255 / 0.55);
+}
+
+:root.dark .custom-md .sayori-spoiler-image figcaption,
+:root.dark .custom-md .sayori-photo-carousel-item figcaption {
   color: rgb(255 255 255 / 0.55);
 }

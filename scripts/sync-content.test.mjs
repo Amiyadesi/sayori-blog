@@ -114,7 +114,13 @@ try {
 		"{{黑框<缺少右尖括号}}",
 		"{{任意内容也转黑框}}",
 		"{{普通黑框|普通提示}}",
+		"{{![[second image.jpg|caption=点击后显示的图片]]}}",
 		"![[second image.jpg|caption=尖括号链接|link=<https://example.com/angle>]]",
+		"",
+		":::",
+		"![[Pasted image 20260601203747.png|第一张轮播图]]",
+		"![第二张轮播图](second image.jpg)",
+		":::",
 		"",
 		":::photo-grid",
 		"![[Pasted image 20260601203747.png|左边照片说明]]",
@@ -350,6 +356,10 @@ try {
 	);
 	assert.match(
 		read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md")),
+		/<figure class="sayori-spoiler-image">[\s\S]*<button type="button" class="sayori-spoiler-image__toggle" aria-expanded="false" aria-label="点击显示图片 \/ Reveal image">[\s\S]*<img class="sayori-spoiler-image__media" src="\/images\/posts\/space-images\/second%20image\.jpg" alt="点击后显示的图片"[\s\S]*<figcaption>点击后显示的图片<\/figcaption>/,
+	);
+	assert.match(
+		read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md")),
 		/<figcaption><a href="https:\/\/example\.com\/angle" target="_blank" rel="noopener noreferrer">尖括号链接<\/a><\/figcaption>/,
 	);
 	assert.match(
@@ -363,6 +373,10 @@ try {
 	assert.match(
 		read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md")),
 		/<div class="sayori-photo-grid" style="--photo-grid-columns: 2;">[\s\S]*<img src="\/images\/posts\/space-images\/Pasted%20image%2020260601203747\.png" alt="左边照片说明" loading="lazy" decoding="async" \/>[\s\S]*<figcaption>左边照片说明<\/figcaption>[\s\S]*<img src="\/images\/posts\/space-images\/second%20image\.jpg" alt="右边照片说明" loading="lazy" decoding="async" \/>[\s\S]*<figcaption>右边照片说明<\/figcaption>[\s\S]*<\/div>/,
+	);
+	assert.match(
+		read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md")),
+		/<div class="sayori-photo-carousel" data-sayori-carousel>[\s\S]*data-carousel-prev[\s\S]*<div class="sayori-photo-carousel-track"[^>]*>[\s\S]*<figcaption>第一张轮播图<\/figcaption>[\s\S]*<figcaption>第二张轮播图<\/figcaption>[\s\S]*data-carousel-next[\s\S]*<\/div>/,
 	);
 	assert.match(
 		read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md")),

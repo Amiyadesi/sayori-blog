@@ -232,7 +232,8 @@ export const getDefaultFancyboxConfig = (): FancyboxConfig => ({
 // Fancybox 选择器
 export const FANCYBOX_SELECTORS = {
 	// 相册/文章图片
-	albumImages: ".custom-md img, #post-cover img, .moment-images img",
+	albumImages:
+		".custom-md img:not(.sayori-spoiler-image__media), #post-cover img, .moment-images img",
 
 	// 相册链接
 	albumLinks: ".moment-images a[data-fancybox]",

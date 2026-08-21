@@ -365,6 +365,34 @@ const className = Astro.props.class;
 
 	document.addEventListener("click", function (e: MouseEvent) {
 		const target = e.target as HTMLElement | null;
+		const spoilerImageToggle = target?.closest<HTMLButtonElement>(
+			".sayori-spoiler-image__toggle",
+		);
+		if (spoilerImageToggle) {
+			e.preventDefault();
+			spoilerImageToggle.setAttribute("aria-expanded", "true");
+			return;
+		}
+
+		const carouselButton = target?.closest<HTMLButtonElement>(
+			"[data-carousel-prev], [data-carousel-next]",
+		);
+		if (carouselButton) {
+			e.preventDefault();
+			const carousel = carouselButton.closest<HTMLElement>("[data-sayori-carousel]");
+			const track = carousel?.querySelector<HTMLElement>("[data-carousel-track]");
+			if (track) {
+				const direction = carouselButton.hasAttribute("data-carousel-prev") ? -1 : 1;
+				const currentIndex = Math.round(track.scrollLeft / Math.max(track.clientWidth, 1));
+				const nextIndex = Math.max(
+					0,
+					Math.min(track.children.length - 1, currentIndex + direction),
+				);
+				track.scrollTo({ left: nextIndex * track.clientWidth, behavior: "smooth" });
+			}
+			return;
+		}
+
 		const spoiler = target?.closest(".sayori-spoiler");
 		if (spoiler instanceof HTMLElement) {
 			spoiler.classList.toggle("is-revealed");

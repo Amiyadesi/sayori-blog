@@ -348,6 +348,8 @@ function transformMarkdownBody(content, sourcePath, slug) {
 	return transformNonCodeBlocks(content, (segment) => {
 		let result = segment;
 		result = stripObsidianComments(result);
+		result = convertSpoilerImages(result, sourcePath, slug);
+		result = convertPhotoCarousels(result, sourcePath, slug);
 		result = convertPhotoGrids(result, sourcePath, slug);
 		result = convertSpoilers(result);
 		result = convertObsidianEmbeds(result, sourcePath, slug);
@@ -450,6 +452,49 @@ function convertSpoilers(content) {
 			tooltip ? `aria-label="${escapeHtml(tooltip)}"` : "",
 		].filter(Boolean).join(" ");
 		return `<span ${attrs}>${escapeHtml(text)}</span>`;
+	});
+}
+
+function convertSpoilerImages(content, sourcePath, slug) {
+	return content.replace(
+		/\{\{\s*(!\[\[[^\]\r\n]*?\]\]|!\[[^\]\r\n]*?\]\([^)]+\))\s*\}\}/g,
+		(match, rawImage) => {
+			const item = parsePhotoGridItem(String(rawImage).trim(), slug, sourcePath);
+			return item ? renderSpoilerImage(item) : match;
+		},
+	);
+}
+
+function renderSpoilerImage(item) {
+	const caption = item.caption
+		? `\n<figcaption>${renderImageCaption(item)}</figcaption>`
+		: "";
+	return `\n<figure class="sayori-spoiler-image">\n<button type="button" class="sayori-spoiler-image__toggle" aria-expanded="false" aria-label="点击显示图片 / Reveal image">\n<img class="sayori-spoiler-image__media" ${buildImageAttrs(item, { lazy: true })} />\n</button>${caption}\n</figure>\n`;
+}
+
+function convertPhotoCarousels(content, sourcePath, slug) {
+	return content.replace(/^:::[ \t]*\r?\n([\s\S]*?)^:::[ \t]*$/gm, (match, body) => {
+		const lines = String(body || "")
+			.split(/\r?\n/)
+			.map((line) => line.trim())
+			.filter(Boolean);
+		const items = lines.map((line) => parsePhotoGridItem(line, slug, sourcePath));
+
+		if (items.length < 2 || items.some((item) => !item)) {
+			return match;
+		}
+
+		const figures = items
+			.map((item) => {
+				const image = wrapImageLink(item, `<img ${buildImageAttrs(item, { lazy: true })} />`);
+				const caption = item.caption
+					? `\n<figcaption>${renderImageCaption(item)}</figcaption>`
+					: "";
+				return `<figure class="sayori-photo-carousel-item">\n${image}${caption}\n</figure>`;
+			})
+			.join("\n");
+
+		return `\n<div class="sayori-photo-carousel" data-sayori-carousel>\n<button type="button" class="sayori-photo-carousel__button" data-carousel-prev aria-label="上一张 / Previous image">←</button>\n<div class="sayori-photo-carousel-track" data-carousel-track tabindex="0" aria-label="图片轮播 / Image carousel">\n${figures}\n</div>\n<button type="button" class="sayori-photo-carousel__button" data-carousel-next aria-label="下一张 / Next image">→</button>\n</div>\n`;
 	});
 }
 
