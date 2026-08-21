@@ -53,4 +53,12 @@ describe("fixed paper theme contract", () => {
 		assert.match(worker, /CACHE_NAME\s*=\s*["']sayori-blog-v2["']/);
 		assert.match(worker, /fetch\(request,\s*\{\s*cache:\s*["']no-store["']/);
 	});
+
+	it("keeps photo carousel controls clear of fixed floating controls", () => {
+		const markdown = read("src/styles/markdown.css");
+
+		assert.match(markdown, /\.sayori-photo-carousel\s*\{[\s\S]*grid-template-columns:\s*1fr auto auto 1fr;/);
+		assert.match(markdown, /\.sayori-photo-carousel-track\s*\{[\s\S]*grid-column:\s*1\s*\/\s*-1;[\s\S]*grid-row:\s*1;/);
+		assert.match(markdown, /\.sayori-photo-carousel__button\s*\{[\s\S]*grid-row:\s*2;/);
+	});
 });
