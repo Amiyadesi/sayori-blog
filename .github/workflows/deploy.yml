@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  repository_dispatch:
+    types: [blog-content-updated]
   workflow_dispatch:
   workflow_run:
     workflows: ["Check Sayori Friend Links"]
