@@ -1,4 +1,12 @@
-import { handleError, json, requireAdmin } from "../../_lib/admin.js";
+import {
+	fromBase64Url,
+	handleError,
+	json,
+	requireAdmin,
+	requireSameOrigin,
+	signValue,
+	toBase64Url,
+} from "../../_lib/admin.js";
 import {
 	hashValue,
 	lookupIpInfo,
@@ -13,6 +21,8 @@ import {
 const DEFAULT_PER_PAGE = 80;
 const MAX_PER_PAGE = 100;
 const MAX_PAGES = 5;
+const COMMENT_ACTION_TOKEN_MAX_AGE_SECONDS = 60 * 60;
+const COMMENT_ID_PATTERN = /^[A-Za-z0-9_-]{6,128}$/;
 const QUESTION_PATTERN =
 	/[?？]|(吗|怎么|如何|为什么|为啥|啥|什么|有没有|能不能|可不可以|是否|怎样|哪里|哪位|请问)/;
 const EMPTY_IP_REVIEW = Object.freeze({
@@ -87,6 +97,44 @@ function normalizePath(value) {
 
 export function canonicalCommentPath(value) {
 	return normalizePath(value) || "未知页面";
+}
+
+function rawCommentId(comment) {
+	const value = firstText(comment, ["_id", "id", "commentId"]);
+	return COMMENT_ID_PATTERN.test(value) ? value : "";
+}
+
+export async function createCommentActionToken(env, commentId, now = Date.now()) {
+	if (!env.SESSION_SECRET || !COMMENT_ID_PATTERN.test(String(commentId || ""))) return "";
+	const payload = toBase64Url(
+		JSON.stringify({
+			id: String(commentId),
+			exp: Math.floor(now / 1000) + COMMENT_ACTION_TOKEN_MAX_AGE_SECONDS,
+		}),
+	);
+	return `${payload}.${await signValue(env.SESSION_SECRET, payload)}`;
+}
+
+async function readCommentActionToken(env, token, now = Date.now()) {
+	const parts = String(token || "").split(".");
+	if (parts.length !== 2 || !parts[0] || !parts[1] || !env.SESSION_SECRET) {
+		throw json({ success: false, error: "评论审核令牌无效或已过期" }, { status: 403 });
+	}
+	try {
+		const [payloadPart, signaturePart] = parts;
+		const expected = await signValue(env.SESSION_SECRET, payloadPart);
+		if (expected !== signaturePart) throw new Error("signature mismatch");
+		const payload = JSON.parse(fromBase64Url(payloadPart));
+		if (
+			!COMMENT_ID_PATTERN.test(String(payload?.id || "")) ||
+			Number(payload.exp || 0) < Math.floor(now / 1000)
+		) {
+			throw new Error("expired payload");
+		}
+		return String(payload.id);
+	} catch {
+		throw json({ success: false, error: "评论审核令牌无效或已过期" }, { status: 403 });
+	}
 }
 
 function commentStatus(comment) {
@@ -260,7 +308,7 @@ export function buildIpReview(comment, enrichedInfo = null) {
 	};
 }
 
-export function sanitizeComment(comment, enrichedInfo = null) {
+export function sanitizeComment(comment, enrichedInfo = null, actionToken = "") {
 	const text = stripHtml(comment.commentText || comment.comment);
 	const email = String(comment.mail || comment.email || "").trim().slice(0, 160);
 	return {
@@ -272,6 +320,7 @@ export function sanitizeComment(comment, enrichedInfo = null) {
 		status: commentStatus(comment),
 		isQuestion: QUESTION_PATTERN.test(text),
 		ipReview: buildIpReview(comment, enrichedInfo),
+		...(actionToken ? { actionToken } : {}),
 	};
 }
 
@@ -307,23 +356,27 @@ async function requestTwikooAdmin(env, payload) {
 	return data;
 }
 
+async function sanitizeAdminComment(env, comment, enrichedInfo = null) {
+	return sanitizeComment(comment, enrichedInfo, await createCommentActionToken(env, rawCommentId(comment)));
+}
+
 async function enrichCommentIpReviews(env, comments) {
 	if (!env.SAYORI_ANALYTICS_DB || !env.ANALYTICS_HASH_SECRET) {
-		return comments.map((comment) => sanitizeComment(comment));
+		return Promise.all(comments.map((comment) => sanitizeAdminComment(env, comment)));
 	}
 	const enriched = [];
 	for (const comment of comments) {
 		const ip = getCommentIp(comment);
 		if (!ip) {
-			enriched.push(sanitizeComment(comment));
+			enriched.push(await sanitizeAdminComment(env, comment));
 			continue;
 		}
 		try {
 			const ipHash = await hashValue(env.ANALYTICS_HASH_SECRET, `ip:${ip}`);
 			const info = await lookupIpInfo(env, ip, ipHash, Date.now(), null);
-			enriched.push(sanitizeComment(comment, info));
+			enriched.push(await sanitizeAdminComment(env, comment, info));
 		} catch {
-			enriched.push(sanitizeComment(comment));
+			enriched.push(await sanitizeAdminComment(env, comment));
 		}
 	}
 	return enriched;
@@ -420,6 +473,33 @@ export async function onRequestGet(context) {
 			loadTypedCount(context.env, "HIDDEN"),
 		]);
 		return json(buildCommentStats(total, visible, hidden, comments));
+	} catch (error) {
+		return handleError(error);
+	}
+}
+
+export async function onRequestPost(context) {
+	try {
+		await requireAdmin(context.request, context.env);
+		requireSameOrigin(context.request);
+		const body = await context.request.json().catch(() => null);
+		const action = String(body?.action || "").trim().toLowerCase();
+		if (!['delete', 'keep'].includes(action)) {
+			throw json({ success: false, error: "只支持删除或保留评论" }, { status: 400 });
+		}
+		const commentId = await readCommentActionToken(context.env, body?.actionToken);
+		const data = await requestTwikooAdmin(
+			context.env,
+			action === "delete"
+				? { event: "COMMENT_DELETE_FOR_ADMIN", id: commentId }
+				: { event: "COMMENT_SET_FOR_ADMIN", id: commentId, set: { isSpam: false } },
+		);
+		return json({
+			success: true,
+			action,
+			status: action === "delete" ? "deleted" : "kept",
+			result: action === "delete" ? { deleted: Number(data.deleted || 0) } : undefined,
+		});
 	} catch (error) {
 		return handleError(error);
 	}

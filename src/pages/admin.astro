@@ -247,6 +247,7 @@ export const prerender = true;
 										<th>IP 审查</th>
 										<th>页面</th>
 										<th>内容</th>
+										<th>审核</th>
 									</tr>
 								</thead>
 								<tbody id="comments-recent-body"></tbody>
@@ -641,6 +642,23 @@ export const prerender = true;
 		return td;
 	}
 
+	function commentActionCell(item) {
+		const td = document.createElement("td");
+		const actions = document.createElement("div");
+		actions.className = "comment-actions";
+		for (const [action, label] of [["keep", "保留"], ["delete", "删除"]]) {
+			const button = document.createElement("button");
+			button.type = "button";
+			button.textContent = label;
+			button.dataset.action = action;
+			button.disabled = !item.actionToken;
+			button.addEventListener("click", () => moderateComment(item, action, button, actions));
+			actions.append(button);
+		}
+		td.append(actions);
+		return td;
+	}
+
 	function emptyRow(colspan, message) {
 		const tr = document.createElement("tr");
 		const td = cell(message);
@@ -840,7 +858,7 @@ export const prerender = true;
 
 	function renderCommentRecent(items) {
 		if (!items?.length) {
-			el.commentsRecentBody.replaceChildren(emptyRow(7, "暂无评论"));
+			el.commentsRecentBody.replaceChildren(emptyRow(8, "暂无评论"));
 			return;
 		}
 		const rows = items.map((item) => {
@@ -853,10 +871,29 @@ export const prerender = true;
 				cell(ipReviewLabel(item.ipReview)),
 				cell(item.url || "未知页面"),
 				cell(item.commentText || ""),
+				commentActionCell(item),
 			);
 			return tr;
 		});
 		el.commentsRecentBody.replaceChildren(...rows);
+	}
+
+	async function moderateComment(item, action, button, actions) {
+		if (!item.actionToken) return;
+		if (action === "delete" && !window.confirm("确认删除这条评论？删除后博客后台不能撤销。")) return;
+		for (const control of actions.querySelectorAll("button")) control.disabled = true;
+		setCommentsStatus(action === "delete" ? "正在删除评论..." : "正在保留评论...");
+		try {
+			await api("/api/admin/comments", {
+				method: "POST",
+				body: JSON.stringify({ action, actionToken: item.actionToken }),
+			});
+			await loadComments();
+		} catch (error) {
+			for (const control of actions.querySelectorAll("button")) control.disabled = false;
+			button.focus();
+			setCommentsStatus(error.message || "评论审核失败。", "bad");
+		}
 	}
 
 	function renderComments(data) {
@@ -1277,6 +1314,33 @@ export const prerender = true;
 	.analytics-table-card td {
 		color: var(--text-75);
 		overflow-wrap: anywhere;
+	}
+
+	.comment-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+	}
+
+	.comment-actions button {
+		min-height: 2rem;
+		border: 1px solid var(--line-divider);
+		border-radius: var(--radius-small);
+		padding: 0.35rem 0.6rem;
+		background: var(--card-bg);
+		color: var(--btn-content);
+		font-weight: 700;
+		cursor: pointer;
+	}
+
+	.comment-actions button[data-action="delete"] {
+		border-color: color-mix(in srgb, #dc2626 35%, var(--line-divider));
+		color: #b91c1c;
+	}
+
+	.comment-actions button:disabled {
+		cursor: not-allowed;
+		opacity: 0.55;
 	}
 
 	.analytics-empty {

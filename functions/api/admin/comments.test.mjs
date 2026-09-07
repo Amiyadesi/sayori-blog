@@ -1,13 +1,17 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { createSessionCookie } from "../../_lib/admin.js";
 import {
 	buildIpReview,
 	buildCommentStats,
 	canonicalCommentPath,
+	createCommentActionToken,
 	getCommentIp,
 	maskIp,
 	normalizeCommentQuery,
+	onRequestGet,
+	onRequestPost,
 	sanitizeComment,
 } from "./comments.js";
 
@@ -152,5 +156,108 @@ describe("admin comment stats", () => {
 		assert.equal(review.riskLevel, "unknown");
 		assert.deepEqual(review.riskLabels, []);
 		assert.equal(review.source, "ipsb");
+	});
+
+	it("creates opaque short-lived action tokens", async () => {
+		const token = await createCommentActionToken(
+			{ SESSION_SECRET: "test-only-session-secret" },
+			"comment-id",
+			1_760_000_000_000,
+		);
+		assert.equal(token.includes("comment-id"), false);
+		assert.equal(token.split(".").length, 2);
+	});
+
+	it("includes an action token in authenticated comment summaries", async () => {
+		const env = {
+			SESSION_SECRET: "test-only-session-secret",
+			TWIKOO_ADMIN_PASSWORD: "test-only-password",
+		};
+		const cookie = (await createSessionCookie(env, { login: "Amiyadesi" })).split(";", 1)[0];
+		const previousFetch = globalThis.fetch;
+		globalThis.fetch = async () =>
+			new Response(
+				JSON.stringify({
+					code: 0,
+					count: 1,
+					data: [{ _id: "comment-id", comment: "广告", created: 1 }],
+				}),
+				{ status: 200, headers: { "content-type": "application/json" } },
+			);
+		try {
+			const response = await onRequestGet({
+				request: new Request("https://blog.sayori.org/api/admin/comments" , { headers: { cookie } }),
+				env,
+			});
+			const data = await response.json();
+			assert.equal(response.status, 200);
+			assert.equal(typeof data.recentComments[0].actionToken, "string");
+			assert.equal(data.recentComments[0].actionToken.includes("comment-id"), false);
+		} finally {
+			globalThis.fetch = previousFetch;
+		}
+	});
+
+	it("routes authenticated keep/delete actions through Twikoo admin", async () => {
+		const env = {
+			ADMIN_GITHUB_LOGIN: "Amiyadesi",
+			SESSION_SECRET: "test-only-session-secret",
+			TWIKOO_ADMIN_PASSWORD: "test-only-password",
+			TWIKOO_BASE_URL: "https://comments.sayori.org",
+		};
+		const cookie = (await createSessionCookie(env, { login: "Amiyadesi" })).split(";", 1)[0];
+		const payloads = [];
+		const previousFetch = globalThis.fetch;
+		globalThis.fetch = async (_url, options) => {
+			payloads.push(JSON.parse(options.body));
+			return new Response(JSON.stringify({ code: 0, deleted: 1 }), {
+				status: 200,
+				headers: { "content-type": "application/json" },
+			});
+		};
+		try {
+			for (const action of ["keep", "delete"]) {
+				const token = await createCommentActionToken(env, `comment-${action}`);
+				const response = await onRequestPost({
+					request: new Request("https://blog.sayori.org/api/admin/comments", {
+						method: "POST",
+						headers: {
+							cookie,
+							origin: "https://blog.sayori.org",
+							"content-type": "application/json",
+						},
+						body: JSON.stringify({ action, actionToken: token }),
+					}),
+					env,
+				});
+				assert.equal(response.status, 200);
+				assert.equal((await response.json()).success, true);
+			}
+		} finally {
+			globalThis.fetch = previousFetch;
+		}
+		assert.deepEqual(payloads.map((payload) => payload.event), [
+			"COMMENT_SET_FOR_ADMIN",
+			"COMMENT_DELETE_FOR_ADMIN",
+		]);
+		assert.deepEqual(payloads[0].set, { isSpam: false });
+	});
+
+	it("rejects cross-origin comment actions", async () => {
+		const env = { SESSION_SECRET: "test-only-session-secret" };
+		const cookie = (await createSessionCookie(env, { login: "Amiyadesi" })).split(";", 1)[0];
+		const response = await onRequestPost({
+			request: new Request("https://blog.sayori.org/api/admin/comments", {
+				method: "POST",
+				headers: {
+					cookie,
+					origin: "https://example.com",
+					"content-type": "application/json",
+				},
+				body: JSON.stringify({ action: "delete", actionToken: "invalid" }),
+			}),
+			env,
+		});
+		assert.equal(response.status, 403);
 	});
 });

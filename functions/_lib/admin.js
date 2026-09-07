@@ -188,4 +188,5 @@ export function handleError(error) {
 	return json({ success: false, error: "后台接口出错了，请看 Functions 日志" }, { status: 500 });
 }
 
+export { fromBase64Url, signValue, toBase64Url };
 export { SESSION_COOKIE, STATE_COOKIE };
