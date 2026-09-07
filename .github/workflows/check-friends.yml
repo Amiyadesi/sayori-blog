@@ -56,4 +56,16 @@ jobs:
             exit 0
           fi
           git commit -m "chore: update friend link status"
-          git push origin HEAD:main
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            if [ "${attempt}" -eq 3 ]; then
+              echo "Unable to push friend status after ${attempt} attempts." >&2
+              exit 1
+            fi
+            echo "Push failed (attempt ${attempt}); rebasing onto the latest main before retrying."
+            git fetch origin main
+            git rebase origin/main
+            sleep "${attempt}"
+          done
