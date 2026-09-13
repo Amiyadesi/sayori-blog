@@ -18,8 +18,8 @@ const { Content } = await render(sponsorPost);
 const isEnglish = siteConfig.lang.startsWith("en");
 const title = isEnglish ? "Support" : "赞助";
 const description = isEnglish
-	? "Support Amiya_desi's blog and public projects through Ko-fi or Afdian."
-	: "通过 Ko-fi 或爱发电支持 Amiya_desi 的博客和公开项目。";
+	? "Support Amiya_desi's blog and public projects through Stripe, Ko-fi, or Afdian."
+	: "通过 Stripe、Ko-fi 或爱发电支持 Amiya_desi 的博客和公开项目。";
 const findProfileLink = (match: (value: string) => boolean) =>
 	profileConfig.links.find((link) => match(`${link.name} ${link.url}`))?.url;
 const kofiUrl =
@@ -141,6 +141,48 @@ const jsonLd = {
 			</div>
 
 			<section
+				class="stripe-support-card"
+				aria-labelledby="stripe-support-title"
+			>
+				<h2 id="stripe-support-title">
+					{isEnglish ? "Support directly with Stripe" : "使用 Stripe 直接支持"}
+				</h2>
+				<p>
+					{isEnglish
+						? "Choose an amount in HKD. Your display name is optional and will appear in the supporter list after payment."
+						: "填写港币金额即可支持。显示名称可选，支付完成后会出现在支持人名单中。"}
+				</p>
+				<form data-stripe-support-form>
+					<label>
+						<span>{isEnglish ? "Amount (HKD)" : "金额（HKD）"}</span>
+						<input
+							type="number"
+							name="amount"
+							min="10"
+							max="10000"
+							step="0.01"
+							value="25.00"
+							required
+						/>
+					</label>
+					<label>
+						<span>{isEnglish ? "Display name (optional)" : "显示名称（可选）"}</span>
+						<input
+							type="text"
+							name="name"
+							maxlength="80"
+							autocomplete="nickname"
+							placeholder={isEnglish ? "Anonymous supporter" : "匿名支持者"}
+						/>
+					</label>
+					<button type="submit" class="stripe-support-submit">
+						{isEnglish ? "Continue to Stripe" : "前往 Stripe 支付"}
+					</button>
+					<p data-stripe-support-status role="status" aria-live="polite"></p>
+				</form>
+			</section>
+
+			<section
 				class="sponsor-thanks"
 				aria-labelledby="sponsor-thanks-title"
 			>
@@ -149,7 +191,7 @@ const jsonLd = {
 				</h2>
 				{
 					sponsorConfig.supporters.length > 0 ? (
-						<ul>
+						<ul data-supporters-list>
 							{sponsorConfig.supporters.map((supporter) => (
 								<li>
 									<span>{supporter.name}</span>
@@ -171,6 +213,91 @@ const jsonLd = {
 		</div>
 	</section>
 </MainGridLayout>
+
+<script>
+	function renderSupporters(supporters: Array<{ name?: string; source?: string }>) {
+		const supporterList = document.querySelector<HTMLUListElement>("[data-supporters-list]");
+		const englishPage = document.documentElement.lang?.startsWith("en");
+		if (!supporterList || !Array.isArray(supporters) || supporters.length === 0) return;
+		supporterList.replaceChildren();
+		for (const supporter of supporters) {
+			const item = document.createElement("li");
+			const name = document.createElement("span");
+			name.textContent = supporter.name || "匿名支持者";
+			item.append(name);
+			if (supporter.source) {
+				const source = document.createElement("small");
+				source.textContent =
+					englishPage && supporter.source === "爱发电"
+						? "Afdian"
+						: supporter.source;
+				item.append(source);
+			}
+			supporterList.append(item);
+		}
+	}
+
+	async function refreshSupporters() {
+		try {
+			const response = await fetch("/api/supporters", {
+				cache: "no-store",
+				headers: { accept: "application/json" },
+			});
+			if (!response.ok) return;
+			const data = await response.json();
+			renderSupporters(data.supporters);
+		} catch {
+			// Keep statically generated supporters when Functions are unavailable.
+		}
+	}
+
+	function bindSupportForm() {
+		const supportForm = document.querySelector<HTMLFormElement>("[data-stripe-support-form]");
+		const supportStatus = document.querySelector<HTMLElement>("[data-stripe-support-status]");
+		if (!supportForm || supportForm.dataset.bound === "true") return;
+		supportForm.dataset.bound = "true";
+		supportForm.addEventListener("submit", async (event) => {
+			event.preventDefault();
+			const button = supportForm.querySelector<HTMLButtonElement>("button[type='submit']");
+			const formData = new FormData(supportForm);
+			if (supportStatus) supportStatus.textContent = "";
+			if (button) button.disabled = true;
+			try {
+				const response = await fetch("/api/stripe/checkout", {
+					method: "POST",
+					headers: {
+						"content-type": "application/json",
+						accept: "application/json",
+					},
+					body: JSON.stringify({
+						amount: formData.get("amount"),
+						name: formData.get("name"),
+					}),
+				});
+				const data = await response.json().catch(() => ({}));
+				if (!response.ok || !data.url) {
+					throw new Error(data.error || "Stripe checkout unavailable");
+				}
+				window.location.assign(data.url);
+			} catch (error) {
+				if (supportStatus) {
+					supportStatus.textContent =
+						error instanceof Error ? error.message : "暂时无法打开 Stripe 支付";
+				}
+				if (button) button.disabled = false;
+			}
+		});
+	}
+
+	document.addEventListener("DOMContentLoaded", () => {
+		bindSupportForm();
+		refreshSupporters();
+	});
+	document.addEventListener("mizuki:page:loaded", () => {
+		bindSupportForm();
+		refreshSupporters();
+	});
+</script>
 
 <style>
 	.sponsor-page {
@@ -245,6 +372,72 @@ const jsonLd = {
 		color: var(--primary);
 	}
 
+	.stripe-support-card {
+		margin-top: 1.5rem;
+		border: 1px solid var(--sponsor-border);
+		border-radius: 0.65rem;
+		background: color-mix(in srgb, var(--primary) 5%, transparent);
+		padding: 1rem 1.1rem 1.1rem;
+	}
+
+	.stripe-support-card h2 {
+		margin: 0;
+		font-size: 1.1rem;
+		font-weight: 800;
+	}
+
+	.stripe-support-card p {
+		margin: 0.45rem 0 0.9rem;
+		color: rgba(0, 0, 0, 0.58);
+	}
+
+	.stripe-support-card form {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.8rem;
+		align-items: end;
+	}
+
+	.stripe-support-card label {
+		display: grid;
+		gap: 0.35rem;
+		font-size: 0.88rem;
+		font-weight: 700;
+	}
+
+	.stripe-support-card input {
+		width: 100%;
+		border: 1px solid var(--line-divider);
+		border-radius: 0.45rem;
+		background: rgba(255, 255, 255, 0.72);
+		padding: 0.6rem 0.7rem;
+		color: inherit;
+	}
+
+	.stripe-support-submit {
+		grid-column: 1 / -1;
+		justify-self: start;
+		border: 0;
+		border-radius: 999px;
+		background: var(--primary);
+		padding: 0.62rem 1rem;
+		font-weight: 800;
+		color: white;
+		cursor: pointer;
+	}
+
+	.stripe-support-submit:disabled {
+		cursor: wait;
+		opacity: 0.6;
+	}
+
+	[data-stripe-support-status] {
+		grid-column: 1 / -1;
+		min-height: 1.2rem;
+		margin: 0;
+		color: var(--primary);
+	}
+
 	.sponsor-thanks {
 		margin-top: 1.75rem;
 		border-top: 1px dashed var(--line-divider);
@@ -305,6 +498,14 @@ const jsonLd = {
 		color: rgba(255, 255, 255, 0.86);
 	}
 
+	:global(.dark) .stripe-support-card p {
+		color: rgba(255, 255, 255, 0.58);
+	}
+
+	:global(.dark) .stripe-support-card input {
+		background: rgba(255, 255, 255, 0.06);
+	}
+
 	:global(.dark) .sponsor-thanks small,
 	:global(.dark) .sponsor-thanks p {
 		color: rgba(255, 255, 255, 0.56);
@@ -317,6 +518,10 @@ const jsonLd = {
 	}
 
 	@media (max-width: 620px) {
+		.stripe-support-card form {
+			grid-template-columns: 1fr;
+		}
+
 		.sponsor-options {
 			grid-template-columns: 1fr;
 		}

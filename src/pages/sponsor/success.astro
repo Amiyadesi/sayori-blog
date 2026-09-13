@@ -1,0 +1,100 @@
+---
+import MainGridLayout from "@layouts/MainGridLayout.astro";
+
+import { siteConfig } from "../../config";
+
+const isEnglish = siteConfig.lang.startsWith("en");
+const title = isEnglish ? "Support received" : "已收到支持";
+const description = isEnglish
+	? "Stripe payment status and supporter-list sync"
+	: "Stripe 支付状态与支持人名单同步";
+---
+
+<MainGridLayout title={title} description={description}>
+	<section class="success-card" aria-labelledby="support-success-title">
+		<h1 id="support-success-title">{title}</h1>
+		<p data-payment-state role="status" aria-live="polite">
+			{isEnglish ? "Checking payment status…" : "正在确认支付状态……"}
+		</p>
+		<a class="back-link" href={isEnglish ? "/en/sponsor/" : "/sponsor/"}>
+			{isEnglish ? "Back to support page" : "返回赞助页"}
+		</a>
+	</section>
+</MainGridLayout>
+
+<script>
+	const state = document.querySelector("[data-payment-state]");
+	const sessionId = new URL(window.location.href).searchParams.get("session_id");
+	const english = document.documentElement.lang?.startsWith("en");
+
+	function setState(message: string) {
+		if (state) state.textContent = message;
+	}
+
+	async function pollStatus(attempt = 0) {
+		if (!sessionId) {
+			setState(english ? "No Checkout Session was supplied." : "缺少 Checkout Session。 ");
+			return;
+		}
+		try {
+			const response = await fetch(
+				`/api/stripe/session-status?session_id=${encodeURIComponent(sessionId)}`,
+				{ cache: "no-store", headers: { accept: "application/json" } },
+			);
+			const data = await response.json().catch(() => ({}));
+			if (response.ok && data.paymentStatus === "paid") {
+				setState(
+					english
+						? "Payment received. Your supporter entry will appear shortly."
+						: "支付已完成，支持人名单马上更新。",
+				);
+				return;
+			}
+			if (response.ok && data.status === "expired") {
+				setState(english ? "This Checkout Session expired." : "这个支付会话已过期。 ");
+				return;
+			}
+		} catch {
+			// Retry while the webhook/API is settling.
+		}
+		if (attempt < 10) {
+			setState(english ? "Waiting for Stripe…" : "等待 Stripe 返回结果……");
+			window.setTimeout(() => pollStatus(attempt + 1), 2000);
+		} else {
+			setState(
+				english
+					? "Payment may still be processing. Please check the supporter list later."
+					: "支付可能仍在处理中，请稍后查看支持人名单。",
+			);
+		}
+	}
+
+pollStatus();
+</script>
+
+<style>
+	.success-card {
+		width: 100%;
+		border-radius: var(--radius-large);
+		background: var(--card-bg);
+		padding: 2.5rem 1.5rem;
+		text-align: center;
+	}
+
+	.success-card h1 {
+		margin: 0;
+		font-size: 1.6rem;
+		font-weight: 850;
+	}
+
+	.success-card p {
+		min-height: 1.5rem;
+		margin: 0.8rem 0 1.4rem;
+		color: var(--content-meta);
+	}
+
+	.back-link {
+		font-weight: 800;
+		color: var(--primary);
+	}
+</style>

@@ -1,0 +1,183 @@
+import { json } from "./admin.js";
+
+const STRIPE_API_BASE = "https://api.stripe.com/v1";
+const DISPLAY_NAME_MAX_LENGTH = 80;
+const SIGNATURE_TOLERANCE_SECONDS = 300;
+
+export function methodNotAllowed(allow) {
+	return json(
+		{ success: false, error: "method not allowed" },
+		{ status: 405, headers: { allow } },
+	);
+}
+
+export function optionsResponse(allow) {
+	return new Response(null, {
+		status: 204,
+		headers: {
+			allow,
+			"cache-control": "no-store",
+		},
+	});
+}
+
+export function cleanDisplayName(value) {
+	return String(value ?? "")
+		.replace(/[\u0000-\u001f\u007f]/g, " ")
+		.replace(/\s+/g, " ")
+		.trim()
+		.slice(0, DISPLAY_NAME_MAX_LENGTH);
+}
+
+export function parseDonationAmount(value) {
+	const raw = String(value ?? "").trim();
+	if (!/^\d+(?:\.\d{1,2})?$/.test(raw)) return null;
+	const [wholePart, fractionPart = ""] = raw.split(".");
+	const whole = Number(wholePart);
+	const minor = whole * 100 + Number(fractionPart.padEnd(2, "0"));
+	if (!Number.isSafeInteger(minor) || minor < 1000 || minor > 1_000_000) {
+		return null;
+	}
+	return minor;
+}
+
+export function localePrefix(pathname) {
+	return pathname === "/en" || pathname.startsWith("/en/") ? "/en" : "";
+}
+
+export function checkoutSessionForm({ amountMinor, displayName, origin, pathname }) {
+	const form = new URLSearchParams();
+	form.set("mode", "payment");
+	form.set("line_items[0][quantity]", "1");
+	form.set("line_items[0][price_data][currency]", "hkd");
+	form.set("line_items[0][price_data][unit_amount]", String(amountMinor));
+	form.set("line_items[0][price_data][product_data][name]", "Support Amiya's Desk");
+	form.set(
+		"line_items[0][price_data][product_data][description]",
+		"One-time support for Amiya's public blog and projects",
+	);
+	form.set("custom_fields[0][key]", "supporter_name");
+	form.set("custom_fields[0][label][type]", "custom");
+	form.set("custom_fields[0][label][custom]", "Display name / 显示名称");
+	form.set("custom_fields[0][type]", "text");
+	form.set("custom_fields[0][optional]", "true");
+	form.set("metadata[site]", "blog");
+	form.set("metadata[supporter_name]", displayName);
+	form.set("success_url", `${origin}${localePrefix(pathname)}/sponsor/success/?session_id={CHECKOUT_SESSION_ID}`);
+	form.set("cancel_url", `${origin}${localePrefix(pathname)}/sponsor/`);
+	form.set("integration_identifier", `sayori_sponsor_${randomLetters(8)}`);
+	return form;
+}
+
+export async function stripeRequest(env, path, options = {}) {
+	if (!env.STRIPE_SECRET_KEY) {
+		const error = new Error("Stripe secret is not configured");
+		error.code = "missing_secret";
+		throw error;
+	}
+
+	const headers = {
+		accept: "application/json",
+		authorization: `Bearer ${env.STRIPE_SECRET_KEY}`,
+	};
+	let body;
+	if (options.form) {
+		headers["content-type"] = "application/x-www-form-urlencoded";
+		body = options.form.toString();
+	}
+	const response = await fetch(`${STRIPE_API_BASE}${path}`, {
+		method: options.method || "GET",
+		headers,
+		body,
+	});
+	const payload = await response.json().catch(() => ({}));
+	if (!response.ok) {
+		const error = new Error("Stripe API request failed");
+		error.code = payload?.error?.code || "stripe_api_error";
+		error.status = response.status;
+		throw error;
+	}
+	return payload;
+}
+
+export function extractSupporterName(session) {
+	const customField = Array.isArray(session?.custom_fields)
+		? session.custom_fields.find((field) => field?.key === "supporter_name")
+		: null;
+	return cleanDisplayName(
+		customField?.text?.value ||
+			customField?.numeric?.value ||
+			session?.metadata?.supporter_name ||
+			"匿名支持者",
+	) || "匿名支持者";
+}
+
+export function parseStripeSignature(header) {
+	if (!header) return null;
+	const values = new Map();
+	for (const part of header.split(",")) {
+		const separator = part.indexOf("=");
+		if (separator <= 0) continue;
+		const key = part.slice(0, separator).trim();
+		const value = part.slice(separator + 1).trim();
+		if (!value) continue;
+		if (!values.has(key)) values.set(key, []);
+		values.get(key).push(value);
+	}
+	const timestamp = Number(values.get("t")?.[0]);
+	const signatures = values.get("v1") || [];
+	if (!Number.isSafeInteger(timestamp) || signatures.length === 0) return null;
+	return { timestamp, signatures };
+}
+
+export async function verifyStripeSignature(
+	payload,
+	header,
+	secret,
+	nowSeconds = Math.floor(Date.now() / 1000),
+	toleranceSeconds = SIGNATURE_TOLERANCE_SECONDS,
+) {
+	if (!secret) return false;
+	const parsed = parseStripeSignature(header);
+	if (!parsed || Math.abs(nowSeconds - parsed.timestamp) > toleranceSeconds) {
+		return false;
+	}
+	const key = await crypto.subtle.importKey(
+		"raw",
+		new TextEncoder().encode(secret),
+		{ name: "HMAC", hash: "SHA-256" },
+		false,
+		["sign"],
+	);
+	const signature = await crypto.subtle.sign(
+		"HMAC",
+		key,
+		new TextEncoder().encode(`${parsed.timestamp}.${payload}`),
+	);
+	const expected = bytesToHex(new Uint8Array(signature));
+	return parsed.signatures.some((candidate) => timingSafeEqual(expected, candidate));
+}
+
+function randomLetters(length) {
+	const bytes = new Uint8Array(length);
+	crypto.getRandomValues(bytes);
+	return Array.from(bytes, (byte) => String.fromCharCode(97 + (byte % 26))).join("");
+}
+
+function bytesToHex(bytes) {
+	return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function timingSafeEqual(left, right) {
+	const normalized = String(right).toLowerCase();
+	if (!/^[0-9a-f]+$/.test(normalized) || normalized.length !== left.length) {
+		return false;
+	}
+	let difference = 0;
+	for (let index = 0; index < left.length; index += 1) {
+		difference |= left.charCodeAt(index) ^ normalized.charCodeAt(index);
+	}
+	return difference === 0;
+}
+
+export { DISPLAY_NAME_MAX_LENGTH, SIGNATURE_TOLERANCE_SECONDS };
