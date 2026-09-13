@@ -1,6 +1,6 @@
 import { json } from "../../_lib/admin.js";
 import {
-	cleanDisplayName,
+	extractSupporterName,
 	methodNotAllowed,
 	optionsResponse,
 	verifyStripeSignature,
@@ -103,16 +103,7 @@ function shouldRecordSupporter(eventType, session) {
 }
 
 function supporterName(session) {
-	const custom = Array.isArray(session.custom_fields)
-		? session.custom_fields.find((field) => field?.key === "supporter_name")
-		: null;
-	return (
-		cleanDisplayName(
-			custom?.text?.value ||
-				session.metadata?.supporter_name ||
-				"匿名支持者",
-		) || "匿名支持者"
-	);
+	return extractSupporterName(session);
 }
 
 function toMilliseconds(value, fallback) {
