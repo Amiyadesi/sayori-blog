@@ -36,7 +36,8 @@ const defaultDonationCurrency =
 	DONATION_CURRENCIES.find(
 		(currency) => currency.code === DEFAULT_DONATION_CURRENCY,
 	) || DONATION_CURRENCIES[0];
-const formatDonationAmount = (amount, decimals) => amount.toFixed(decimals);
+const formatDonationAmount = (amount: number, decimals: number) =>
+	amount.toFixed(decimals);
 const sponsorOptions = [
 	{
 		name: "Ko-fi",
