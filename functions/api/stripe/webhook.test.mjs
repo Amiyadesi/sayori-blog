@@ -32,9 +32,11 @@ async function signedRequest(event, timestamp = Math.floor(Date.now() / 1000)) {
 function createDb() {
 	const eventIds = new Set();
 	const sessions = new Set();
+	const supporterStatuses = new Map();
 	const batches = [];
 	return {
 		batches,
+		supporterStatuses,
 		prepare(sql) {
 			return {
 				sql,
@@ -53,8 +55,35 @@ function createDb() {
 					if (inserted) eventIds.add(statement.args[0]);
 					return { meta: { changes: inserted ? 1 : 0 } };
 				}
+				if (statement.sql.includes("UPDATE stripe_supporters")) {
+					const status = statement.args[0];
+					const paymentIntent = statement.sql.includes("payment_intent_id = ?")
+						? statement.args[4]
+						: "";
+					const charge = statement.sql.includes("charge_id = ?")
+						? statement.args[statement.sql.includes("payment_intent_id = ?") ? 5 : 4]
+						: "";
+					const matchingId =
+						[...supporterStatuses.keys()].find(
+							(id) => id.paymentIntent === paymentIntent || id.charge === charge,
+						);
+					if (!matchingId || supporterStatuses.get(matchingId) === status) {
+						return { meta: { changes: 0 } };
+					}
+					supporterStatuses.set(matchingId, status);
+					return { meta: { changes: 1 } };
+				}
 				const inserted = !sessions.has(statement.args[2]);
 				if (inserted) sessions.add(statement.args[2]);
+				if (statement.args[6]) {
+					supporterStatuses.set(
+						{
+							paymentIntent: statement.args[6],
+							charge: statement.args[7],
+						},
+						"active",
+					);
+				}
 				return { meta: { changes: inserted ? 1 : 0 } };
 			});
 		},
@@ -73,6 +102,7 @@ function paidEvent(id = "evt_test_1", sessionId = "cs_test_1") {
 					payment_status: "paid",
 					amount_total: 2550,
 					currency: "hkd",
+					payment_intent: "pi_test_1",
 					metadata: { site: "blog" },
 					custom_fields: [{ key: "supporter_name", text: { value: "Alice" } }],
 				},
@@ -100,6 +130,67 @@ describe("stripe webhook endpoint", () => {
 		});
 		assert.equal(db.batches.length, 2);
 		assert.equal(db.batches[0][1].args[1], "Alice");
+	});
+
+	it("hides a supporter after a refund and ignores the replay", async () => {
+		const db = createDb();
+		const env = { STRIPE_WEBHOOK_SECRET: SECRET, SAYORI_ANALYTICS_DB: db };
+		await onRequestPost({ request: await signedRequest(paidEvent()), env });
+		const event = {
+			id: "evt_refund_1",
+			type: "charge.refunded",
+			created: 1_700_000_100,
+			data: {
+				object: {
+					id: "ch_test_1",
+					payment_intent: "pi_test_1",
+					amount: 2550,
+					amount_refunded: 2550,
+					refunded: true,
+				},
+			},
+		};
+		const first = await onRequestPost({ request: await signedRequest(event), env });
+		const second = await onRequestPost({ request: await signedRequest(event), env });
+		assert.deepEqual(await first.json(), {
+			success: true,
+			duplicate: false,
+			supporterRecorded: false,
+			supporterStatusUpdated: true,
+		});
+		assert.deepEqual(await second.json(), {
+			success: true,
+			duplicate: true,
+			supporterRecorded: false,
+			supporterStatusUpdated: false,
+		});
+		assert.equal([...db.supporterStatuses.values()][0], "refunded");
+	});
+
+	it("hides a supporter while a dispute is open", async () => {
+		const db = createDb();
+		const env = { STRIPE_WEBHOOK_SECRET: SECRET, SAYORI_ANALYTICS_DB: db };
+		await onRequestPost({ request: await signedRequest(paidEvent()), env });
+		const event = {
+			id: "evt_dispute_1",
+			type: "charge.dispute.created",
+			created: 1_700_000_200,
+			data: {
+				object: {
+					id: "dp_test_1",
+					charge: "ch_test_1",
+					payment_intent: "pi_test_1",
+				},
+			},
+		};
+		const response = await onRequestPost({ request: await signedRequest(event), env });
+		assert.deepEqual(await response.json(), {
+			success: true,
+			duplicate: false,
+			supporterRecorded: false,
+			supporterStatusUpdated: true,
+		});
+		assert.equal([...db.supporterStatuses.values()][0], "disputed");
 	});
 
 	it("rejects invalid signatures without touching D1", async () => {

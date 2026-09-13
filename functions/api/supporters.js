@@ -12,8 +12,9 @@ export async function onRequestGet({ env }) {
 		const rows = await env.SAYORI_ANALYTICS_DB
 			.prepare(
 				`SELECT display_name AS name, source, created_at AS createdAt
-				 FROM stripe_supporters
-				 ORDER BY created_at DESC, id DESC
+					 FROM stripe_supporters
+					 WHERE status = 'active'
+					 ORDER BY created_at DESC, id DESC
 				 LIMIT 100`,
 			)
 			.all();

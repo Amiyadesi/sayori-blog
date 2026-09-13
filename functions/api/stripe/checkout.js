@@ -21,6 +21,12 @@ export async function onRequestPost({ request, env }) {
 			);
 		}
 		const payload = await request.json().catch(() => null);
+		if (payload?.confirmed !== true) {
+			return json(
+				{ success: false, error: "请先确认支持说明" },
+				{ status: 400 },
+			);
+		}
 		const currencyCode = String(
 			payload?.currency ?? DEFAULT_DONATION_CURRENCY,
 		)

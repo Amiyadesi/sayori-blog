@@ -164,8 +164,8 @@ const jsonLd = {
 				<p>
 					{
 						isEnglish
-							? "Choose a currency and amount, or enter your own. Your display name is optional and will appear in the supporter list after payment."
-							: "选择币种和金额，也可以自定义填写。显示名称可选，支付完成后会出现在支持人名单中。"
+							? "This is voluntary support, not a product purchase. Check the amount and currency before paying."
+							: "这是自愿支持，不是商品购买。付款前请确认金额和币种。"
 					}
 				</p>
 				<form
@@ -266,6 +266,21 @@ const jsonLd = {
 								? "Anonymous supporter"
 								: "匿名支持者"}
 						/>
+					</label>
+					<label class="stripe-support-consent">
+						<input
+							type="checkbox"
+							name="confirmed"
+							value="true"
+							required
+						/>
+						<span>
+							{
+								isEnglish
+									? "I confirm the amount and currency, and understand this is voluntary support."
+									: "我已确认金额和币种，并理解这是自愿支持。"
+							}
+						</span>
 					</label>
 					<button type="submit" class="stripe-support-submit">
 						{isEnglish ? "Continue to Stripe" : "前往 Stripe 支付"}
@@ -482,6 +497,7 @@ const jsonLd = {
 						amount: formData.get("amount"),
 						currency: formData.get("currency"),
 						name: formData.get("name"),
+						confirmed: formData.get("confirmed") === "true",
 					}),
 				});
 				const data = await response.json().catch(() => ({}));
@@ -687,6 +703,25 @@ const jsonLd = {
 		border-color: var(--primary);
 		background: color-mix(in srgb, var(--primary) 13%, transparent);
 		color: var(--primary);
+	}
+
+	.stripe-support-consent {
+		grid-column: 1 / -1;
+		display: flex !important;
+		grid-template-columns: none !important;
+		align-items: flex-start;
+		gap: 0.55rem;
+		font-size: 0.82rem !important;
+		font-weight: 500 !important;
+		line-height: 1.55;
+	}
+
+	.stripe-support-consent input {
+		width: 1rem;
+		min-width: 1rem;
+		height: 1rem;
+		margin-top: 0.2rem;
+		accent-color: var(--primary);
 	}
 
 	.stripe-support-submit {

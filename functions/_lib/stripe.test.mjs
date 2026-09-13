@@ -47,6 +47,13 @@ describe("stripe helpers", () => {
 			"2500",
 		);
 		assert.equal(form.get("metadata[currency]"), "usd");
+		assert.equal(form.get("submit_type"), "donate");
+		assert.match(form.get("custom_text[submit][message]"), /Voluntary support/);
+		assert.equal(form.get("payment_intent_data[metadata][site]"), "blog");
+		assert.equal(
+			form.get("payment_intent_data[metadata][supporter_name]"),
+			"Alice",
+		);
 		assert.equal(
 			form.get("success_url"),
 			"https://blog.sayori.org/en/sponsor/success/?session_id={CHECKOUT_SESSION_ID}",

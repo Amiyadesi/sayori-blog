@@ -37,7 +37,7 @@ describe("stripe checkout endpoint", () => {
 		try {
 			const response = await onRequestPost(
 				context(
-					{ amount: "25.50", currency: "usd", name: "Alice" },
+					{ amount: "25.50", currency: "usd", name: "Alice", confirmed: true },
 					{ STRIPE_SECRET_KEY: "sk_test_secret" },
 				),
 			);
@@ -70,6 +70,20 @@ describe("stripe checkout endpoint", () => {
 		);
 		assert.equal(response.status, 400);
 		assert.equal((await response.json()).success, false);
+	});
+
+	it("requires explicit support confirmation", async () => {
+		const response = await onRequestPost(
+			context(
+				{ amount: "25.50", currency: "usd" },
+				{ STRIPE_SECRET_KEY: "sk_test_secret" },
+			),
+		);
+		assert.equal(response.status, 400);
+		assert.deepEqual(await response.json(), {
+			success: false,
+			error: "请先确认支持说明",
+		});
 	});
 
 	it("rejects unsupported currencies before calling Stripe", async () => {

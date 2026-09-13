@@ -90,7 +90,12 @@ export function checkoutSessionForm({
 	);
 	form.set(
 		"line_items[0][price_data][product_data][description]",
-		"One-time support for Amiya's public blog and projects",
+		"Voluntary one-time support for Amiya's public blog and projects",
+	);
+	form.set("submit_type", "donate");
+	form.set(
+		"custom_text[submit][message]",
+		"Voluntary support payment. Check the amount and currency before paying.",
 	);
 	form.set("custom_fields[0][key]", "supporter_name");
 	form.set("custom_fields[0][label][type]", "custom");
@@ -100,6 +105,9 @@ export function checkoutSessionForm({
 	form.set("metadata[site]", "blog");
 	form.set("metadata[currency]", currencyConfig.code);
 	form.set("metadata[supporter_name]", displayName);
+	form.set("payment_intent_data[description]", "Voluntary support for Amiya's public blog and projects");
+	form.set("payment_intent_data[metadata][site]", "blog");
+	form.set("payment_intent_data[metadata][supporter_name]", displayName);
 	form.set(
 		"success_url",
 		`${origin}${localePrefix(pathname)}/sponsor/success/?session_id={CHECKOUT_SESSION_ID}`,
