@@ -651,6 +651,12 @@ const jsonLd = {
 		background: rgba(255, 255, 255, 0.72);
 		padding: 0.6rem 0.7rem;
 		color: inherit;
+		color-scheme: light;
+	}
+
+	.stripe-support-card select option {
+		background: #fff;
+		color: rgba(0, 0, 0, 0.86);
 	}
 
 	.stripe-presets {
@@ -778,6 +784,16 @@ const jsonLd = {
 	:global(.dark) .stripe-support-card select,
 	:global(.dark) .stripe-preset {
 		background: rgba(255, 255, 255, 0.06);
+	}
+
+	:global(.dark) .stripe-support-card select {
+		color: rgba(255, 255, 255, 0.9);
+		color-scheme: dark;
+	}
+
+	:global(.dark) .stripe-support-card select option {
+		background: #252327;
+		color: rgba(255, 255, 255, 0.9);
 	}
 
 	:global(.dark) .sponsor-thanks small,

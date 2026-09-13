@@ -381,7 +381,7 @@ const links = (config.links || []).filter((link) => link.enable !== false);
 						return;
 					}
 					if (target.closest("[data-announcement-close]")) {
-						closeAnnouncementModal();
+						closeAnnouncementModal({ markRead: true });
 					}
 				});
 			}
@@ -397,7 +397,7 @@ const links = (config.links || []).filter((link) => link.enable !== false);
 
 		document.addEventListener("keydown", (event) => {
 			if (event.key === "Escape" && !getModal()?.hidden) {
-				closeAnnouncementModal();
+				closeAnnouncementModal({ markRead: true });
 			}
 		});
 
