@@ -207,20 +207,40 @@ jobs:
         if: github.event_name != 'pull_request' && steps.d1_migrations.outputs.pending == 'true'
         run: pnpm dlx "wrangler@${WRANGLER_VERSION}" d1 migrations apply sayori-analytics --remote
 
-      - name: Configure screenshot secret
+      - name: Configure Pages secrets
         if: github.event_name != 'pull_request'
         shell: bash
+        env:
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
         run: |
           secret_file="${RUNNER_TEMP}/sayori-blog-pages-secrets.json"
           node --input-type=module - "${secret_file}" <<'NODE'
           import fs from 'node:fs';
-          fs.writeFileSync(process.argv[2], JSON.stringify({
+          const secrets = {
             CF_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID,
             CF_API_TOKEN: process.env.CF_BROWSER_RENDERING_API_TOKEN,
-          }), { mode: 0o600 });
+          };
+          for (const name of ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET']) {
+            if (process.env[name]) secrets[name] = process.env[name];
+          }
+          fs.writeFileSync(process.argv[2], JSON.stringify(secrets), { mode: 0o600 });
           NODE
           pnpm dlx "wrangler@${WRANGLER_VERSION}" pages secret bulk "${secret_file}" --project-name sayori-blog
           rm -f "${secret_file}"
+
+      - name: Report optional payment configuration
+        if: github.event_name != 'pull_request'
+        shell: bash
+        env:
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+        run: |
+          if [[ -z "${STRIPE_SECRET_KEY}" || -z "${STRIPE_WEBHOOK_SECRET}" ]]; then
+            echo "::warning::Stripe sponsorship is deployed but one or more Stripe Pages secrets are missing."
+          else
+            echo "Stripe sponsorship secrets configured."
+          fi
 
       - name: Deploy Pages
         if: github.event_name != 'pull_request'
