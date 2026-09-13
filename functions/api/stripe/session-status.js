@@ -24,6 +24,9 @@ export async function onRequestGet({ request, env }) {
 			env,
 			`/checkout/sessions/${encodeURIComponent(sessionId)}`,
 		);
+		if (session?.metadata?.site !== "blog") {
+			return json({ success: false, error: "session not found" }, { status: 404 });
+		}
 		const custom = Array.isArray(session.custom_fields)
 			? session.custom_fields.find((field) => field?.key === "supporter_name")
 			: null;

@@ -97,6 +97,7 @@ export function onRequestOptions() {
 
 function shouldRecordSupporter(eventType, session) {
 	if (!session || !SESSION_ID_PATTERN.test(String(session.id || ""))) return false;
+	if (session.metadata?.site !== "blog") return false;
 	if (eventType === "checkout.session.async_payment_succeeded") return true;
 	return eventType === "checkout.session.completed" && session.payment_status === "paid";
 }

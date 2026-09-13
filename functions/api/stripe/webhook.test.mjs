@@ -73,6 +73,7 @@ function paidEvent(id = "evt_test_1", sessionId = "cs_test_1") {
 					payment_status: "paid",
 					amount_total: 2550,
 					currency: "hkd",
+					metadata: { site: "blog" },
 					custom_fields: [{ key: "supporter_name", text: { value: "Alice" } }],
 				},
 			},
@@ -119,6 +120,23 @@ describe("stripe webhook endpoint", () => {
 		const db = createDb();
 		const event = paidEvent("evt_test_unpaid");
 		event.data.object.payment_status = "unpaid";
+		const response = await onRequestPost({
+			request: await signedRequest(event),
+			env: { STRIPE_WEBHOOK_SECRET: SECRET, SAYORI_ANALYTICS_DB: db },
+		});
+		assert.equal(response.status, 200);
+		assert.deepEqual(await response.json(), {
+			success: true,
+			duplicate: false,
+			supporterRecorded: false,
+		});
+		assert.equal(db.batches[0].length, 1);
+	});
+
+	it("ignores paid sessions from other Stripe integrations", async () => {
+		const db = createDb();
+		const event = paidEvent("evt_other_integration");
+		delete event.data.object.metadata.site;
 		const response = await onRequestPost({
 			request: await signedRequest(event),
 			env: { STRIPE_WEBHOOK_SECRET: SECRET, SAYORI_ANALYTICS_DB: db },
