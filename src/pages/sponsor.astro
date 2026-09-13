@@ -461,6 +461,7 @@ const jsonLd = {
 
 		syncCurrency();
 		currencyField?.addEventListener("change", () => syncCurrency(true));
+		currencyField?.addEventListener("input", () => syncCurrency(true));
 		amountField?.addEventListener("input", syncPresetState);
 		supportForm.addEventListener("submit", async (event) => {
 			event.preventDefault();
@@ -502,14 +503,27 @@ const jsonLd = {
 		});
 	}
 
+	function dismissBlockingAnnouncement() {
+		// The announcement remains available from the navbar, but must not cover
+		// the payment form on the page where the primary action is payment.
+		window.sayoriAnnouncement?.close();
+	}
+
 	document.addEventListener("DOMContentLoaded", () => {
+		dismissBlockingAnnouncement();
 		bindSupportForm();
 		refreshSupporters();
 	});
 	document.addEventListener("mizuki:page:loaded", () => {
+		dismissBlockingAnnouncement();
 		bindSupportForm();
 		refreshSupporters();
 	});
+	if (document.readyState !== "loading") {
+		dismissBlockingAnnouncement();
+		bindSupportForm();
+		refreshSupporters();
+	}
 </script>
 
 <style>
@@ -620,6 +634,7 @@ const jsonLd = {
 
 	.stripe-support-card input {
 		width: 100%;
+		font-size: 16px;
 		border: 1px solid var(--line-divider);
 		border-radius: 0.45rem;
 		background: rgba(255, 255, 255, 0.72);
@@ -629,6 +644,8 @@ const jsonLd = {
 
 	.stripe-support-card select {
 		width: 100%;
+		min-height: 44px;
+		font-size: 16px;
 		border: 1px solid var(--line-divider);
 		border-radius: 0.45rem;
 		background: rgba(255, 255, 255, 0.72);
@@ -644,6 +661,9 @@ const jsonLd = {
 	}
 
 	.stripe-preset {
+		appearance: none;
+		-webkit-appearance: none;
+		min-height: 44px;
 		border: 1px solid var(--sponsor-border);
 		border-radius: 999px;
 		background: rgba(255, 255, 255, 0.56);
@@ -653,6 +673,8 @@ const jsonLd = {
 		font-weight: 800;
 		color: inherit;
 		cursor: pointer;
+		touch-action: manipulation;
+		-webkit-tap-highlight-color: transparent;
 	}
 
 	.stripe-preset[aria-pressed="true"] {
