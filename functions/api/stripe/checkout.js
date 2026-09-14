@@ -8,6 +8,7 @@ import {
 	methodNotAllowed,
 	optionsResponse,
 	parseDonationAmount,
+	resolveCheckoutOrigin,
 	stripeRequest,
 } from "../../_lib/stripe.js";
 
@@ -21,12 +22,6 @@ export async function onRequestPost({ request, env }) {
 			);
 		}
 		const payload = await request.json().catch(() => null);
-		if (payload?.confirmed !== true) {
-			return json(
-				{ success: false, error: "请先确认支持说明" },
-				{ status: 400 },
-			);
-		}
 		const currencyCode = String(
 			payload?.currency ?? DEFAULT_DONATION_CURRENCY,
 		)
@@ -51,14 +46,15 @@ export async function onRequestPost({ request, env }) {
 		}
 		const displayName = cleanDisplayName(payload?.name);
 		const url = new URL(request.url);
+		const locale = String(payload?.locale ?? "").trim();
 		const session = await stripeRequest(env, "/checkout/sessions", {
 			method: "POST",
 			form: checkoutSessionForm({
 				amountMinor,
 				currency: currency.code,
 				displayName,
-				origin: url.origin,
-				pathname: url.pathname,
+				origin: resolveCheckoutOrigin(env, url.origin),
+				locale,
 			}),
 		});
 		if (!session?.url) {

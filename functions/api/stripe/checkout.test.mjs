@@ -37,7 +37,7 @@ describe("stripe checkout endpoint", () => {
 		try {
 			const response = await onRequestPost(
 				context(
-					{ amount: "25.50", currency: "usd", name: "Alice", confirmed: true },
+					{ amount: "25.50", currency: "usd", name: "Alice", locale: "en" },
 					{ STRIPE_SECRET_KEY: "sk_test_secret" },
 				),
 			);
@@ -56,6 +56,11 @@ describe("stripe checkout endpoint", () => {
 			);
 			assert.match(requestBody, /metadata%5Bsite%5D=blog/);
 			assert.doesNotMatch(requestBody, /payment_method_types/);
+			assert.match(
+				requestBody,
+				/success_url=https%3A%2F%2Fblog.sayori.org%2Fen%2Fsponsor%2Fsuccess/,
+			);
+			assert.doesNotMatch(requestBody, /integration_identifier/);
 		} finally {
 			globalThis.fetch = previousFetch;
 		}
@@ -72,19 +77,6 @@ describe("stripe checkout endpoint", () => {
 		assert.equal((await response.json()).success, false);
 	});
 
-	it("requires explicit support confirmation", async () => {
-		const response = await onRequestPost(
-			context(
-				{ amount: "25.50", currency: "usd" },
-				{ STRIPE_SECRET_KEY: "sk_test_secret" },
-			),
-		);
-		assert.equal(response.status, 400);
-		assert.deepEqual(await response.json(), {
-			success: false,
-			error: "请先确认支持说明",
-		});
-	});
 
 	it("rejects unsupported currencies before calling Stripe", async () => {
 		const response = await onRequestPost(

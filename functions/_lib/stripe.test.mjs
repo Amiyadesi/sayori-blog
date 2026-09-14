@@ -6,6 +6,7 @@ import {
 	cleanDisplayName,
 	parseDonationAmount,
 	parseStripeSignature,
+	resolveCheckoutOrigin,
 	verifyStripeSignature,
 } from "./stripe.js";
 
@@ -38,7 +39,7 @@ describe("stripe helpers", () => {
 			currency: "usd",
 			displayName: "Alice",
 			origin: "https://blog.sayori.org",
-			pathname: "/en/sponsor/",
+			locale: "en",
 		});
 		assert.equal(form.get("mode"), "payment");
 		assert.equal(form.get("line_items[0][price_data][currency]"), "usd");
@@ -58,9 +59,24 @@ describe("stripe helpers", () => {
 			form.get("success_url"),
 			"https://blog.sayori.org/en/sponsor/success/?session_id={CHECKOUT_SESSION_ID}",
 		);
-		assert.match(
-			form.get("integration_identifier"),
-			/^sayori_sponsor_[a-z]{8}$/,
+		assert.equal(form.get("integration_identifier"), null);
+	});
+
+	it("pins checkout origin to production unless overridden", () => {
+		assert.equal(
+			resolveCheckoutOrigin({}, "https://preview.pages.dev"),
+			"https://blog.sayori.org",
+		);
+		assert.equal(
+			resolveCheckoutOrigin(
+				{ STRIPE_CHECKOUT_ORIGIN: "https://blog.sayori.org" },
+				"https://preview.pages.dev",
+			),
+			"https://blog.sayori.org",
+		);
+		assert.equal(
+			resolveCheckoutOrigin({}, "http://localhost:4321"),
+			"http://localhost:4321",
 		);
 	});
 

@@ -65,8 +65,30 @@ export function parseDonationAmount(
 	return minor;
 }
 
-export function localePrefix(pathname) {
-	return pathname === "/en" || pathname.startsWith("/en/") ? "/en" : "";
+export const DEFAULT_CHECKOUT_ORIGIN = "https://blog.sayori.org";
+
+export function localePrefix(localeOrPath) {
+	const value = String(localeOrPath ?? "").trim().toLowerCase();
+	if (value === "en" || value === "/en" || value.startsWith("/en/") || value.startsWith("en/")) {
+		return "/en";
+	}
+	return "";
+}
+
+export function resolveCheckoutOrigin(env = {}, fallbackOrigin = "") {
+	const configured = String(env.STRIPE_CHECKOUT_ORIGIN || "").trim().replace(/\/$/, "");
+	if (/^https:\/\/[a-z0-9.-]+$/i.test(configured)) {
+		return configured;
+	}
+	const fallback = String(fallbackOrigin || "").trim().replace(/\/$/, "");
+	if (fallback === DEFAULT_CHECKOUT_ORIGIN) {
+		return DEFAULT_CHECKOUT_ORIGIN;
+	}
+	// Prefer production origin; only allow request origin for local/dev hosts.
+	if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(fallback)) {
+		return fallback;
+	}
+	return DEFAULT_CHECKOUT_ORIGIN;
 }
 
 export function checkoutSessionForm({
@@ -74,7 +96,7 @@ export function checkoutSessionForm({
 	currency = DEFAULT_DONATION_CURRENCY,
 	displayName,
 	origin,
-	pathname,
+	locale = "",
 }) {
 	const currencyConfig =
 		getDonationCurrency(currency) ||
@@ -110,10 +132,9 @@ export function checkoutSessionForm({
 	form.set("payment_intent_data[metadata][supporter_name]", displayName);
 	form.set(
 		"success_url",
-		`${origin}${localePrefix(pathname)}/sponsor/success/?session_id={CHECKOUT_SESSION_ID}`,
+		`${origin}${localePrefix(locale)}/sponsor/success/?session_id={CHECKOUT_SESSION_ID}`,
 	);
-	form.set("cancel_url", `${origin}${localePrefix(pathname)}/sponsor/`);
-	form.set("integration_identifier", `sayori_sponsor_${randomLetters(8)}`);
+	form.set("cancel_url", `${origin}${localePrefix(locale)}/sponsor/`);
 	return form;
 }
 
@@ -211,13 +232,6 @@ export async function verifyStripeSignature(
 	);
 }
 
-function randomLetters(length) {
-	const bytes = new Uint8Array(length);
-	crypto.getRandomValues(bytes);
-	return Array.from(bytes, (byte) =>
-		String.fromCharCode(97 + (byte % 26)),
-	).join("");
-}
 
 function bytesToHex(bytes) {
 	return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(
