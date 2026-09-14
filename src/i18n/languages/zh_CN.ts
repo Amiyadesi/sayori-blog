@@ -356,7 +356,7 @@ export const zh_CN: Translation = {
 	[Key.postInteractionFailed]: "统计暂时失败，不影响继续操作",
 	[Key.postGeneratePoster]: "生成海报",
 	[Key.postPosterDownloadStarted]: "已开始下载",
-	[Key.postPromote]: "推广本文",
+	[Key.postPromote]: "打开 n8n",
 	[Key.postCopyFallbackLabel]: "请手动复制下面已选中的链接",
 	[Key.postCopyFailedManual]: "自动复制失败，已为你选中链接",
 	[Key.postLastEdited]: "最后编辑",

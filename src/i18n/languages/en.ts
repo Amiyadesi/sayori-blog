@@ -368,7 +368,7 @@ export const en: Translation = {
 	[Key.postInteractionFailed]: "Stats failed; action can continue",
 	[Key.postGeneratePoster]: "Create Poster",
 	[Key.postPosterDownloadStarted]: "Download started",
-	[Key.postPromote]: "Promote Post",
+	[Key.postPromote]: "Open n8n",
 	[Key.postCopyFallbackLabel]: "Copy the selected link manually",
 	[Key.postCopyFailedManual]: "Automatic copy failed. The link is selected.",
 	[Key.postLastEdited]: "Last edited",

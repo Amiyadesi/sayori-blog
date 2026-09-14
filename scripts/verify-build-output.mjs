@@ -1395,13 +1395,10 @@ verifyTopicPage(topicHtml);
 const adminGrowthHtml = files.get("admin/growth/index.html") || "";
 requireIncludes("admin/growth/index.html", adminGrowthHtml, [
 	'<meta name="robots" content="noindex, nofollow, noarchive">',
-	"增长工作台",
+	"n8n 发布自动化",
+	"https://n8n.sayori.org/",
 ]);
-requireIncludes(
-	"admin/growth bundled modules",
-	readLinkedAstroModules(adminGrowthHtml),
-	["/api/admin/growth/overview"],
-);
+requireIncludes("admin/growth n8n entry", adminGrowthHtml, ["n8n.sayori.org"]);
 
 const robotsTxt = files.get("robots.txt") || "";
 requireIncludes("robots.txt", robotsTxt, [

@@ -357,7 +357,7 @@ export const zh_TW: Translation = {
 	[Key.postInteractionFailed]: "統計暫時失敗，不影響繼續操作",
 	[Key.postGeneratePoster]: "產生海報",
 	[Key.postPosterDownloadStarted]: "已開始下載",
-	[Key.postPromote]: "推廣本文",
+	[Key.postPromote]: "開啟 n8n",
 	[Key.postCopyFallbackLabel]: "請手動複製下方已選取的連結",
 	[Key.postCopyFailedManual]: "自動複製失敗，已為你選取連結",
 	[Key.postLastEdited]: "最後編輯",

@@ -14,7 +14,8 @@ describe("post engagement sharing", () => {
 		assert.match(source, /data-copy-share/);
 		assert.match(source, /data-native-share hidden/);
 		assert.match(source, /postGeneratePoster/);
-		assert.match(source, /data-promote-post hidden/);
+		assert.match(source, /data-promote-post[\s\S]*hidden/);
+		assert.match(source, /PUBLIC_N8N_URL|n8n\.sayori\.org/);
 		assert.doesNotMatch(source, /service\.weibo\.com|twitter\.com\/intent|t\.me\/share|facebook\.com\/sharer/);
 		assert.doesNotMatch(source, /data-share-count/);
 	});

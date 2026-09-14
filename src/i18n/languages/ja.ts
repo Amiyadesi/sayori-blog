@@ -371,7 +371,7 @@ export const ja: Translation = {
 	[Key.postInteractionFailed]: "統計に失敗しましたが、操作は続行できます",
 	[Key.postGeneratePoster]: "ポスターを作成",
 	[Key.postPosterDownloadStarted]: "ダウンロードを開始しました",
-	[Key.postPromote]: "この記事を宣伝",
+	[Key.postPromote]: "n8n を開く",
 	[Key.postCopyFallbackLabel]: "選択済みのリンクを手動でコピーしてください",
 	[Key.postCopyFailedManual]: "自動コピーに失敗しました。リンクを選択しました。",
 	[Key.postLastEdited]: "最終編集",

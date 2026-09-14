@@ -1,34 +1,51 @@
 ---
-import GrowthWorkbench from "@components/features/admin/GrowthWorkbench.astro";
+import { PageHeader } from "@components/features/page-header";
 import MainGridLayout from "@layouts/MainGridLayout.astro";
-import { BLOG_ORIGIN } from "@utils/campaign-link";
-import {
-	getSortedPostsList,
-	isOrdinaryPublicPost,
-} from "@utils/content-utils";
-import { getPostPublicDescription } from "@utils/post-card-content";
 
 export const prerender = true;
-
-const posts = (await getSortedPostsList())
-	.filter(isOrdinaryPublicPost)
-	.map((post) => ({
-		id: post.id,
-		title: post.data.title,
-		path: new URL(post.url || "/", BLOG_ORIGIN).pathname,
-		url: new URL(post.url || "/", BLOG_ORIGIN).toString(),
-		description: getPostPublicDescription(post.data, post.data.title),
-		tags: post.data.tags || [],
-		published: post.data.published.toISOString(),
-	}));
+const n8nUrl = import.meta.env.PUBLIC_N8N_URL || "https://n8n.sayori.org/";
 ---
 
-<MainGridLayout
-	title="增长工作台"
-	description="Sayori 博客的专题、文章、人工分发与有效阅读复盘工作台"
->
+<MainGridLayout title="n8n 发布自动化" description="通过 n8n 管理文章改写、分发和通知工作流">
 	<script>
 		import("../../scripts/right-sidebar-layout.js");
 	</script>
-	<GrowthWorkbench {posts} />
+
+	<article class="n8n-entry card-base paper-note paper-note-lined paper-tape">
+		<PageHeader
+			title="n8n 发布自动化"
+			subtitle="旧的增长工作台已移除；文章分发统一交给 n8n。"
+		/>
+		<section class="n8n-entry-body">
+			<p>
+				n8n 负责接收博客更新、调用 AI 生成各平台版本、发送审核通知，再把获批内容发布到支持 API 的渠道。
+			</p>
+			<a class="n8n-entry-button" href={n8nUrl} target="_blank" rel="noreferrer">打开 n8n</a>
+			<ol>
+				<li>在 n8n 打开对应工作流。</li>
+				<li>填写文章 URL 或选择 GitHub 更新事件。</li>
+				<li>先检查 AI 生成的标题、摘要、标签和平台限制。</li>
+				<li>确认后才发送到 X 等自动渠道；小红书、小黑盒等保留人工发布。</li>
+			</ol>
+		</section>
+	</article>
 </MainGridLayout>
+
+<style>
+	.n8n-entry { padding: 1.5rem; }
+	.n8n-entry-body { display: grid; gap: 1rem; color: var(--text-70); line-height: 1.75; }
+	.n8n-entry-body p { margin: 0; }
+	.n8n-entry-body ol { margin: 0; padding-left: 1.25rem; }
+	.n8n-entry-button {
+		display: inline-flex;
+		width: fit-content;
+		align-items: center;
+		border: 1px solid color-mix(in srgb, var(--primary) 45%, transparent);
+		border-radius: 8px;
+		padding: 0.55rem 0.85rem;
+		color: var(--primary);
+		font-weight: 700;
+	}
+	.n8n-entry-button:hover { background: color-mix(in srgb, var(--primary) 12%, transparent); }
+	@media (max-width: 767px) { .n8n-entry { padding: 1rem; } }
+</style>

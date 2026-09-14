@@ -39,7 +39,7 @@ const {
 } = Astro.props;
 
 const finalAuthor = author || profileConfig.name;
-const growthUrl = `/admin/growth/?post=${encodeURIComponent(path)}`;
+const n8nUrl = import.meta.env.PUBLIC_N8N_URL || "https://n8n.sayori.org/";
 ---
 
 <section
@@ -152,7 +152,14 @@ const growthUrl = `/admin/growth/?post=${encodeURIComponent(path)}`;
 			}
 		</div>
 		<div class="post-engagement-meta">
-			<a class="post-promote-link" href={growthUrl} data-promote-post hidden>
+			<a
+				class="post-promote-link"
+				href={n8nUrl}
+				target="_blank"
+				rel="noreferrer"
+				data-promote-post
+				hidden
+			>
 				<Icon name="material-symbols:monitoring-rounded" />
 				<span>{i18n(I18nKey.postPromote)}</span>
 			</a>
