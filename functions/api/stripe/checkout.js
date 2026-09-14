@@ -3,6 +3,8 @@ import { json } from "../../_lib/admin.js";
 import {
 	checkoutSessionForm,
 	cleanDisplayName,
+	DEFAULT_DONATION_CURRENCY,
+	getDonationCurrency,
 	methodNotAllowed,
 	optionsResponse,
 	parseDonationAmount,
@@ -19,10 +21,31 @@ export async function onRequestPost({ request, env }) {
 			);
 		}
 		const payload = await request.json().catch(() => null);
-		const amountMinor = parseDonationAmount(payload?.amount);
+		if (payload?.confirmed !== true) {
+			return json(
+				{ success: false, error: "请先确认支持说明" },
+				{ status: 400 },
+			);
+		}
+		const currencyCode = String(
+			payload?.currency ?? DEFAULT_DONATION_CURRENCY,
+		)
+			.trim()
+			.toLowerCase();
+		const currency = getDonationCurrency(currencyCode);
+		if (!currency) {
+			return json(
+				{ success: false, error: "暂不支持该币种" },
+				{ status: 400 },
+			);
+		}
+		const amountMinor = parseDonationAmount(payload?.amount, currency.code);
 		if (!amountMinor) {
 			return json(
-				{ success: false, error: "金额需为 10.00–10000.00 HKD" },
+				{
+					success: false,
+					error: `金额需为 ${currency.minimum}–${currency.maximum} ${currency.code.toUpperCase()}`,
+				},
 				{ status: 400 },
 			);
 		}
@@ -32,16 +55,17 @@ export async function onRequestPost({ request, env }) {
 			method: "POST",
 			form: checkoutSessionForm({
 				amountMinor,
+				currency: currency.code,
 				displayName,
 				origin: url.origin,
 				pathname: url.pathname,
 			}),
 		});
 		if (!session?.url) {
-				return json(
-					{ success: false, error: "Stripe 未返回结账地址" },
-					{ status: 502 },
-				);
+			return json(
+				{ success: false, error: "Stripe 未返回结账地址" },
+				{ status: 502 },
+			);
 		}
 		return json({ success: true, url: session.url });
 	} catch (error) {

@@ -1,4 +1,9 @@
 import { json } from "./admin.js";
+import {
+	DEFAULT_DONATION_CURRENCY,
+	DONATION_CURRENCIES,
+	getDonationCurrency,
+} from "../../src/data/donation-currencies.js";
 
 const STRIPE_API_BASE = "https://api.stripe.com/v1";
 const DISPLAY_NAME_MAX_LENGTH = 80;
@@ -29,13 +34,32 @@ export function cleanDisplayName(value) {
 		.slice(0, DISPLAY_NAME_MAX_LENGTH);
 }
 
-export function parseDonationAmount(value) {
+export function parseDonationAmount(
+	value,
+	currencyCode = DEFAULT_DONATION_CURRENCY,
+) {
+	const currency = getDonationCurrency(currencyCode);
+	if (!currency) return null;
 	const raw = String(value ?? "").trim();
-	if (!/^\d+(?:\.\d{1,2})?$/.test(raw)) return null;
+	const pattern = currency.decimals
+		? new RegExp(`^\\d+(?:\\.\\d{1,${currency.decimals}})?$`)
+		: /^\d+$/;
+	if (!pattern.test(raw)) return null;
 	const [wholePart, fractionPart = ""] = raw.split(".");
 	const whole = Number(wholePart);
-	const minor = whole * 100 + Number(fractionPart.padEnd(2, "0"));
-	if (!Number.isSafeInteger(minor) || minor < 1000 || minor > 1_000_000) {
+	const multiplier = 10 ** currency.decimals;
+	const minor =
+		whole * multiplier +
+		(currency.decimals
+			? Number(fractionPart.padEnd(currency.decimals, "0"))
+			: 0);
+	const minimumMinor = currency.minimum * multiplier;
+	const maximumMinor = currency.maximum * multiplier;
+	if (
+		!Number.isSafeInteger(minor) ||
+		minor < minimumMinor ||
+		minor > maximumMinor
+	) {
 		return null;
 	}
 	return minor;
@@ -45,16 +69,33 @@ export function localePrefix(pathname) {
 	return pathname === "/en" || pathname.startsWith("/en/") ? "/en" : "";
 }
 
-export function checkoutSessionForm({ amountMinor, displayName, origin, pathname }) {
+export function checkoutSessionForm({
+	amountMinor,
+	currency = DEFAULT_DONATION_CURRENCY,
+	displayName,
+	origin,
+	pathname,
+}) {
+	const currencyConfig =
+		getDonationCurrency(currency) ||
+		getDonationCurrency(DEFAULT_DONATION_CURRENCY);
 	const form = new URLSearchParams();
 	form.set("mode", "payment");
 	form.set("line_items[0][quantity]", "1");
-	form.set("line_items[0][price_data][currency]", "hkd");
+	form.set("line_items[0][price_data][currency]", currencyConfig.code);
 	form.set("line_items[0][price_data][unit_amount]", String(amountMinor));
-	form.set("line_items[0][price_data][product_data][name]", "Support Amiya's Desk");
+	form.set(
+		"line_items[0][price_data][product_data][name]",
+		"Support Amiya's Desk",
+	);
 	form.set(
 		"line_items[0][price_data][product_data][description]",
-		"One-time support for Amiya's public blog and projects",
+		"Voluntary one-time support for Amiya's public blog and projects",
+	);
+	form.set("submit_type", "donate");
+	form.set(
+		"custom_text[submit][message]",
+		"Voluntary support payment. Check the amount and currency before paying.",
 	);
 	form.set("custom_fields[0][key]", "supporter_name");
 	form.set("custom_fields[0][label][type]", "custom");
@@ -62,8 +103,15 @@ export function checkoutSessionForm({ amountMinor, displayName, origin, pathname
 	form.set("custom_fields[0][type]", "text");
 	form.set("custom_fields[0][optional]", "true");
 	form.set("metadata[site]", "blog");
+	form.set("metadata[currency]", currencyConfig.code);
 	form.set("metadata[supporter_name]", displayName);
-	form.set("success_url", `${origin}${localePrefix(pathname)}/sponsor/success/?session_id={CHECKOUT_SESSION_ID}`);
+	form.set("payment_intent_data[description]", "Voluntary support for Amiya's public blog and projects");
+	form.set("payment_intent_data[metadata][site]", "blog");
+	form.set("payment_intent_data[metadata][supporter_name]", displayName);
+	form.set(
+		"success_url",
+		`${origin}${localePrefix(pathname)}/sponsor/success/?session_id={CHECKOUT_SESSION_ID}`,
+	);
 	form.set("cancel_url", `${origin}${localePrefix(pathname)}/sponsor/`);
 	form.set("integration_identifier", `sayori_sponsor_${randomLetters(8)}`);
 	return form;
@@ -104,12 +152,14 @@ export function extractSupporterName(session) {
 	const customField = Array.isArray(session?.custom_fields)
 		? session.custom_fields.find((field) => field?.key === "supporter_name")
 		: null;
-	return cleanDisplayName(
-		customField?.text?.value ||
-			customField?.numeric?.value ||
-			session?.metadata?.supporter_name ||
-			"匿名支持者",
-	) || "匿名支持者";
+	return (
+		cleanDisplayName(
+			customField?.text?.value ||
+				customField?.numeric?.value ||
+				session?.metadata?.supporter_name ||
+				"匿名支持者",
+		) || "匿名支持者"
+	);
 }
 
 export function parseStripeSignature(header) {
@@ -126,7 +176,8 @@ export function parseStripeSignature(header) {
 	}
 	const timestamp = Number(values.get("t")?.[0]);
 	const signatures = values.get("v1") || [];
-	if (!Number.isSafeInteger(timestamp) || signatures.length === 0) return null;
+	if (!Number.isSafeInteger(timestamp) || signatures.length === 0)
+		return null;
 	return { timestamp, signatures };
 }
 
@@ -155,17 +206,23 @@ export async function verifyStripeSignature(
 		new TextEncoder().encode(`${parsed.timestamp}.${payload}`),
 	);
 	const expected = bytesToHex(new Uint8Array(signature));
-	return parsed.signatures.some((candidate) => timingSafeEqual(expected, candidate));
+	return parsed.signatures.some((candidate) =>
+		timingSafeEqual(expected, candidate),
+	);
 }
 
 function randomLetters(length) {
 	const bytes = new Uint8Array(length);
 	crypto.getRandomValues(bytes);
-	return Array.from(bytes, (byte) => String.fromCharCode(97 + (byte % 26))).join("");
+	return Array.from(bytes, (byte) =>
+		String.fromCharCode(97 + (byte % 26)),
+	).join("");
 }
 
 function bytesToHex(bytes) {
-	return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+	return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(
+		"",
+	);
 }
 
 function timingSafeEqual(left, right) {
@@ -180,4 +237,10 @@ function timingSafeEqual(left, right) {
 	return difference === 0;
 }
 
-export { DISPLAY_NAME_MAX_LENGTH, SIGNATURE_TOLERANCE_SECONDS };
+export {
+	DISPLAY_NAME_MAX_LENGTH,
+	DEFAULT_DONATION_CURRENCY,
+	DONATION_CURRENCIES,
+	getDonationCurrency,
+	SIGNATURE_TOLERANCE_SECONDS,
+};

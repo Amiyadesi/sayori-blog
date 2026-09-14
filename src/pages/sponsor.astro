@@ -6,6 +6,10 @@ import { getEntry, render } from "astro:content";
 import { Icon } from "astro-icon/components";
 
 import { profileConfig, siteConfig, sponsorConfig } from "../config";
+import {
+	DEFAULT_DONATION_CURRENCY,
+	DONATION_CURRENCIES,
+} from "../data/donation-currencies.js";
 import { currentLocalePath } from "../utils/site-locale";
 
 const sponsorPost = await getEntry("site", "sponsor");
@@ -18,8 +22,8 @@ const { Content } = await render(sponsorPost);
 const isEnglish = siteConfig.lang.startsWith("en");
 const title = isEnglish ? "Support" : "赞助";
 const description = isEnglish
-	? "Support Amiya_desi's blog and public projects through Stripe, Ko-fi, or Afdian."
-	: "通过 Stripe、Ko-fi 或爱发电支持 Amiya_desi 的博客和公开项目。";
+	? "Support Amiya_desi's blog and public projects through Stripe, Ko-fi, or Afdian. Choose a currency, use a preset, or enter a custom amount."
+	: "通过 Stripe、Ko-fi 或爱发电支持 Amiya_desi 的博客和公开项目。可选择币种、预设金额，或填写自定义金额。";
 const findProfileLink = (match: (value: string) => boolean) =>
 	profileConfig.links.find((link) => match(`${link.name} ${link.url}`))?.url;
 const kofiUrl =
@@ -28,6 +32,12 @@ const kofiUrl =
 const afdianUrl =
 	findProfileLink((value) => /ifdian|afdian|爱发电|愛發電/i.test(value)) ||
 	"https://ifdian.net/a/amiya_desi/plan";
+const defaultDonationCurrency =
+	DONATION_CURRENCIES.find(
+		(currency) => currency.code === DEFAULT_DONATION_CURRENCY,
+	) || DONATION_CURRENCIES[0];
+const formatDonationAmount = (amount: number, decimals: number) =>
+	amount.toFixed(decimals);
 const sponsorOptions = [
 	{
 		name: "Ko-fi",
@@ -145,40 +155,142 @@ const jsonLd = {
 				aria-labelledby="stripe-support-title"
 			>
 				<h2 id="stripe-support-title">
-					{isEnglish ? "Support directly with Stripe" : "使用 Stripe 直接支持"}
+					{
+						isEnglish
+							? "Support directly with Stripe"
+							: "使用 Stripe 直接支持"
+					}
 				</h2>
 				<p>
-					{isEnglish
-						? "Choose an amount in HKD. Your display name is optional and will appear in the supporter list after payment."
-						: "填写港币金额即可支持。显示名称可选，支付完成后会出现在支持人名单中。"}
+					{
+						isEnglish
+							? "This is voluntary support, not a product purchase. Check the amount and currency before paying."
+							: "这是自愿支持，不是商品购买。付款前请确认金额和币种。"
+					}
 				</p>
-				<form data-stripe-support-form>
+				<form
+					data-stripe-support-form
+					data-currency-config={JSON.stringify(DONATION_CURRENCIES)}
+				>
 					<label>
-						<span>{isEnglish ? "Amount (HKD)" : "金额（HKD）"}</span>
+						<span>{isEnglish ? "Currency" : "币种"}</span>
+						<select name="currency" data-stripe-currency>
+							{
+								DONATION_CURRENCIES.map((currency) => (
+									<option
+										value={currency.code}
+										selected={
+											currency.code ===
+											defaultDonationCurrency.code
+										}
+									>
+										{isEnglish
+											? currency.labelEn
+											: currency.labelZh}
+									</option>
+								))
+							}
+						</select>
+					</label>
+					<label>
+						<span data-stripe-amount-label>
+							{
+								isEnglish
+									? `Amount (${defaultDonationCurrency.code.toUpperCase()})`
+									: `金额（${defaultDonationCurrency.code.toUpperCase()}）`
+							}
+						</span>
 						<input
 							type="number"
 							name="amount"
-							min="10"
-							max="10000"
-							step="0.01"
-							value="25.00"
+							min={defaultDonationCurrency.minimum}
+							max={defaultDonationCurrency.maximum}
+							step={defaultDonationCurrency.decimals
+								? "0.01"
+								: "1"}
+							value={formatDonationAmount(
+								defaultDonationCurrency.presets[0],
+								defaultDonationCurrency.decimals,
+							)}
+							inputmode={defaultDonationCurrency.decimals
+								? "decimal"
+								: "numeric"}
+							data-stripe-amount
 							required
 						/>
 					</label>
+					<div
+						class="stripe-presets"
+						data-stripe-presets
+						role="group"
+						aria-label={isEnglish
+							? "Suggested amounts"
+							: "预设金额"}
+					>
+						{
+							defaultDonationCurrency.presets.map(
+								(amount, index) => (
+									<button
+										type="button"
+										class="stripe-preset"
+										data-stripe-preset
+										data-value={amount}
+										aria-pressed={
+											index === 0 ? "true" : "false"
+										}
+									>
+										{defaultDonationCurrency.symbol}
+										{formatDonationAmount(
+											amount,
+											defaultDonationCurrency.decimals,
+										)}
+									</button>
+								),
+							)
+						}
+					</div>
 					<label>
-						<span>{isEnglish ? "Display name (optional)" : "显示名称（可选）"}</span>
+						<span
+							>{
+								isEnglish
+									? "Display name (optional)"
+									: "显示名称（可选）"
+							}</span
+						>
 						<input
 							type="text"
 							name="name"
 							maxlength="80"
 							autocomplete="nickname"
-							placeholder={isEnglish ? "Anonymous supporter" : "匿名支持者"}
+							placeholder={isEnglish
+								? "Anonymous supporter"
+								: "匿名支持者"}
 						/>
+					</label>
+					<label class="stripe-support-consent">
+						<input
+							type="checkbox"
+							name="confirmed"
+							value="true"
+							required
+						/>
+						<span>
+							{
+								isEnglish
+									? "I confirm the amount and currency, and understand this is voluntary support."
+									: "我已确认金额和币种，并理解这是自愿支持。"
+							}
+						</span>
 					</label>
 					<button type="submit" class="stripe-support-submit">
 						{isEnglish ? "Continue to Stripe" : "前往 Stripe 支付"}
 					</button>
-					<p data-stripe-support-status role="status" aria-live="polite"></p>
+					<p
+						data-stripe-support-status
+						role="status"
+						aria-live="polite"
+					>
+					</p>
 				</form>
 			</section>
 
@@ -215,10 +327,19 @@ const jsonLd = {
 </MainGridLayout>
 
 <script>
-	function renderSupporters(supporters: Array<{ name?: string; source?: string }>) {
-		const supporterList = document.querySelector<HTMLUListElement>("[data-supporters-list]");
+	function renderSupporters(
+		supporters: Array<{ name?: string; source?: string }>,
+	) {
+		const supporterList = document.querySelector<HTMLUListElement>(
+			"[data-supporters-list]",
+		);
 		const englishPage = document.documentElement.lang?.startsWith("en");
-		if (!supporterList || !Array.isArray(supporters) || supporters.length === 0) return;
+		if (
+			!supporterList ||
+			!Array.isArray(supporters) ||
+			supporters.length === 0
+		)
+			return;
 		supporterList.replaceChildren();
 		for (const supporter of supporters) {
 			const item = document.createElement("li");
@@ -252,13 +373,116 @@ const jsonLd = {
 	}
 
 	function bindSupportForm() {
-		const supportForm = document.querySelector<HTMLFormElement>("[data-stripe-support-form]");
-		const supportStatus = document.querySelector<HTMLElement>("[data-stripe-support-status]");
+		const supportForm = document.querySelector<HTMLFormElement>(
+			"[data-stripe-support-form]",
+		);
+		const supportStatus = document.querySelector<HTMLElement>(
+			"[data-stripe-support-status]",
+		);
 		if (!supportForm || supportForm.dataset.bound === "true") return;
 		supportForm.dataset.bound = "true";
+		const currencyField = supportForm.querySelector<HTMLSelectElement>(
+			"[data-stripe-currency]",
+		);
+		const amountField = supportForm.querySelector<HTMLInputElement>(
+			"[data-stripe-amount]",
+		);
+		const amountLabel = supportForm.querySelector<HTMLElement>(
+			"[data-stripe-amount-label]",
+		);
+		const presets = supportForm.querySelector<HTMLElement>(
+			"[data-stripe-presets]",
+		);
+		const currencies = JSON.parse(
+			supportForm.dataset.currencyConfig || "[]",
+		) as Array<{
+			code: string;
+			labelEn: string;
+			labelZh: string;
+			symbol: string;
+			decimals: number;
+			minimum: number;
+			maximum: number;
+			presets: number[];
+		}>;
+		const englishPage = document.documentElement.lang?.startsWith("en");
+
+		function formatAmount(amount: number, decimals: number) {
+			return amount.toFixed(decimals);
+		}
+
+		function getCurrency() {
+			return (
+				currencies.find(
+					(currency) => currency.code === currencyField?.value,
+				) || currencies[0]
+			);
+		}
+
+		function syncPresetState() {
+			const currentAmount = amountField?.value;
+			presets
+				?.querySelectorAll<HTMLButtonElement>("[data-stripe-preset]")
+				.forEach((preset) => {
+					preset.setAttribute(
+						"aria-pressed",
+						preset.dataset.value === currentAmount
+							? "true"
+							: "false",
+					);
+				});
+		}
+
+		function renderPresets(currency: (typeof currencies)[number]) {
+			if (!presets) return;
+			presets.replaceChildren();
+			for (const amount of currency.presets) {
+				const preset = document.createElement("button");
+				preset.type = "button";
+				preset.className = "stripe-preset";
+				preset.dataset.stripePreset = "";
+				preset.dataset.value = formatAmount(amount, currency.decimals);
+				preset.textContent = `${currency.symbol}${formatAmount(amount, currency.decimals)}`;
+				preset.addEventListener("click", () => {
+					if (amountField)
+						amountField.value = preset.dataset.value || "";
+					syncPresetState();
+				});
+				presets.append(preset);
+			}
+			syncPresetState();
+		}
+
+		function syncCurrency(resetAmount = false) {
+			const currency = getCurrency();
+			if (!currency || !amountField) return;
+			amountField.min = String(currency.minimum);
+			amountField.max = String(currency.maximum);
+			amountField.step = currency.decimals ? "0.01" : "1";
+			amountField.inputMode = currency.decimals ? "decimal" : "numeric";
+			if (resetAmount) {
+				amountField.value = formatAmount(
+					currency.presets[0],
+					currency.decimals,
+				);
+			}
+			if (amountLabel) {
+				amountLabel.textContent = englishPage
+					? `Amount (${currency.code.toUpperCase()})`
+					: `金额（${currency.code.toUpperCase()}）`;
+			}
+			renderPresets(currency);
+		}
+
+		syncCurrency();
+		currencyField?.addEventListener("change", () => syncCurrency(true));
+		currencyField?.addEventListener("input", () => syncCurrency(true));
+		amountField?.addEventListener("input", syncPresetState);
 		supportForm.addEventListener("submit", async (event) => {
 			event.preventDefault();
-			const button = supportForm.querySelector<HTMLButtonElement>("button[type='submit']");
+			const button = supportForm.querySelector<HTMLButtonElement>(
+				"button[type='submit']",
+			);
 			const formData = new FormData(supportForm);
 			if (supportStatus) supportStatus.textContent = "";
 			if (button) button.disabled = true;
@@ -271,32 +495,51 @@ const jsonLd = {
 					},
 					body: JSON.stringify({
 						amount: formData.get("amount"),
+						currency: formData.get("currency"),
 						name: formData.get("name"),
+						confirmed: formData.get("confirmed") === "true",
 					}),
 				});
 				const data = await response.json().catch(() => ({}));
 				if (!response.ok || !data.url) {
-					throw new Error(data.error || "Stripe checkout unavailable");
+					throw new Error(
+						data.error || "Stripe checkout unavailable",
+					);
 				}
 				window.location.assign(data.url);
 			} catch (error) {
 				if (supportStatus) {
 					supportStatus.textContent =
-						error instanceof Error ? error.message : "暂时无法打开 Stripe 支付";
+						error instanceof Error
+							? error.message
+							: "暂时无法打开 Stripe 支付";
 				}
 				if (button) button.disabled = false;
 			}
 		});
 	}
 
+	function dismissBlockingAnnouncement() {
+		// The announcement remains available from the navbar, but must not cover
+		// the payment form on the page where the primary action is payment.
+		window.sayoriAnnouncement?.close();
+	}
+
 	document.addEventListener("DOMContentLoaded", () => {
+		dismissBlockingAnnouncement();
 		bindSupportForm();
 		refreshSupporters();
 	});
 	document.addEventListener("mizuki:page:loaded", () => {
+		dismissBlockingAnnouncement();
 		bindSupportForm();
 		refreshSupporters();
 	});
+	if (document.readyState !== "loading") {
+		dismissBlockingAnnouncement();
+		bindSupportForm();
+		refreshSupporters();
+	}
 </script>
 
 <style>
@@ -407,11 +650,78 @@ const jsonLd = {
 
 	.stripe-support-card input {
 		width: 100%;
+		font-size: 16px;
 		border: 1px solid var(--line-divider);
 		border-radius: 0.45rem;
 		background: rgba(255, 255, 255, 0.72);
 		padding: 0.6rem 0.7rem;
 		color: inherit;
+	}
+
+	.stripe-support-card select {
+		width: 100%;
+		min-height: 44px;
+		font-size: 16px;
+		border: 1px solid var(--line-divider);
+		border-radius: 0.45rem;
+		background: rgba(255, 255, 255, 0.72);
+		padding: 0.6rem 0.7rem;
+		color: inherit;
+		color-scheme: light;
+	}
+
+	.stripe-support-card select option {
+		background: #fff;
+		color: rgba(0, 0, 0, 0.86);
+	}
+
+	.stripe-presets {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		grid-column: 1 / -1;
+	}
+
+	.stripe-preset {
+		appearance: none;
+		-webkit-appearance: none;
+		min-height: 44px;
+		border: 1px solid var(--sponsor-border);
+		border-radius: 999px;
+		background: rgba(255, 255, 255, 0.56);
+		padding: 0.48rem 0.8rem;
+		font: inherit;
+		font-size: 0.88rem;
+		font-weight: 800;
+		color: inherit;
+		cursor: pointer;
+		touch-action: manipulation;
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	.stripe-preset[aria-pressed="true"] {
+		border-color: var(--primary);
+		background: color-mix(in srgb, var(--primary) 13%, transparent);
+		color: var(--primary);
+	}
+
+	.stripe-support-consent {
+		grid-column: 1 / -1;
+		display: flex !important;
+		grid-template-columns: none !important;
+		align-items: flex-start;
+		gap: 0.55rem;
+		font-size: 0.82rem !important;
+		font-weight: 500 !important;
+		line-height: 1.55;
+	}
+
+	.stripe-support-consent input {
+		width: 1rem;
+		min-width: 1rem;
+		height: 1rem;
+		margin-top: 0.2rem;
+		accent-color: var(--primary);
 	}
 
 	.stripe-support-submit {
@@ -504,6 +814,21 @@ const jsonLd = {
 
 	:global(.dark) .stripe-support-card input {
 		background: rgba(255, 255, 255, 0.06);
+	}
+
+	:global(.dark) .stripe-support-card select,
+	:global(.dark) .stripe-preset {
+		background: rgba(255, 255, 255, 0.06);
+	}
+
+	:global(.dark) .stripe-support-card select {
+		color: rgba(255, 255, 255, 0.9);
+		color-scheme: dark;
+	}
+
+	:global(.dark) .stripe-support-card select option {
+		background: #252327;
+		color: rgba(255, 255, 255, 0.9);
 	}
 
 	:global(.dark) .sponsor-thanks small,

@@ -213,6 +213,8 @@ jobs:
         env:
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          KOFI_VERIFICATION_TOKEN: ${{ secrets.KOFI_VERIFICATION_TOKEN }}
+          AFDIAN_WEBHOOK_TOKEN: ${{ secrets.AFDIAN_WEBHOOK_TOKEN }}
         run: |
           secret_file="${RUNNER_TEMP}/sayori-blog-pages-secrets.json"
           node --input-type=module - "${secret_file}" <<'NODE'
@@ -221,7 +223,12 @@ jobs:
             CF_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID,
             CF_API_TOKEN: process.env.CF_BROWSER_RENDERING_API_TOKEN,
           };
-          for (const name of ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET']) {
+          for (const name of [
+            'STRIPE_SECRET_KEY',
+            'STRIPE_WEBHOOK_SECRET',
+            'KOFI_VERIFICATION_TOKEN',
+            'AFDIAN_WEBHOOK_TOKEN',
+          ]) {
             if (process.env[name]) secrets[name] = process.env[name];
           }
           fs.writeFileSync(process.argv[2], JSON.stringify(secrets), { mode: 0o600 });
@@ -235,12 +242,16 @@ jobs:
         env:
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          KOFI_VERIFICATION_TOKEN: ${{ secrets.KOFI_VERIFICATION_TOKEN }}
+          AFDIAN_WEBHOOK_TOKEN: ${{ secrets.AFDIAN_WEBHOOK_TOKEN }}
         run: |
-          if [[ -z "${STRIPE_SECRET_KEY}" || -z "${STRIPE_WEBHOOK_SECRET}" ]]; then
-            echo "::warning::Stripe sponsorship is deployed but one or more Stripe Pages secrets are missing."
-          else
-            echo "Stripe sponsorship secrets configured."
-          fi
+          for name in STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET KOFI_VERIFICATION_TOKEN AFDIAN_WEBHOOK_TOKEN; do
+            if [[ -n "${!name}" ]]; then
+              echo "${name} configured."
+            else
+              echo "::notice::Optional payment secret ${name} is not configured."
+            fi
+          done
 
       - name: Deploy Pages
         if: github.event_name != 'pull_request'
