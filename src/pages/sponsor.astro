@@ -25,7 +25,7 @@ const description = isEnglish
 	? "Support Amiya_desi's blog and public projects through Stripe, Ko-fi, or Afdian. Choose a currency, use a preset, or enter a custom amount."
 	: "通过 Stripe、Ko-fi 或爱发电支持 Amiya_desi 的博客和公开项目。可选择币种、预设金额，或填写自定义金额。";
 const findProfileLink = (match: (value: string) => boolean) =>
-	profileConfig.links.find((link) => match(`${link.name} ${link.url}`))?.url;
+	profileConfig.links.find((link) => match(link.url))?.url;
 const kofiUrl =
 	findProfileLink((value) => /ko-fi|kofi/i.test(value)) ||
 	"https://ko-fi.com/amiya_desi/tip";
