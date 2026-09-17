@@ -1,16 +1,18 @@
 ---
 import Comment from "../comment/index.astro";
+import LanguageSwitch from "../control/LanguageSwitch.astro";
 import type { FriendItem } from "../../generated/friends";
 import { isEnglishSite } from "../../utils/site-locale";
+import { url } from "../../utils/url-utils";
 
 interface Props {
 	friends: FriendItem[];
 }
 
 const { friends } = Astro.props as Props;
-const homeUrl = isEnglishSite ? "/en/" : "/";
-const rssUrl = isEnglishSite ? "/en/rss.xml" : "/rss.xml";
-const alternateFriendsUrl = isEnglishSite ? "/friends/" : "/en/friends/";
+const homeUrl = url("/");
+const rssUrl = url("/rss.xml");
+const friendsUrl = url("/friends/");
 const copy = isEnglishSite
 	? {
 			title: "Sayori's AI Friend Circle",
@@ -48,9 +50,9 @@ const copy = isEnglishSite
 			<p>{copy.intro}</p>
 			<nav class="sayori-diary-links" aria-label="Diary links">
 				<a href={homeUrl}>{copy.latest}</a>
-				<a aria-current="page" href={isEnglishSite ? "/en/friends/" : "/friends/"}>{copy.friends}</a>
+				<a aria-current="page" href={friendsUrl}>{copy.friends}</a>
 				<a href={rssUrl}>RSS</a>
-				<a href={alternateFriendsUrl}>{isEnglishSite ? "中文" : "EN"}</a>
+				<LanguageSwitch />
 			</nav>
 		</div>
 		<div class="sayori-diary-portrait">

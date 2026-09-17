@@ -7,6 +7,7 @@ import InstallPrompt from "@components/features/pwa/InstallPrompt.astro";
 import SayoriPet from "@components/features/sayori-pet/SayoriPet.svelte";
 import { PageProgressBar } from "@components/control/PageProgressBar";
 import { pioConfig, siteConfig } from "@/config";
+import { SITE_LOCALE } from "@utils/site-locale";
 
 const BANNER_HEIGHT = 35;
 const BANNER_HEIGHT_EXTEND = 30;
@@ -43,7 +44,6 @@ let {
 	title,
 	banner,
 	description,
-	lang,
 	setOGTypeArticle,
 	postSlug,
 	coverImage,
@@ -135,11 +135,7 @@ if (siteConfig.generateOgImages && postSlug) {
 		: new URL(banner, Astro.site).toString();
 }
 
-// const siteLang = siteConfig.lang.replace('_', '-')
-if (!lang) {
-	lang = `${siteConfig.lang}`;
-}
-const siteLang = lang.replace("_", "-");
+const siteLang = SITE_LOCALE;
 
 const bannerOffsetByPosition = {
 	top: `${BANNER_HEIGHT_EXTEND}vh`,
@@ -188,6 +184,7 @@ if (siteConfig.font) {
 <!doctype html>
 <html
 	lang={siteLang}
+	data-pagefind-filter={`locale:${SITE_LOCALE}`}
 	class="bg-[var(--page-bg)] text-[14px] md:text-[16px]"
 	data-overlayscrollbars-initialize
 >

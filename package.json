@@ -59,6 +59,7 @@
 		"marked": "^18.0.3",
 		"node-html-parser": "^7.1.0",
 		"oddmisc": "^1.2.5",
+		"opencc-js": "1.4.2",
 		"overlayscrollbars": "^2.16.0",
 		"pagefind": "^1.5.2",
 		"qrcode": "^1.5.4",

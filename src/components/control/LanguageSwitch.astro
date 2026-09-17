@@ -1,32 +1,47 @@
 ---
-import { isEnglishSite, localizedPath, stripLocalePrefix } from "@utils/site-locale";
+import { SITE_LOCALE, localizedPath, stripLocalePrefix } from "@utils/site-locale";
 
 const currentPath = stripLocalePrefix(Astro.url.pathname);
-const targetPath = localizedPath(currentPath, isEnglishSite ? "zh-CN" : "en");
-const label = isEnglishSite ? "Chinese" : "English";
-const ariaLabel = isEnglishSite ? "Switch to Chinese" : "Switch to English";
+const isAdmin = /^\/admin(?:\/|$)/.test(currentPath);
+const locales = [
+	["zh-CN", "简体中文"],
+	["zh-Hant", "繁體中文"],
+	["en", "English"],
+] as const;
 ---
 
-<a
-	class="transition link text-[var(--primary)] font-medium"
-	href={targetPath}
-	data-language-switch
-	data-target-locale={isEnglishSite ? "zh-CN" : "en"}
-	aria-label={ariaLabel}
->
-	{label}
-</a>
+{
+	!isAdmin && (
+		<select
+			class="transition link text-[var(--primary)] font-medium bg-transparent border-0 cursor-pointer"
+			data-language-switch
+			aria-label="Language"
+		>
+			{locales.map(([locale, label]) => (
+				<option value={localizedPath(currentPath, locale)} data-locale={locale} selected={locale === SITE_LOCALE}>
+					{label}
+				</option>
+			))}
+		</select>
+	)
+}
 
 <script is:inline>
 	(() => {
-		const link = document.querySelector("[data-language-switch]");
-		if (!(link instanceof HTMLAnchorElement)) return;
-		link.addEventListener("click", () => {
+		const select = document.querySelector("[data-language-switch]");
+		if (!(select instanceof HTMLSelectElement)) return;
+		select.addEventListener("change", () => {
+			const option = select.selectedOptions[0];
+			const locale = option?.dataset.locale || "en";
 			try {
-				localStorage.setItem("sayori-locale", link.dataset.targetLocale || "");
+				localStorage.setItem("sayori-locale", locale);
+				localStorage.setItem("sayori:ui-language", locale);
 			} catch {
 				// Private browsing may block storage; navigation still works.
 			}
+			document.cookie = `sayori_locale=${encodeURIComponent(locale)}; Domain=.sayori.org; Path=/; Max-Age=31536000; SameSite=Lax; Secure`;
+			document.cookie = "sayori_locale_auto=; Domain=.sayori.org; Path=/; Max-Age=0; SameSite=Lax; Secure";
+			window.location.assign(`${select.value}${window.location.search}${window.location.hash}`);
 		});
 	})();
 </script>

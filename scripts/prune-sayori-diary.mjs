@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const dist = path.resolve("dist");
-const localeRoots = [dist, path.join(dist, "en")];
+const localeRoots = [dist, path.join(dist, "zh-hant"), path.join(dist, "en")];
 const removedRoutes = [
 	"about",
 	"albums",
@@ -45,6 +45,8 @@ for (const localeRoot of localeRoots) {
 for (const root of [
 	path.join(dist, "assets"),
 	path.join(dist, "images"),
+	path.join(dist, "zh-hant", "assets"),
+	path.join(dist, "zh-hant", "images"),
 	path.join(dist, "en", "assets"),
 	path.join(dist, "en", "images"),
 ]) {

@@ -3,6 +3,7 @@
 	import { i18n } from "@i18n/translation";
 	import Icon from "@iconify/svelte";
 	import { navigateToPage } from "@utils/navigation-utils";
+	import { SITE_LOCALE } from "@utils/site-locale";
 	import { url } from "@utils/url-utils";
 	import { onDestroy, onMount } from "svelte";
 
@@ -127,7 +128,9 @@
 		try {
 			let searchResults: SearchResult[] = [];
 			if (import.meta.env.PROD && pagefindLoaded && window.pagefind) {
-				const response = await window.pagefind.search(keyword);
+				const response = await window.pagefind.search(keyword, {
+					filters: { locale: SITE_LOCALE },
+				});
 				searchResults = await Promise.all(
 					response.results.map((item) => item.data()),
 				);

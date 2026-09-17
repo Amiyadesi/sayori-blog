@@ -35,6 +35,7 @@ if (process.env.SITE_VARIANT !== "sayori-diary") {
 
 for (const locale of [
 	{ name: "zh", lang: "zh_CN", base: "/" },
+	{ name: "zh-hant", lang: "zh_TW", base: "/zh-hant/" },
 	{ name: "en", lang: "en", base: "/en/" },
 ]) {
 	const outDir = path.join(tempRoot, locale.name);
@@ -46,22 +47,31 @@ for (const locale of [
 		SITE_LANG: locale.lang,
 		SITE_BASE: locale.base,
 	});
-	fs.cpSync(outDir, locale.name === "zh" ? dist : path.join(dist, "en"), {
+	if (locale.name === "zh-hant") {
+		run(["node", "scripts/convert-traditional-output.mjs", outDir]);
+	}
+	if (locale.name !== "zh") {
+		for (const privateRoute of ["admin", "api"]) {
+			fs.rmSync(path.join(outDir, privateRoute), { recursive: true, force: true });
+		}
+	}
+	fs.cpSync(outDir, locale.name === "zh" ? dist : path.join(dist, locale.name), {
 		recursive: true,
 	});
 }
 
 run(["run", "sync-content"], { SITE_LANG: "zh_CN", SITE_BASE: "/" });
-for (const localeBase of ["", "en"]) {
+for (const localeBase of ["", "zh-hant", "en"]) {
 	run(["node", "scripts/prune-disabled-pages.mjs"], {
 		PRUNE_BASE: localeBase,
 	});
 }
+for (const localeBase of ["zh-hant", "en"]) pruneLocalizedSitemap(localeBase);
 
 // Keep the submitted root sitemap index aware of both locale sitemaps.
 // The English build lives under /en/, so Astro's generated root index alone
 // would otherwise leave the translated pages undiscoverable.
-const localeSitemapIndex = `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n\t<sitemap><loc>${siteOrigin}/sitemap-0.xml</loc></sitemap>\n\t<sitemap><loc>${siteOrigin}/en/sitemap-0.xml</loc></sitemap>\n</sitemapindex>\n`;
+const localeSitemapIndex = `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n\t<sitemap><loc>${siteOrigin}/sitemap-0.xml</loc></sitemap>\n\t<sitemap><loc>${siteOrigin}/zh-hant/sitemap-0.xml</loc></sitemap>\n\t<sitemap><loc>${siteOrigin}/en/sitemap-0.xml</loc></sitemap>\n</sitemapindex>\n`;
 fs.writeFileSync(path.join(dist, "sitemap-index.xml"), localeSitemapIndex);
 fs.writeFileSync(path.join(dist, "sitemap.xml"), localeSitemapIndex);
 if (process.env.SITE_VARIANT !== "sayori-diary") {
@@ -74,5 +84,24 @@ if (process.env.SITE_VARIANT === "sayori-diary") {
 }
 
 console.log(
-	"[build-locales] zh-CN and en builds merged into dist/ and dist/en/",
+	"[build-locales] zh-CN, zh-Hant, and en builds merged into dist/",
 );
+
+function pruneLocalizedSitemap(localeBase) {
+	const sitemapPath = path.join(dist, localeBase, "sitemap-0.xml");
+	if (!fs.existsSync(sitemapPath)) return;
+	const prefix = `/${localeBase}/`;
+	const blocked = [
+		"admin/", "api/", "albums/", "devices/", "diary/", "projects/", "skills/",
+		"posts/diary/", "rss/", "atom/",
+	];
+	const source = fs.readFileSync(sitemapPath, "utf8");
+	const output = source.replace(/<url>[\s\S]*?<\/url>/g, (entry) => {
+		const pathname = entry.match(/<loc>https?:\/\/[^/]+(\/[^<]*)<\/loc>/)?.[1] || "";
+		const relative = pathname.startsWith(prefix) ? pathname.slice(prefix.length) : "";
+		return blocked.some((route) => relative.startsWith(route)) || /^\d+\/$/.test(relative)
+			? ""
+			: entry;
+	});
+	fs.writeFileSync(sitemapPath, output, "utf8");
+}

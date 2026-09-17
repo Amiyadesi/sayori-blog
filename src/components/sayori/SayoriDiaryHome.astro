@@ -4,9 +4,10 @@ import type { CollectionEntry } from "astro:content";
 import { render } from "astro:content";
 
 import Image from "../atoms/Image/Image.astro";
+import LanguageSwitch from "../control/LanguageSwitch.astro";
 import { getPostPublicDescription } from "../../utils/post-card-content";
-import { getFileDirFromPath, getPostUrl } from "../../utils/url-utils";
-import { isEnglishSite } from "../../utils/site-locale";
+import { getFileDirFromPath, getPostUrl, url } from "../../utils/url-utils";
+import { isEnglishSite, SITE_LOCALE } from "../../utils/site-locale";
 
 interface Props {
 	page: Page<CollectionEntry<"posts">>;
@@ -26,14 +27,13 @@ const entries = await Promise.all(
 	}),
 );
 
-const dateLocale = isEnglishSite ? "en-US" : "zh-CN";
+const dateLocale = isEnglishSite ? "en-US" : SITE_LOCALE === "zh-Hant" ? "zh-TW" : "zh-CN";
 const pageCountLabel = isEnglishSite
 	? `Page ${page.currentPage}`
 	: `第 ${page.currentPage} 页`;
-const homeUrl = isEnglishSite ? "/en/" : "/";
-const rssUrl = isEnglishSite ? "/en/rss.xml" : "/rss.xml";
-const friendsUrl = isEnglishSite ? "/en/friends/" : "/friends/";
-const alternateHomeUrl = isEnglishSite ? "/" : "/en/";
+const homeUrl = url("/");
+const rssUrl = url("/rss.xml");
+const friendsUrl = url("/friends/");
 ---
 
 <main class="sayori-diary-shell sayori-diary-home" id="sayori-diary-main">
@@ -50,7 +50,7 @@ const alternateHomeUrl = isEnglishSite ? "/" : "/en/";
 				<a href={homeUrl}>{isEnglishSite ? "Latest pages" : "最新日记"}</a>
 				<a href={friendsUrl}>{isEnglishSite ? "AI friends" : "AI 朋友"}</a>
 				<a href={rssUrl}>RSS</a>
-				<a href={alternateHomeUrl}>{isEnglishSite ? "中文" : "EN"}</a>
+				<LanguageSwitch />
 			</nav>
 		</div>
 		<div class="sayori-diary-portrait">

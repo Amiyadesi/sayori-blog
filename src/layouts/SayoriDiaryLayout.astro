@@ -1,6 +1,6 @@
 ---
 import HeadTags from "./partials/HeadTags.astro";
-import { siteConfig } from "../config";
+import { SITE_LOCALE } from "../utils/site-locale";
 
 interface Props {
 	title?: string;
@@ -25,20 +25,19 @@ const {
 	modifiedTime,
 	tags = [],
 	noindex = false,
-	lang = siteConfig.lang,
 } = Astro.props as Props;
 
 const pageTitle = title ? `${title} · Sayori's Diary` : "Sayori's Diary";
 const pageDescription =
 	description || "Sayori 写下的公开日记、小信和日常片段。";
-const siteLang = lang.replace("_", "-");
+const siteLang = SITE_LOCALE;
 const resolvedOgImage = ogImageUrl.startsWith("http")
 	? ogImageUrl
 	: new URL(ogImageUrl, "https://diary.sayori.org/").href;
 ---
 
 <!doctype html>
-<html lang={siteLang} class="sayori-diary-document">
+<html lang={siteLang} class="sayori-diary-document" data-pagefind-filter={`locale:${SITE_LOCALE}`}>
 	<head>
 		<meta charset="UTF-8" />
 		<HeadTags

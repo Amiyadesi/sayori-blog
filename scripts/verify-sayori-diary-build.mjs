@@ -5,17 +5,21 @@ import path from "node:path";
 const dist = path.resolve("dist");
 const required = [
 	"index.html",
+	"zh-hant/index.html",
 	"en/index.html",
 	"robots.txt",
 	"rss.xml",
 	"atom.xml",
 	"sitemap.xml",
 	"sitemap-0.xml",
+	"zh-hant/sitemap-0.xml",
 	"en/sitemap-0.xml",
 	"llms.txt",
 	"assets/js/twikoo.all.min.js",
+	"zh-hant/assets/js/twikoo.all.min.js",
 	"en/assets/js/twikoo.all.min.js",
 	"friends/index.html",
+	"zh-hant/friends/index.html",
 	"en/friends/index.html",
 ];
 
@@ -43,6 +47,10 @@ for (const route of [
 		!fs.existsSync(path.join(dist, "en", route)),
 		`unexpected diary route: /en/${route}/`,
 	);
+	assert.ok(
+		!fs.existsSync(path.join(dist, "zh-hant", route)),
+		`unexpected diary route: /zh-hant/${route}/`,
+	);
 }
 
 for (const unexpected of [
@@ -55,13 +63,14 @@ for (const unexpected of [
 ]) {
 	assert.ok(!fs.existsSync(path.join(dist, unexpected)), `unexpected diary asset: ${unexpected}`);
 	assert.ok(!fs.existsSync(path.join(dist, "en", unexpected)), `unexpected English diary asset: ${unexpected}`);
+	assert.ok(!fs.existsSync(path.join(dist, "zh-hant", unexpected)), `unexpected Traditional Chinese diary asset: ${unexpected}`);
 }
 
 const totalBytes = walk(dist).reduce(
 	(total, file) => total + fs.statSync(file).size,
 	0,
 );
-assert.ok(totalBytes < 22 * 1024 * 1024, `diary build too large: ${totalBytes} bytes`);
+assert.ok(totalBytes < 38 * 1024 * 1024, `diary build too large: ${totalBytes} bytes`);
 
 const textFiles = walk(dist).filter((file) =>
 	/\.(?:html|xml|txt)$/i.test(file),
@@ -79,6 +88,7 @@ for (const feed of [
 	"atom.xml",
 	"llms.txt",
 	"sitemap-0.xml",
+	"zh-hant/sitemap-0.xml",
 	"en/sitemap-0.xml",
 ]) {
 	const content = fs.readFileSync(path.join(dist, feed), "utf8");

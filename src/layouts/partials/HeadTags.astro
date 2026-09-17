@@ -18,7 +18,9 @@ import type { Favicon } from "../../types/config";
 import {
 	currentLocalePath,
 	isEnglishSite,
+	isTraditionalSite,
 	localizedPath,
+	SITE_LOCALE,
 	stripLocalePrefix,
 } from "../../utils/site-locale";
 import { url } from "../../utils/url-utils";
@@ -61,14 +63,15 @@ const canonicalUrl = new URL(canonicalPath, siteConfig.siteURL).toString();
 const isSayoriDiarySite = process.env.SITE_VARIANT === "sayori-diary";
 const isSayoriDiaryPath =
 	Astro.url.pathname === "/" ||
+	Astro.url.pathname === "/zh-hant/" ||
 	Astro.url.pathname === "/en/" ||
-	/^\/(?:en\/)?posts\/sayori-diary\//.test(Astro.url.pathname);
-const isPrivateAdminPage = /^\/(?:en\/)?admin\//.test(Astro.url.pathname);
-const isIndexUtilityPage = /^\/(?:en\/)?(?:rss|atom)\/$/.test(
+	/^\/(?:(?:en|zh-hant)\/)?posts\/sayori-diary\//.test(Astro.url.pathname);
+const isPrivateAdminPage = /^\/(?:(?:en|zh-hant)\/)?admin\//.test(Astro.url.pathname);
+const isIndexUtilityPage = /^\/(?:(?:en|zh-hant)\/)?(?:rss|atom)\/$/.test(
 	Astro.url.pathname,
 );
-const isArchivePagination = /^\/(?:en\/)?\d+\/$/.test(Astro.url.pathname);
-const ogLocale = isEnglishSite ? "en_US" : "zh_CN";
+const isArchivePagination = /^\/(?:(?:en|zh-hant)\/)?\d+\/$/.test(Astro.url.pathname);
+const ogLocale = isEnglishSite ? "en_US" : isTraditionalSite ? "zh_TW" : "zh_CN";
 const imageAlt = ogImageAlt || `${title} - ${siteConfig.title}`;
 const publishedIso = toIsoDate(publishedTime);
 const modifiedIso = toIsoDate(modifiedTime);
@@ -77,10 +80,10 @@ const atomUrl = new URL(url("atom.xml"), siteConfig.siteURL).href;
 const sitemapUrl = new URL(url("sitemap.xml"), siteConfig.siteURL).href;
 const llmsUrl = new URL(url("llms.txt"), siteConfig.siteURL).href;
 const siteUrl = new URL(
-	localizedPath("/", isEnglishSite ? "en" : "zh-CN"),
+	localizedPath("/", SITE_LOCALE),
 	siteConfig.siteURL,
 ).href;
-const siteLanguage = siteConfig.lang.replace("_", "-");
+const siteLanguage = SITE_LOCALE;
 const personId = `${siteUrl}#person`;
 const organizationId = `${siteUrl}#organization`;
 const websiteId = `${siteUrl}#website`;
@@ -116,6 +119,10 @@ const brandDescription = isEnglishSite
 const localePath = stripLocalePrefix(Astro.url.pathname);
 const chineseUrl = new URL(
 	localizedPath(localePath, "zh-CN"),
+	siteConfig.siteURL,
+).href;
+const traditionalUrl = new URL(
+	localizedPath(localePath, "zh-Hant"),
 	siteConfig.siteURL,
 ).href;
 const englishUrl = new URL(localizedPath(localePath, "en"), siteConfig.siteURL)
@@ -209,7 +216,7 @@ const siteJsonLd = {
 				contactType: "public contact",
 				...(isSayoriDiarySite ? {} : { email: "me@sayori.org" }),
 				url: isSayoriDiarySite ? "https://diary.sayori.org/" : "https://sayori.org/",
-				availableLanguage: ["zh-CN", "en"],
+				availableLanguage: ["zh-Hans", "zh-Hant", "en"],
 			},
 			...(logoUrl ? { logo: logoUrl } : {}),
 			...(brandSameAs.length ? { sameAs: brandSameAs } : {}),
@@ -259,7 +266,8 @@ function toIsoDate(value?: Date | string) {
 }
 <meta name="author" content={profileConfig.name} />
 <link rel="canonical" href={canonicalUrl} />
-<link rel="alternate" hreflang="zh-CN" href={chineseUrl} />
+<link rel="alternate" hreflang="zh-Hans" href={chineseUrl} />
+<link rel="alternate" hreflang="zh-Hant" href={traditionalUrl} />
 <link rel="alternate" hreflang="en" href={englishUrl} />
 <link rel="alternate" hreflang="x-default" href={chineseUrl} />
 
@@ -273,6 +281,8 @@ function toIsoDate(value?: Date | string) {
 {ogImageUrl && <meta property="og:image:height" content="630" />}
 {ogImageUrl && <meta property="og:image:alt" content={imageAlt} />}
 <meta property="og:locale" content={ogLocale} />
+<meta property="og:locale:alternate" content={isEnglishSite ? "zh_CN" : "en_US"} />
+<meta property="og:locale:alternate" content={isTraditionalSite ? "zh_CN" : "zh_TW"} />
 {
 	setOGTypeArticle ? (
 		<>
@@ -333,29 +343,74 @@ function toIsoDate(value?: Date | string) {
 />
 <script is:inline>
 	(() => {
+		const normalize = (value) => {
+			const input = String(value || "").toLowerCase();
+			if (["zh-hant", "zh-tw", "zh-hk", "tw"].includes(input)) return "zh-Hant";
+			if (["zh-hans", "zh-cn", "zh", "cn"].includes(input)) return "zh-Hans";
+			return "en";
+		};
+		const cookie = (name) => document.cookie
+			.split(";")
+			.map((part) => part.trim().split("="))
+			.find(([key]) => key === name)?.slice(1).join("=") || "";
+		const decode = (value) => {
+			try { return decodeURIComponent(value); } catch { return value; }
+		};
+		const save = (locale) => {
+			try {
+				localStorage.setItem("sayori-locale", locale);
+				localStorage.setItem("sayori:ui-language", locale);
+			} catch {}
+			document.cookie = `sayori_locale=${encodeURIComponent(locale)}; Domain=.sayori.org; Path=/; Max-Age=31536000; SameSite=Lax; Secure`;
+			document.cookie = "sayori_locale_auto=; Domain=.sayori.org; Path=/; Max-Age=0; SameSite=Lax; Secure";
+		};
+		const strip = (path) => path.replace(/^\/(?:en|zh-hant)(?=\/|$)/, "") || "/";
+		const localized = (path, locale) => {
+			const base = strip(path);
+			if (locale === "en") return base === "/" ? "/en/" : `/en${base}`;
+			if (locale === "zh-Hant") return base === "/" ? "/zh-hant/" : `/zh-hant${base}`;
+			return base;
+		};
 		const path = window.location.pathname;
-		const isEnglishPath = path === "/en" || path.startsWith("/en/");
-		let stored = "";
-		try {
-			stored = localStorage.getItem("sayori-locale") || "";
-		} catch {
-			stored = "";
-		}
-		if (
-			stored ||
-			isEnglishPath ||
-			!navigator.language.toLowerCase().startsWith("en")
-		)
+		if (/^\/(?:(?:en|zh-hant)\/)?admin(?:\/|$)/.test(path)) return;
+		const url = new URL(window.location.href);
+		const query = url.searchParams.get("lang");
+		if (query && ["zh", "zh-hans", "zh-hant", "en"].includes(query.toLowerCase())) {
+			const locale = normalize(query);
+			save(locale);
+			url.searchParams.delete("lang");
+			window.location.replace(`${localized(path, locale)}${url.search}${url.hash}`);
 			return;
-		const target = path === "/" ? "/en/" : `/en${path}`;
-		try {
-			localStorage.setItem("sayori-locale", "en");
-		} catch {
-			// Navigation still works when storage is unavailable.
 		}
-		window.location.replace(
-			`${target}${window.location.search}${window.location.hash}`,
-		);
+		if (path === "/en" || path.startsWith("/en/") || path === "/zh-hant" || path.startsWith("/zh-hant/")) return;
+		let stored = decode(cookie("sayori_locale"));
+		if (!stored) {
+			try {
+				stored = localStorage.getItem("sayori-locale") || localStorage.getItem("sayori:ui-language") || "";
+			} catch {}
+			if (stored) {
+				stored = normalize(stored);
+				save(stored);
+			}
+		}
+		document.documentElement.style.visibility = "hidden";
+		const finish = (locale) => {
+			if (locale === "zh-Hans") document.documentElement.style.visibility = "";
+			else window.location.replace(`${localized(path, locale)}${window.location.search}${window.location.hash}`);
+		};
+		if (stored) {
+			finish(normalize(stored));
+			return;
+		}
+		const automatic = decode(cookie("sayori_locale_auto"));
+		if (automatic) {
+			finish(normalize(automatic));
+			return;
+		}
+		fetch("https://sayori.org/api/locale", { credentials: "include" })
+			.then((response) => response.ok ? response.json() : Promise.reject(new Error("locale unavailable")))
+			.then((data) => finish(normalize(data.locale)))
+			.catch(() => finish(normalize(navigator.languages?.[0] || navigator.language || "en")));
 	})();
 </script>
 <!-- Viewport and Generator -->

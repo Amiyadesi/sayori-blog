@@ -89,6 +89,9 @@ importers:
       oddmisc:
         specifier: ^1.2.5
         version: 1.2.5
+      opencc-js:
+        specifier: 1.4.2
+        version: 1.4.2
       overlayscrollbars:
         specifier: ^2.16.0
         version: 2.16.0
@@ -4774,6 +4777,9 @@ packages:
 
   oddmisc@1.2.5:
     resolution: {integrity: sha512-FbTIyYm825JWArqiEvZrtWjJe1rCi6Pk4Bxjt6gScsE6TlvhMaQ2L0VWtRzZLuWo/JCcehmirClaxUgTE2Rssg==}
+
+  opencc-js@1.4.2:
+    resolution: {integrity: sha512-EdcspgdROiCCZDM+jZR6Pa670xW+EW2QhctPBQ8gRjg6lrx4IHEl+2s+kt5izk/TkxVRgdWuFgaGkaEdIUfdaw==}
 
   ofetch@1.5.1:
     resolution: {integrity: sha512-2W4oUZlVaqAPAil6FUg/difl6YhqhUR7x2eZY4bQCko22UXg3hptq9KLQdqFClV+Wu85UX7hNtdGTngi/1BxcA==}
@@ -12102,6 +12108,8 @@ snapshots:
   obug@2.1.1: {}
 
   oddmisc@1.2.5: {}
+
+  opencc-js@1.4.2: {}
 
   ofetch@1.5.1:
     dependencies:

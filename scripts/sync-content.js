@@ -18,6 +18,7 @@ const repoRoot = articlesRoot;
 const contentPathspec = ".";
 const SITE_LANG = String(process.env.SITE_LANG || "zh_CN").toLowerCase();
 const IS_ENGLISH_BUILD = SITE_LANG.startsWith("en");
+const IS_TRADITIONAL_BUILD = SITE_LANG === "zh_tw" || SITE_LANG === "zh-hant";
 const BLOG_MEDIA_BASE_URL = String(process.env.BLOG_MEDIA_BASE_URL || "")
 	.trim()
 	.replace(/\/+$/, "");
@@ -319,21 +320,29 @@ function syncEssays(srcDir, destDir) {
 }
 
 function stripLocaleSuffix(filename) {
-	return String(filename).replace(/\.en(?=\.(?:md|mdx|json)$)/i, "");
+	return String(filename).replace(/\.(?:en|zh-hant)(?=\.(?:md|mdx|json)$)/i, "");
 }
 
 function stripLocaleStem(value) {
-	return String(value).replace(/\.en$/i, "");
+	return String(value).replace(/\.(?:en|zh-hant)$/i, "");
 }
 
-function shouldSyncLocalizedFile(filePath, filename, parentDir) {
+function shouldSyncLocalizedFile(_filePath, filename, parentDir) {
 	const isEnglishVariant = /\.en\.(?:md|mdx)$/i.test(filename);
+	const isTraditionalVariant = /\.zh-hant\.(?:md|mdx)$/i.test(filename);
 	if (IS_ENGLISH_BUILD) {
 		if (isEnglishVariant) return true;
+		if (isTraditionalVariant) return false;
 		const variantPath = path.join(parentDir, filename.replace(/\.(md|mdx)$/i, ".en.$1"));
 		return !fs.existsSync(variantPath);
 	}
-	return !isEnglishVariant;
+	if (IS_TRADITIONAL_BUILD) {
+		if (isTraditionalVariant) return true;
+		if (isEnglishVariant) return false;
+		const variantPath = path.join(parentDir, filename.replace(/\.(md|mdx)$/i, ".zh-hant.$1"));
+		return !fs.existsSync(variantPath);
+	}
+	return !isEnglishVariant && !isTraditionalVariant;
 }
 
 // ─── Markdown transformation ──────────────────────────────────────────────────
@@ -2040,8 +2049,9 @@ function readJson(filename, fallback) {
 }
 
 function resolveLocalizedSource(directory, filename) {
-	if (IS_ENGLISH_BUILD) {
-		const localized = path.join(directory, filename.replace(/\.(json|md|mdx)$/i, ".en.$1"));
+	const suffix = IS_ENGLISH_BUILD ? "en" : IS_TRADITIONAL_BUILD ? "zh-hant" : "";
+	if (suffix) {
+		const localized = path.join(directory, filename.replace(/\.(json|md|mdx)$/i, `.${suffix}.$1`));
 		if (fs.existsSync(localized)) return localized;
 	}
 	return path.join(directory, filename);
@@ -2321,7 +2331,6 @@ function addContentIndexEntries(index, source) {
 		if (!/\.(md|mdx)$/i.test(filePath)) {
 			continue;
 		}
-
 		const relative = path.relative(source.dir, filePath).replaceAll("\\", "/");
 		const parsed = path.parse(relative);
 		const slug = toPostSlug(relative);
@@ -2358,7 +2367,7 @@ function* walk(dir) {
 }
 
 function toPostSlug(relativePath) {
-	const withoutExt = relativePath.replace(/\.(md|mdx)$/i, "");
+	const withoutExt = stripLocaleStem(relativePath.replace(/\.(md|mdx)$/i, ""));
 	const segments = withoutExt.split("/");
 
 	if (segments.at(-1)?.toLowerCase() === "index") {

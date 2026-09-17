@@ -13,6 +13,7 @@ const requiredFiles = [
 	"sitemap.xml",
 	"sitemap-index.xml",
 	"sitemap-0.xml",
+	"zh-hant/sitemap-0.xml",
 	"en/sitemap-0.xml",
 	"rss.xml",
 	"atom.xml",
@@ -83,7 +84,7 @@ function walkDistTextFiles(dir) {
 function verifySayoriDiaryIsolation() {
 	const diaryRoutes = walkAllFiles(distDir).filter((filePath) => {
 		const relative = path.relative(distDir, filePath).replaceAll(path.sep, "/");
-		return /^(?:en\/)?posts\/(?:diary|sayori-diary)\//.test(relative);
+		return /^(?:(?:en|zh-hant)\/)?posts\/(?:diary|sayori-diary)\//.test(relative);
 	});
 	if (diaryRoutes.length > 0) {
 		fail(
@@ -99,8 +100,10 @@ function verifySayoriDiaryIsolation() {
 		"atom.xml",
 		"llms.txt",
 		"sitemap-0.xml",
+		"zh-hant/sitemap-0.xml",
 		"en/sitemap-0.xml",
 		"timeline/index.html",
+		"zh-hant/timeline/index.html",
 		"en/timeline/index.html",
 	]) {
 		const content = readTextIfExists(path.join(distDir, relativePath));
@@ -1424,6 +1427,7 @@ const sitemapCompat = files.get("sitemap.xml") || "";
 requireIncludes("sitemap.xml", sitemapCompat, [
 	"<sitemapindex",
 	"https://blog.sayori.org/sitemap-0.xml",
+	"https://blog.sayori.org/zh-hant/sitemap-0.xml",
 	"https://blog.sayori.org/en/sitemap-0.xml",
 ]);
 
@@ -1431,6 +1435,7 @@ const sitemapIndex = files.get("sitemap-index.xml") || "";
 requireIncludes("sitemap-index.xml", sitemapIndex, [
 	"<sitemapindex",
 	"https://blog.sayori.org/sitemap-0.xml",
+	"https://blog.sayori.org/zh-hant/sitemap-0.xml",
 	"https://blog.sayori.org/en/sitemap-0.xml",
 ]);
 
@@ -1452,6 +1457,17 @@ requireExcludes("sitemap-0.xml", sitemap, [
 const englishSitemap = files.get("en/sitemap-0.xml") || "";
 requireIncludes("en/sitemap-0.xml", englishSitemap, [
 	"<urlset",
+]);
+
+const traditionalSitemap = files.get("zh-hant/sitemap-0.xml") || "";
+requireIncludes("zh-hant/sitemap-0.xml", traditionalSitemap, [
+	"<urlset",
+	"https://blog.sayori.org/zh-hant/",
+]);
+requireExcludes("zh-hant/sitemap-0.xml", traditionalSitemap, [
+	"https://blog.sayori.org/zh-hant/admin/",
+	"https://blog.sayori.org/zh-hant/posts/diary/",
+	"<lastmod>",
 ]);
 requireExcludes("en/sitemap-0.xml", englishSitemap, [
 	"https://blog.sayori.org/en/admin/",

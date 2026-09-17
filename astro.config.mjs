@@ -144,7 +144,7 @@ export default defineConfig({
 		sitemap({
 			filter: (page) => {
 				const pathname = new URL(page).pathname.replace(
-					/^\/en(?=\/|$)/,
+					/^\/(?:en|zh-hant)(?=\/|$)/,
 					"",
 				);
 				if (isSayoriDiarySite) {
@@ -172,7 +172,7 @@ export default defineConfig({
 			},
 			serialize: (item) => {
 				const pathname = new URL(item.url).pathname.replace(
-					/^\/en(?=\/|$)/,
+					/^\/(?:en|zh-hant)(?=\/|$)/,
 					"",
 				);
 				// Do not claim every page changed on every build. A fake lastmod

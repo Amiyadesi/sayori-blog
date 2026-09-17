@@ -52,7 +52,7 @@ declare global {
 		};
 		__sayoriAnnouncementSessionReadId?: string;
 		pagefind: {
-			search: (query: string) => Promise<{
+			search: (query: string, options?: { filters?: Record<string, string> }) => Promise<{
 				results: {
 					data: () => Promise<SearchResult>;
 				}[];
