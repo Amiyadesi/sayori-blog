@@ -48,8 +48,8 @@ const baseSiteConfig: SiteConfig = {
 			? "Sayori's public notes, letters, and little everyday moments"
 			: "Sayori 写下的公开日记、小信和日常片段"
 		: IS_ENGLISH_BUILD
-			? "Notes, projects, and a little everyday tinkering"
-			: "笔记、项目和一点日常折腾",
+			? "Indie games, web tools, and development notes"
+			: "独立游戏、网站工具与开发记录",
 	siteURL: SITE_URL,
 	siteStartDate: "2026-05-21", // 站点开始运行日期，用于站点统计组件计算运行天数
 	keywords: IS_SAYORI_DIARY
@@ -373,7 +373,7 @@ export const navBarConfig: NavBarConfig = {
 const baseProfileConfig: ProfileConfig = {
 	avatar: "assets/images/avatar-sayori.png", // 相对于 /src 目录。如果以 '/' 开头，则相对于 /public 目录
 	name: "Amiya_desi",
-	bio: "Amiya_desi 的个人博客，记录 Godot 游戏开发、服务器折腾、Cloudflare、Obsidian 写作流、AI 辅助开发和日常复盘。",
+	bio: IS_ENGLISH_BUILD ? "I’m Amiya_desi, an independent developer who makes games and builds websites and tools; this blog records development, learning, mistakes, and the results that follow" : "我是 Amiya_desi，做游戏，也折腾网站和工具；在这里记录开发、学习与踩坑过程，把遇到的问题、尝试过的方法和最后的结果写清楚",
 	typewriter: {
 		enable: true, // 启用个人简介打字机效果
 		speed: 80, // 打字速度（毫秒）

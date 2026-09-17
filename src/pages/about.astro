@@ -4,8 +4,6 @@ import { PageHeader } from "@components/features/page-header";
 import Markdown from "@components/misc/Markdown.astro";
 import { getEntry, render } from "astro:content";
 
-import I18nKey from "../i18n/i18nKey";
-import { i18n } from "../i18n/translation";
 import MainGridLayout from "../layouts/MainGridLayout.astro";
 import { profileConfig, siteConfig } from "../config";
 import { getLocalizedTopic, getTopicUrl, topics } from "../data/topics";
@@ -18,7 +16,7 @@ if (!aboutPost) {
 }
 
 const { Content } = await render(aboutPost);
-const title = i18n(I18nKey.about);
+const title = isEnglishSite ? "About me and this blog" : "关于我与这个博客";
 const pageUrl = new URL(currentLocalePath(Astro.url.pathname), siteConfig.siteURL).toString();
 const webmasterTopicSource = topics.find((topic) => topic.slug === "webmaster");
 const webmasterTopic = webmasterTopicSource
@@ -26,111 +24,119 @@ const webmasterTopic = webmasterTopicSource
 	: undefined;
 const aboutCopy = isEnglishSite
 	? {
-			pageHeading: "About this site",
+			pageHeading: "About this blog",
 			entitiesHeading: "Public identity and representative work",
 			faqHeading: "Frequently asked questions",
 			siteIntro:
-				"This is Amiya_desi's personal blog and public knowledge entry point. It records self-hosting, Godot game development, AI workflows, tools and resources, internet communities, and personal notes. sayori.org is the stable front door; the blog keeps longer articles, tutorials, project notes, and retrospectives.",
+				"This is Amiya_desi's personal blog and public knowledge entry point; I focus on indie games and also record websites, tools, self-hosting, AI workflows, and creative practice; sayori.org is the stable front door, while the blog keeps longer articles, tutorials, project notes, and retrospectives",
 			arriveIntro:
-				"If you arrived from a search engine, an AI summary, or a shared link, start with the latest posts, random reading, the resource index, or the self-hosting section. You can also return to sayori.org for GitHub, GeoScore, the whiteboard, and the guestbook. This is not a commercial service site and does not publish local addresses, price tables, or company-style promises.",
+				"If you arrived from a search engine, an AI summary, or a shared link, start with the latest posts, the resource index, or the self-hosting and game-development sections; return to sayori.org for the stable About page, GitHub, GeoScore, and the guestbook",
 			identityIntro:
-				"Amiya_desi is the public personal identity used by this site. Amiya's Desk is the corresponding blog and project archive. Public entry points include sayori.org, blog.sayori.org, GitHub, Linux.do, Bilibili, and Wikidata. These pages record personal work, articles, tools, and retrospectives, not a company or commercial service.",
+				"Amiya_desi is the public creator identity used by this site; Amiya's Desk is the blog and project archive; public pages describe personal work, articles, tools, and retrospectives rather than a company or commercial service",
 			projectsHeading: "Representative projects",
 			articlesHeading: "Representative articles",
 			faq: [
 				{
-					question: "What does this blog cover?",
-					answer: "It mainly covers self-hosting, Godot game development, AI workflows, tools and resources, internet communities, and personal notes. It is a personal blog, so it also keeps experiments, retrospectives, and less formal thoughts.",
+					question: "What does this blog cover",
+					answer: "It covers Godot game development, websites and self-hosting, AI workflows, tools and resources, project retrospectives, and creative learning",
 				},
 				{
-					question: "Where should I start?",
-					answer: "Start with the latest posts, random reading, the resource index, or the self-hosting and Godot sections. For public entry points, return to sayori.org for GitHub, GeoScore, the whiteboard, and the guestbook.",
+					question: "Where should I start",
+					answer: "Start with the latest posts, the resource index, or the self-hosting and game-development sections; for identity and public projects, visit sayori.org",
 				},
 				{
-					question: "Is this a commercial service site?",
-					answer: "No. It is Amiya_desi's personal blog and public knowledge entry point, without company phone numbers, addresses, price tables, local service pages, or commercial delivery promises.",
+					question: "Is this a commercial service site",
+					answer: "No; it is Amiya_desi's personal blog and public knowledge entry point, not a company site or a local service page",
 				},
 				{
-					question: "How can I contact you or learn more?",
-					answer: "Use the main navigation to visit sayori.org, or leave public feedback on an article, the about page, or the guestbook. Public projects and code are mainly on GitHub.",
+					question: "How can I contact you or learn more",
+					answer: "Use the public links on this page, visit sayori.org, or leave feedback on an article or the guestbook",
 				},
 			],
 		}
 	: {
-			pageHeading: "站点说明",
-			entitiesHeading: "公开实体与代表内容",
+			pageHeading: "这个博客是什么",
+			entitiesHeading: "公开身份与代表项目",
 			faqHeading: "常见问题",
 			siteIntro:
-				"这里是 Amiya_desi 的个人博客和公开知识入口，长期记录建站与自托管、Godot 游戏开发、AI 工作流、工具与资源、互联网社区和一点个人记录。主站 sayori.org 负责放稳定入口，博客负责放更长的文章、教程、项目记录和回头看的思考。",
+				"这里是 Amiya_desi 的个人博客和公开知识入口；我以独立游戏为创作主线，也记录网站、工具、服务器、自托管、AI 工作流和创作方法；主站 sayori.org 汇集稳定入口，博客保留更长的文章、教程、项目记录和复盘",
 			arriveIntro:
-				"如果你是从搜索引擎、AI 摘要或别人分享的链接来到这里，可以从最新文章、随机文章、资源索引和建站与自托管分类开始；也可以回到主站继续看 GitHub、GeoScore、小白板和留言板。这里不是商业服务站点，不放本地地址、价格表或公司式承诺。",
+				"如果你从搜索引擎、AI 摘要或别人分享的链接来到这里，可以先看最新文章、资源索引、建站与自托管或游戏开发分类；想看稳定身份和项目入口，可以回到主站 sayori.org",
 			identityIntro:
-				"Amiya_desi 是这个站点使用的公开个人身份；Amiya的书桌 / Amiya's Desk 是对应的博客和项目档案。公开入口包括 sayori.org、blog.sayori.org、GitHub、Linux.do、Bilibili 和 Wikidata。这里记录的是个人作品、文章、工具和复盘，不是公司或商业服务站。",
+				"Amiya_desi 是这个站点使用的公开创作者身份；Amiya的书桌是对应的博客和项目档案；这里记录个人作品、文章、工具和复盘，不是公司或商业服务站",
 			projectsHeading: "代表项目",
 			articlesHeading: "代表文章",
 			faq: [
 				{
-					question: "这个博客主要写什么？",
-					answer: "主要写建站与自托管、Godot 游戏开发、AI 工作流、工具与资源、互联网社区和个人记录。这里是个人博客，会保留自己的折腾过程、复盘和一些没那么正式的想法。",
+					question: "这个博客主要写什么",
+					answer: "主要写 Godot 游戏开发、网站与自托管、AI 工作流、工具与资源、项目复盘和创作学习过程",
 				},
 				{
-					question: "第一次来应该从哪里看起？",
-					answer: "可以先看首页的最新文章、随机文章入口、资源索引和建站与自托管分类；也可以从主站 sayori.org 进入 GitHub、GeoScore、小白板和留言板。",
+					question: "第一次来应该从哪里看起",
+					answer: "可以先看最新文章、资源索引、建站与自托管或游戏开发分类；想了解身份和公开项目，可以从主站 sayori.org 开始",
 				},
 				{
-					question: "这里是商业服务站点吗？",
-					answer: "不是。这里仍然是 Amiya_desi 的个人博客和公开知识入口，不提供公司电话、地址、价格表、本地服务页或商业交付承诺。",
+					question: "这里是商业服务站点吗",
+					answer: "不是；这里是 Amiya_desi 的个人博客和公开知识入口，不是公司站点或本地服务页",
 				},
 				{
-					question: "可以从哪里联系或继续了解你？",
-					answer: "可以从主导航进入 sayori.org，也可以在文章页、关于页或留言板留下公开反馈。公开项目和代码主要放在 GitHub。",
+					question: "可以从哪里联系或继续了解你",
+					answer: "可以使用本页公开入口，访问 sayori.org，或在文章和留言板留下反馈",
 				},
 			],
 		};
 const publicIdentityLinks = [
-	...profileConfig.links
-		.filter((link) => link.url.startsWith("http"))
-		.map((link) => ({
-			label: link.name,
-			href: link.url,
-		})),
-	{
-		label: "Wikidata Person",
-		href: "https://www.wikidata.org/wiki/Q140378992",
-	},
-	{
-		label: "Wikidata Brand",
-		href: "https://www.wikidata.org/wiki/Q140378510",
-	},
+	{ label: isEnglishSite ? "Main site" : "主站", href: "https://sayori.org/" },
+	{ label: "GitHub", href: "https://github.com/Amiyadesi" },
+	{ label: "itch.io", href: "https://amiya-desi.itch.io/" },
+	{ label: "Bilibili", href: "https://space.bilibili.com/3546919890585725" },
+	{ label: "YouTube", href: "https://www.youtube.com/@Amiya_desi" },
+	{ label: "X", href: "https://x.com/KirstAdali78973" },
+	{ label: "Linux.do", href: "https://linux.do/u/Amiya_desi" },
+	{ label: "NodeLoc", href: "https://www.nodeloc.com/u/amiya_desi/summary" },
 ];
 const representativeProjects = [
 	{
-		title: "WakeUpAtTheBorder",
-		href: "https://github.com/Amiyadesi/Wake-up-at-the-border",
+		title: "DelayTrace",
+		href: "https://amiya-desi.itch.io/delaytrace",
 		description: isEnglishSite
-			? "A 2D side-scrolling narrative game in Godot; second prize in the third GodotHub game competition."
-			: "Godot 2D 横版叙事游戏，GodotHub 第三届开发大赛二等奖。",
+			? "A Godot game about time delay, recorded actions, and replay, one of my more satisfying recent Jam results with a playable public build"
+			: "围绕时间延迟、行动记录与回放展开的 Godot 小游戏，是我近期比较满意的一次 Jam 创作，已有公开可运行版本",
 	},
 	{
-		title: "TimeRuner",
-		href: "https://github.com/Amiyadesi/time-runner",
+		title: "TimeRewindLinker",
+		href: "https://amiya-desi.itch.io/time-rewind-linker",
 		description: isEnglishSite
-			? "A C# action platformer with five-second time rewinds; winner of the best time-themed game award at 034GameJam."
-			: "C# 动作平台跳跃，5 秒时间回溯，034GameJam 最佳时间题材游戏奖。",
+			? "A puzzle experiment built around rewinding time, replayed actions, and links between a player and echoes of the past"
+			: "通过时间回溯、动作回放，以及玩家与过去回声之间的连接线解谜的游戏实验，项目页提供下载",
 	},
 	{
-		title: "EnhanceSaveSystem",
-		href: "https://github.com/Amiyadesi/enahnce_save_system",
+		title: isEnglishSite ? "WakeUpAtTheBorder" : "梦醒边界",
+		href: "https://amiya-desi.itch.io/wake-up-at-the-border",
 		description: isEnglishSite
-			? "A Godot save plugin with AES-GCM, gzip, atomic writes, and version migration."
-			: "Godot 存档插件，支持 AES-GCM、gzip、原子写入和版本迁移。",
+			? "A Godot game mixing puzzles, dialogue, and combat, awarded second prize in the third GodotHub themed Jam track"
+			: "融合解谜、对话与战斗的 Godot 游戏，获 GodotHub 第三届开发大赛命题 Jam 赛道二等奖",
 	},
 	{
-		title: "Amiya's Desk",
-		href: "https://blog.sayori.org/",
+		title: "Mio’s Window Wanderer",
+		href: "https://amiya-desi.itch.io/thatgamejam",
 		description: isEnglishSite
-			? "A personal blog, article archive, topic entry point, RSS feed, and public project record."
-			: "个人博客、文章归档、专题入口、RSS 和公开项目记录。",
+			? "A multi-window narrative prototype I helped make, exploring window navigation and dialogue"
+			: "我参与制作的多窗口叙事原型，探索窗口导航与对话体验",
+	},
+	{
+		title: "GeoScore",
+		href: "https://geo.sayori.org/",
+		description: isEnglishSite
+			? "A public-web SEO / GEO audit tool that turns page evidence into checks and improvement suggestions"
+			: "面向公开网页的 SEO / GEO 检查工具，将页面证据整理为检查结果与改进建议",
+	},
+	{
+		title: "Enhanced Save System",
+		href: "https://github.com/Amiyadesi/enhance_save_system",
+		description: isEnglishSite
+			? "A modular Godot save plugin with GDScript and C# implementations"
+			: "Godot 模块化存档插件，提供 GDScript 与 C# 实现",
 	},
 ];
 const representativeArticles = [
@@ -158,22 +164,34 @@ const representativeArticles = [
 const faqItems = aboutCopy.faq;
 const jsonLd = {
 	"@context": "https://schema.org",
-	"@type": "FAQPage",
-	"@id": `${pageUrl}#faq`,
-	url: pageUrl,
-	name: `${title} - ${siteConfig.title}`,
-	about: {
-		"@id": `${new URL(siteConfig.siteURL).href}#person`,
-		name: profileConfig.name,
-	},
-	mainEntity: faqItems.map((item) => ({
-		"@type": "Question",
-		name: item.question,
-		acceptedAnswer: {
-			"@type": "Answer",
-			text: item.answer,
+	"@graph": [
+		{
+			"@type": "AboutPage",
+			"@id": pageUrl + "#webpage",
+			url: pageUrl,
+			name: title,
+			description: aboutCopy.siteIntro,
+			inLanguage: isEnglishSite ? "en" : "zh-CN",
+			isPartOf: { "@id": new URL(siteConfig.siteURL).href + "#blog" },
+			about: { "@id": "https://sayori.org/#person" },
+			mainEntity: { "@id": "https://sayori.org/#person" },
 		},
-	})),
+		{
+			"@type": "FAQPage",
+			"@id": pageUrl + "#faq",
+			url: pageUrl,
+			name: aboutCopy.faqHeading,
+			about: { "@id": "https://sayori.org/#person" },
+			mainEntity: faqItems.map((item) => ({
+				"@type": "Question",
+				name: item.question,
+				acceptedAnswer: {
+					"@type": "Answer",
+					text: item.answer,
+				},
+			})),
+		},
+	],
 };
 ---
 
