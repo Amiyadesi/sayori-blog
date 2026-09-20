@@ -304,6 +304,7 @@ export function isOrdinaryPublicPost(post: PostVisibilityLike): boolean {
 
 function normalizeDisplayTag(tag: string): string {
 	const trimmed = tag.trim();
+	if (isEnglishSite) return trimmed;
 	if (CANONICAL_PUBLIC_TAGS.has(trimmed)) {
 		return trimmed;
 	}

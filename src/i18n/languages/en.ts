@@ -26,9 +26,9 @@ export const en: Translation = {
 	[Key.announcementClose]: "Close",
 
 	[Key.comments]: "Comments",
-	[Key.friends]: "Friends",
-	[Key.friendsSubtitle]: "Friend links, blog networks, and site directories",
-	[Key.friendsSearchPlaceholder]: "Search friend's name or description...",
+	[Key.friends]: "Friend Links",
+	[Key.friendsSubtitle]: "Friend links",
+	[Key.friendsSearchPlaceholder]: "Search friend links by name or description...",
 	[Key.friendsFilterAll]: "All",
 	[Key.friendsNoResults]: "No matching friends found",
 	[Key.friendsVisit]: "Visit",
