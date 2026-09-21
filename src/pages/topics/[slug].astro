@@ -13,6 +13,7 @@ import {
 } from "../../data/topics";
 import { getPostPublicDescription } from "../../utils/post-card-content";
 import { getPostUrl, removeFileExtension } from "../../utils/url-utils";
+import { isOrdinaryPublicPost } from "../../utils/content-utils";
 import { isEnglishSite } from "../../utils/site-locale";
 
 export const getStaticPaths = (() => {
@@ -53,7 +54,7 @@ const includedPosts = resolvedTopic.includedPosts.map((reference) => {
 		);
 	}
 
-	const isPublished = post.data.draft !== true;
+	const isPublished = isOrdinaryPublicPost(post);
 	const publicUrl = isPublished ? getPostUrl(post) : undefined;
 	return {
 		reference,

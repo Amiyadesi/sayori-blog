@@ -7,7 +7,11 @@ import { Icon } from "astro-icon/components";
 import { siteConfig } from "../config";
 import I18nKey from "../i18n/i18nKey";
 import { i18n } from "../i18n/translation";
-import { getPostDisplayTags, getSortedPosts } from "../utils/content-utils";
+import {
+	getPostDisplayTags,
+	getSortedPosts,
+	isOrdinaryPublicPost,
+} from "../utils/content-utils";
 import { formatDateToYYYYMMDD } from "../utils/date-utils";
 import { getPostPublicDescription } from "../utils/post-card-content";
 import { getPostUrl } from "../utils/url-utils";
@@ -29,7 +33,12 @@ interface TimelinePostEntry {
 }
 
 const publicPosts = (await getSortedPosts())
-	.filter((post) => !post.data.encrypted && !post.data.password)
+	.filter(
+		(post) =>
+			!post.data.encrypted &&
+			!post.data.password &&
+			isOrdinaryPublicPost(post),
+	)
 	.slice()
 	.sort((a, b) => b.data.published.getTime() - a.data.published.getTime());
 

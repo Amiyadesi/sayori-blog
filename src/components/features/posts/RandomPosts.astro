@@ -3,16 +3,21 @@ import ListContainer from "@/components/misc/ListContainer.astro";
 import ListDivider from "@/components/misc/ListDivider.astro";
 import I18nKey from "@/i18n/i18nKey";
 import { i18n } from "@/i18n/translation";
-import { getSortedPostsList, isOrdinaryPublicPost } from "@/utils/content-utils";
+import {
+	getSortedPostsList,
+	isDealsPost,
+	isOrdinaryPublicPost,
+} from "@/utils/content-utils";
 
 import PostListItem from "./PostListItem.astro";
 
 interface Props {
 	excludeIds?: string[];
 	maxCount?: number;
+	section?: "main" | "deals";
 }
 
-const { excludeIds = [], maxCount = 5 } = Astro.props;
+const { excludeIds = [], maxCount = 5, section = "main" } = Astro.props;
 
 // 在构建时获取所有文章
 const allPosts = await getSortedPostsList();
@@ -25,7 +30,7 @@ const candidates = allPosts.filter((p) => {
 	if (p.data.password) {
 		return false;
 	}
-	if (!isOrdinaryPublicPost(p)) {
+	if (section === "deals" ? !isDealsPost(p) : !isOrdinaryPublicPost(p)) {
 		return false;
 	}
 	return true;

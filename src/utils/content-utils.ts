@@ -11,6 +11,7 @@ type PostVisibilityLike = {
 		title?: string;
 		tags?: string[];
 		category?: string | null;
+		section?: "main" | "deals";
 		draft?: boolean;
 		essay?: boolean;
 		hideHomeContent?: boolean;
@@ -273,6 +274,10 @@ export function isPublishedPost(post: PostVisibilityLike): boolean {
 	return post.data.draft !== true;
 }
 
+export function isDealsPost(post: PostVisibilityLike): boolean {
+	return post.data.section === "deals";
+}
+
 export function isEssayPost(post: PostVisibilityLike): boolean {
 	return isPublishedPost(post) && post.data.essay === true;
 }
@@ -282,6 +287,7 @@ export function isHomeListPost(post: PostVisibilityLike): boolean {
 		isPublishedPost(post) &&
 		!isDiaryPost(post) &&
 		!isEssayPost(post) &&
+		!isDealsPost(post) &&
 		post.data.hideHomeContent !== true
 	);
 }
@@ -299,7 +305,12 @@ export function dedupePostsByUrl<
 }
 
 export function isOrdinaryPublicPost(post: PostVisibilityLike): boolean {
-	return isPublishedPost(post) && !isDiaryPost(post) && !isEssayPost(post);
+	return (
+		isPublishedPost(post) &&
+		!isDiaryPost(post) &&
+		!isEssayPost(post) &&
+		!isDealsPost(post)
+	);
 }
 
 function normalizeDisplayTag(tag: string): string {
@@ -433,7 +444,8 @@ export async function getSortedPosts() {
 	}
 
 	for (const posts of [
-		sorted.filter((post) => !isDiaryPost(post)),
+		sorted.filter((post) => !isDiaryPost(post) && !isDealsPost(post)),
+		sorted.filter((post) => isDealsPost(post)),
 		sorted.filter((post) => isDiaryPost(post)),
 	]) {
 		for (let i = 1; i < posts.length; i++) {
@@ -498,7 +510,10 @@ export async function getTagList(options?: TagListOptions): Promise<Tag[]> {
 		if (isEssayPost(post)) {
 			return false;
 		}
-		return options?.includeDiary === true || !isDiaryPost(post);
+		return (
+			(options?.includeDiary === true || !isDiaryPost(post)) &&
+			!isDealsPost(post)
+		);
 	});
 
 	const countMap: Record<string, number> = {};
@@ -545,7 +560,10 @@ export async function getCategoryList(options?: {
 		if (isEssayPost(post)) {
 			return false;
 		}
-		return options?.includeDiary === true || !isDiaryPost(post);
+		return (
+			(options?.includeDiary === true || !isDiaryPost(post)) &&
+			!isDealsPost(post)
+		);
 	});
 	const count: Record<string, number> = {};
 	posts.forEach((post: { data: { category: string | null } }) => {
@@ -665,7 +683,9 @@ export async function getRelatedPosts(
 		(p) =>
 			p.id !== currentPost.id &&
 			!p.data.password &&
-			isOrdinaryPublicPost(p),
+			(isDealsPost(currentPost)
+				? isDealsPost(p)
+				: isOrdinaryPublicPost(p)),
 	);
 
 	const currentTags = new Set(getPostDisplayTags(currentPost));

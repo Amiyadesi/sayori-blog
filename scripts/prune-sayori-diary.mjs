@@ -18,6 +18,7 @@ const removedRoutes = [
 	"sponsor",
 	"timeline",
 	"topics",
+	"deals",
 	"api",
 	"sayori-diary",
 ];

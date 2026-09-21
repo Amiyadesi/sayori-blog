@@ -1,0 +1,39 @@
+---
+import PostCard from "@components/features/posts/PostCard.astro";
+import { PageHeader } from "@components/features/page-header";
+import MainGridLayout from "@layouts/MainGridLayout.astro";
+import { getSortedPosts, isDealsPost } from "@utils/content-utils";
+
+import { isEnglishSite } from "../utils/site-locale";
+
+const title = isEnglishSite ? "Deals & Free Benefits" : "羊毛与免费权益";
+const description = isEnglishSite
+	? "Student benefits, coupons, free quotas, and free tiers. Availability changes; verify the provider's current terms before using them."
+	: "学生权益、优惠券、免费额度和免费层。规则会变，使用前请以服务商当前页面和结算页为准。";
+const posts = (await getSortedPosts()).filter(isDealsPost);
+---
+
+<MainGridLayout title={title} description={description}>
+	<script>
+		import("../scripts/right-sidebar-layout.js");
+	</script>
+
+	<section
+		class="flex w-full rounded-[var(--radius-large)] overflow-visible relative min-h-32"
+		data-pagefind-body
+	>
+		<div class="card-base paper-note paper-note-lined paper-tape z-10 px-5 sm:px-9 py-6 relative w-full">
+			<PageHeader title={title} subtitle={description} />
+
+			<div class="flex flex-col gap-4">
+				{posts.map((post, index) => (
+					<PostCard
+						entry={post}
+						class="onload-animation"
+						style={`--i: ${index}; --interval: 50ms;`}
+					/>
+				))}
+			</div>
+		</div>
+	</section>
+</MainGridLayout>

@@ -18,6 +18,7 @@ const postsCollection = defineCollection({
 		image: z.string().optional().default(""),
 		tags: z.array(z.string()).optional().default([]),
 		category: z.string().optional().nullable().default(""),
+		section: z.enum(["main", "deals"]).optional().default("main"),
 		lang: z.string().optional().default(""),
 		pinned: z.boolean().optional().default(false),
 		comment: z.boolean().optional().default(true),

@@ -19,6 +19,9 @@ const requiredFiles = [
 	"atom.xml",
 	"llms.txt",
 	"archive/index.html",
+	"deals/index.html",
+	"zh-hant/deals/index.html",
+	"en/deals/index.html",
 	"admin/growth/index.html",
 	"essays/index.html",
 	"sponsor/index.html",
@@ -912,6 +915,10 @@ function isEssayPost(post) {
 	return post.data.draft !== true && post.data.essay === true;
 }
 
+function isDealsPost(post) {
+	return post.data.section === "deals";
+}
+
 function getExpectedHomePostUrls() {
 	return walkMarkdownFiles(sourcePostsDir)
 		.map((filePath) => ({
@@ -921,6 +928,7 @@ function getExpectedHomePostUrls() {
 		.filter((post) => post.data.draft !== true)
 		.filter((post) => !isDiaryPost(post))
 		.filter((post) => !isEssayPost(post))
+		.filter((post) => !isDealsPost(post))
 		.filter((post) => post.data.hideHomeContent !== true)
 		.map((post) => ({
 			...post,
@@ -944,6 +952,7 @@ function getExpectedArchivePosts() {
 		.filter((post) => post.data.draft !== true)
 		.filter((post) => !isDiaryPost(post))
 		.filter((post) => !isEssayPost(post))
+		.filter((post) => !isDealsPost(post))
 		.map((post) => ({
 			...post,
 			url: getPostUrl(post),
@@ -1254,6 +1263,34 @@ function verifyArchivePage(archiveHtml) {
 	}
 }
 
+function verifyDealsPage(dealsHtml) {
+	const expectedPosts = walkMarkdownFiles(sourcePostsDir)
+		.map((filePath) => ({
+			id: getPostId(filePath),
+			data: parseFrontmatter(filePath),
+		}))
+		.filter((post) => post.data.draft !== true)
+		.filter(isDealsPost)
+		.map((post) => ({ ...post, url: getPostUrl(post) }))
+		.sort(comparePostsByLatestUpdate);
+
+	for (const post of expectedPosts) {
+		if (dealsHtml.includes(escapeHtmlAttribute(post.url))) {
+			pass(`Deals page includes ${post.id}`);
+		} else {
+			fail(`Deals page missing ${post.id}`);
+		}
+	}
+
+	for (const post of expectedPosts) {
+		if (readTextIfExists(path.join(distDir, "archive/index.html")).includes(escapeHtmlAttribute(post.url))) {
+			fail(`Archive should exclude deal ${post.id}`);
+		} else {
+			pass(`Archive excludes deal ${post.id}`);
+		}
+	}
+}
+
 function verifySponsorPage(sponsorHtml) {
 	requireIncludes("sponsor/index.html", sponsorHtml, [
 		"赞助",
@@ -1391,6 +1428,9 @@ verifySponsorPage(sponsorHtml);
 
 const archiveHtml = files.get("archive/index.html") || "";
 verifyArchivePage(archiveHtml);
+
+const dealsHtml = files.get("deals/index.html") || "";
+verifyDealsPage(dealsHtml);
 
 const topicHtml = files.get("topics/webmaster/index.html") || "";
 verifyTopicPage(topicHtml);
