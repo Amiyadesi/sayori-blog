@@ -19,6 +19,7 @@ const removedRoutes = [
 	"timeline",
 	"topics",
 	"deals",
+	"privacy",
 	"api",
 	"sayori-diary",
 ];

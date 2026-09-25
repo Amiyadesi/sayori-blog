@@ -308,6 +308,73 @@ describe("dklyIPdatabase normalization", () => {
 });
 
 describe("IPInfo cache", () => {
+	it("uses IPinfo Lite as a token-protected fallback without exposing the token in the URL", async () => {
+		const writes = [];
+		const db = {
+			prepare(sql) {
+				return {
+					values: [],
+					bind(...values) {
+						this.values = values;
+						return this;
+					},
+					first() {
+						return null;
+					},
+					run() {
+						writes.push({ sql, values: this.values });
+						return { success: true };
+					},
+				};
+			},
+		};
+		const originalFetch = globalThis.fetch;
+		let requestedUrl = "";
+		let authorization = "";
+		globalThis.fetch = async (url, options) => {
+			requestedUrl = String(url);
+			authorization = new Headers(options.headers).get("authorization");
+			return new Response(
+				JSON.stringify({
+					ip: "8.8.8.8",
+					asn: "AS15169",
+					as_name: "Google LLC",
+					as_domain: "google.com",
+					country_code: "US",
+					country: "United States",
+					continent_code: "NA",
+					continent: "North America",
+				}),
+				{ status: 200, headers: { "content-type": "application/json" } },
+			);
+		};
+
+		try {
+			const info = await lookupIpInfo(
+				{
+					SAYORI_ANALYTICS_DB: db,
+					IPINFO_API_TOKEN: "server-only-token",
+				},
+				"8.8.8.8",
+				"hash",
+				2000,
+			);
+
+			assert.equal(requestedUrl, "https://api.ipinfo.io/lite/8.8.8.8");
+			assert.equal(authorization, "Bearer server-only-token");
+			assert.equal(info.countryCode, "US");
+			assert.equal(info.countryName, "United States");
+			assert.equal(info.asn, "AS15169");
+			assert.equal(info.organization, "Google LLC");
+			assert.equal(info.isp, "Google LLC");
+			assert.equal(info.source, "ipinfo-lite");
+			assert.equal(info.riskSignalsKnown, false);
+			assert.equal(writes.length, 1);
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
+	});
+
 	it("uses IP.SB when the keyed provider is unavailable without claiming risk coverage", async () => {
 		const writes = [];
 		const db = {

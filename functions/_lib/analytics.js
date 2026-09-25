@@ -648,6 +648,31 @@ async function lookupDkly(env, ip) {
 	};
 }
 
+async function lookupIpinfoLite(env, ip) {
+	if (!env.IPINFO_API_TOKEN) return null;
+	const url = new URL(
+		`/lite/${encodeURIComponent(ip)}`,
+		"https://api.ipinfo.io",
+	);
+	const response = await fetch(url, {
+		headers: {
+			accept: "application/json",
+			authorization: `Bearer ${env.IPINFO_API_TOKEN}`,
+		},
+		signal: lookupSignal(),
+	});
+	if (!response.ok) return null;
+	const data = await response.json();
+	if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+	const info = normalizeIpInfoResponse({
+		...data,
+		organization: data.as_name,
+		isp: data.as_name,
+	});
+	if (!info.countryCode && !info.asn) return null;
+	return { ...info, riskSignalsKnown: false, source: "ipinfo-lite" };
+}
+
 async function lookupIpSb(env, ip) {
 	if (!ipSbEnabled(env)) return null;
 	const response = await fetch(`${IPSB_GEOIP_URL}${encodeURIComponent(ip)}`, {
@@ -688,6 +713,7 @@ export async function lookupIpInfo(
 	}
 	for (const [name, provider] of [
 		["dkly", () => lookupDkly(env, ip)],
+		["ipinfo-lite", () => lookupIpinfoLite(env, ip)],
 		["ipsb", () => lookupIpSb(env, ip)],
 	]) {
 		try {
