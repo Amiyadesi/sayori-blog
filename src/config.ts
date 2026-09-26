@@ -392,7 +392,7 @@ const baseProfileConfig: ProfileConfig = {
 		{
 			name: "RSS",
 			icon: "material-symbols:rss-feed",
-			url: "https://blog.sayori.org/rss.xml",
+			url: `https://blog.sayori.org/${IS_ENGLISH_BUILD ? "en/" : SITE_LANG.toLowerCase() === "zh_tw" ? "zh-hant/" : ""}rss.xml`,
 		},
 		{
 			name: "Ko-fi",
