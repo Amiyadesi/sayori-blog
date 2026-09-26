@@ -407,7 +407,7 @@ const baseProfileConfig: ProfileConfig = {
 	],
 };
 
-export const profileConfig: ProfileConfig = {
+const profileConfigBase: ProfileConfig = {
 	...baseProfileConfig,
 	...(IS_SAYORI_DIARY
 		? {
@@ -430,6 +430,17 @@ export const profileConfig: ProfileConfig = {
 				],
 			}
 		: profileConfigOverride),
+};
+const profileSiteRoot = SITE_URL.replace(/\/+$/, "");
+const profileRssUrl = `${profileSiteRoot}/${IS_ENGLISH_BUILD ? "en/" : SITE_LANG.toLowerCase() === "zh_tw" ? "zh-hant/" : ""}rss.xml`;
+
+export const profileConfig: ProfileConfig = {
+	...profileConfigBase,
+	links: (profileConfigBase.links || baseProfileConfig.links).map((link) =>
+		String(link.name).toLowerCase() === "rss"
+			? { ...link, url: profileRssUrl }
+			: link,
+	),
 };
 
 const baseSponsorConfig: SponsorConfig = {
