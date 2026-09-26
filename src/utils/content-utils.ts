@@ -3,7 +3,8 @@ import { i18n } from "@i18n/translation";
 import { initPostIdMap } from "@utils/permalink-utils";
 import { getCategoryUrl, getPostUrl } from "@utils/url-utils";
 import { type CollectionEntry, getCollection } from "astro:content";
-import { isEnglishSite } from "@utils/site-locale";
+import { isEnglishSite, SITE_LOCALE } from "@utils/site-locale";
+import { getPostLocale } from "@utils/post-translations";
 
 type PostVisibilityLike = {
 	id: string;
@@ -12,6 +13,8 @@ type PostVisibilityLike = {
 		tags?: string[];
 		category?: string | null;
 		section?: "main" | "deals";
+		lang?: string;
+		translationKey?: string;
 		draft?: boolean;
 		essay?: boolean;
 		hideHomeContent?: boolean;
@@ -399,7 +402,11 @@ export function sortPostsByPublishedDateDesc<T extends PostPublishedDateLike>(
 // Retrieve posts in publication order; only an explicit major update can move one forward.
 async function getRawSortedPosts() {
 	const allBlogPosts = await getCollection("posts", (post) => {
-		return post.data.draft !== true && isPostInSiteVariant(post);
+		return (
+			post.data.draft !== true &&
+			isPostInSiteVariant(post) &&
+			(IS_SAYORI_DIARY_SITE || getPostLocale(post.data.lang) === SITE_LOCALE)
+		);
 	});
 
 	const sorted = allBlogPosts.sort((a, b) => {
