@@ -20,6 +20,7 @@ const postsCollection = defineCollection({
 		category: z.string().optional().nullable().default(""),
 		section: z.enum(["main", "deals"]).optional().default("main"),
 		lang: z.string().optional().default(""),
+		translationKey: z.string().trim().optional().default(""), // Shared only by completed translations.
 		pinned: z.boolean().optional().default(false),
 		comment: z.boolean().optional().default(true),
 		priority: z.number().optional(),

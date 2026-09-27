@@ -21,10 +21,16 @@ import {
 } from "@utils/content-utils";
 import { resolveLocalImage } from "@utils/local-image";
 import { getPostPublicDescription } from "@utils/post-card-content";
+import { getPostTranslationEntries } from "@utils/post-translations";
 import { buildPostPaths } from "@utils/post-url";
-import { getFileDirFromPath, removeFileExtension } from "@utils/url-utils";
+import {
+	getFileDirFromPath,
+	getPostUrl,
+	removeFileExtension,
+} from "@utils/url-utils";
 import { getImage } from "astro:assets";
-import { render } from "astro:content";
+import { getCollection, render } from "astro:content";
+import type { CollectionEntry } from "astro:content";
 import { licenseConfig, randomPostsConfig } from "src/config";
 
 import Image from "../../components/atoms/Image/Image.astro";
@@ -33,7 +39,19 @@ import AiSummary from "../../components/features/posts/AiSummary.astro";
 import { profileConfig, siteConfig } from "../../config";
 import { getLocalizedTopic, getPublishedTopicForPost } from "../../data/topics";
 import { formatDateToYYYYMMDD } from "../../utils/date-utils";
-import { currentLocalePath, isEnglishSite } from "../../utils/site-locale";
+import {
+	currentLocalePath,
+	isEnglishSite,
+	localizedPath,
+	type HreflangLocale,
+	type HreflangMap,
+	type SiteLocale,
+} from "../../utils/site-locale";
+
+interface Props {
+	entry: CollectionEntry<"posts">;
+	alternateUrls?: HreflangMap;
+}
 
 export async function getStaticPaths() {
 	const blogEntries = (await getSortedPosts()).filter((post) =>
@@ -41,10 +59,43 @@ export async function getStaticPaths() {
 			? isSayoriDiaryPost(post)
 			: true,
 	);
-	return buildPostPaths(blogEntries);
+	const paths = buildPostPaths(blogEntries);
+
+	if (process.env.SITE_VARIANT === "sayori-diary") {
+		return paths;
+	}
+
+	const translationCandidates = await getCollection("posts", (post) =>
+		post.data.draft !== true &&
+		post.data.encrypted !== true &&
+		!post.id.startsWith("sayori-diary/"),
+	);
+	const hreflangByLocale: Record<SiteLocale, HreflangLocale> = {
+		"zh-CN": "zh-Hans",
+		"zh-Hant": "zh-Hant",
+		en: "en",
+	};
+
+	return paths.map((path) => {
+		const variants = getPostTranslationEntries(
+			path.props.entry,
+			translationCandidates,
+		);
+		const alternateUrls = Object.fromEntries(
+			[...variants.entries()].map(([locale, variant]) => [
+				hreflangByLocale[locale],
+				localizedPath(getPostUrl(variant), locale),
+			]),
+		);
+
+		return {
+			...path,
+			props: { ...path.props, alternateUrls },
+		};
+	});
 }
 
-const { entry } = Astro.props;
+const { entry, alternateUrls } = Astro.props;
 const { Content, headings } = await render(entry);
 const { remarkPluginFrontmatter } = await render(entry);
 
@@ -215,6 +266,7 @@ const jsonLd = {
 	modifiedTime={lastEditedDate}
 	tags={displayTags}
 	noindex={!isIndexablePost}
+	alternateUrls={alternateUrls}
 >
 	<script
 		is:inline

@@ -22,6 +22,7 @@ import {
 	localizedPath,
 	SITE_LOCALE,
 	stripLocalePrefix,
+	type HreflangMap,
 } from "../../utils/site-locale";
 import { url } from "../../utils/url-utils";
 
@@ -41,6 +42,7 @@ interface Props {
 	// 配置
 	configHue: number;
 	noindex?: boolean;
+	alternateUrls?: HreflangMap;
 }
 
 const {
@@ -54,6 +56,7 @@ const {
 	tags = [],
 	configHue,
 	noindex = false,
+	alternateUrls,
 } = Astro.props;
 
 // 关键词
@@ -127,6 +130,28 @@ const traditionalUrl = new URL(
 ).href;
 const englishUrl = new URL(localizedPath(localePath, "en"), siteConfig.siteURL)
 	.href;
+const hreflangEntries = alternateUrls
+	? Object.entries(alternateUrls).flatMap(([locale, href]) =>
+			["zh-Hans", "zh-Hant", "en"].includes(locale) &&
+			typeof href === "string" &&
+			href.length > 0
+				? [[locale, new URL(href, siteConfig.siteURL).href] as const]
+				: [],
+		)
+	: [
+			["zh-Hans", chineseUrl],
+			["zh-Hant", traditionalUrl],
+			["en", englishUrl],
+		] as const;
+const xDefaultUrl = alternateUrls
+	? new URL(
+			alternateUrls["zh-Hans"] ||
+				alternateUrls.en ||
+				alternateUrls["zh-Hant"] ||
+				canonicalUrl,
+			siteConfig.siteURL,
+		).href
+	: chineseUrl;
 const breadcrumbItems = [
 	{
 		"@type": "ListItem",
@@ -266,10 +291,12 @@ function toIsoDate(value?: Date | string) {
 }
 <meta name="author" content={profileConfig.name} />
 <link rel="canonical" href={canonicalUrl} />
-<link rel="alternate" hreflang="zh-Hans" href={chineseUrl} />
-<link rel="alternate" hreflang="zh-Hant" href={traditionalUrl} />
-<link rel="alternate" hreflang="en" href={englishUrl} />
-<link rel="alternate" hreflang="x-default" href={chineseUrl} />
+{
+	hreflangEntries.map(([locale, href]) => (
+		<link rel="alternate" hreflang={locale} href={href} />
+	))
+}
+<link rel="alternate" hreflang="x-default" href={xDefaultUrl} />
 
 <!-- Open Graph Tags -->
 <meta property="og:site_name" content={siteConfig.title} />

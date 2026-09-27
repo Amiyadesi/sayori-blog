@@ -7,7 +7,7 @@ import InstallPrompt from "@components/features/pwa/InstallPrompt.astro";
 import SayoriPet from "@components/features/sayori-pet/SayoriPet.svelte";
 import { PageProgressBar } from "@components/control/PageProgressBar";
 import { pioConfig, siteConfig } from "@/config";
-import { SITE_LOCALE } from "@utils/site-locale";
+import { SITE_LOCALE, type HreflangMap } from "@utils/site-locale";
 
 const BANNER_HEIGHT = 35;
 const BANNER_HEIGHT_EXTEND = 30;
@@ -38,6 +38,7 @@ interface Props {
 	modifiedTime?: Date | string;
 	tags?: string[];
 	noindex?: boolean;
+	alternateUrls?: HreflangMap;
 }
 
 let {
@@ -52,6 +53,7 @@ let {
 	modifiedTime,
 	tags,
 	noindex,
+	alternateUrls,
 } = Astro.props;
 
 // apply a class to the body element to decide the height of the banner, only used for initial page load
@@ -208,6 +210,7 @@ if (siteConfig.font) {
 			tags={tags}
 			configHue={configHue}
 			noindex={noindex}
+			alternateUrls={alternateUrls}
 		/>
 
 		<!-- defines global css variables. This will be applied to <html> <body> and some other elements idk why -->

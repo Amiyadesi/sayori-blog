@@ -1,4 +1,6 @@
 export type SiteLocale = "zh-CN" | "zh-Hant" | "en";
+export type HreflangLocale = "zh-Hans" | "zh-Hant" | "en";
+export type HreflangMap = Partial<Record<HreflangLocale, string>>;
 
 export const DEFAULT_SITE_LOCALE: SiteLocale = "zh-CN";
 const buildLocale = String(import.meta.env.SITE_LANG || "zh_CN").toLowerCase();

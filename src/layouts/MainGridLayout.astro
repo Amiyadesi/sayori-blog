@@ -12,6 +12,7 @@ import type { MarkdownHeading } from "astro";
 import { Icon } from "astro-icon/components";
 
 import { fullscreenWallpaperConfig, siteConfig } from "../config";
+import type { HreflangMap } from "../utils/site-locale";
 import { BANNER_HEIGHT } from "../constants/constants";
 import {
 	calculateGridLayout,
@@ -38,6 +39,7 @@ interface Props {
 	modifiedTime?: Date | string;
 	tags?: string[];
 	noindex?: boolean;
+	alternateUrls?: HreflangMap;
 }
 
 // 获取 banner 图片
@@ -56,6 +58,7 @@ const {
 	modifiedTime,
 	tags,
 	noindex,
+	alternateUrls,
 	headings = [],
 } = Astro.props;
 const hasBannerCredit = siteConfig.banner.credit.enable;
@@ -125,6 +128,7 @@ const isPostPage = !!postSlug;
 	modifiedTime={modifiedTime}
 	tags={tags}
 	noindex={noindex}
+	alternateUrls={alternateUrls}
 >
 	{
 		isHomePage && mobileBannerPreloadHref && (

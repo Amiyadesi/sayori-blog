@@ -19,8 +19,8 @@ const updatedLabel = config.updated
 const closeLabel = isEnglishSite ? "Close announcement" : "关闭公告";
 const confirmLabel = isEnglishSite ? "Got it" : "确认";
 const reminderLabel = isEnglishSite
-	? "It will stay closed until the next announcement."
-	: "下次不再自动弹出；有新公告时仍会提醒。";
+	? "You can reopen this notice from the announcement button."
+	: "這則公告可隨時從導覽列的公告按鈕查看。";
 const links = (config.links || []).filter((link) => link.enable !== false);
 ---
 
@@ -389,10 +389,8 @@ const links = (config.links || []).filter((link) => link.enable !== false);
 		}
 
 		function maybeAutoOpen() {
+			// Keep first visits focused on the page; the unread dot still points to this notice.
 			bindAnnouncementControls();
-			if (!isRead()) {
-				openAnnouncementModal();
-			}
 		}
 
 		document.addEventListener("keydown", (event) => {
