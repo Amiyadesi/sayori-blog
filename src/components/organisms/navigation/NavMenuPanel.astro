@@ -6,6 +6,7 @@ import I18nKey from "../../../i18n/i18nKey";
 import { i18n } from "../../../i18n/translation";
 import type { LinkPreset, NavBarLink } from "../../../types/config";
 import { url } from "../../../utils/url-utils";
+import LanguageSwitch from "../../control/LanguageSwitch.astro";
 import type { NavMenuPanelProps, ProcessedNavBarLink } from "./types";
 
 const navTitleMap: Record<string, string> = {
@@ -144,6 +145,9 @@ const processedLinks: ProcessedNavBarLink[] = (
 			</div>
 		))
 	}
+	<div class="mobile-menu-item border-t border-black/5 dark:border-white/10 mt-2 pt-2 px-3">
+		<LanguageSwitch />
+	</div>
 </div>
 
 <style>

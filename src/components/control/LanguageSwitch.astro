@@ -28,9 +28,11 @@ const locales = [
 
 <script is:inline>
 	(() => {
-		const select = document.querySelector("[data-language-switch]");
-		if (!(select instanceof HTMLSelectElement)) return;
-		select.addEventListener("change", () => {
+		if (document.documentElement.dataset.languageSwitchBound) return;
+		document.documentElement.dataset.languageSwitchBound = "true";
+		document.addEventListener("change", (event) => {
+			const select = event.target;
+			if (!(select instanceof HTMLSelectElement) || !select.matches("[data-language-switch]")) return;
 			const option = select.selectedOptions[0];
 			const locale = option?.dataset.locale || "en";
 			try {

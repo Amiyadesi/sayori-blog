@@ -6,6 +6,7 @@ import { LinkPresets } from "../../../constants/link-presets"
 import { LinkPreset, type NavBarLink } from "../../../types/config"
 import { url } from "../../../utils/url-utils"
 import LayoutSwitch from "../../control/LayoutSwitch.svelte"
+import LanguageSwitch from "../../control/LanguageSwitch.astro"
 import ThemeSwitch from "../../control/ThemeSwitch.svelte"
 import WallpaperSwitch from "../../features/settings/WallpaperSwitch.svelte"
 import MobileTOC from "../../features/toc/MobileTOC.svelte"
@@ -96,6 +97,9 @@ const iconWebpSrc = hasIconPngFallback ? iconSrc.replace(/\.png$/i, ".webp") : i
                 <Search client:only="svelte"></Search>
             </div>
             <AnnouncementEntry />
+			<div class="hidden md:block shrink-0 px-1">
+				<LanguageSwitch />
+			</div>
             {/* 只在 sidebar 模式下显示移动端 TOC 按钮；小屏隐藏，避免顶部按钮挤出视口 */}
 			{siteConfig.toc.enable && siteConfig.toc.mobileTop && (
                 <div class="hidden sm:block lg:hidden">
