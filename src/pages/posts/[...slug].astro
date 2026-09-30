@@ -10,6 +10,7 @@ import ReadingTime from "@components/features/posts/atoms/ReadingTime.astro";
 import WordCount from "@components/features/posts/atoms/WordCount.astro";
 import License from "@components/misc/License.astro";
 import Markdown from "@components/misc/Markdown.astro";
+import LanguageSwitch from "@components/control/LanguageSwitch.astro";
 import MainGridLayout from "@layouts/MainGridLayout.astro";
 import SayoriDiaryArticle from "@components/sayori/SayoriDiaryArticle.astro";
 import SayoriDiaryLayout from "@layouts/SayoriDiaryLayout.astro";
@@ -294,20 +295,23 @@ const jsonLd = {
 		>
 			<!-- word count and reading time -->
 			<div
-				class="flex flex-row text-black/30 dark:text-white/30 gap-5 mb-3 transition onload-animation"
+				class="flex flex-wrap items-center justify-between text-black/30 dark:text-white/30 gap-x-5 gap-y-2 mb-3 transition onload-animation"
 			>
-				<div class="flex flex-row items-center">
-					<WordCount
-						words={remarkPluginFrontmatter.words}
-						variant="card"
-					/>
+				<div class="flex flex-row items-center gap-5">
+					<div class="flex flex-row items-center">
+						<WordCount
+							words={remarkPluginFrontmatter.words}
+							variant="card"
+						/>
+					</div>
+					<div class="flex flex-row items-center">
+						<ReadingTime
+							minutes={remarkPluginFrontmatter.minutes}
+							variant="card"
+						/>
+					</div>
 				</div>
-				<div class="flex flex-row items-center">
-					<ReadingTime
-						minutes={remarkPluginFrontmatter.minutes}
-						variant="card"
-					/>
-				</div>
+				<LanguageSwitch />
 			</div>
 
 			<!-- title -->
