@@ -212,6 +212,7 @@ if (siteConfig.font) {
 
 		<!-- defines global css variables. This will be applied to <html> <body> and some other elements idk why -->
 		<slot name="head" />
+		<link rel="preload" as="image" href="/assets/pet/sayori-neutral.webp" fetchpriority="high" />
 
 		<!-- Global CSS variables for page width and hue -->
 		<style
@@ -269,7 +270,7 @@ if (siteConfig.font) {
 		<!-- Pio 看板娘组件 - 仅在进入视口时加载 -->
 		{pioConfig.enable && <Pio client:visible />}
 
-		<SayoriPet client:idle />
+		<SayoriPet client:load />
 		<InstallPrompt />
 
 	</body>

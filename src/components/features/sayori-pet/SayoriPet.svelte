@@ -297,6 +297,9 @@
 					class:pet-sprite-hop={isReacting}
 					class:pet-sprite-static={!isAnimating}
 					src={currentSprite}
+					width="132"
+					height="132"
+					fetchpriority="high"
 					alt=""
 					draggable="false"
 					on:error={handleImageError}
@@ -424,7 +427,6 @@
 		pointer-events: none;
 		transform-origin: center bottom;
 		transition: opacity 150ms steps(2, end);
-		animation: pet-float 3.2s ease-in-out infinite;
 	}
 
 	.pet-sprite-hop {
@@ -499,16 +501,6 @@
 		letter-spacing: 0.12em;
 		opacity: 0.6;
 		animation: zzz-float 2.4s ease-in-out infinite;
-	}
-
-	@keyframes pet-float {
-		0%,
-		100% {
-			transform: translateY(0);
-		}
-		50% {
-			transform: translateY(-5px);
-		}
 	}
 
 	@keyframes pet-enter {

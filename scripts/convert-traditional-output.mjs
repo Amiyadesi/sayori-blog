@@ -54,7 +54,12 @@ export function convertProtectedText(source) {
 		.replace(/https?:\/\/[^\s<>'")]+/g, protect)
 		.replace(/(["'])(?:\/(?!\/)|\.\.?\/)[^"'\r\n]+\1/g, protect);
 	output = toTraditional(output);
-	return output.replace(/OPENCCPROTECTED(\d+)TOKEN/g, (_, index) => values[Number(index)]);
+	// Later matches can contain earlier placeholders. Restore outside-in so
+	// compiled templates never retain a token in place of JavaScript syntax.
+	for (let index = values.length - 1; index >= 0; index--) {
+		output = output.replaceAll(`OPENCCPROTECTED${index}TOKEN`, () => values[index]);
+	}
+	return output;
 }
 
 function visit(node, blocked) {

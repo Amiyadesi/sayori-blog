@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { Script } from "node:vm";
 
 import { convertHtml, convertProtectedText } from "./convert-traditional-output.mjs";
 
@@ -13,4 +14,11 @@ test("Traditional conversion preserves code, URLs, paths, and JSON-LD identifier
 
 	const markdown = convertProtectedText("软件 `服务器` https://sayori.org/软件/ `/软件/path`");
 	assert.equal(markdown, "軟件 `服务器` https://sayori.org/软件/ `/软件/path`");
+});
+
+test("Traditional conversion preserves adjacent compiled multiline templates", () => {
+	const source = 'const first = `<a class="link">\n搜索</a>`, second = `<div>\n<input class="field"/></div>`; const label = `icon ${first ?? ""}`;';
+	const converted = convertProtectedText(source);
+	assert.doesNotMatch(converted, /OPENCCPROTECTED\d+TOKEN/);
+	assert.doesNotThrow(() => new Script(converted));
 });

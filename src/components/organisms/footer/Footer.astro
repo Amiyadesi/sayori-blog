@@ -107,7 +107,7 @@ if (footerConfig.enable) {
 <div
 	class="transition border-dashed border-[var(--line-color)] rounded-2xl mb-12 flex flex-col items-center justify-center px-6"
 >
-	<div class="transition text-50 text-sm text-center">
+	<div class="footer-content text-black/70 dark:text-white/75 text-sm text-center">
 		{isEnglishSite ? (
 			<div class="mb-2 inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
 				{registrationLinks.map((item, index) => (
@@ -132,7 +132,7 @@ if (footerConfig.enable) {
 			class="mb-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1"
 			aria-label={isEnglishSite ? "Blog networks and directories" : "博客圈与目录"}
 		>
-			<span class="font-medium text-[var(--text-70)]">
+			<span class="font-medium">
 				{isEnglishSite ? "Blog networks & directories" : "博客圈与目录"}
 			</span>
 			{blogNetworkLinks.map((item) => (
@@ -212,3 +212,13 @@ if (footerConfig.enable) {
 		</div>
 	</div>
 </div>
+
+<style>
+	.footer-content :global(a) {
+		display: inline-flex;
+		align-items: center;
+		min-height: 2rem;
+		margin-block: 0;
+		vertical-align: middle;
+	}
+</style>

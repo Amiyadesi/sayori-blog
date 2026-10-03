@@ -1,6 +1,8 @@
 ---
 import TypewriterText from "@components/atoms/typewriter-text/TypewriterText.astro";
 import { Icon } from "astro-icon/components";
+import { getImage } from "astro:assets";
+import type { ImageMetadata } from "astro";
 import { siteConfig } from "../../config";
 import { BANNER_HEIGHT_EXTEND } from "../../constants/constants";
 
@@ -34,6 +36,22 @@ const desktopImages = normalizeToArray(bannerImages.desktop);
 const mobileImages = normalizeToArray(bannerImages.mobile);
 const mobileInitial = mobileImages[0] || desktopImages[0] || "";
 const desktopInitial = desktopImages[0] || mobileInitial;
+// The authored banner is synced into public/. Let Astro produce its variants
+// so clean builds never depend on manually generated files in that directory.
+const desktopBannerFiles = import.meta.glob<{ default: ImageMetadata }>(
+	"/public/assets/desktop-banner/1.webp",
+);
+const desktopBannerLoader = desktopBannerFiles[`/public${desktopInitial}`];
+const desktopBanner = desktopBannerLoader ? (await desktopBannerLoader()).default : undefined;
+const desktopVariants = desktopBanner
+	? await Promise.all([1280, 1600].filter((width) => width < desktopBanner.width).map((width) =>
+		getImage({ src: desktopBanner, width, format: "webp", quality: 82 }),
+	))
+	: [];
+const desktopInitialSrcSet = desktopBanner
+	? [...desktopVariants.map((image) => `${image.src} ${image.attributes.width}w`),
+		`${desktopInitial} ${desktopBanner.width}w`].join(", ")
+	: desktopInitial;
 const mobileInitialSrcSet =
 	mobileInitial === "/assets/mobile-banner/1.webp"
 		? "/assets/mobile-banner/1-640.webp 640w, /assets/mobile-banner/1-1080.webp 1080w"
@@ -78,7 +96,7 @@ const hasBannerLink = !!siteConfig.banner.credit.url;
 		<div class="banner-image-slot absolute inset-0">
 			<picture>
 				{desktopInitial && (
-					<source media="(min-width: 768px)" srcset={desktopInitial} />
+					<source media="(min-width: 768px)" srcset={desktopInitialSrcSet} sizes="100vw" />
 				)}
 				{mobileInitial && (
 					<source

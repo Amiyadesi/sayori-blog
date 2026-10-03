@@ -3,6 +3,7 @@ import I18nKey from "../../../i18n/i18nKey";
 import { i18n } from "../../../i18n/translation";
 import { getCategoryList } from "../../../utils/content-utils";
 import { widgetManager } from "../../../utils/widget-manager";
+import { isEnglishSite } from "../../../utils/site-locale";
 import ButtonLink from "../../control/ButtonLink.astro";
 import WidgetLayout from "../common/WidgetLayout.astro";
 
@@ -39,7 +40,9 @@ const style = Astro.props.style;
 			<ButtonLink
 				url={c.url}
 				badge={String(c.count)}
-				label={`View all posts in the ${c.name.trim()} category`}
+				label={isEnglishSite
+					? `${c.name.trim()} ${c.count} posts`
+					: `${c.name.trim()} ${c.count} 篇文章`}
 			>
 				{c.name.trim()}
 			</ButtonLink>

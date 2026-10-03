@@ -47,8 +47,8 @@ const style = Astro.props.style;
 					href={getTagUrl(t.name)}
 					label={
 						isEnglishSite
-							? t.name.trim() + " tag, " + t.count + " posts"
-							: t.name.trim() + " 标签，共 " + t.count + " 篇文章"
+							? `${t.name.trim()} ${t.count} posts`
+							: `${t.name.trim()} ${t.count} 篇文章`
 					}
 				>
 					<span>{t.name.trim()}</span>
