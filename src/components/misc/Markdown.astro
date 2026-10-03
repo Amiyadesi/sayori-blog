@@ -345,6 +345,7 @@ const className = Astro.props.class;
 		}
 		updateMusicCardState(card, "loading");
 		const module = await import("@/stores/musicPlayerStore");
+		await module.musicPlayerStore.initialize();
 		module.musicPlayerStore.playTrack(
 			{
 				id: Date.now(),

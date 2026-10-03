@@ -138,6 +138,7 @@ export function calculateGridLayout(
 	// 侧边栏容器类名 - 始终在左侧
 	const sidebarClass = `
 		onload-animation
+		row-start-1 row-end-2
 		${mobileShowSidebar && hasMobileDrawerComponents ? "block" : "hidden"}
 		${tabletShowLeftSidebar ? "md:block md:mb-4 md:max-w-[17.5rem]" : "md:hidden"}
 		${desktopShowLeftSidebar ? "lg:block lg:mb-4 lg:row-start-1 lg:row-end-2 lg:max-w-[17.5rem] lg:col-start-1 lg:col-end-2" : "lg:hidden"}
@@ -168,7 +169,7 @@ export function calculateGridLayout(
 
 	const mainContentClass = `
 		transition-swup-fade overflow-hidden w-full
-		col-span-1 row-start-1 row-end-2
+		col-span-1 ${mobileShowSidebar ? "row-start-2 row-end-3" : "row-start-1 row-end-2"} md:row-start-1 md:row-end-2
 		${tabletAnySidebar ? "md:col-start-2 md:col-end-3" : "md:col-start-1 md:col-end-2"}
 		${desktopShowSidebar ? desktopMainPos : "lg:col-span-1"}
 	`

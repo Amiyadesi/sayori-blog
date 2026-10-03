@@ -23,11 +23,9 @@ const initialLayoutClass = defaultLayout === "grid" ? "grid-mode" : "list-mode";
 	data-both-sidebars={hasRightSidebars}
 >
 	{
-		page.data.map((entry, index) => (
+		page.data.map((entry) => (
 			<PostCard
 				entry={entry}
-				class:list="onload-animation"
-				style={`--i: ${index}; --interval: 50ms;`}
 			/>
 		))
 	}
@@ -206,19 +204,10 @@ const initialLayoutClass = defaultLayout === "grid" ? "grid-mode" : "list-mode";
 	#post-list-container > :global(*) {
 		content-visibility: auto;
 		contain-intrinsic-size: 200px;
-		transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-		opacity: 0;
-		animation: fadeInSlide 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-		animation-delay: calc(
-			var(--content-delay) + var(--i) * var(--interval)
-		);
+		transition: translate 180ms ease, box-shadow 180ms ease;
 	}
 
-	/* Hover lift for post cards.
-	   The entrance animation pins `transform` via fill-mode forwards, so a
-	   hover transform would be overridden. The individual `translate` property
-	   composes with (not overrides) the animated transform, so the lift works
-	   without fighting the entrance animation. */
+	/* Keep a small response to pointing, without delaying initial content. */
 	#post-list-container > :global(.paper-note):hover {
 		translate: 0 -4px;
 	}
@@ -229,41 +218,8 @@ const initialLayoutClass = defaultLayout === "grid" ? "grid-mode" : "list-mode";
 		}
 	}
 
-	#post-list-container.grid-mode > :global(*) {
-		animation-name: fadeInScale;
-	}
-
 	#post-list-container.layout-switching {
 		opacity: 0.95;
 	}
 
-	#post-list-container.layout-switching > :global(*) {
-		animation-delay: calc(var(--i) * 50ms);
-	}
-
-	#post-list-container.layout-switching > :global(*) {
-		transform: scale(0.98);
-	}
-
-	@keyframes fadeInScale {
-		from {
-			opacity: 0;
-			transform: scale(0.95);
-		}
-		to {
-			opacity: 1;
-			transform: scale(1);
-		}
-	}
-
-	@keyframes fadeInSlide {
-		from {
-			opacity: 0;
-			transform: translateX(-10px);
-		}
-		to {
-			opacity: 1;
-			transform: translateX(0);
-		}
-	}
 </style>

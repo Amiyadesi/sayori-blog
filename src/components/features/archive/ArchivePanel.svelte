@@ -15,14 +15,6 @@
 		"日常回声": "个人记录",
 		"学习记录": "个人记录",
 	};
-	const params = new URLSearchParams(window.location.search);
-	tags = params.has("tag") ? params.getAll("tag") : [];
-	categories = params.has("category")
-		? params
-				.getAll("category")
-				.map((category) => legacyCategoryAliases[category] ?? category)
-		: [];
-	const uncategorized = params.get("uncategorized");
 
 	interface Post {
 		id: string;
@@ -58,7 +50,7 @@
 		return value.trim().replace(/\s+/g, " ").toLocaleLowerCase();
 	}
 
-	onMount(async () => {
+	function updateGroups(tags: string[], categories: string[], uncategorized: string | null) {
 		let filteredPosts: Post[] = sortedPosts;
 
 		if (tags.length > 0) {
@@ -112,6 +104,16 @@
 		groupedPostsArray.sort((a, b) => b.year - a.year);
 
 		groups = groupedPostsArray;
+	}
+
+	// Render the default archive in HTML so hydration cannot push later content down.
+	updateGroups([], [], null);
+	onMount(() => {
+		const params = new URLSearchParams(window.location.search);
+		tags = params.getAll("tag");
+		categories = params.getAll("category")
+			.map((category) => legacyCategoryAliases[category] ?? category);
+		updateGroups(tags, categories, params.get("uncategorized"));
 	});
 </script>
 

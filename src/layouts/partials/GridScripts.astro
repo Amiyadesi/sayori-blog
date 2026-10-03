@@ -1,7 +1,7 @@
 ---
 /**
  * Grid Scripts - MainGridLayout 的内联脚本提取
- * 包含壁纸模式管理、布局切换和 Swup 集成逻辑
+ * 包含当前页面的壁纸模式管理和布局切换
  */
 
 interface Props {
@@ -9,7 +9,6 @@ interface Props {
 	defaultWallpaperMode?: string;
 	defaultPostListLayout?: string;
 	BANNER_HEIGHT?: number;
-	pageScaling?: { enable: boolean; targetWidth?: number };
 }
 
 const {
@@ -17,7 +16,6 @@ const {
 	defaultWallpaperMode = "banner",
 	defaultPostListLayout = "list",
 	BANNER_HEIGHT = 35,
-	pageScaling = { enable: false },
 } = Astro.props;
 ---
 
@@ -29,7 +27,6 @@ const {
 		defaultWallpaperMode,
 		defaultPostListLayout,
 		BANNER_HEIGHT,
-		pageScaling,
 	}}
 >
 	// 立即执行，在页面渲染前应用壁纸模式和布局模式，避免闪烁
@@ -274,136 +271,6 @@ const {
 	} else {
 		applyWallpaperMode();
 	}
-
-	// 支持 Swup 页面过渡 - 在内容替换之前就应用布局，避免闪烁
-	function setupSwupLayoutSync() {
-		// @ts-ignore
-		if (typeof window !== "undefined" && window.swup) {
-			// 关键：在 content:replace 之前（animation:out:start）就准备好布局状态
-			// @ts-ignore
-			window.swup.hooks.on("animation:out:start", function () {
-				// 保存当前布局状态，以便在新页面中立即应用
-				const savedLayout = localStorage.getItem("postListLayout");
-				if (savedLayout) {
-					// @ts-ignore
-					window.__pendingLayoutMode = savedLayout;
-				}
-			});
-
-			// 在内容替换后立即应用布局，不等待其他脚本
-			// @ts-ignore
-			window.swup.hooks.on("content:replace", function () {
-				const mainGrid = document.getElementById("main-grid");
-				if (mainGrid) {
-					// @ts-ignore
-					const currentLayout =
-						window.__pendingLayoutMode ||
-						localStorage.getItem("postListLayout") ||
-						defaultPostListLayout;
-					mainGrid.setAttribute("data-layout-mode", currentLayout);
-
-					const rightSidebar = document.querySelector(
-						".right-sidebar-container",
-					);
-					if (rightSidebar) {
-						if (currentLayout === "grid") {
-							rightSidebar.classList.add("hidden-in-grid-mode");
-						} else {
-							rightSidebar.classList.remove(
-								"hidden-in-grid-mode",
-							);
-						}
-					}
-
-					// 关键：同时更新文章列表容器的CSS类
-					const postListContainer = document.getElementById(
-						"post-list-container",
-					);
-					if (postListContainer) {
-						// 移除现有布局类
-						postListContainer.classList.remove(
-							"list-mode",
-							"grid-mode",
-						);
-
-						if (currentLayout === "grid") {
-							postListContainer.classList.add("grid-mode");
-							postListContainer.classList.add(
-								"grid",
-								"grid-cols-1",
-								"lg:grid-cols-2",
-								"gap-6",
-							);
-							postListContainer.classList.remove(
-								"flex",
-								"flex-col",
-							);
-						} else {
-							postListContainer.classList.add("list-mode");
-							postListContainer.classList.add("flex", "flex-col");
-							postListContainer.classList.remove(
-								"grid",
-								"grid-cols-1",
-								"lg:grid-cols-2",
-								"gap-6",
-							);
-						}
-					}
-
-					// 清除临时状态
-					// @ts-ignore
-					delete window.__pendingLayoutMode;
-				}
-			});
-
-			return true;
-		}
-		return false;
-	}
-
-	// 尝试立即设置，如果失败则延迟重试
-	if (!setupSwupLayoutSync()) {
-		const checkSwup = setInterval(function () {
-			if (setupSwupLayoutSync()) {
-				clearInterval(checkSwup);
-			}
-		}, 50);
-
-		setTimeout(function () {
-			clearInterval(checkSwup);
-		}, 2000);
-	}
-
-	// 支持 Swup 页面过渡
-	document.addEventListener("swup:page:view", function () {
-		applyWallpaperMode();
-
-		// 在Swup页面切换时也要重新应用布局模式
-		requestAnimationFrame(function () {
-			const mainGrid = document.getElementById("main-grid");
-			if (mainGrid) {
-				const savedLayout = localStorage.getItem("postListLayout");
-				const currentLayout = savedLayout || defaultPostListLayout;
-				mainGrid.setAttribute("data-layout-mode", currentLayout);
-
-				if (currentLayout === "grid") {
-					const rightSidebar = document.querySelector(
-						".right-sidebar-container",
-					);
-					if (rightSidebar) {
-						rightSidebar.classList.add("hidden-in-grid-mode");
-					}
-				} else {
-					const rightSidebar = document.querySelector(
-						".right-sidebar-container",
-					);
-					if (rightSidebar) {
-						rightSidebar.classList.remove("hidden-in-grid-mode");
-					}
-				}
-			}
-		});
-	});
 
 	// 在页面完全加载后，再次确认布局模式是否正确
 	if (document.readyState === "loading") {

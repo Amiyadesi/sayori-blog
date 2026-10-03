@@ -25,3 +25,134 @@ const fallbackText = Array.isArray(text) ? (text[0] ?? "") : text;
 	data-delete-speed={deleteSpeed}
 	data-pause-time={pauseTime}>{fallbackText}</span
 >
+
+<script>
+	class TypewriterEffect {
+		private element: HTMLElement;
+		private texts: string[];
+		private currentTextIndex = 0;
+		private speed: number;
+		private deleteSpeed: number;
+		private pauseTime: number;
+		private currentIndex = 0;
+		private isDeleting = false;
+		private timeoutId: number | null = null;
+
+		constructor(element: HTMLElement) {
+			this.element = element;
+			const textData = element.dataset.text || "";
+
+			try {
+				const parsed = JSON.parse(textData);
+				this.texts = Array.isArray(parsed) ? parsed : [textData];
+			} catch {
+				this.texts = [textData];
+			}
+
+			this.speed = parseInt(element.dataset.speed || "100");
+			this.deleteSpeed = parseInt(element.dataset.deleteSpeed || "50");
+			this.pauseTime = parseInt(element.dataset.pauseTime || "2000");
+
+			if (this.texts.length > 1 && !this.isTypewriterEnabled()) {
+				this.showRandomText();
+			} else {
+				this.element.textContent = "";
+				this.start();
+			}
+		}
+
+		private isTypewriterEnabled(): boolean {
+			return (
+				this.element.dataset.speed !== undefined ||
+				this.element.dataset.deleteSpeed !== undefined ||
+				this.element.dataset.pauseTime !== undefined
+			);
+		}
+
+		private showRandomText() {
+			const randomIndex = Math.floor(Math.random() * this.texts.length);
+			this.element.textContent = this.texts[randomIndex];
+		}
+
+		private start() {
+			if (this.texts.length === 0) {
+				return;
+			}
+			this.type();
+		}
+
+		private getCurrentText(): string {
+			return this.texts[this.currentTextIndex] || "";
+		}
+
+		private type() {
+			const currentText = this.getCurrentText();
+
+			if (this.isDeleting) {
+				if (this.currentIndex > 0) {
+					this.currentIndex--;
+					this.element.textContent = currentText.substring(
+						0,
+						this.currentIndex,
+					);
+					this.timeoutId = window.setTimeout(
+						() => this.type(),
+						this.deleteSpeed,
+					);
+				} else {
+					this.isDeleting = false;
+					this.currentTextIndex =
+						(this.currentTextIndex + 1) % this.texts.length;
+					this.timeoutId = window.setTimeout(
+						() => this.type(),
+						this.speed,
+					);
+				}
+			} else if (this.currentIndex < currentText.length) {
+				this.currentIndex++;
+				this.element.textContent = currentText.substring(
+					0,
+					this.currentIndex,
+				);
+				this.timeoutId = window.setTimeout(
+					() => this.type(),
+					this.speed,
+				);
+			} else if (this.texts.length > 1) {
+				this.isDeleting = true;
+				this.timeoutId = window.setTimeout(
+					() => this.type(),
+					this.pauseTime,
+				);
+			} else if (this.texts.length === 1 && this.texts[0] === "") {
+				this.element.textContent = "\u00A0";
+			}
+		}
+
+		public destroy() {
+			if (this.timeoutId) {
+				clearTimeout(this.timeoutId);
+			}
+		}
+	}
+
+	function initTypewriters() {
+		if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+		const typewriterElements = document.querySelectorAll(".typewriter");
+		typewriterElements.forEach((element) => {
+			const htmlElement = element as HTMLElement;
+			if (htmlElement.dataset.typewriterInitialized === "true") {
+				return;
+			}
+			htmlElement.dataset.typewriterInitialized = "true";
+			new TypewriterEffect(htmlElement);
+		});
+	}
+
+	document.addEventListener("DOMContentLoaded", initTypewriters);
+	document.addEventListener("swup:contentReplaced", initTypewriters);
+	document.addEventListener("swup:page:view", initTypewriters);
+	if (document.readyState !== "loading") {
+		initTypewriters();
+	}
+</script>

@@ -39,8 +39,9 @@ const ownerAvatar = "/assets/profile/avatar-sayori-192.jpg";
 >
 	(function () {
 		const TWIKOO_CONTAINER_ID = "twikoo-container";
+		const pageContainer = document.getElementById(TWIKOO_CONTAINER_ID);
+		if (!pageContainer) throw new Error("Twikoo container is missing.");
 		const TWIKOO_SCRIPT_URL = "/assets/js/twikoo.all.min.js";
-		const TWIKOO_GLOBAL_LOADER_KEY = "__sayoriTwikooScriptPromise";
 		const TWIKOO_SCRIPT_TIMEOUT_MS = 8000;
 		const TWIKOO_INIT_RETRY_DELAYS = [600, 1800, 4000];
 		const COMMENT_PROFILE_KEY = "sayori-comment-profile";
@@ -78,13 +79,14 @@ const ownerAvatar = "/assets/profile/avatar-sayori-192.jpg";
 			wink: "😉",
 		};
 
-		let twikooLoaded = false;
+		let scriptPromise = null;
 		let isInitializing = false;
 		let initializedPath = "";
 		let initRetryCount = 0;
 		let retryTimer = 0;
 		let githubEmojiMapPromise = null;
 		let footnoteScopeCounter = 0;
+		let commentObserver = null;
 		const ownerIdentity = {
 			checked: false,
 			isOwner: false,
@@ -354,7 +356,7 @@ const ownerAvatar = "/assets/profile/avatar-sayori-192.jpg";
 		}
 
 		function getCommentContainer() {
-			return document.getElementById(TWIKOO_CONTAINER_ID);
+			return pageContainer;
 		}
 
 		function getOrCreateCommentMount(container) {
@@ -370,99 +372,37 @@ const ownerAvatar = "/assets/profile/avatar-sayori-192.jpg";
 			return mount;
 		}
 
-		function getTwikooRuntime() {
-			return window.twikoo;
-		}
-
-		function waitForTwikooRuntime(timeoutMs = TWIKOO_SCRIPT_TIMEOUT_MS) {
-			const runtime = getTwikooRuntime();
-			if (runtime?.init) {
-				return Promise.resolve(runtime);
-			}
-
-			return new Promise((resolve, reject) => {
-				const startedAt = Date.now();
-				const interval = window.setInterval(() => {
-					const nextRuntime = getTwikooRuntime();
-					if (nextRuntime?.init) {
-						window.clearInterval(interval);
-						resolve(nextRuntime);
+		function loadTwikooScript() {
+			if (scriptPromise) return scriptPromise;
+			scriptPromise = new Promise((resolve, reject) => {
+				const script = document.createElement("script");
+				script.id = "twikoo-script-loaded";
+				script.src = TWIKOO_SCRIPT_URL;
+				script.async = true;
+				const timeout = window.setTimeout(
+					() => fail("Twikoo script timed out."),
+					TWIKOO_SCRIPT_TIMEOUT_MS,
+				);
+				function fail(message) {
+					window.clearTimeout(timeout);
+					script.remove();
+					reject(new Error(message));
+				}
+				script.onload = () => {
+					if (!window.twikoo?.init) {
+						fail("Twikoo script loaded without its runtime.");
 						return;
 					}
-
-					if (Date.now() - startedAt >= timeoutMs) {
-						window.clearInterval(interval);
-						reject(
-							new Error(
-								"Twikoo script loaded, but window.twikoo is unavailable.",
-							),
-						);
-					}
-				}, 50);
+					window.clearTimeout(timeout);
+					resolve(window.twikoo);
+				};
+				script.onerror = () => fail("Twikoo script failed to load.");
+				document.head.appendChild(script);
+			}).catch((error) => {
+				scriptPromise = null;
+				throw error;
 			});
-		}
-
-		async function loadTwikooScript() {
-			if (twikooLoaded && getTwikooRuntime()?.init) {
-				twikooLoaded = true;
-				return getTwikooRuntime();
-			}
-
-			if (!window[TWIKOO_GLOBAL_LOADER_KEY]) {
-				window[TWIKOO_GLOBAL_LOADER_KEY] = new Promise(
-					(resolve, reject) => {
-						let script = document.getElementById(
-							"twikoo-script-loaded",
-						);
-						const finish = () => resolve();
-						const fail = () =>
-							reject(new Error("Twikoo script failed to load."));
-
-						if (script) {
-							if (script.dataset.twikooState === "loaded") {
-								finish();
-								return;
-							}
-							if (script.dataset.twikooState === "error") {
-								fail();
-								return;
-							}
-							script.addEventListener("load", finish, {
-								once: true,
-							});
-							script.addEventListener("error", fail, {
-								once: true,
-							});
-							window.setTimeout(finish, 0);
-							return;
-						}
-
-						script = document.createElement("script");
-						script.id = "twikoo-script-loaded";
-						script.dataset.twikooState = "loading";
-						script.src = TWIKOO_SCRIPT_URL;
-						script.async = true;
-						script.onload = () => {
-							script.dataset.twikooState = "loaded";
-							finish();
-						};
-						script.onerror = () => {
-							script.dataset.twikooState = "error";
-							fail();
-						};
-						document.head.appendChild(script);
-					},
-				)
-					.then(() => waitForTwikooRuntime())
-					.catch((error) => {
-						window[TWIKOO_GLOBAL_LOADER_KEY] = null;
-						throw error;
-					});
-			}
-
-			const runtime = await window[TWIKOO_GLOBAL_LOADER_KEY];
-			twikooLoaded = true;
-			return runtime;
+			return scriptPromise;
 		}
 
 		function clearRetryTimer() {
@@ -1036,6 +976,7 @@ const ownerAvatar = "/assets/profile/avatar-sayori-192.jpg";
 				initRetryCount = 0;
 				clearRetryTimer();
 				applyTwikooEnhancements(container);
+				document.dispatchEvent(new Event("sayori:comments-ready"));
 			} catch (error) {
 				console.error("[Twikoo] 初始化失败:", error);
 				initializedPath = "";
@@ -1050,13 +991,6 @@ const ownerAvatar = "/assets/profile/avatar-sayori-192.jpg";
 			}
 		}
 
-		function cleanup() {
-			clearRetryTimer();
-			if (window.swup?.hooks) {
-				window.swup.hooks.off("content:replace", scheduleInit);
-			}
-		}
-
 		function scheduleInit() {
 			const container = getCommentContainer();
 			if (!container) {
@@ -1067,42 +1001,37 @@ const ownerAvatar = "/assets/profile/avatar-sayori-192.jpg";
 			});
 		}
 
-		function setupSwupHooks() {
-			if (window.swup?.hooks) {
-				window.swup.hooks.on("content:replace", () => {
-					initializedPath = "";
-					setTimeout(scheduleInit, 200);
-				});
-			} else {
-				document.addEventListener(
-					"swup:enable",
-					() => {
-						if (window.swup?.hooks) {
-							window.swup.hooks.on("content:replace", () => {
-								initializedPath = "";
-								setTimeout(scheduleInit, 200);
-							});
-						}
-					},
-					{ once: true },
-				);
+		function observeCommentContainer() {
+			const container = getCommentContainer();
+			if (!container) {
+				return;
 			}
+
+			commentObserver?.disconnect();
+			commentObserver = null;
+			if (!("IntersectionObserver" in window)) {
+				scheduleInit();
+				return;
+			}
+
+			commentObserver = new IntersectionObserver(
+				(entries) => {
+					if (!entries.some((entry) => entry.isIntersecting)) {
+						return;
+					}
+					commentObserver?.disconnect();
+					commentObserver = null;
+					scheduleInit();
+				},
+				{ rootMargin: "320px 0px" },
+			);
+			commentObserver.observe(container);
 		}
 
-		document.addEventListener("mizuki:page:loaded", () => {
-			scheduleInit();
-		});
-
-		window.addEventListener("beforeunload", cleanup);
-
 		if (document.readyState === "loading") {
-			document.addEventListener("DOMContentLoaded", () => {
-				scheduleInit();
-				setupSwupHooks();
-			});
+			document.addEventListener("DOMContentLoaded", observeCommentContainer, { once: true });
 		} else {
-			scheduleInit();
-			setupSwupHooks();
+			observeCommentContainer();
 		}
 	})();
 </script>

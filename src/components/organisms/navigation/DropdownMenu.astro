@@ -41,7 +41,8 @@ const hasChildren = children.length > 0;
 		hasChildren ? (
 			<>
 				<button
-					class="btn-plain scale-animation rounded-lg h-11 font-bold w-11 lg:w-auto lg:px-5 active:scale-95 dropdown-trigger flex items-center justify-center lg:justify-start whitespace-nowrap"
+					class="btn-plain scale-animation rounded-lg h-11 font-bold w-11 2xl:w-auto 2xl:px-3 active:scale-95 dropdown-trigger flex items-center justify-center 2xl:justify-start whitespace-nowrap"
+					aria-label={getLocalizedName(link.name)}
 					aria-expanded="false"
 					aria-haspopup="true"
 					data-dropdown-trigger
@@ -49,15 +50,15 @@ const hasChildren = children.length > 0;
 					{link.icon && (
 						<Icon
 							name={link.icon}
-							class="text-[1.1rem] lg:mr-2 flex-shrink-0"
+							class="text-[1.1rem] 2xl:mr-2 flex-shrink-0"
 						/>
 					)}
-					<span class="truncate hidden lg:inline">
+					<span class="truncate hidden 2xl:inline">
 						{getLocalizedName(link.name)}
 					</span>
 					<Icon
 						name="material-symbols:keyboard-arrow-down-rounded"
-						class="text-[1.25rem] transition-transform duration-200 dropdown-arrow ml-1 flex-shrink-0 hidden lg:inline"
+						class="text-[1.25rem] transition-transform duration-200 dropdown-arrow ml-1 flex-shrink-0 hidden 2xl:inline"
 					/>
 				</button>
 
@@ -103,21 +104,21 @@ const hasChildren = children.length > 0;
 				href={link.external ? link.url : url(link.url)}
 				target={link.external ? "_blank" : null}
 				rel={link.external ? "noopener noreferrer" : null}
-				class="btn-plain scale-animation rounded-lg h-11 font-bold w-11 lg:w-auto lg:px-5 active:scale-95 flex items-center justify-center lg:justify-start whitespace-nowrap"
+				class="btn-plain scale-animation rounded-lg h-11 font-bold w-11 2xl:w-auto 2xl:px-3 active:scale-95 flex items-center justify-center 2xl:justify-start whitespace-nowrap"
 			>
 				{link.icon && (
 					<Icon
 						name={link.icon}
-						class="text-[1.1rem] lg:mr-2 flex-shrink-0"
+						class="text-[1.1rem] 2xl:mr-2 flex-shrink-0"
 					/>
 				)}
-				<span class="truncate hidden lg:inline">
+				<span class="truncate hidden 2xl:inline">
 					{getLocalizedName(link.name)}
 				</span>
 				{link.external && (
 					<Icon
 						name="fa7-solid:arrow-up-right-from-square"
-						class="text-[0.875rem] transition -translate-y-[1px] ml-1 text-black/[0.2] dark:text-white/[0.2] flex-shrink-0 hidden lg:inline"
+						class="text-[0.875rem] transition -translate-y-[1px] ml-1 text-black/[0.2] dark:text-white/[0.2] flex-shrink-0 hidden 2xl:inline"
 					/>
 				)}
 			</a>

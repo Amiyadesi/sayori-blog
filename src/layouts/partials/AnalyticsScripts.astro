@@ -46,6 +46,10 @@ const umamiEnable =
 	!!umamiConfig?.enable &&
 	!!umamiConfig.src &&
 	isUuid(umamiConfig.websiteId);
+const umamiSrc = umamiConfig?.src || "";
+const umamiWebsiteId = umamiConfig?.websiteId || "";
+const umamiHostUrl = umamiConfig?.hostUrl || "";
+const umamiDomains = umamiConfig?.domains || "";
 ---
 
 <!-- 第三方分析脚本 - 仅在用户交互后延迟加载 -->
@@ -57,6 +61,11 @@ const umamiEnable =
 		clarityId: thirdPartyAnalytics.clarityId || "",
 		googleAnalyticsEnable,
 		googleAnalyticsId,
+		umamiEnable,
+		umamiSrc,
+		umamiWebsiteId,
+		umamiHostUrl,
+		umamiDomains,
 	}}
 >
 	(function () {
@@ -119,6 +128,22 @@ const umamiEnable =
 					y.parentNode.insertBefore(t, y);
 				})(window, document, "clarity", "script", clarityId);
 			}
+
+			// Umami is useful, but it is not needed to render the page. Keep its
+			// request behind the same interaction/10-second gate as the other trackers.
+			if (umamiEnable && umamiSrc && umamiWebsiteId) {
+				const umamiScript = document.createElement("script");
+				umamiScript.defer = true;
+				umamiScript.src = umamiSrc;
+				umamiScript.dataset.websiteId = umamiWebsiteId;
+				if (umamiHostUrl) {
+					umamiScript.dataset.hostUrl = umamiHostUrl;
+				}
+				if (umamiDomains) {
+					umamiScript.dataset.domains = umamiDomains;
+				}
+				document.head.appendChild(umamiScript);
+			}
 		}
 
 		// 仅在用户交互后加载分析脚本，减少初始页面加载负担
@@ -149,7 +174,7 @@ const umamiEnable =
 			});
 		});
 
-		// 备用：如果用户 10 秒内没有交互，则在 idle 时加载
+		// 备用：如果用户 10 秒内没有交互，则加载统计脚本。
 		setTimeout(function () {
 			if (!loaded) {
 				loadAnalytics();
@@ -163,19 +188,6 @@ const umamiEnable =
 
 	startEffectiveReadTracking();
 </script>
-
-{
-	umamiEnable && (
-		<script
-			is:inline
-			defer
-			src={umamiConfig.src}
-			data-website-id={umamiConfig.websiteId}
-			data-host-url={umamiConfig.hostUrl || undefined}
-			data-domains={umamiConfig.domains || undefined}
-		/>
-	)
-}
 
 <script
 	is:inline

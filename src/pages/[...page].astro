@@ -201,7 +201,6 @@ if (isHomeFirstPage) {
 		set:html={JSON.stringify(jsonLd)}
 	/>
 	{!isSayoriDiarySite && showCategoryBar && <CategoryBar />}
-	{!isSayoriDiarySite && isHomeFirstPage && <RandomPostJump />}
 	<PostPage page={page} />
 	{
 		!isSayoriDiarySite && isHomeFirstPage && webmasterTopic && (
@@ -246,5 +245,6 @@ if (isHomeFirstPage) {
 		page={page}
 		style={`animation-delay: calc(var(--content-delay) + ${len * 50}ms)`}
 	/>
+	{!isSayoriDiarySite && isHomeFirstPage && <RandomPostJump />}
 	</MainGridLayout>
 )}

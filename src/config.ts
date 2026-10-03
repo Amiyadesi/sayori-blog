@@ -119,7 +119,7 @@ const baseSiteConfig: SiteConfig = {
 
 	// 页面自动缩放配置
 	pageScaling: {
-		enable: true, // 是否开启自动缩放
+		enable: false, // 响应式布局已覆盖宽屏，不再缩放根字号
 		targetWidth: 2000, // 目标宽度，低于此宽度时开始缩放
 	},
 
@@ -326,6 +326,25 @@ export const siteConfig: SiteConfig = {
 	banner: {
 		...baseSiteConfig.banner,
 		...bannerConfigOverride,
+		// Keep authored images; display the first frame without timers or extra downloads.
+		carousel: {
+			...baseSiteConfig.banner.carousel,
+			...bannerConfigOverride.carousel,
+			enable: false,
+		},
+		waves: {
+			...baseSiteConfig.banner.waves,
+			enable: false,
+		},
+		homeText: {
+			...baseSiteConfig.banner.homeText,
+			...bannerConfigOverride.homeText,
+			typewriter: {
+				...baseSiteConfig.banner.homeText?.typewriter,
+				...bannerConfigOverride.homeText?.typewriter,
+				enable: false,
+			},
+		},
 	},
 };
 
@@ -436,6 +455,11 @@ const profileRssUrl = `${profileSiteRoot}/${IS_ENGLISH_BUILD ? "en/" : SITE_LANG
 
 export const profileConfig: ProfileConfig = {
 	...profileConfigBase,
+	typewriter: {
+		...profileConfigBase.typewriter,
+		enable: false,
+		speed: profileConfigBase.typewriter?.speed ?? 100,
+	},
 	links: (profileConfigBase.links || baseProfileConfig.links).map((link) =>
 		String(link.name).toLowerCase() === "rss"
 			? { ...link, url: profileRssUrl }
@@ -668,15 +692,15 @@ export const sidebarLayoutConfig: SidebarLayoutConfig = {
 
 	// 侧栏组件布局配置
 	components: {
-		left: ["profile", "tags", "card-toc"],
-		right: ["site-stats", "categories"],
-		drawer: ["profile", "categories", "tags"],
+		left: ["profile", "card-toc"],
+		right: ["categories"],
+		drawer: ["profile"],
 	},
 
 	// 默认动画配置
 	defaultAnimation: {
 		// 是否启用默认动画
-		enable: true,
+		enable: false,
 		// 基础延迟时间（毫秒）
 		baseDelay: 0,
 		// 递增延迟时间（毫秒），每个组件依次增加的延迟

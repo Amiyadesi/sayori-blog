@@ -184,6 +184,7 @@
   }
 
   #navbar > div > a {
+    flex-shrink: 1;
     min-width: 0;
     max-width: calc(100vw - 10.5rem);
     padding-left: 0.5rem !important;
@@ -201,7 +202,6 @@
   #navbar .navbar-actions {
     flex: 0 0 auto;
     gap: 0.125rem;
-    max-width: 9.5rem;
   }
 
   #navbar .navbar-actions :is(button, #search-switch, #scheme-switch, #nav-menu-switch) {

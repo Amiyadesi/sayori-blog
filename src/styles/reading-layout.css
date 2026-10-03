@@ -272,13 +272,13 @@
 
   #main-grid.post-reading-layout #post-container {
     padding-left: var(--article-card-pad-x);
-    padding-right: max(var(--article-card-pad-x), calc(var(--fab-button-size, 3rem) + var(--fab-group-right, 1rem) + 1rem));
+    padding-right: var(--article-card-pad-x);
   }
 }
 
 @media (max-width: 640px) {
   #post-container .markdown-content {
-    font-size: 1.04rem;
+    font-size: 16px;
     line-height: 1.86;
   }
 

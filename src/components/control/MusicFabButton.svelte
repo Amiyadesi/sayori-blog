@@ -1,22 +1,36 @@
 <script lang="ts">
 	import Icon from "@iconify/svelte";
-	import { onDestroy, onMount } from "svelte";
+	import { onMount } from "svelte";
 
 	import type { MusicPlayerState } from "@/stores/musicPlayerStore";
-	import { musicPlayerStore } from "@/stores/musicPlayerStore";
 	import { isEnglishSite } from "@/utils/site-locale";
 
-	let state: MusicPlayerState = musicPlayerStore.getState();
-	let unsubscribe: (() => void) | undefined;
+	let state: Partial<MusicPlayerState> = {};
+	let opening = false;
+	let openError = false;
 
-	function toggleControlCenter() {
-		musicPlayerStore.toggleExpanded();
+	async function toggleControlCenter() {
+		if (opening) return;
+		opening = true;
+		openError = false;
+		try {
+			const { musicPlayerStore } = await import("@/stores/musicPlayerStore");
+			await musicPlayerStore.initialize();
+			musicPlayerStore.toggleExpanded();
+		} catch (error) {
+			openError = true;
+			console.error("[MusicPlayer] Failed to open player", error);
+		} finally {
+			opening = false;
+		}
 	}
 
 	$: currentSongTitle =
 		state.currentSong?.title ||
 		(isEnglishSite ? "Music player" : "音乐控制中心");
-	$: ariaLabel = state.isExpanded
+	$: ariaLabel = openError
+		? (isEnglishSite ? "Player unavailable. Try again" : "播放器加载失败，请重试")
+		: state.isExpanded
 		? `${isEnglishSite ? "Collapse music player" : "收起音乐控制中心"}: ${currentSongTitle}`
 		: `${isEnglishSite ? "Open music player" : "打开音乐控制中心"}: ${currentSongTitle}`;
 	$: statusIcon = state.isLoading
@@ -24,13 +38,11 @@
 		: "material-symbols:music-note-rounded";
 
 	onMount(() => {
-		unsubscribe = musicPlayerStore.subscribe((nextState) => {
-			state = nextState;
-		});
-	});
-
-	onDestroy(() => {
-		unsubscribe?.();
+		const onState = (event: Event) => {
+			state = (event as CustomEvent<MusicPlayerState>).detail;
+		};
+		window.addEventListener("music-sidebar:state", onState);
+		return () => window.removeEventListener("music-sidebar:state", onState);
 	});
 </script>
 
@@ -42,8 +54,10 @@
 	class="music-fab btn-card"
 	aria-label={ariaLabel}
 	title={ariaLabel}
+	aria-busy={opening}
 	onclick={toggleControlCenter}
 >
+	{#if openError}<span class="sr-only" role="status">{ariaLabel}</span>{/if}
 	<span class="music-fab__icon" aria-hidden="true">
 		<Icon icon={statusIcon} />
 	</span>

@@ -243,90 +243,11 @@ const inferredUpdateCount =
     commentsUnavailableText: i18n(I18nKey.postCommentsUnavailable)
 }}>
     (function () {
-        const TWIKOO_SCRIPT_URL = "/assets/js/twikoo.all.min.js";
-        const TWIKOO_GLOBAL_LOADER_KEY = "__sayoriTwikooScriptPromise";
-        const TWIKOO_SCRIPT_TIMEOUT_MS = 8000;
-        let twikooCountPromise;
-
-        function waitForTwikooRuntime(timeoutMs = TWIKOO_SCRIPT_TIMEOUT_MS) {
-            if (window.twikoo?.getCommentsCount) {
-                return Promise.resolve(window.twikoo);
-            }
-
-            return new Promise((resolve, reject) => {
-                const startedAt = Date.now();
-                const interval = window.setInterval(() => {
-                    if (window.twikoo?.getCommentsCount) {
-                        window.clearInterval(interval);
-                        resolve(window.twikoo);
-                        return;
-                    }
-
-                    if (Date.now() - startedAt >= timeoutMs) {
-                        window.clearInterval(interval);
-                        reject(new Error("Twikoo script loaded, but getCommentsCount is unavailable."));
-                    }
-                }, 50);
-            });
-        }
-
-        function loadTwikooForCount() {
-            if (window.twikoo?.getCommentsCount) {
-                return Promise.resolve(window.twikoo);
-            }
-            if (!twikooCountPromise) {
-                if (!window[TWIKOO_GLOBAL_LOADER_KEY]) {
-                    window[TWIKOO_GLOBAL_LOADER_KEY] = new Promise((resolve, reject) => {
-                        let script = document.getElementById("twikoo-script-loaded");
-                        const finish = () => resolve();
-                        const fail = () => reject(new Error("Twikoo script failed to load."));
-
-                        if (script) {
-                            if (script.dataset.twikooState === "loaded") {
-                                finish();
-                                return;
-                            }
-                            if (script.dataset.twikooState === "error") {
-                                fail();
-                                return;
-                            }
-                            script.addEventListener("load", finish, { once: true });
-                            script.addEventListener("error", fail, { once: true });
-                            window.setTimeout(finish, 0);
-                            return;
-                        }
-
-                        script = document.createElement("script");
-                        script.id = "twikoo-script-loaded";
-                        script.dataset.twikooState = "loading";
-                        script.src = TWIKOO_SCRIPT_URL;
-                        script.async = true;
-                        script.onload = () => {
-                            script.dataset.twikooState = "loaded";
-                            finish();
-                        };
-                        script.onerror = () => {
-                            script.dataset.twikooState = "error";
-                            fail();
-                        };
-                        document.head.appendChild(script);
-                    })
-                        .then(() => waitForTwikooRuntime())
-                        .catch((error) => {
-                            window[TWIKOO_GLOBAL_LOADER_KEY] = null;
-                            throw error;
-                        });
-                }
-                twikooCountPromise = window[TWIKOO_GLOBAL_LOADER_KEY];
-            }
-            return twikooCountPromise;
-        }
-
         async function fetchCommentCount() {
             const containers = document.querySelectorAll(".post-comment-count[data-comment-path]");
             if (!containers.length) return;
             try {
-                const twikooRuntime = await loadTwikooForCount();
+                const twikooRuntime = window.twikoo;
                 if (!twikooRuntime?.getCommentsCount) {
                     throw new Error("Twikoo getCommentsCount unavailable");
                 }
@@ -354,12 +275,8 @@ const inferredUpdateCount =
             }
         }
 
-        if (document.readyState === "loading") {
-            document.addEventListener("DOMContentLoaded", fetchCommentCount);
-        } else {
-            fetchCommentCount();
-        }
-        document.addEventListener("mizuki:page:loaded", fetchCommentCount);
+        // The metadata must not download the entire comment client before it is needed.
+        document.addEventListener("sayori:comments-ready", fetchCommentCount, { once: true });
     })();
 </script>
 )}

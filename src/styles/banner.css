@@ -1,3 +1,9 @@
+/* Share one measured height between the mobile banner and its content offset. */
+:root { --mobile-banner-height: clamp(17rem, 48svh, 29rem); }
+@media (orientation: landscape) and (max-height: 500px) {
+  :root { --mobile-banner-height: 12rem; }
+}
+
 /**
  * Banner 样式文件
  * 包含 Banner 文本、轮播图、水波纹效果和响应式布局样式
@@ -8,27 +14,15 @@
    ========================================================================== */
 .banner-title {
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
-  animation: fadeInUp 1s ease-out;
   font-weight: bold;
 }
 
 .banner-subtitle {
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6);
-  animation: fadeInUp 1s ease-out 0.3s both;
   min-height: 1.5em;
   line-height: 1.2;
 }
 
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
 
 /* ==========================================================================
    无 Banner 模式布局
@@ -121,16 +115,16 @@ body.wallpaper-transparent #toc-inner-wrapper:has(table-of-contents[data-loaded=
 @media (max-width: 479px) {
   /* Banner wrapper 高度优化 */
   body.enable-banner #banner-wrapper:not(.mobile-hide-banner) {
-    height: 70vh !important;
-    min-height: 450px;
+    height: var(--mobile-banner-height) !important;
+    min-height: 0;
     max-height: none;
     top: 0 !important;
   }
 
   /* 主内容区域位置调整 */
   body.enable-banner .absolute.w-full.z-30:not(.mobile-main-no-banner) {
-    top: 70vh !important;
-    min-height: calc(100vh - 70vh) !important;
+    top: var(--mobile-banner-height) !important;
+    min-height: calc(100vh - var(--mobile-banner-height)) !important;
   }
 
   /* 横幅文本覆盖层优化 */
@@ -150,7 +144,7 @@ body.wallpaper-transparent #toc-inner-wrapper:has(table-of-contents[data-loaded=
 
   /* 标题字体优化 */
   .banner-title {
-    font-size: 3.2rem !important;
+    font-size: clamp(2rem, 8vw, 2.6rem) !important;
     line-height: 1.1 !important;
     margin-bottom: 0.5rem !important;
     text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.8) !important;
@@ -177,16 +171,16 @@ body.wallpaper-transparent #toc-inner-wrapper:has(table-of-contents[data-loaded=
 @media (min-width: 480px) and (max-width: 767px) {
   /* Banner wrapper 高度优化 */
   body.enable-banner #banner-wrapper:not(.mobile-hide-banner) {
-    height: 75vh !important;
-    min-height: 500px;
+    height: var(--mobile-banner-height) !important;
+    min-height: 0;
     max-height: none;
     top: 0 !important;
   }
 
   /* 主内容区域位置调整 */
   body.enable-banner .absolute.w-full.z-30:not(.mobile-main-no-banner) {
-    top: 75vh !important;
-    min-height: calc(100vh - 75vh) !important;
+    top: var(--mobile-banner-height) !important;
+    min-height: calc(100vh - var(--mobile-banner-height)) !important;
   }
 
   /* 横幅文本覆盖层优化 */
@@ -233,15 +227,15 @@ body.wallpaper-transparent #toc-inner-wrapper:has(table-of-contents[data-loaded=
 @media (min-width: 768px) and (max-width: 1279px) {
   /* Banner wrapper 高度优化 */
   body.enable-banner #banner-wrapper:not(.mobile-hide-banner) {
-    height: 70vh !important;
-    min-height: 500px;
+    height: var(--mobile-banner-height) !important;
+    min-height: 0;
     top: 0 !important;
   }
 
   /* 主内容区域位置调整 */
   body.enable-banner .absolute.w-full.z-30:not(.mobile-main-no-banner) {
-    top: 70vh !important;
-    min-height: calc(100vh - 70vh) !important;
+    top: var(--mobile-banner-height) !important;
+    min-height: calc(100vh - var(--mobile-banner-height)) !important;
   }
 
   /* 横幅文本覆盖层优化 */
@@ -303,7 +297,6 @@ body.wallpaper-transparent #toc-inner-wrapper:has(table-of-contents[data-loaded=
 .banner-image-slot-mobile,
 .banner-image-slot-desktop {
   overflow: hidden;
-  will-change: transform, opacity;
 }
 
 .banner-image-slot-mobile img,
@@ -345,28 +338,6 @@ body.wallpaper-transparent #toc-inner-wrapper:has(table-of-contents[data-loaded=
 }
 
 /* ==========================================================================
-   移动端图片优化
-   ========================================================================== */
-@media (max-width: 1279px) {
-  /* 移动端 banner 加载动画优化 */
-  .onload-animation-fade-in {
-    animation: mobile-fade-in 0.8s ease-out forwards !important;
-  }
-}
-
-/* 移动端专用淡入动画 */
-@keyframes mobile-fade-in {
-  0% {
-    opacity: 0;
-    transform: scale(1.1);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-/* ==========================================================================
    手机端非首页隐藏 Banner
    ========================================================================== */
 @media (max-width: 1279px) {
@@ -375,7 +346,6 @@ body.wallpaper-transparent #toc-inner-wrapper:has(table-of-contents[data-loaded=
       transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94),
       opacity 0.3s ease-out;
     transform-origin: top center;
-    will-change: transform, opacity;
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
     transform: translateZ(0);
@@ -394,7 +364,6 @@ body.wallpaper-transparent #toc-inner-wrapper:has(table-of-contents[data-loaded=
   /* 手机端非首页时主内容区域从顶部开始 */
   .absolute.w-full.z-30 {
     transition: top 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.1s;
-    will-change: top;
   }
 
   .absolute.w-full.z-30.mobile-main-no-banner {
@@ -421,7 +390,6 @@ body.wallpaper-transparent #toc-inner-wrapper:has(table-of-contents[data-loaded=
   .banner-container {
     transform: translateZ(0);
     -webkit-transform: translateZ(0);
-    will-change: transform, opacity;
     contain: layout style paint;
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
@@ -431,7 +399,6 @@ body.wallpaper-transparent #toc-inner-wrapper:has(table-of-contents[data-loaded=
   .banner-image-slot-desktop {
     transform: translateZ(0);
     -webkit-transform: translateZ(0);
-    will-change: transform, opacity;
     touch-action: pan-y;
     -webkit-touch-callout: none;
     -webkit-user-select: none;
@@ -721,11 +688,6 @@ body.wallpaper-transparent #toc-inner-wrapper:has(table-of-contents[data-loaded=
    ========================================================================== */
 /* 极小高度屏幕 (高度 ≤ 500px) */
 @media (max-height: 500px) {
-  #banner-wrapper {
-    height: 85vh !important;
-    min-height: 350px !important;
-  }
-
   .banner-text-overlay {
     padding: 1rem !important;
     align-items: center !important;
@@ -753,11 +715,6 @@ body.wallpaper-transparent #toc-inner-wrapper:has(table-of-contents[data-loaded=
 
 /* 小高度屏幕 (高度 501px - 600px) */
 @media (min-height: 501px) and (max-height: 600px) {
-  #banner-wrapper {
-    height: 80vh !important;
-    min-height: 400px !important;
-  }
-
   .banner-text-overlay {
     padding: 1.5rem !important;
     align-items: center !important;
@@ -785,11 +742,6 @@ body.wallpaper-transparent #toc-inner-wrapper:has(table-of-contents[data-loaded=
 
 /* 中等高度屏幕 (高度 601px - 700px) */
 @media (min-height: 601px) and (max-height: 700px) {
-  #banner-wrapper {
-    height: 75vh !important;
-    min-height: 450px !important;
-  }
-
   .banner-text-overlay {
     padding: 2rem !important;
     align-items: center !important;
@@ -817,11 +769,6 @@ body.wallpaper-transparent #toc-inner-wrapper:has(table-of-contents[data-loaded=
 
 /* 横屏模式特殊处理 */
 @media (orientation: landscape) and (max-height: 500px) {
-  #banner-wrapper {
-    height: 90vh !important;
-    min-height: 300px !important;
-  }
-
   .banner-text-overlay {
     padding: 1rem 2rem !important;
     align-items: center !important;

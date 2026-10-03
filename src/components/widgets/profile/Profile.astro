@@ -9,13 +9,13 @@ import { i18n } from "../../../i18n/translation";
 ---
 
 <div
-	class="paper-note paper-note-plain paper-note-pinned paper-pin card-base p-3"
+	class="profile-card paper-note paper-note-plain paper-note-pinned paper-pin card-base p-3"
 	data-paper-tear="widget"
 >
 	<a
 		aria-label="Go to About Page"
 		href={url("/about/")}
-		class="group block relative mx-auto mt-1 lg:mx-0 lg:mt-0 mb-3
+		class="profile-avatar group block relative mx-auto mt-1 lg:mx-0 lg:mt-0 mb-3
        max-w-[12rem] lg:max-w-none overflow-hidden rounded-xl active:scale-95"
 	>
 		<div
@@ -35,7 +35,7 @@ import { i18n } from "../../../i18n/translation";
 			height={221}
 		/>
 	</a>
-	<div class="px-2">
+	<div class="profile-details px-2">
 		<div
 			class="paper-title font-bold text-xl text-center mb-1 dark:text-neutral-50 transition"
 		>
@@ -60,7 +60,7 @@ import { i18n } from "../../../i18n/translation";
 			}
 		</div>
 
-		<div class="flex flex-wrap gap-2 justify-center mb-1">
+		<div class="profile-links flex flex-wrap gap-2 justify-center mb-1">
 			{
 				profileConfig.links.length > 1 &&
 					profileConfig.links.map((item) => (
@@ -142,6 +142,17 @@ import { i18n } from "../../../i18n/translation";
 		</div>
 	</div>
 </div>
+
+<style>
+	.profile-avatar { max-width: 9rem; margin-inline: auto; }
+	@media (max-width: 1279px) {
+		.profile-card { display: flex; align-items: center; gap: 0.75rem; }
+		.profile-avatar { width: 4rem; flex: 0 0 4rem; margin: 0; }
+		.profile-details { flex: 1; min-width: 0; }
+		.profile-links { gap: 0.25rem; }
+		.profile-links a { width: 2.25rem; height: 2.25rem; }
+	}
+</style>
 
 <script
 	is:inline

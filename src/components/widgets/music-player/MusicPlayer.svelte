@@ -202,7 +202,11 @@
 		unsubscribe = musicPlayerStore.subscribe((nextState) => {
 			state = nextState;
 		});
-		musicPlayerStore.initialize();
+		// The FAB entry is idle until the reader explicitly opens it. Keep the
+		// non-FAB layout compatible with its existing always-visible player.
+		if (!useFabEntry) {
+			musicPlayerStore.initialize();
+		}
 	});
 
 	onDestroy(() => {

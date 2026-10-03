@@ -67,7 +67,9 @@ export default defineConfig({
 						},
 					}),
 				]),
-		swup({
+		// The blog uses document navigation so third-party widgets keep their styles
+		// and initialize against a fresh page. Leave the separate diary build unchanged.
+		...(isSayoriDiarySite ? [swup({
 			theme: false,
 			animationClass: "transition-swup-",
 			containers: ["main"],
@@ -89,7 +91,7 @@ export default defineConfig({
 					event.state.url.includes("#")
 				);
 			},
-		}),
+		})] : []),
 		icon(),
 		expressiveCode({
 			themes: ["github-light", "github-dark"],

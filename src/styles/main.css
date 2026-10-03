@@ -129,9 +129,7 @@ html {
   }
 
   /* 确保边框和分隔线元素在主题切换时有更明确的过渡时长 */
-  .transition,
-  [class*="border"],
-  [class*="transition"] {
+  .transition {
     transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     transition-duration: 0.15s;
@@ -285,27 +283,6 @@ html {
     @apply bg-(--card-bg-transparent) backdrop-blur-sm;
   }
 
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6,
-  p,
-  a,
-  span,
-  li,
-  ul,
-  ol,
-  blockquote,
-  code,
-  pre,
-  table,
-  th,
-  td,
-  strong {
-    @apply transition-colors duration-150;
-  }
   .card-shadow {
     @apply drop-shadow-[0_2px_4px_rgba(0,0,0,0.005)];
   }
@@ -706,105 +683,6 @@ html {
 .post-list-container.grid-mode {
   display: grid !important;
   grid-template-columns: repeat(1, 1fr);
-  gap: 1rem;
-}
-
-@media (max-width: 768px) {
-  .post-list-container.grid-mode {
-    gap: 0.75rem;
-  }
-}
-
-@media (min-width: 768px) {
-  .post-list-container.grid-mode {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-/* 网格模式下的文章卡片样式调整 */
-.post-list-container.grid-mode .post-card-item {
-  width: 100%;
-  margin-bottom: 0;
-}
-
-.post-list-container.grid-mode .post-card-item a[href] {
-  font-size: 1.25rem;
-  line-height: 1.75rem;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.post-list-container.grid-mode .post-card-item .description {
-  font-size: 0.875rem;
-  margin-bottom: 0.5rem;
-  line-height: 1.25rem;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.post-list-container.grid-mode .post-card-item .stats {
-  font-size: 0.75rem;
-}
-
-.post-list-container.grid-mode .post-card-item .post-meta {
-  margin-bottom: 0.5rem;
-}
-
-/* CSS-only移动端优化 - 避免JavaScript闪烁 */
-@media (max-width: 768px) {
-  /* 移动端强制列表模式，避免初始化闪烁 */
-  #post-list-container {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 0.5rem !important;
-    padding: 0 !important;
-    background: transparent !important;
-  }
-
-  /* 移动端网格模式也显示为列表 */
-  #post-list-container.grid-mode {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 0.5rem !important;
-    grid-template-columns: 1fr !important;
-  }
-
-  /* 移动端文章卡片间距优化 */
-  #post-list-container .post-card-item {
-    margin-bottom: 0 !important;
-  }
-}
-
-/* 桌面端样式 */
-@media (min-width: 769px) {
-  /* 列表模式下的样式 */
-  .post-list-container.list-mode {
-    display: flex !important;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  /* 网格模式下的样式 */
-  .post-list-container.grid-mode {
-    display: grid !important;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
-  }
-}
-
-/* 确保过渡动画平滑 */
-.post-list-container {
-  transition: all 0.3s ease-in-out;
-}
-
-/* 文章列表布局切换样式 */
-.post-list-container.grid-mode {
-  display: grid !important;
-  grid-template-columns: repeat(1, 1fr);
   gap: 1.5rem;
 }
 
@@ -856,7 +734,7 @@ html {
 
 /* 确保过渡动画平滑 */
 .post-list-container {
-  transition: all 0.3s ease-in-out;
+  transition: background-color 0.15s ease;
 }
 :root:not(.dark) .custom-md .sayori-spoiler,
 :root:not(.dark) .custom-md spoiler {

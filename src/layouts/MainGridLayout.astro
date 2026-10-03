@@ -12,7 +12,7 @@ import type { MarkdownHeading } from "astro";
 import { Icon } from "astro-icon/components";
 
 import { fullscreenWallpaperConfig, siteConfig } from "../config";
-import type { HreflangMap } from "../utils/site-locale";
+import { stripLocalePrefix, type HreflangMap } from "../utils/site-locale";
 import { BANNER_HEIGHT } from "../constants/constants";
 import {
 	calculateGridLayout,
@@ -65,7 +65,7 @@ const hasBannerCredit = siteConfig.banner.credit.enable;
 const hasBannerLink = !!siteConfig.banner.credit.url;
 
 // 检查是否为首页
-const isHomePage = Astro.url.pathname === "/" || Astro.url.pathname === "";
+const isHomePage = stripLocalePrefix(Astro.url.pathname) === "/";
 const initialMobileBanner = Array.isArray(bannerImages.mobile)
 	? bannerImages.mobile[0] || ""
 	: bannerImages.mobile;
@@ -150,7 +150,6 @@ const isPostPage = !!postSlug;
 		defaultWallpaperMode={siteConfig.wallpaperMode.defaultMode}
 		defaultPostListLayout={siteConfig.postListLayout?.defaultMode || "list"}
 		BANNER_HEIGHT={BANNER_HEIGHT}
-		pageScaling={siteConfig.pageScaling}
 	/>
 
 	<!-- 全屏壁纸 - 始终渲染，通过 JS 控制显示隐藏 -->

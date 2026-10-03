@@ -1,6 +1,8 @@
 ---
 import ArchivePanel from "@components/features/archive/ArchivePanel.svelte";
 import CategoryBar from "@components/features/posts/CategoryBar.astro";
+import SiteStats from "@components/widgets/site-stats/SiteStats.astro";
+import Tags from "@components/widgets/tags/Tags.astro";
 import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
 import MainGridLayout from "@layouts/MainGridLayout.astro";
@@ -53,6 +55,10 @@ const categories = (await getCategoryList()).map((category) => category.name);
 		sortedPosts={posts}
 		tags={tags}
 		categories={categories}
-		client:only="svelte"
+		client:load
 	/>
+	<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+		<Tags />
+		<SiteStats />
+	</div>
 </MainGridLayout>
