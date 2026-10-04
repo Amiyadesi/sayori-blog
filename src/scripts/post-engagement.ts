@@ -41,9 +41,10 @@ export function initPostEngagement(): void {
 		const copyFallbackInput = root.querySelector<HTMLInputElement>(
 			"[data-copy-fallback-input]",
 		);
-		const promoteLink = root.querySelector<HTMLElement>("[data-promote-post]");
+		const promoteTemplate = root.querySelector<HTMLTemplateElement>("[data-promote-template]");
 		const lifecycle = new AbortController();
 		let statusTimer = 0;
+		let adminEntryRequest = 0;
 
 		if (typeof navigator.share === "function" && nativeShare) {
 			nativeShare.hidden = false;
@@ -168,14 +169,33 @@ export function initPostEngagement(): void {
 			signal: lifecycle.signal,
 		});
 
-		void fetch("/api/admin/me", {
-			headers: { accept: "application/json" },
-			credentials: "same-origin",
-		})
-			.then((response) => {
-				if (response.ok && promoteLink) {promoteLink.hidden = false;}
-			})
-			.catch(() => {});
+		async function loadAdminEntry(): Promise<void> {
+			const requestId = ++adminEntryRequest;
+			root.querySelector("[data-promote-post]")?.remove();
+			try {
+				const response = await fetch("/api/admin/me", {
+					headers: { accept: "application/json" },
+					credentials: "same-origin",
+					cache: "no-store",
+				});
+				if (!response.ok) {return;}
+				const session = await response.json();
+				if (requestId === adminEntryRequest && session?.success === true && typeof session.user?.login === "string" && promoteTemplate) {
+					promoteTemplate.after(promoteTemplate.content.cloneNode(true));
+				}
+			} catch (error) {
+				console.warn("[post-engagement] Admin session check failed", error);
+			}
+		}
+
+		window.addEventListener("pagehide", () => {
+			adminEntryRequest += 1;
+			root.querySelector("[data-promote-post]")?.remove();
+		}, { signal: lifecycle.signal });
+		window.addEventListener("pageshow", (event) => {
+			if (event.persisted) {void loadAdminEntry();}
+		}, { signal: lifecycle.signal });
+		void loadAdminEntry();
 
 		void loadCounts();
 	});

@@ -22,7 +22,6 @@ const requiredFiles = [
 	"deals/index.html",
 	"zh-hant/deals/index.html",
 	"en/deals/index.html",
-	"admin/growth/index.html",
 	"essays/index.html",
 	"sponsor/index.html",
 	"topics/webmaster/index.html",
@@ -1430,13 +1429,11 @@ verifyDealsPage(dealsHtml);
 const topicHtml = files.get("topics/webmaster/index.html") || "";
 verifyTopicPage(topicHtml);
 
-const adminGrowthHtml = files.get("admin/growth/index.html") || "";
-requireIncludes("admin/growth/index.html", adminGrowthHtml, [
-	'<meta name="robots" content="noindex, nofollow, noarchive">',
-	"n8n 发布自动化",
-	"https://n8n.sayori.org/",
-]);
-requireIncludes("admin/growth n8n entry", adminGrowthHtml, ["n8n.sayori.org"]);
+if (fs.existsSync(path.join(distDir, "admin/growth"))) {
+	fail("Private n8n entry must not be emitted as a public static page");
+} else {
+	pass("Private n8n entry is served only by the authenticated Function");
+}
 
 const robotsTxt = files.get("robots.txt") || "";
 requireIncludes("robots.txt", robotsTxt, [
