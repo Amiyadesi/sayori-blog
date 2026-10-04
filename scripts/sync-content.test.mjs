@@ -53,6 +53,17 @@ try {
 		"",
 		"Another English paragraph ^Block_ID",
 	].join("\n"));
+	write(path.join(fixtureArticles, "posts", "hello", "hello.zh-hant.md"), [
+		"---",
+		"title: 繁體文章",
+		"published: 2026-05-29",
+		"lang: zh-Hant",
+		"---",
+		"",
+		"繁體段落 ^af4158",
+		"",
+		"另一段 ^Block_ID",
+	].join("\n"));
 	write(path.join(fixtureArticles, "posts", "from-90-to-66.7", "from-90-to-66.7.md"), [
 		"---",
 		"title: Decimal filename",
@@ -613,7 +624,7 @@ try {
 
 	for (const [lang, base, paragraph] of [
 		["zh_CN", "/", "hello"],
-		["zh_TW", "/zh-hant/", "hello"],
+		["zh_TW", "/zh-hant/", "繁體段落"],
 		["en", "/en/", "English paragraph"],
 	]) {
 		const localizedResult = spawnSync(process.execPath, [path.join(fixtureBlog, "scripts", "sync-content.js")], {

@@ -1071,18 +1071,37 @@ function verifyArticleLandmarks() {
 		fail("No public post available for article landmark verification");
 		return;
 	}
-	const relativePath = path.join(trimUrlPath(post.url), "index.html");
-	const html = readDistFile(relativePath);
-	const root = parse(html);
-	if (root.querySelector(".banner-title")) {
-		fail(`dist/${relativePath} renders the homepage banner H1`);
-	} else {
-		pass(`dist/${relativePath} excludes the homepage banner H1`);
-	}
-	if (root.querySelector("nav#navbar")) {
-		pass(`dist/${relativePath} exposes the primary nav landmark`);
-	} else {
-		fail(`dist/${relativePath} missing nav#navbar landmark`);
+	for (const [prefix, lang] of [["", "zh-CN"], ["zh-hant/", "zh-Hant"], ["en/", "en"]]) {
+		const relativePath = path.join(prefix, trimUrlPath(post.url), "index.html");
+		const html = readDistFile(relativePath);
+		const root = parse(html);
+		if (root.querySelector(".banner-title")) {
+			fail(`dist/${relativePath} renders the homepage banner H1`);
+		} else {
+			pass(`dist/${relativePath} excludes the homepage banner H1`);
+		}
+		if (root.querySelector("nav#navbar")) {
+			pass(`dist/${relativePath} exposes the primary nav landmark`);
+		} else {
+			fail(`dist/${relativePath} missing nav#navbar landmark`);
+		}
+		if (root.querySelector("html")?.getAttribute("lang") !== lang) {
+			fail(`dist/${relativePath} must declare ${lang}`);
+		}
+		for (const link of root.querySelectorAll(".custom-md a[href]")) {
+			const href = link.getAttribute("href");
+			if (!/^\/(?:(?:en|zh-hant)\/)?posts\/[^#]+\/#([A-Za-z0-9_-]+)$/.test(href)) continue;
+			if (!href.startsWith(`/${prefix}posts/`)) {
+				fail(`dist/${relativePath} links a paragraph to another language: ${href}`);
+			}
+			const [targetPath, anchor] = href.split("#");
+			const targetHtml = readTextIfExists(path.join(distDir, trimUrlPath(targetPath), "index.html"));
+			if (!parse(targetHtml).getElementById(anchor)) {
+				fail(`dist/${relativePath} links to a missing article anchor: ${href}`);
+			} else {
+				pass(`dist/${relativePath} resolves localized article anchor ${href}`);
+			}
+		}
 	}
 }
 
