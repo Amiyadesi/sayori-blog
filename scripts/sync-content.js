@@ -19,6 +19,9 @@ const contentPathspec = ".";
 const SITE_LANG = String(process.env.SITE_LANG || "zh_CN").toLowerCase();
 const IS_ENGLISH_BUILD = SITE_LANG.startsWith("en");
 const IS_TRADITIONAL_BUILD = SITE_LANG === "zh_tw" || SITE_LANG === "zh-hant";
+const SITE_BASE = String(process.env.SITE_BASE || (IS_ENGLISH_BUILD ? "/en/" : IS_TRADITIONAL_BUILD ? "/zh-hant/" : "/"))
+	.trim()
+	.replace(/\/+$/, "");
 const BLOG_MEDIA_BASE_URL = String(process.env.BLOG_MEDIA_BASE_URL || "")
 	.trim()
 	.replace(/\/+$/, "");
@@ -648,19 +651,8 @@ function convertObsidianEmbeds(content, sourcePath, slug) {
 			return `[${display.altText}](${href})`;
 		}
 
-		// Treat as wiki link to another post
-		const key = normalizeLookupKey(filename);
-		const resolved = contentIndex.get(key);
-		if (resolved) {
-			return `[${display.altText}](${resolved.url})`;
-		}
-
-		if (isPrivateWikiTarget(filename)) {
-			return display.altText;
-		}
-
-		warnings.push(`${path.relative(repoRoot, sourcePath)}: 无法解析嵌入 ${match}`);
-		return display.altText;
+		// Note embeds keep the existing link presentation, including their fragment.
+		return convertWikiLinks(`[[${filename}|${display.altText}]]`, sourcePath);
 	});
 }
 
@@ -1010,7 +1002,7 @@ function convertWikiLinks(content, sourcePath) {
 			heading && resolved.url.startsWith("/posts/")
 				? `#${normalizeObsidianAnchor(heading)}`
 				: "";
-		return `[${label || rawTarget}](${resolved.url}${anchor})`;
+		return `[${label || rawTarget}](${SITE_BASE}${resolved.url}${anchor})`;
 	});
 }
 
@@ -1074,14 +1066,15 @@ function normalizeMarkdownImageUrl(rawUrl, slug, sourcePath) {
 }
 
 function convertObsidianBlockIds(content) {
-	return content.replace(/^[ \t]*\^([A-Za-z0-9_-]+)[ \t]*$/gm, (_match, id) => {
-		return `<a id="${id}"></a>`;
+	return content.replace(/(?:^[ \t]*|[ \t]+)\^([A-Za-z0-9_-]+)[ \t]*(?=\r?$)/gm, (_match, id) => {
+		return `<span id="${id}"></span>`;
 	});
 }
 
 function normalizeObsidianAnchor(value) {
-	const clean = String(value || "").trim().replace(/^\^/, "");
-	return slugify(clean) || clean;
+	const fragment = String(value || "").trim();
+	if (fragment.startsWith("^")) return fragment.slice(1);
+	return slugify(fragment) || fragment;
 }
 
 function publicPath(...segments) {

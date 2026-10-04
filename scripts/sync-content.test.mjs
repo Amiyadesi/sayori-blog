@@ -10,6 +10,8 @@ const repoRoot = path.resolve(path.dirname(scriptPath), "..", "..");
 const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "blog-sync-"));
 const isolatedEnv = {
 	...process.env,
+	SITE_LANG: "zh_CN",
+	SITE_BASE: "/",
 	BLOG_MEDIA_BASE_URL: "",
 	BLOG_MEDIA_MANIFEST: "",
 	BLOG_MEDIA_REQUIRED: "",
@@ -37,7 +39,19 @@ try {
 		"category: Test",
 		"---",
 		"",
-		"hello",
+		"hello ^af4158",
+		"",
+		"Another paragraph ^Block_ID",
+	].join("\n"));
+	write(path.join(fixtureArticles, "posts", "hello", "hello.en.md"), [
+		"---",
+		"title: Hello in English",
+		"published: 2026-05-29",
+		"---",
+		"",
+		"English paragraph ^af4158",
+		"",
+		"Another English paragraph ^Block_ID",
 	].join("\n"));
 	write(path.join(fixtureArticles, "posts", "current-public-plan", "current-public-plan.md"), [
 		"---",
@@ -75,6 +89,8 @@ try {
 		"See [[计划书]].",
 		"See [[Small Note]].",
 		"See [[#^answer1|block answer]].",
+		"See [[hello#^af4158|paragraph reference]].",
+		"See ![[hello#^Block_ID|embedded paragraph reference]].",
 		"Keep inline `[[keep inline link]] ==keep inline highlight== %% keep inline comment %%`.",
 		"==highlight me==",
 		"%% hide me %%",
@@ -396,7 +412,7 @@ try {
 	);
 	assert.match(
 		read(path.join(fixtureBlog, "src", "content", "posts", "diary", "2026-06-07", "index.md")),
-		/<a id="answer1"><\/a>/,
+		/<span id="answer1"><\/span>/,
 	);
 	assert.match(
 		read(path.join(fixtureBlog, "src", "content", "posts", "diary", "2026-06-07", "index.md")),
@@ -583,6 +599,27 @@ try {
 			`<img src="https://img\\.sayori\\.org/blog/v1/${mediaHash}/1280\\.webp"[^>]*srcset="https://img\\.sayori\\.org/blog/v1/${mediaHash}/640\\.webp 640w, https://img\\.sayori\\.org/blog/v1/${mediaHash}/1280\\.webp 1280w"[^>]*decoding="async"`,
 		),
 	);
+
+	for (const [lang, base, paragraph] of [
+		["zh_CN", "/", "hello"],
+		["zh_TW", "/zh-hant/", "hello"],
+		["en", "/en/", "English paragraph"],
+	]) {
+		const localizedResult = spawnSync(process.execPath, [path.join(fixtureBlog, "scripts", "sync-content.js")], {
+			cwd: fixtureRoot,
+			encoding: "utf8",
+			env: { ...isolatedEnv, CONTENT_DIR: fixtureArticles, SITE_LANG: lang, SITE_BASE: base },
+		});
+		assert.equal(localizedResult.status, 0, localizedResult.stderr || localizedResult.stdout);
+		const references = read(path.join(fixtureBlog, "src", "content", "posts", "diary", "2026-06-07", "index.md"));
+		assert.ok(references.includes(`[paragraph reference](${base}posts/hello/#af4158)`));
+		assert.ok(references.includes(`[embedded paragraph reference](${base}posts/hello/#Block_ID)`));
+		assert.ok(references.includes("[block answer](#answer1)"));
+		const target = read(path.join(fixtureBlog, "src", "content", "posts", "hello", "index.md"));
+		assert.ok(target.includes(`${paragraph}<span id="af4158"></span>`));
+		assert.ok(target.includes('<span id="Block_ID"></span>'));
+		assert.doesNotMatch(target, /\^af4158|\^Block_ID/);
+	}
 } finally {
 	fs.rmSync(tmpRoot, { recursive: true, force: true });
 }

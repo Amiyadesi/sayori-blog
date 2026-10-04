@@ -347,6 +347,7 @@ function protectSource(source, options = {}) {
 	protect(/^(```|~~~)[\s\S]*?^\1[ \t]*$/gm, "BLOCK");
 	protect(/`[^`\n]+`/g, "INLINE");
 	protect(/!\[\[[^\]]+\]\]/g, "EMBED");
+	protect(/(?:^[ \t]*|[ \t]+)\^[A-Za-z0-9_-]+[ \t]*(?=\r?$)/gm, "BLOCKID");
 	text = text.replace(/\[\[([^\]|]+)(\|[^\]]+)?\]\]/g, (_match, target, alias = "") => {
 		const token = `__PRESERVE_WIKITARGET_${values.length}__`;
 		values.push([token, target]);
@@ -430,6 +431,10 @@ function validateTranslation(source, translated, sourcePath) {
 	const wikiTargets = [...sourceBody.matchAll(/(?<!\!)\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g)].map((match) => match[1]);
 	for (const target of wikiTargets) {
 		if (!targetBody.includes(`[[${target}`)) throw new Error(`wiki-link target changed: ${target}`);
+	}
+	const blockIds = (text) => [...text.matchAll(/(?:^[ \t]*|[ \t]+)\^([A-Za-z0-9_-]+)[ \t]*(?=\r?$)/gm)].map((match) => match[1]);
+	if (JSON.stringify(blockIds(sourceBody)) !== JSON.stringify(blockIds(targetBody))) {
+		throw new Error("Obsidian block IDs changed");
 	}
 	if (sourcePath.toLowerCase().includes("\\site\\") && sourceFrontmatter && !targetFrontmatter.raw.includes("lang: en")) {
 		throw new Error("site translation missing language");
