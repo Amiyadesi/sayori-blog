@@ -1,0 +1,26 @@
+---
+import { isEnglishSite } from "../../utils/site-locale";
+---
+<button type="button" class="desk-theme" data-theme-toggle aria-label={isEnglishSite ? "Dark theme" : "深色主题"} aria-pressed="false">
+	<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M20.5 13.5A9 9 0 0 1 10.5 3.5a9 9 0 1 0 10 10Z" /></svg>
+	<span>{isEnglishSite ? "Theme" : "主题"}</span>
+</button>
+<script>
+	const root = document.documentElement;
+	function syncTheme() {
+		const dark = root.classList.contains("dark");
+		document.querySelectorAll("[data-theme-toggle]").forEach(button => button.setAttribute("aria-pressed", String(dark)));
+		const select = document.querySelector<HTMLSelectElement>("[data-theme-select]");
+		if (select) select.value = dark ? "dark" : "light";
+	}
+	function applyTheme(theme: string) {
+		root.classList.toggle("dark", theme === "dark");
+		root.dataset.theme = theme === "dark" ? "github-dark" : "github-light";
+		try { localStorage.setItem("theme", theme); } catch (error) { console.warn("Theme preference could not be saved", error); }
+		syncTheme();
+	}
+	document.querySelectorAll("[data-theme-toggle]").forEach(button => button.addEventListener("click", () => applyTheme(root.classList.contains("dark") ? "light" : "dark")));
+	document.querySelector<HTMLSelectElement>("[data-theme-select]")?.addEventListener("change", event => applyTheme((event.target as HTMLSelectElement).value));
+	window.addEventListener("pageshow", syncTheme);
+	syncTheme();
+</script>

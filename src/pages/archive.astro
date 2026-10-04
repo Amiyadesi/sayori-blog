@@ -46,9 +46,6 @@ const categories = (await getCategoryList()).map((category) => category.name);
 <MainGridLayout title={i18n(I18nKey.archive)}>
 	{showCategoryBar && <CategoryBar />}
 	<!-- 引入右侧边栏布局管理器 -->
-	<script>
-		import("../scripts/right-sidebar-layout.js");
-	</script>
 
 	<!-- 修复：补全缺失的 tags 和 categories 属性 -->
 	<ArchivePanel

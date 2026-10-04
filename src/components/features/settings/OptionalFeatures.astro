@@ -1,0 +1,83 @@
+---
+import { isEnglishSite } from "../../../utils/site-locale";
+---
+<div id="desk-pet-host" data-pagefind-ignore></div>
+<div id="desk-music-host" data-pagefind-ignore></div>
+<button data-pagefind-ignore id="desk-music-entry" class="desk-music-entry" type="button" hidden>{isEnglishSite ? "♫ Music" : "♫ 音乐"}</button>
+<p id="desk-feature-status" class="desk-feature-status" role="status" hidden></p>
+<script>
+	import type { Component } from "svelte";
+	import { openMusicPlayer, closeMusicPlayer } from "../../../scripts/music-entry";
+	const petKey = "sayori-desk-pet-enabled";
+	const musicKey = "sayori-desk-music-enabled";
+	const entry = document.querySelector<HTMLButtonElement>("#desk-music-entry")!;
+	const status = document.querySelector<HTMLElement>("#desk-feature-status")!;
+	const english = document.documentElement.lang === "en";
+	let petEnabled = false;
+	let musicEnabled = false;
+	let pet: ReturnType<typeof import("svelte").mount> | undefined;
+	let petLoading = false;
+	function report(error: unknown) {
+		console.error("Optional feature failed", error);
+		status.hidden = false;
+		status.textContent = english ? "Could not load. Try again from Settings." : "加载失败，可在设置页重新开启。";
+	}
+	function read(key: string) {
+		try { return localStorage.getItem(key) === "true"; }
+		catch (error) { console.warn("Preferences unavailable", error); return false; }
+	}
+	async function updatePet() {
+		if (!petEnabled) {
+			if (pet) {
+				const previous = pet; pet = undefined;
+				await (await import("svelte")).unmount(previous);
+			}
+			return;
+		}
+		if (pet || petLoading) return;
+		petLoading = true;
+		try {
+			const [{ mount }, { default: Pet }] = await Promise.all([import("svelte"), import("../sayori-pet/SayoriPet.svelte")]);
+			if (petEnabled && !pet) pet = mount(Pet as unknown as Component, { target: document.querySelector("#desk-pet-host")! });
+		} catch (error) { report(error); }
+		finally { petLoading = false; }
+	}
+	function syncInputs() {
+		const petInput = document.querySelector<HTMLInputElement>("[data-pet-preference]");
+		const musicInput = document.querySelector<HTMLInputElement>("[data-music-preference]");
+		if (petInput) petInput.checked = petEnabled;
+		if (musicInput) musicInput.checked = musicEnabled;
+		entry.hidden = !musicEnabled;
+	}
+	function restore() {
+		petEnabled = read(petKey); musicEnabled = read(musicKey);
+		syncInputs();
+		void updatePet();
+		if (!musicEnabled) void closeMusicPlayer();
+	}
+	document.querySelector<HTMLInputElement>("[data-pet-preference]")?.addEventListener("change", event => {
+		petEnabled = (event.target as HTMLInputElement).checked;
+		status.hidden = true;
+		try { localStorage.setItem(petKey, String(petEnabled)); } catch (error) { report(error); }
+		void updatePet();
+	});
+	document.querySelector<HTMLInputElement>("[data-music-preference]")?.addEventListener("change", event => {
+		musicEnabled = (event.target as HTMLInputElement).checked;
+		status.hidden = true;
+		try { localStorage.setItem(musicKey, String(musicEnabled)); } catch (error) { report(error); }
+		syncInputs();
+		if (!musicEnabled) void closeMusicPlayer();
+	});
+	entry.addEventListener("click", async () => {
+		entry.disabled = true; status.hidden = true;
+		try { await openMusicPlayer(); } catch (error) { report(error); }
+		finally { entry.disabled = false; }
+	});
+	// Astro's module runs after the document is parsed; no optional code is imported before opt-in.
+	petEnabled = read(petKey); musicEnabled = read(musicKey); syncInputs();
+	if (document.readyState === "complete") void updatePet();
+	else window.addEventListener("load", () => void updatePet(), { once: true });
+	window.addEventListener("pageshow", event => { if (event.persisted) restore(); });
+	window.addEventListener("storage", event => { if (event.key === petKey || event.key === musicKey) restore(); });
+	window.addEventListener("pagehide", () => void closeMusicPlayer());
+</script>

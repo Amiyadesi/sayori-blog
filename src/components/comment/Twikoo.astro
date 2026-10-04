@@ -86,7 +86,6 @@ const ownerAvatar = "/assets/profile/avatar-sayori-192.jpg";
 		let retryTimer = 0;
 		let githubEmojiMapPromise = null;
 		let footnoteScopeCounter = 0;
-		let commentObserver = null;
 		const ownerIdentity = {
 			checked: false,
 			isOwner: false,
@@ -991,48 +990,41 @@ const ownerAvatar = "/assets/profile/avatar-sayori-192.jpg";
 			}
 		}
 
-		function scheduleInit() {
-			const container = getCommentContainer();
-			if (!container) {
+		let idleId = 0;
+		let delayTimer = 0;
+		function startComments() {
+			if (delayTimer) window.clearTimeout(delayTimer);
+			if (idleId && window.cancelIdleCallback) window.cancelIdleCallback(idleId);
+			void initTwikoo();
+		}
+		function scheduleComments() {
+			if (window.location.hash === "#twikoo-container" || window.location.hash === "#comments") {
+				startComments();
 				return;
 			}
-			requestAnimationFrame(() => {
-				initTwikoo();
-			});
+			// A timeout also bounds the delay when the browser stays busy.
+			delayTimer = window.setTimeout(startComments, 2000);
+			if (window.requestIdleCallback) idleId = window.requestIdleCallback(startComments, { timeout: 2000 });
 		}
+		document.addEventListener("click", (event) => {
+			const link = event.target instanceof Element ? event.target.closest("a[href]") : null;
+			if (!link) return;
+			const target = new URL(link.href, window.location.href);
+			if (target.pathname === window.location.pathname &&
+				(target.hash === "#twikoo-container" || target.hash === "#comments")) startComments();
+		});
+		window.addEventListener("hashchange", () => {
+			if (["#twikoo-container", "#comments"].includes(window.location.hash)) startComments();
+		});
+		if (!document.body.classList.contains("desk-lite")) {
+			const observer = new IntersectionObserver(entries => {
+				if (entries.some(entry => entry.isIntersecting)) { observer.disconnect(); startComments(); }
+			}, { rootMargin: "320px 0px" });
+			observer.observe(pageContainer);
+		} else if (["#twikoo-container", "#comments"].includes(window.location.hash)) startComments();
+		else if (document.readyState === "complete") scheduleComments();
+		else window.addEventListener("load", scheduleComments, { once: true });
 
-		function observeCommentContainer() {
-			const container = getCommentContainer();
-			if (!container) {
-				return;
-			}
-
-			commentObserver?.disconnect();
-			commentObserver = null;
-			if (!("IntersectionObserver" in window)) {
-				scheduleInit();
-				return;
-			}
-
-			commentObserver = new IntersectionObserver(
-				(entries) => {
-					if (!entries.some((entry) => entry.isIntersecting)) {
-						return;
-					}
-					commentObserver?.disconnect();
-					commentObserver = null;
-					scheduleInit();
-				},
-				{ rootMargin: "320px 0px" },
-			);
-			commentObserver.observe(container);
-		}
-
-		if (document.readyState === "loading") {
-			document.addEventListener("DOMContentLoaded", observeCommentContainer, { once: true });
-		} else {
-			observeCommentContainer();
-		}
 	})();
 </script>
 

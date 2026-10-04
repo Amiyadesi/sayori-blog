@@ -63,6 +63,7 @@ export class FancyboxHandler {
 		const mod = await import("@fancyapps/ui");
 		this.Fancybox = mod.Fancybox;
 		await import("@fancyapps/ui/dist/fancybox/fancybox.css");
+		await import("../../styles/fancybox-custom.css");
 	}
 
 	/**

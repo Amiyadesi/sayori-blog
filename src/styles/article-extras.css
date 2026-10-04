@@ -1,0 +1,146 @@
+/* 文章黑块 / 剧透效果 */
+.desk-lite .custom-md .sayori-spoiler,
+.desk-lite .custom-md spoiler {
+  --_spoiler-mask: #111;
+  --_spoiler-tooltip-bg: color-mix(in oklch, var(--card-bg) 92%, black 8%);
+  --_spoiler-tooltip-border: color-mix(in oklch, var(--primary) 28%, transparent);
+
+  position: relative;
+  display: inline;
+  padding: 0.08rem 0.28rem;
+  border-radius: 0.25rem;
+  background: var(--_spoiler-mask);
+  color: transparent;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  cursor: help;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+.desk-lite .custom-md .sayori-spoiler *,
+.desk-lite .custom-md spoiler * {
+  color: inherit;
+}
+
+.desk-lite .custom-md .sayori-spoiler:hover,
+.desk-lite .custom-md .sayori-spoiler:focus,
+.desk-lite .custom-md .sayori-spoiler.is-revealed,
+.desk-lite .custom-md spoiler:hover,
+.desk-lite .custom-md spoiler:focus {
+  background: color-mix(in oklch, var(--primary) 13%, transparent);
+  color: inherit;
+  outline: none;
+}
+
+.desk-lite .custom-md .sayori-spoiler:focus-visible {
+  outline: 2px solid color-mix(in oklch, var(--primary) 55%, white 20%);
+  outline-offset: 2px;
+}
+
+.desk-lite .custom-md .sayori-spoiler[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 0.55rem);
+  z-index: 40;
+  width: max-content;
+  max-width: min(18rem, 78vw);
+  padding: 0.42rem 0.58rem;
+  border: 1px solid var(--_spoiler-tooltip-border);
+  border-radius: 0.5rem;
+  background: var(--_spoiler-tooltip-bg);
+  color: rgb(17 24 39 / 0.92);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.18);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  white-space: normal;
+  transform: translate(-50%, 0.25rem);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 150ms ease,
+    transform 150ms ease;
+}
+
+.desk-lite .custom-md .sayori-spoiler[data-tooltip]::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 0.28rem);
+  z-index: 41;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-right: 1px solid var(--_spoiler-tooltip-border);
+  border-bottom: 1px solid var(--_spoiler-tooltip-border);
+  background: var(--_spoiler-tooltip-bg);
+  transform: translate(-50%, 0.25rem) rotate(45deg);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 150ms ease,
+    transform 150ms ease;
+}
+
+.desk-lite .custom-md .sayori-spoiler[data-tooltip]:hover::after,
+.desk-lite .custom-md .sayori-spoiler[data-tooltip]:focus::after,
+.desk-lite .custom-md .sayori-spoiler[data-tooltip].is-revealed::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.desk-lite .custom-md .sayori-spoiler[data-tooltip]:hover::before,
+.desk-lite .custom-md .sayori-spoiler[data-tooltip]:focus::before,
+.desk-lite .custom-md .sayori-spoiler[data-tooltip].is-revealed::before {
+  opacity: 1;
+  transform: translate(-50%, 0) rotate(45deg);
+}
+
+.desk-lite .custom-md .sayori-photo-grid {
+  --photo-grid-columns: 2;
+
+  display: grid;
+  grid-template-columns: repeat(var(--photo-grid-columns), minmax(0, 1fr));
+  gap: 1rem;
+  align-items: start;
+  margin: 1.25rem 0;
+}
+
+.desk-lite .custom-md .sayori-photo-grid-item {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  min-width: 0;
+}
+
+.desk-lite .custom-md .sayori-photo-grid-item img {
+  width: 100%;
+  height: auto;
+  margin: 0;
+  border-radius: 0.5rem;
+  object-fit: cover;
+}
+
+.desk-lite .custom-md .sayori-photo-grid-item figcaption {
+  margin: 0;
+  color: rgb(0 0 0 / 0.55);
+  font-size: 0.92rem;
+  line-height: 1.55;
+  text-align: center;
+}
+
+:root.dark .desk-lite .custom-md .sayori-spoiler[data-tooltip]::after {
+  color: rgb(255 255 255 / 0.9);
+}
+
+:root.dark .desk-lite .custom-md .sayori-photo-grid-item figcaption {
+  color: rgb(255 255 255 / 0.55);
+}
+
+@media (max-width: 640px) {
+  .desk-lite .custom-md .sayori-photo-grid {
+    grid-template-columns: 1fr;
+    gap: 1.15rem;
+  }
+}

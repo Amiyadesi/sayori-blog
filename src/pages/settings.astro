@@ -1,0 +1,34 @@
+---
+import MainGridLayout from "../layouts/MainGridLayout.astro";
+import { isEnglishSite } from "../utils/site-locale";
+const copy = isEnglishSite ? {
+	title: "Settings", intro: "A quiet desk by default. Make a little room for company if you like.",
+	theme: "Theme", light: "Warm paper", dark: "Evening desk",
+	pet: "Sayori on the desk", petNote: "Load the pet after the page is ready. Keep this choice on this browser.",
+	music: "Music entry", musicNote: "Show a small music button. The player loads when opened; press Play to listen. Music stops when you leave the page.",
+} : {
+	title: "书桌设置", intro: "书桌默认安静。如果愿意，也可以留一点陪伴。",
+	theme: "主题", light: "暖纸色", dark: "夜晚的书桌",
+	pet: "桌边的 Sayori", petNote: "页面就绪后加载宠物，并在这个浏览器记住你的选择。",
+	music: "音乐入口", musicNote: "显示一个小小的音乐按钮。点开才加载播放器，按播放才出声；离开页面后停止。",
+};
+---
+<MainGridLayout title={copy.title} description={copy.intro} noindex>
+	<section class="desk-settings" data-pagefind-ignore="all">
+		<p class="desk-eyebrow">MAKE YOURSELF AT HOME</p>
+		<h1>{copy.title}</h1>
+		<p>{copy.intro}</p>
+		<div class="desk-setting">
+			<label for="desk-theme-select">{copy.theme}</label>
+			<select id="desk-theme-select" data-theme-select><option value="light">{copy.light}</option><option value="dark">{copy.dark}</option></select>
+		</div>
+		<div class="desk-setting">
+			<div><label for="desk-pet-setting">{copy.pet}</label><p id="desk-pet-description">{copy.petNote}</p></div>
+			<input type="checkbox" id="desk-pet-setting" data-pet-preference aria-describedby="desk-pet-description" />
+		</div>
+		<div class="desk-setting">
+			<div><label for="desk-music-setting">{copy.music}</label><p id="desk-music-description">{copy.musicNote}</p></div>
+			<input type="checkbox" id="desk-music-setting" data-music-preference aria-describedby="desk-music-description" />
+		</div>
+	</section>
+</MainGridLayout>

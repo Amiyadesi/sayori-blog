@@ -39,7 +39,8 @@ if (!album) {
 	description={album.description || album.title}
 >
 	<script>
-		import("../../../scripts/right-sidebar-layout.js");
+		import { initFancybox } from "../../../scripts/handlers/fancybox-handler";
+		void initFancybox();
 		import { loadIconify } from "../../../utils/icon-loader";
 
 		loadIconify().catch((error) => {

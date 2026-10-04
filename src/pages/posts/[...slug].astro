@@ -260,7 +260,7 @@ const jsonLd = {
 	lang={entry.data.lang}
 	setOGTypeArticle={true}
 	postSlug={entry.id}
-	headings={headings}
+	headings={isEncrypted ? [] : headings}
 	coverImage={ogCoverUrl}
 	ogImageAlt={entry.data.title}
 	publishedTime={entry.data.published}
@@ -276,22 +276,15 @@ const jsonLd = {
 		set:html={JSON.stringify(jsonLd)}
 	/>
 	<div
-		class="flex w-full rounded-[var(--radius-large)] overflow-hidden relative mb-4"
+		class="post-article mb-4"
 	>
 		<div
 			id="post-container"
-			class:list={[
-				"card-base z-10 px-6 md:px-9 pt-6 pb-4 relative w-full ",
-				{
-					"paper-note paper-note-lined paper-tape post-paper-note": true,
-				},
-			]}
+			class="post-body"
 			data-post-id={entry.id}
 			data-post-alias={entry.data.alias}
 			data-content-kind={isDiary ? "diary" : "article"}
 			data-effective-read={!isDiary && !isEncrypted ? "true" : "false"}
-			data-paper-tear="drop"
-			data-paper-restore-scope={`post-${entry.id}`}
 		>
 			<!-- word count and reading time -->
 			<div
@@ -314,21 +307,8 @@ const jsonLd = {
 				<LanguageSwitch />
 			</div>
 
-			<!-- title -->
-			<div class="relative onload-animation">
-				<div
-					data-pagefind-body
-					data-pagefind-weight="10"
-					data-pagefind-meta="title"
-					class="transition w-full block font-bold mb-3
-                    text-3xl md:text-[2.25rem]/[2.75rem]
-                    text-black/90 dark:text-white/90
-                    md:before:w-1 before:h-5 before:rounded-md before:bg-[var(--primary)]
-                    before:absolute before:top-[0.75rem] before:left-[-1.125rem]"
-				>
-					{entry.data.title}
-				</div>
-			</div>
+			<h1 data-pagefind-body data-pagefind-weight="10" data-pagefind-meta="title" class="mb-5">{entry.data.title}</h1>
+			<a class="text-sm" href="#twikoo-container">{siteConfig.lang.startsWith("en") ? "Jump to comments ↓" : "前往评论 ↓"}</a>
 
 			<!-- metadata -->
 			<div class="onload-animation">
@@ -437,8 +417,6 @@ const jsonLd = {
 		</div>
 	</div>
 
-	<!-- 评论 -->
-	<Comment post={entry} />
 
 	{
 		siteConfig.showLastModified && (
@@ -482,62 +460,7 @@ const jsonLd = {
 			</section>
 		)
 	}
+	<Comment post={entry} />
+
 	</MainGridLayout>
 )}
-
-<style>
-	.post-paper-note {
-		--paper-line-gap: 33px;
-		--paper-line-offset: 16px;
-		border-radius: 14px 18px 15px 17px;
-		box-shadow:
-			0 20px 46px rgba(91, 54, 76, 0.09),
-			0 4px 12px rgba(91, 54, 76, 0.06);
-		overflow: visible;
-	}
-
-	.post-paper-note::before {
-		width: clamp(5.5rem, 16%, 8rem);
-		height: 1.75rem;
-		top: -0.9rem;
-		background: linear-gradient(
-			135deg,
-			rgba(255, 232, 164, 0.62),
-			rgba(255, 248, 215, 0.46) 52%,
-			rgba(255, 232, 164, 0.62)
-		);
-		box-shadow:
-			0 0.18rem 0.5rem rgba(108, 75, 55, 0.08),
-			inset 0 0 0 1px rgba(255, 255, 255, 0.22);
-	}
-
-	.post-paper-note :global(.markdown-content blockquote) {
-		background: color-mix(in srgb, var(--paper-bg) 64%, white 18%);
-	}
-
-	.post-footer-suggestions {
-		align-items: stretch;
-	}
-
-	.post-footer-suggestions :global(.list-container) {
-		height: 100%;
-	}
-
-	.post-footer-suggestions :global(.post-list-note) {
-		transform: none;
-		margin-bottom: 0.75rem;
-		padding-top: 0.9rem;
-		box-shadow: inset 0 0 0 1px
-			color-mix(in oklch, var(--primary) 8%, transparent);
-	}
-
-	.post-footer-suggestions :global(.post-list-note:hover) {
-		transform: translateY(-1px);
-	}
-
-	@media (min-width: 1280px) {
-		.post-footer-suggestions :global(.post-list-note) {
-			min-height: 3.75rem;
-		}
-	}
-</style>

@@ -14,9 +14,6 @@ const posts = (await getSortedPosts()).filter(isDealsPost);
 ---
 
 <MainGridLayout title={title} description={description}>
-	<script>
-		import("../scripts/right-sidebar-layout.js");
-	</script>
 
 	<section
 		class="flex w-full rounded-[var(--radius-large)] overflow-visible relative min-h-32"

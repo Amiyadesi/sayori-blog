@@ -463,6 +463,18 @@ function toIsoDate(value?: Date | string) {
 <!-- 字体通过构建脚本压缩到 /assets/font/ 目录，此处不再预加载以避免 404 -->
 <!-- 字体在构建时通过 scripts/compress-fonts.js 处理并复制到 dist/ -->
 
+{process.env.SITE_VARIANT !== "sayori-diary" ? (
+	<script is:inline>
+		(() => {
+			let theme = "light";
+			try { theme = localStorage.getItem("theme") || "light"; }
+			catch (error) { console.warn("Theme preference unavailable", error); }
+			const dark = theme === "dark";
+			document.documentElement.classList.toggle("dark", dark);
+			document.documentElement.dataset.theme = dark ? "github-dark" : "github-light";
+		})();
+	</script>
+) : (<>
 <!-- Set the theme before the page is rendered to avoid a flash -->
 <script
 	is:inline
@@ -524,3 +536,5 @@ function toIsoDate(value?: Date | string) {
 		}
 	}
 </script>
+
+</>)}

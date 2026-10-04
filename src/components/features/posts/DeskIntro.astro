@@ -1,0 +1,23 @@
+---
+import { Image } from "astro:assets";
+import avatar from "../../../assets/images/avatar-sayori.png";
+import notebook from "../../../../public/assets/home/amiya-desk.webp";
+import { isEnglishSite } from "../../../utils/site-locale";
+import { url } from "../../../utils/url-utils";
+---
+<section class="desk-intro">
+	<Image src={avatar} widths={[80, 112, 160, 224]} sizes="(max-width: 600px) 80px, 112px" width={112} height={112} format="webp" alt="Amiya" class="desk-avatar" loading="eager" />
+	<div class="desk-intro-copy">
+		<p class="desk-eyebrow">NOTES & LITTLE THINGS</p>
+		<h1>{isEnglishSite ? "Amiya’s Desk" : "Amiya的书桌"}</h1>
+		<p>{isEnglishSite ? "Making games, tinkering with websites and tools." : "做游戏，也折腾网站和工具。"}</p>
+		<p>{isEnglishSite ? "Notes on building, learning, and figuring things out." : "把开发、学习和踩坑过程慢慢记下来。"}</p>
+	</div>
+	<div class="desk-note"><Image src={notebook} width={144} height={144} widths={[144, 256]} sizes="144px" format="webp" alt="" loading="lazy" /><span>one page at a time.</span></div>
+</section>
+<nav class="desk-quick-links" aria-label={isEnglishSite ? "Explore" : "从这里开始"}>
+	<a href={url("/essays/")}>{isEnglishSite ? "Short notes" : "随笔"} <span aria-hidden="true">↗</span></a>
+	<a href={url("/posts/resource-index/")}>{isEnglishSite ? "Resources" : "资源索引"} <span aria-hidden="true">↗</span></a>
+	<a href="https://amiya-desi.itch.io/" target="_blank" rel="noopener noreferrer">{isEnglishSite ? "My games" : "我的游戏"} <span aria-hidden="true">↗</span></a>
+	<a href={url("/about/")}>{isEnglishSite ? "About me" : "关于我"} <span aria-hidden="true">↗</span></a>
+</nav>

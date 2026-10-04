@@ -299,7 +299,7 @@
 					src={currentSprite}
 					width="132"
 					height="132"
-					fetchpriority="high"
+					fetchpriority="low"
 					alt=""
 					draggable="false"
 					on:error={handleImageError}

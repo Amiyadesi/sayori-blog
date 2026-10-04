@@ -222,7 +222,7 @@ const jsonLd = {
 	lang={entry.data.lang}
 	setOGTypeArticle={true}
 	postSlug={entry.id}
-	headings={headings}
+	headings={isEncrypted ? [] : headings}
 	coverImage={coverImage}
 	ogImageAlt={entry.data.title}
 	publishedTime={entry.data.published}
@@ -236,18 +236,12 @@ const jsonLd = {
 		type="application/ld+json"
 		set:html={JSON.stringify(jsonLd)}
 	/>
-	<script>
-		import("../scripts/right-sidebar-layout.js");
-	</script>
 	<div
-		class="flex w-full rounded-[var(--radius-large)] overflow-hidden relative mb-4"
+		class="post-article mb-4"
 	>
 		<div
 			id="post-container"
-			class:list={[
-				"card-base z-10 px-6 md:px-9 pt-6 pb-4 relative w-full ",
-				{},
-			]}
+			class="post-body"
 			data-post-id={entry.id}
 			data-content-kind={isDiary ? "diary" : "article"}
 			data-effective-read={!isDiary && !isEncrypted ? "true" : "false"}
@@ -289,21 +283,8 @@ const jsonLd = {
 				</div>
 			</div>
 
-			<!-- title -->
-			<div class="relative onload-animation">
-				<div
-					data-pagefind-body
-					data-pagefind-weight="10"
-					data-pagefind-meta="title"
-					class="transition w-full block font-bold mb-3
-                    text-3xl md:text-[2.25rem]/[2.75rem]
-                    text-black/90 dark:text-white/90
-                    md:before:w-1 before:h-5 before:rounded-md before:bg-[var(--primary)]
-                    before:absolute before:top-[0.75rem] before:left-[-1.125rem]"
-				>
-					{entry.data.title}
-				</div>
-			</div>
+			<h1 data-pagefind-body data-pagefind-weight="10" data-pagefind-meta="title" class="mb-5">{entry.data.title}</h1>
+			<a class="text-sm" href="#twikoo-container">{siteConfig.lang.startsWith("en") ? "Jump to comments ↓" : "前往评论 ↓"}</a>
 
 			<!-- metadata -->
 			<div class="onload-animation">
@@ -405,8 +386,6 @@ const jsonLd = {
 		</div>
 	</div>
 
-	<!-- 评论 -->
-	<Comment post={entry} />
 
 	{
 		siteConfig.showLastModified && (
@@ -422,4 +401,6 @@ const jsonLd = {
 		nextSlug={entry.data.prevSlug}
 		nextTitle={entry.data.prevTitle}
 	/>
+	<Comment post={entry} />
+
 </MainGridLayout>

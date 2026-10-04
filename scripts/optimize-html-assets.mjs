@@ -7,11 +7,10 @@ const distDir = path.join(blogRoot, "dist");
 
 const ALWAYS_BLOCKING_PATTERNS = [
 	"MainGridLayout.",
-	"banner.",
-	"mobile-post-list-fix.",
-	"transition.",
+	"Layout.",
+	"main.",
+	"reading-layout.",
 	"variables.",
-	"widget-responsive.",
 ];
 
 const ARTICLE_BLOCKING_PATTERNS = [
@@ -41,7 +40,16 @@ for (const htmlPath of findHtmlFiles(distDir)) {
 	const routePath = toRoutePath(htmlPath);
 	let pageDeferred = 0;
 
-	const html = original.replace(
+	// Astro collects CSS from dynamic Svelte imports into the page head too.
+	// Vite's dynamic-import preload helper already loads these styles when the
+	// reader opens the feature, so the desk must not also request them eagerly.
+	const withoutOptionalStyles = original.includes('class="desk-lite"')
+		? original.replace(
+			/<link\b[^>]*href="[^"]*\/(?:SayoriPet|MusicPlayer|SidebarTrackInfo|SayoriDiaryLayout|fancybox|katex)\.[^"]+\.css"[^>]*>/g,
+			"",
+		).replace(/<noscript>\s*<\/noscript>/g, "")
+		: original;
+	const html = withoutOptionalStyles.replace(
 		/<link rel="stylesheet" href="([^"]+\.css)">/g,
 		(match, href) => {
 			if (shouldKeepBlocking(routePath, href)) {

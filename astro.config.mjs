@@ -161,6 +161,7 @@ export default defineConfig({
 					/^\/\d+\/$/.test(pathname) ||
 					/^\/(?:rss|atom)\/$/.test(pathname) ||
 					pathname === "/404/" ||
+					pathname === "/settings/" ||
 					disabledFeaturePathPrefixes.some((prefix) =>
 						pathname.startsWith(prefix),
 					) ||

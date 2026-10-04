@@ -36,8 +36,8 @@ const commentEnabled = post ? (post.data.comment ?? true) : true;
 {
 	commentConfig?.enable && commentEnabled && path && (
 		<div
-			class="paper-note paper-note-lined paper-note-taped paper-tape p-6 mb-4"
-			style="padding-top: 1.75rem;"
+			id="comments"
+			class={process.env.SITE_VARIANT === "sayori-diary" ? "paper-note paper-note-lined paper-note-taped paper-tape p-6 mb-4" : "article-comments"}
 		>
 			{commentService === "twikoo" && <Twikoo path={path} reviewOnly={reviewOnly} />}
 			{commentService === "giscus" && <Giscus path={path} />}

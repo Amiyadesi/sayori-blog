@@ -4,6 +4,7 @@ import "@fontsource-variable/jetbrains-mono/wght-italic.css";
 
 import "@/styles/expressive-code.css";
 import "@/styles/fancybox-custom.css";
+
 import "@/styles/markdown.css";
 import "@/styles/markdown-extend.styl";
 
@@ -11,6 +12,7 @@ interface Props {
 	class: string;
 }
 const className = Astro.props.class;
+const isDeskBlog = process.env.SITE_VARIANT !== "sayori-diary";
 ---
 
 <div
@@ -345,7 +347,12 @@ const className = Astro.props.class;
 		}
 		updateMusicCardState(card, "loading");
 		const module = await import("@/stores/musicPlayerStore");
-		await module.musicPlayerStore.initialize();
+		if (document.body.classList.contains("desk-lite")) {
+			const { openMusicPlayer } = await import("../../scripts/music-entry");
+			await openMusicPlayer(false);
+		} else {
+			await module.musicPlayerStore.initialize();
+		}
 		module.musicPlayerStore.playTrack(
 			{
 				id: Date.now(),
@@ -495,10 +502,29 @@ const className = Astro.props.class;
 	});
 
 	bindMusicTrackState();
+	if (!document.body.classList.contains("desk-lite")) {
+		document.addEventListener("astro:page-load", syncMusicTrackCards);
+		document.addEventListener("swup:contentReplaced", syncMusicTrackCards);
+		void syncMusicTrackCards();
+	}
 	document.addEventListener("astro:page-load", localizeCopyButtons);
 	document.addEventListener("swup:contentReplaced", localizeCopyButtons);
-	document.addEventListener("astro:page-load", syncMusicTrackCards);
-	document.addEventListener("swup:contentReplaced", syncMusicTrackCards);
 	localizeCopyButtons();
-	void syncMusicTrackCards();
 </script>
+
+{isDeskBlog && <script>
+	import "../../styles/article-extras.css";
+	import "../../scripts/code-collapse.js";
+	import { initFancybox } from "../../scripts/handlers/fancybox-handler";
+	import { checkKatex, initCustomScrollbar } from "../../scripts/handlers/scroll-handler";
+	if (document.body.classList.contains("desk-lite")) {
+		void initFancybox();
+		checkKatex();
+		initCustomScrollbar();
+	}
+	document.addEventListener("content-decrypted", () => {
+		void initFancybox();
+		checkKatex();
+		initCustomScrollbar();
+	});
+</script>}

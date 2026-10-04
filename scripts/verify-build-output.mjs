@@ -567,72 +567,49 @@ function verifyAnalyticsScripts(html) {
 	}
 }
 
-function verifyHomepageCriticalMedia(html) {
+function verifyHomepageCriticalMedia(html, name = "index.html") {
 	const root = parse(html);
-	const fullscreenWallpaper = root.querySelector(
-		"[data-fullscreen-wallpaper]",
+	const forbidden = root.querySelectorAll(
+		"#banner-wrapper, [data-fullscreen-wallpaper], #sidebar, .right-sidebar-container"
 	);
-	if (!fullscreenWallpaper) {
-		fail("index.html missing fullscreen wallpaper container");
-	} else if (fullscreenWallpaper.querySelectorAll("img").length > 0) {
-		fail(
-			"index.html fullscreen wallpaper must not render images before fullscreen mode is selected",
-		);
-	} else {
-		pass(
-			"index.html fullscreen wallpaper defers images until fullscreen mode is selected",
-		);
-	}
-
-	const eagerBannerImages = root
-		.querySelectorAll("#banner-carousel img[loading='eager']")
-		.filter((image) =>
-			(image.getAttribute("src") || "").includes("-banner/"),
-		);
-	if (eagerBannerImages.length === 1) {
-		pass("index.html has one eager banner image for the active viewport");
-	} else {
-		fail(
-			`index.html expected one eager banner image, found ${eagerBannerImages.length}`,
-		);
-	}
-
-	const mobileBannerSource = root.querySelector(
-		'picture source[media="(max-width: 767px)"]',
-	);
-	if (
-		mobileBannerSource?.getAttribute("srcset") ===
-		"/assets/mobile-banner/1-640.webp 640w, /assets/mobile-banner/1-1080.webp 1080w"
-	) {
-		pass("index.html uses the responsive mobile LCP banner source set");
-	} else {
-		fail("index.html missing the responsive mobile LCP banner source set");
-	}
-
-	const mobileBannerPreload = root.querySelector(
-		'link[rel="preload"][as="image"][media="(max-width: 767px)"]',
-	);
-	if (
-		mobileBannerPreload?.getAttribute("href") ===
-			"/assets/mobile-banner/1-1080.webp" &&
-		mobileBannerPreload.getAttribute("imagesrcset") ===
-			"/assets/mobile-banner/1-640.webp 640w, /assets/mobile-banner/1-1080.webp 1080w"
-	) {
-		pass("index.html preloads the responsive mobile LCP banner");
-	} else {
-		fail("index.html missing the responsive mobile LCP banner preload");
-	}
-
-	for (const assetPath of [
-		"assets/mobile-banner/1-640.webp",
-		"assets/mobile-banner/1-1080.webp",
-	]) {
-		const fullPath = path.join(distDir, assetPath);
-		if (fs.existsSync(fullPath) && fs.statSync(fullPath).size > 0) {
-			pass(`dist/${assetPath} exists for the mobile LCP banner`);
-		} else {
-			fail(`Missing dist/${assetPath} for the mobile LCP banner`);
+	if (forbidden.length) fail(name + " includes retired layout surfaces");
+	else pass(name + " has no banner, wallpaper, or sidebars");
+	const media = root.querySelectorAll("img, link[rel='preload'], link[rel='stylesheet'], script[src]");
+	for (const node of media) {
+		const source = (node.getAttribute("src") || "") + (node.getAttribute("href") || "");
+		if (/-banner\/|\/assets\/pet\/|twikoo|loli|iconify|SayoriPet\.|MusicPlayer\.|SidebarTrackInfo\./i.test(source)) {
+			fail(name + " loads a nonessential default resource: " + source);
 		}
+	}
+	const islands = root.querySelectorAll("astro-island");
+	if (islands.length === 1 && islands[0].getAttribute("component-url")?.includes("Search.")) {
+		pass(name + " hydrates only search");
+	} else fail(name + " must hydrate only the search island");
+	if (root.querySelectorAll("footer.desk-footer").length === 1) pass(name + " renders one footer");
+	else fail(name + " must render exactly one footer");
+	const avatar = root.querySelector(".desk-avatar");
+	if (avatar?.getAttribute("width") && avatar?.getAttribute("height") && avatar?.getAttribute("srcset")?.includes(".webp")) {
+		pass(name + " has a sized responsive WebP avatar");
+	} else fail(name + " missing responsive avatar dimensions");
+	if (root.querySelector(".desk-note img")) pass(name + " keeps the notebook illustration");
+	else fail(name + " missing notebook illustration");
+}
+
+function verifyDeskLocales() {
+	for (const prefix of ["", "zh-hant/", "en/"]) {
+		const homeName = prefix + "index.html";
+		const home = readDistFile(homeName);
+		verifyHomepageCriticalMedia(home, homeName);
+		requireNoJsonLdType(homeName, getJsonLdNodes(home, homeName), "FAQPage");
+		requireAnyHref(homeName, home, "/" + prefix + "settings/");
+		const settingsName = prefix + "settings/index.html";
+		const settings = parse(readDistFile(settingsName));
+		if (!settings.querySelector('meta[name="robots"]')?.getAttribute("content")?.includes("noindex") ||
+			settings.querySelector("html")?.getAttribute("data-pagefind-ignore") !== "all") {
+			fail(settingsName + " must be noindex and excluded from Pagefind");
+		} else pass(settingsName + " is excluded from indexing");
+		const sitemap = readDistFile(prefix + "sitemap-0.xml");
+		requireExcludes(prefix + "sitemap-0.xml", sitemap, ["/settings/"]);
 	}
 }
 
@@ -1391,8 +1368,8 @@ requireIncludes("index.html", indexHtml, [
 	'property="og:title"',
 	'name="twitter:card"',
 	"application/ld+json",
-	'id="random-post-jump-button"',
-	"专题入口",
+	"最新文章",
+	"/settings/",
 	"/topics/webmaster/",
 	"/sponsor/",
 ]);
@@ -1402,13 +1379,12 @@ requireJsonLdTypes("index.html", indexJsonLdNodes, [
 	"Person",
 	"Blog",
 	"Organization",
-	"FAQPage",
 	"ItemList",
 ]);
 requireNoJsonLdType("index.html", indexJsonLdNodes, "Service");
-verifyVisibleFaqMatchesJsonLd("index.html", indexHtml, indexJsonLdNodes);
+requireNoJsonLdType("index.html", indexJsonLdNodes, "FAQPage");
 verifyAnalyticsScripts(indexHtml);
-verifyHomepageCriticalMedia(indexHtml);
+verifyDeskLocales();
 verifyCssDelivery(indexHtml);
 verifyLocalFontReferences();
 verifyBlogMediaOutput();
