@@ -181,7 +181,13 @@ export function initPostEngagement(): void {
 				if (!response.ok) {return;}
 				const session = await response.json();
 				if (requestId === adminEntryRequest && session?.success === true && typeof session.user?.login === "string" && promoteTemplate) {
-					promoteTemplate.after(promoteTemplate.content.cloneNode(true));
+					const link = document.createElement("a");
+					link.href = "/admin/growth/";
+					link.target = "_blank";
+					link.rel = "noreferrer";
+					link.dataset.promotePost = "";
+					link.append(promoteTemplate.content.cloneNode(true));
+					promoteTemplate.after(link);
 				}
 			} catch (error) {
 				console.warn("[post-engagement] Admin session check failed", error);

@@ -1074,6 +1074,12 @@ function verifyArticleLandmarks() {
 		const relativePath = path.join(prefix, trimUrlPath(post.url), "index.html");
 		const html = readDistFile(relativePath);
 		const root = parse(html);
+		if (root.querySelector("a[data-promote-post]")) {
+			fail(`dist/${relativePath} emits a management link before authentication`);
+		} else {
+			pass(`dist/${relativePath} creates the management link only after authentication`);
+		}
+		requireExcludes(relativePath, html, ["n8n.sayori.org"]);
 		if (root.querySelector(".banner-title")) {
 			fail(`dist/${relativePath} renders the homepage banner H1`);
 		} else {

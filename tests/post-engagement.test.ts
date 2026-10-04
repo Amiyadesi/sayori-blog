@@ -17,8 +17,9 @@ describe("post engagement sharing", () => {
 		assert.match(source, /data-copy-share/);
 		assert.match(source, /data-native-share hidden/);
 		assert.match(source, /postGeneratePoster/);
-		assert.match(source, /<template data-promote-template>[\s\S]*data-promote-post[\s\S]*<\/template>/);
-		assert.match(source, /href="\/admin\/growth\/"/);
+		assert.match(source, /<template data-promote-template>[\s\S]*post-promote-link[\s\S]*<\/template>/);
+		assert.doesNotMatch(source, /data-promote-post/);
+		assert.match(script, /link.href = "\/admin\/growth\/"/);
 		assert.doesNotMatch(source, /PUBLIC_N8N_URL|n8n\.sayori\.org/);
 		assert.doesNotMatch(source, /service\.weibo\.com|twitter\.com\/intent|t\.me\/share|facebook\.com\/sharer/);
 		assert.doesNotMatch(source, /data-share-count/);
