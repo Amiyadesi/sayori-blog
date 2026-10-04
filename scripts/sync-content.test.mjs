@@ -53,6 +53,16 @@ try {
 		"",
 		"Another English paragraph ^Block_ID",
 	].join("\n"));
+	write(path.join(fixtureArticles, "posts", "from-90-to-66.7", "from-90-to-66.7.md"), [
+		"---",
+		"title: Decimal filename",
+		"---",
+		"",
+		"Referenced paragraph ^decimal",
+		"",
+		"![[decimal.png]]",
+	].join("\n"));
+	write(path.join(fixtureArticles, "posts", "from-90-to-66.7", "decimal.png"), "decimal image");
 	write(path.join(fixtureArticles, "posts", "current-public-plan", "current-public-plan.md"), [
 		"---",
 		"title: 最近的公开计划书",
@@ -91,6 +101,7 @@ try {
 		"See [[#^answer1|block answer]].",
 		"See [[hello#^af4158|paragraph reference]].",
 		"See ![[hello#^Block_ID|embedded paragraph reference]].",
+		"See [[from-90-to-66.7#^decimal|decimal reference]].",
 		"Keep inline `[[keep inline link]] ==keep inline highlight== %% keep inline comment %%`.",
 		"==highlight me==",
 		"%% hide me %%",
@@ -614,11 +625,14 @@ try {
 		const references = read(path.join(fixtureBlog, "src", "content", "posts", "diary", "2026-06-07", "index.md"));
 		assert.ok(references.includes(`[paragraph reference](${base}posts/hello/#af4158)`));
 		assert.ok(references.includes(`[embedded paragraph reference](${base}posts/hello/#Block_ID)`));
+		assert.ok(references.includes(`[decimal reference](${base}posts/from-90-to-667/#decimal)`));
 		assert.ok(references.includes("[block answer](#answer1)"));
 		const target = read(path.join(fixtureBlog, "src", "content", "posts", "hello", "index.md"));
 		assert.ok(target.includes(`${paragraph}<span id="af4158"></span>`));
 		assert.ok(target.includes('<span id="Block_ID"></span>'));
 		assert.doesNotMatch(target, /\^af4158|\^Block_ID/);
+		const decimalTarget = read(path.join(fixtureBlog, "src", "content", "posts", "from-90-to-66.7", "index.md"));
+		assert.ok(decimalTarget.includes("(/images/posts/from-90-to-66-7/decimal.png)"));
 	}
 } finally {
 	fs.rmSync(tmpRoot, { recursive: true, force: true });

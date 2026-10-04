@@ -2376,7 +2376,9 @@ function toPostSlug(relativePath) {
 		}
 	}
 
-	return segments.map(slugify).join("/");
+	// Astro removes periods and apostrophes from content IDs. Media paths keep
+	// their existing slugify rule so published CDN keys remain unchanged.
+	return segments.map((segment) => slugify(segment.replace(/[.\u0027\u2019]/g, ""))).join("/");
 }
 
 function slugify(value) {
