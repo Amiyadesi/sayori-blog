@@ -32,6 +32,7 @@ import { remarkContent } from "./src/plugins/remark-content.mjs";
 import { parseDirectiveNode } from "./src/plugins/remark-directive-rehype.js";
 import { remarkFixGithubAdmonitions } from "./src/plugins/remark-fix-github-admonitions.js";
 import { remarkMermaid } from "./src/plugins/remark-mermaid.js";
+import { remarkObsidianBreaks } from "./src/plugins/remark-obsidian-breaks.mjs";
 
 const featurePagePaths = {
 	albums: ["/albums/"],
@@ -204,6 +205,7 @@ export default defineConfig({
 			remarkSectionize,
 			parseDirectiveNode,
 			remarkMermaid,
+			...(process.env.SITE_VARIANT === "sayori-diary" ? [] : [remarkObsidianBreaks]),
 		],
 		rehypePlugins: [
 			rehypeKatex,

@@ -17,7 +17,7 @@ import { initPostIdMap } from "@/utils/permalink-utils";
 import { getPostPublicDescription } from "@/utils/post-card-content";
 import { getPostUrl } from "@/utils/url-utils";
 
-const markdownParser = new MarkdownIt();
+const markdownParser = new MarkdownIt({ breaks: process.env.SITE_VARIANT !== "sayori-diary" });
 
 // get dynamic import of images as a map collection
 const imagesGlob = import.meta.glob<{ default: ImageMetadata }>(
