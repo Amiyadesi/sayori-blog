@@ -11,7 +11,7 @@
 .desk-lite .custom-md :where(h3) { font-size: 1.15em; }
 .desk-lite .custom-md :where(h4, h5, h6) { font-size: 1em; }
 .desk-lite .custom-md > :where(h1, h2, h3, h4, h5, h6):first-child { margin-top: 0; }
-.desk-lite .custom-md :where(p) { margin: 1em 0; }
+.desk-lite .custom-md :where(p) { margin: .6em 0; }
 .desk-lite .custom-md :where(ul, ol) { margin: 1.25em 0; padding-inline-start: 1.55em; }
 .desk-lite .custom-md :where(li) { margin: .35em 0; }
 .desk-lite .custom-md :where(li > p, li > ul, li > ol) { margin: .5em 0; }
