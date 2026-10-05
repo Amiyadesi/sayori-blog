@@ -2248,6 +2248,7 @@ function normalizeAssetList(value, publicFolder, sourcePrefix = "") {
 }
 
 function toPublicAssetPath(publicFolder, value) {
+	if (/^(?:https?:)?\/\//i.test(value)) return value;
 	const normalized = value.replaceAll("\\", "/").replace(/^\/+/, "");
 	if (normalized.startsWith("assets/")) {
 		return `/${normalized}`;

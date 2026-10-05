@@ -312,6 +312,7 @@ const emptyMessage = i18n(I18nKey.animeEmpty);
 			} else {
 				tryInit();
 			}
+			document.addEventListener("astro:page-load", tryInit);
 
 			window.addEventListener("layoutChange", (event) => {
 				updateAnimeListLayout(event.detail.layout);
@@ -534,6 +535,8 @@ const emptyMessage = i18n(I18nKey.animeEmpty);
 		}
 
 		document.addEventListener("DOMContentLoaded", initFilterButtons);
+		document.addEventListener("astro:page-load", initFilterButtons);
+		if (document.readyState !== "loading") initFilterButtons();
 		function setupSwupListeners() {
 			if (window.swup) {
 				window.swup.hooks.on("content:replace", () =>

@@ -514,7 +514,7 @@ const jsonLd = {
 		bindSupportForm();
 		refreshSupporters();
 	});
-	document.addEventListener("mizuki:page:loaded", () => {
+	document.addEventListener("astro:page-load", () => {
 		dismissBlockingAnnouncement();
 		bindSupportForm();
 		refreshSupporters();

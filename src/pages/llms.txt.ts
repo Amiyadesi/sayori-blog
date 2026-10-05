@@ -1,7 +1,6 @@
 import type { APIRoute } from "astro";
 
 import { profileConfig, siteConfig } from "../config";
-import { getTopicUrl, topics } from "../data/topics";
 import {
 	getSortedPosts,
 	isOrdinaryPublicPost,
@@ -16,36 +15,6 @@ export const GET: APIRoute = async () => {
 			? isSayoriDiaryPost(post)
 			: isOrdinaryPublicPost(post),
 	);
-	const normalizePostId = (value: string) =>
-		value.replace(/\.(md|mdx|markdown)$/i, "").replace(/\/index$/i, "");
-	const postById = new Map(
-		posts.flatMap((post) => [
-			[post.id, post],
-			[normalizePostId(post.id), post],
-		]),
-	);
-	const findPublicPost = (id: string, slug: string) =>
-		postById.get(id) ??
-		postById.get(normalizePostId(id)) ??
-		postById.get(slug) ??
-		postById.get(normalizePostId(slug));
-	const topicLines = topics.flatMap((topic) => {
-		const topicUrl = new URL(getTopicUrl(topic), siteConfig.siteURL).href;
-		const lines = [
-			`- [${topic.title}](${topicUrl}) - ${topic.description}`,
-		];
-
-		for (const reference of topic.includedPosts) {
-			const post = findPublicPost(reference.id, reference.slug);
-			if (!post) {
-				continue;
-			}
-			lines.push(
-				`  - [${post.data.title}](${new URL(getPostUrl(post), siteConfig.siteURL).href}) - ${reference.why}`,
-			);
-		}
-		return lines;
-	});
 	const lines = [
 		`# ${siteConfig.title}`,
 		"",
@@ -79,10 +48,6 @@ export const GET: APIRoute = async () => {
 		"- Focus: indie games with Godot, websites, tools, self-hosting, and AI workflows",
 		"- Current goal: complete and publish a first Steam game",
 		"- Representative work: DelayTrace, TimeRewindLinker, WakeUpAtTheBorder, Mio’s Window Wanderer, GeoScore, and Enhanced Save System",
-		"",
-		"## Topics",
-		"",
-		...topicLines,
 		"",
 		"## Recent Posts",
 		"",

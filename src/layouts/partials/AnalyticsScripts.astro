@@ -293,7 +293,7 @@ const umamiDomains = umamiConfig?.domains || "";
 		} else {
 			pageview();
 		}
-		document.addEventListener("swup:pageView", function () {
+		document.addEventListener("astro:page-load", function () {
 			window.setTimeout(pageview, 0);
 		});
 		document.addEventListener("visibilitychange", heartbeat);

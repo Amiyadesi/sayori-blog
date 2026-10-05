@@ -1,18 +1,23 @@
 ---
 import { isEnglishSite } from "../../../utils/site-locale";
 ---
+<div id="desk-features" transition:persist="desk-features" data-pagefind-ignore>
 <div id="desk-pet-host" data-pagefind-ignore></div>
 <div id="desk-music-host" data-pagefind-ignore></div>
 <button data-pagefind-ignore id="desk-music-entry" class="desk-music-entry" type="button" hidden>{isEnglishSite ? "♫ Music" : "♫ 音乐"}</button>
 <p id="desk-feature-status" class="desk-feature-status" role="status" hidden></p>
+</div>
 <script>
 	import type { Component } from "svelte";
 	import { openMusicPlayer, closeMusicPlayer } from "../../../scripts/music-entry";
+	function setupOptionalFeatures() {
+	const host = document.querySelector<HTMLElement>("#desk-features")!;
+	if (host.dataset.bound) return;
+	host.dataset.bound = "true";
 	const petKey = "sayori-desk-pet-enabled";
 	const musicKey = "sayori-desk-music-enabled";
 	const entry = document.querySelector<HTMLButtonElement>("#desk-music-entry")!;
 	const status = document.querySelector<HTMLElement>("#desk-feature-status")!;
-	const english = document.documentElement.lang === "en";
 	let petEnabled = false;
 	let musicEnabled = false;
 	let pet: ReturnType<typeof import("svelte").mount> | undefined;
@@ -20,7 +25,7 @@ import { isEnglishSite } from "../../../utils/site-locale";
 	function report(error: unknown) {
 		console.error("Optional feature failed", error);
 		status.hidden = false;
-		status.textContent = english ? "Could not load. Try again from Settings." : "加载失败，可在设置页重新开启。";
+		status.textContent = document.documentElement.lang === "en" ? "Could not load. Try again from Settings." : document.documentElement.lang === "zh-Hant" ? "載入失敗，可在設定頁重新開啟。" : "加载失败，可在设置页重新开启。";
 	}
 	function read(key: string) {
 		try { return localStorage.getItem(key) === "true"; }
@@ -37,7 +42,11 @@ import { isEnglishSite } from "../../../utils/site-locale";
 		if (pet || petLoading) return;
 		petLoading = true;
 		try {
+			const styles = new Set(document.head.querySelectorAll("link[rel=stylesheet], style"));
 			const [{ mount }, { default: Pet }] = await Promise.all([import("svelte"), import("../sayori-pet/SayoriPet.svelte")]);
+			for (const style of document.head.querySelectorAll("link[rel=stylesheet], style")) {
+				if (!styles.has(style)) host.append(style);
+			}
 			if (petEnabled && !pet) pet = mount(Pet as unknown as Component, { target: document.querySelector("#desk-pet-host")! });
 		} catch (error) { report(error); }
 		finally { petLoading = false; }
@@ -48,6 +57,7 @@ import { isEnglishSite } from "../../../utils/site-locale";
 		if (petInput) petInput.checked = petEnabled;
 		if (musicInput) musicInput.checked = musicEnabled;
 		entry.hidden = !musicEnabled;
+		entry.textContent = document.documentElement.lang === "en" ? "♫ Music" : document.documentElement.lang === "zh-Hant" ? "♫ 音樂" : "♫ 音乐";
 	}
 	function restore() {
 		petEnabled = read(petKey); musicEnabled = read(musicKey);
@@ -55,18 +65,18 @@ import { isEnglishSite } from "../../../utils/site-locale";
 		void updatePet();
 		if (!musicEnabled) void closeMusicPlayer();
 	}
-	document.querySelector<HTMLInputElement>("[data-pet-preference]")?.addEventListener("change", event => {
-		petEnabled = (event.target as HTMLInputElement).checked;
+	document.addEventListener("change", event => {
+		const input = event.target;
+		if (!(input instanceof HTMLInputElement)) return;
+		const isPet = input.matches("[data-pet-preference]");
+		if (!isPet && !input.matches("[data-music-preference]")) return;
 		status.hidden = true;
-		try { localStorage.setItem(petKey, String(petEnabled)); } catch (error) { report(error); }
-		void updatePet();
-	});
-	document.querySelector<HTMLInputElement>("[data-music-preference]")?.addEventListener("change", event => {
-		musicEnabled = (event.target as HTMLInputElement).checked;
-		status.hidden = true;
-		try { localStorage.setItem(musicKey, String(musicEnabled)); } catch (error) { report(error); }
+		if (isPet) petEnabled = input.checked;
+		else musicEnabled = input.checked;
+		try { localStorage.setItem(isPet ? petKey : musicKey, String(input.checked)); } catch (error) { report(error); }
 		syncInputs();
-		if (!musicEnabled) void closeMusicPlayer();
+		if (isPet) void updatePet();
+		else if (!musicEnabled) closeMusicPlayer();
 	});
 	entry.addEventListener("click", async () => {
 		entry.disabled = true; status.hidden = true;
@@ -80,4 +90,7 @@ import { isEnglishSite } from "../../../utils/site-locale";
 	window.addEventListener("pageshow", event => { if (event.persisted) restore(); });
 	window.addEventListener("storage", event => { if (event.key === petKey || event.key === musicKey) restore(); });
 	window.addEventListener("pagehide", () => void closeMusicPlayer());
+	document.addEventListener("astro:page-load", syncInputs);
+	}
+	setupOptionalFeatures();
 </script>

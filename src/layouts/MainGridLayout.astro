@@ -38,7 +38,9 @@ const firstDepth = Math.min(...toc.map(heading => heading.depth));
 	</div>
 	<Footer />
 </Layout>
-<script>
-	const toc = document.querySelector<HTMLDetailsElement>("#reading-toc");
+<script is:inline data-astro-rerun>
+	(() => {
+	const toc = document.querySelector("#reading-toc");
 	if (toc && matchMedia("(min-width: 1280px)").matches) toc.open = true;
+	})();
 </script>

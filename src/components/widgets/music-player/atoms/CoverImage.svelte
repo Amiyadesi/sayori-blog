@@ -23,7 +23,7 @@
 	}: Props = $props();
 
 	function getAssetPath(path: string): string {
-		if (path.startsWith("http://") || path.startsWith("https://")) {
+		if (/^(?:https?:)?\/\//i.test(path)) {
 			return path;
 		}
 		if (path.startsWith("/")) {
@@ -96,6 +96,7 @@
 			src={getAssetPath(cover)}
 			alt={i18n(Key.musicPlayerCover)}
 			loading="eager"
+			referrerpolicy="no-referrer"
 			fetchpriority="high"
 			class="w-full h-full object-cover transition-transform duration-300"
 			class:spinning={isPlaying && !isLoading}
@@ -125,6 +126,7 @@
 			src={getAssetPath(cover)}
 			alt={i18n(Key.musicPlayerCover)}
 			loading="eager"
+			referrerpolicy="no-referrer"
 			fetchpriority="high"
 			class="w-full h-full object-cover transition-transform duration-300"
 			class:spinning={isPlaying && !isLoading}

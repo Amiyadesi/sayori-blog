@@ -257,6 +257,8 @@ try {
 				youtube: "abc123",
 				netease: "123456",
 			},
+			{ id: 2, title: "Remote cover", cover: "https://p1.music.126.net/album.jpg", url: "https://media.example/song.mp3" },
+			{ id: 3, title: "CDN cover", cover: "//cdn.example/album.jpg", lyrics: "https://media.example/song.json" },
 		],
 	}, null, 2));
 	write(path.join(fixtureArticles, "friends", "example-friend.md"), [
@@ -484,6 +486,10 @@ try {
 	assert.match(generated, /"爱发电用户_04571"/);
 	assert.match(generated, /"abc123"/);
 	assert.match(generated, /"123456"/);
+	assert.ok(generated.includes('"cover": "https://p1.music.126.net/album.jpg"'));
+	assert.ok(generated.includes('"cover": "//cdn.example/album.jpg"'));
+	assert.ok(generated.includes('"url": "https://media.example/song.mp3"'));
+	assert.ok(generated.includes('"lyrics": "https://media.example/song.json"'));
 
 	const generatedFriends = read(path.join(fixtureBlog, "src", "generated", "friends.ts"));
 	assert.match(generatedFriends, /Example Friend/);

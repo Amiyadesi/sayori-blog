@@ -118,10 +118,10 @@ export function startEffectiveReadTracking(): () => void {
 		}, 0);
 	};
 
-	document.addEventListener("swup:pageView", restart);
+	document.addEventListener("astro:page-load", restart);
 	const cleanup = () => {
 		stopPageSession();
-		document.removeEventListener("swup:pageView", restart);
+		document.removeEventListener("astro:page-load", restart);
 		if (trackingWindow.__sayoriEffectiveReadCleanup === cleanup) {
 			delete trackingWindow.__sayoriEffectiveReadCleanup;
 		}

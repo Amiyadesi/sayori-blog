@@ -183,6 +183,7 @@ const inferredUpdateCount =
 {!isHome && id && (
 	<script
 		is:inline
+		data-astro-rerun
 		define:vars={{
 			pageViewsText: i18n(I18nKey.profileStatsPageViews),
 			visitsText: i18n(I18nKey.profileStatsVisits),
@@ -228,23 +229,24 @@ const inferredUpdateCount =
 			}
 
 			if (document.readyState === "loading") {
-				document.addEventListener("DOMContentLoaded", fetchPageViews);
+				document.addEventListener("DOMContentLoaded", fetchPageViews, { once: true });
 			} else {
 				fetchPageViews();
 			}
-			document.addEventListener("mizuki:page:loaded", fetchPageViews);
 		})();
 	</script>
 )}
 
 {commentPath && (
-<script is:inline define:vars={{
+<script is:inline data-astro-rerun define:vars={{
     commentsText: i18n(I18nKey.comments),
     commentsUnavailableText: i18n(I18nKey.postCommentsUnavailable)
 }}>
     (function () {
+        const lifecycle = new AbortController();
+        document.addEventListener("astro:before-swap", () => lifecycle.abort(), { once: true, signal: lifecycle.signal });
+        const containers = document.querySelectorAll(".post-comment-count[data-comment-path]");
         async function fetchCommentCount() {
-            const containers = document.querySelectorAll(".post-comment-count[data-comment-path]");
             if (!containers.length) return;
             try {
                 const twikooRuntime = window.twikoo;
@@ -259,6 +261,7 @@ const inferredUpdateCount =
                         urls: [path],
                         includeReply: false,
                     });
+                    if (lifecycle.signal.aborted) return;
                     const count = Array.isArray(result)
                         ? Number(result[0]?.count || 0)
                         : Number(result?.[path] || result?.count || 0);
@@ -266,8 +269,9 @@ const inferredUpdateCount =
                     container.querySelector(".post-comment-count-display").textContent = `${commentsText} ${count}`;
                 }
             } catch (error) {
+                if (lifecycle.signal.aborted) return;
                 console.warn("[PostMeta] comment count unavailable", error);
-                for (const container of document.querySelectorAll(".post-comment-count[data-comment-path]")) {
+                for (const container of containers) {
                     container.classList.add("hidden");
                     const label = container.querySelector(".post-comment-count-display");
                     if (label) label.textContent = commentsUnavailableText;
@@ -276,13 +280,13 @@ const inferredUpdateCount =
         }
 
         // The metadata must not download the entire comment client before it is needed.
-        document.addEventListener("sayori:comments-ready", fetchCommentCount, { once: true });
+        document.addEventListener("sayori:comments-ready", fetchCommentCount, { once: true, signal: lifecycle.signal });
     })();
 </script>
 )}
 
 {likePath && (
-<script is:inline define:vars={{
+<script is:inline data-astro-rerun define:vars={{
     likesText: i18n(I18nKey.postLikes),
     likesUnavailableText: i18n(I18nKey.postStatsUnavailable)
 }}>
@@ -298,6 +302,7 @@ const inferredUpdateCount =
                     });
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     const data = await response.json();
+                    if (!container.isConnected) return;
                     container.classList.remove("hidden");
                     container.querySelector(".post-like-count-display").textContent = `${likesText} ${Number(data.likes || 0)}`;
                     document.dispatchEvent(new CustomEvent("post-interactions:loaded", { detail: data }));
@@ -311,11 +316,10 @@ const inferredUpdateCount =
         }
 
         if (document.readyState === "loading") {
-            document.addEventListener("DOMContentLoaded", fetchLikeCount);
+            document.addEventListener("DOMContentLoaded", fetchLikeCount, { once: true });
         } else {
             fetchLikeCount();
         }
-        document.addEventListener("mizuki:page:loaded", fetchLikeCount);
     })();
 </script>
 )}

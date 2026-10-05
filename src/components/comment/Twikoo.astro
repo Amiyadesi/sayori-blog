@@ -35,12 +35,27 @@ const ownerAvatar = "/assets/profile/avatar-sayori-192.jpg";
 
 <script
 	is:inline
+	data-astro-rerun
 	define:vars={{ config, ownerNick, ownerAvatar, reviewOnly, isEnglishSite }}
 >
 	(function () {
 		const TWIKOO_CONTAINER_ID = "twikoo-container";
 		const pageContainer = document.getElementById(TWIKOO_CONTAINER_ID);
 		if (!pageContainer) throw new Error("Twikoo container is missing.");
+		window.__sayoriTwikooCleanup?.();
+		const lifecycle = new AbortController();
+		const observers = [];
+		const isCurrentPage = () => !lifecycle.signal.aborted && document.getElementById(TWIKOO_CONTAINER_ID) === pageContainer;
+		window.__sayoriTwikooCleanup = () => {
+			if (lifecycle.signal.aborted) return;
+			lifecycle.abort();
+			clearRetryTimer();
+			window.clearTimeout(delayTimer);
+			if (idleId && window.cancelIdleCallback) window.cancelIdleCallback(idleId);
+			for (const observer of observers) observer.disconnect();
+			pageContainer.querySelector("#twikoo, .twikoo")?.__vue__?.$destroy();
+		};
+		document.addEventListener("astro:before-swap", window.__sayoriTwikooCleanup, { once: true, signal: lifecycle.signal });
 		const TWIKOO_SCRIPT_URL = "/assets/js/twikoo.all.min.js";
 		const TWIKOO_SCRIPT_TIMEOUT_MS = 8000;
 		const TWIKOO_INIT_RETRY_DELAYS = [600, 1800, 4000];
@@ -79,7 +94,6 @@ const ownerAvatar = "/assets/profile/avatar-sayori-192.jpg";
 			wink: "😉",
 		};
 
-		let scriptPromise = null;
 		let isInitializing = false;
 		let initializedPath = "";
 		let initRetryCount = 0;
@@ -183,6 +197,7 @@ const ownerAvatar = "/assets/profile/avatar-sayori-192.jpg";
 			ownerIdentity.checked = true;
 			try {
 				const response = await fetch("/api/admin/me", {
+					signal: lifecycle.signal,
 					credentials: "same-origin",
 					headers: { accept: "application/json" },
 				});
@@ -352,6 +367,7 @@ const ownerAvatar = "/assets/profile/avatar-sayori-192.jpg";
 				applyStoredProfile(root);
 			});
 			observer.observe(root, { childList: true, subtree: true });
+			observers.push(observer);
 		}
 
 		function getCommentContainer() {
@@ -372,8 +388,12 @@ const ownerAvatar = "/assets/profile/avatar-sayori-192.jpg";
 		}
 
 		function loadTwikooScript() {
-			if (scriptPromise) return scriptPromise;
-			scriptPromise = new Promise((resolve, reject) => {
+			if (window.twikoo?.init) return Promise.resolve(window.twikoo);
+			if (window.__sayoriTwikooScript) return window.__sayoriTwikooScript;
+			window.__sayoriTwikooScript = new Promise((resolve, reject) => {
+				const host = document.getElementById("twikoo-runtime-host");
+				if (!host) throw new Error("Missing Twikoo runtime host.");
+				const existingStyles = new Set(document.head.querySelectorAll("style"));
 				const script = document.createElement("script");
 				script.id = "twikoo-script-loaded";
 				script.src = TWIKOO_SCRIPT_URL;
@@ -393,15 +413,18 @@ const ownerAvatar = "/assets/profile/avatar-sayori-192.jpg";
 						return;
 					}
 					window.clearTimeout(timeout);
+					for (const style of document.head.querySelectorAll("style")) {
+						if (!existingStyles.has(style)) host.appendChild(style);
+					}
 					resolve(window.twikoo);
 				};
 				script.onerror = () => fail("Twikoo script failed to load.");
-				document.head.appendChild(script);
+				host.appendChild(script);
 			}).catch((error) => {
-				scriptPromise = null;
+				window.__sayoriTwikooScript = null;
 				throw error;
 			});
-			return scriptPromise;
+			return window.__sayoriTwikooScript;
 		}
 
 		function clearRetryTimer() {
@@ -878,6 +901,7 @@ const ownerAvatar = "/assets/profile/avatar-sayori-192.jpg";
 				enhanceGithubMarkdown(root);
 			});
 			observer.observe(root, { childList: true, subtree: true });
+			observers.push(observer);
 		}
 
 		function setupReviewOnlyMode(root) {
@@ -917,6 +941,7 @@ const ownerAvatar = "/assets/profile/avatar-sayori-192.jpg";
 			root.dataset.reviewOnlyObserverBound = "true";
 			const observer = new MutationObserver(applyReviewOnlyMode);
 			observer.observe(root, { childList: true, subtree: true });
+			observers.push(observer);
 		}
 
 		function applyTwikooEnhancements(root) {
@@ -938,7 +963,7 @@ const ownerAvatar = "/assets/profile/avatar-sayori-192.jpg";
 
 		async function initTwikoo() {
 			const container = getCommentContainer();
-			if (!container) {
+			if (!isCurrentPage()) {
 				return;
 			}
 
@@ -960,6 +985,7 @@ const ownerAvatar = "/assets/profile/avatar-sayori-192.jpg";
 			try {
 				renderLoadingMessage(commentEl);
 				const twikooRuntime = await loadTwikooScript();
+				if (!isCurrentPage()) return;
 
 				if (!twikooRuntime?.init) {
 					throw new Error("Twikoo runtime is unavailable.");
@@ -967,16 +993,22 @@ const ownerAvatar = "/assets/profile/avatar-sayori-192.jpg";
 
 				commentEl.innerHTML = "";
 				await ensureOwnerIdentity();
+				if (!isCurrentPage()) return;
 				const dynamicConfig = createTwikooConfig();
 				setupReviewOnlyMode(container);
 				setupCommentEnhancements(container);
 				await twikooRuntime.init(dynamicConfig);
+				if (!isCurrentPage()) {
+					container.querySelector("#twikoo, .twikoo")?.__vue__?.$destroy();
+					return;
+				}
 				initializedPath = path;
 				initRetryCount = 0;
 				clearRetryTimer();
 				applyTwikooEnhancements(container);
 				document.dispatchEvent(new Event("sayori:comments-ready"));
 			} catch (error) {
+				if (!isCurrentPage()) return;
 				console.error("[Twikoo] 初始化失败:", error);
 				initializedPath = "";
 				const willRetry =
@@ -995,9 +1027,11 @@ const ownerAvatar = "/assets/profile/avatar-sayori-192.jpg";
 		function startComments() {
 			if (delayTimer) window.clearTimeout(delayTimer);
 			if (idleId && window.cancelIdleCallback) window.cancelIdleCallback(idleId);
+			delayTimer = 0; idleId = 0;
 			void initTwikoo();
 		}
 		function scheduleComments() {
+			if (!isCurrentPage() || initializedPath || isInitializing || delayTimer || idleId) return;
 			if (window.location.hash === "#twikoo-container" || window.location.hash === "#comments") {
 				startComments();
 				return;
@@ -1012,18 +1046,20 @@ const ownerAvatar = "/assets/profile/avatar-sayori-192.jpg";
 			const target = new URL(link.href, window.location.href);
 			if (target.pathname === window.location.pathname &&
 				(target.hash === "#twikoo-container" || target.hash === "#comments")) startComments();
-		});
+		}, { signal: lifecycle.signal });
 		window.addEventListener("hashchange", () => {
 			if (["#twikoo-container", "#comments"].includes(window.location.hash)) startComments();
-		});
+		}, { signal: lifecycle.signal });
 		if (!document.body.classList.contains("desk-lite")) {
 			const observer = new IntersectionObserver(entries => {
 				if (entries.some(entry => entry.isIntersecting)) { observer.disconnect(); startComments(); }
 			}, { rootMargin: "320px 0px" });
 			observer.observe(pageContainer);
+			observers.push(observer);
 		} else if (["#twikoo-container", "#comments"].includes(window.location.hash)) startComments();
 		else if (document.readyState === "complete") scheduleComments();
-		else window.addEventListener("load", scheduleComments, { once: true });
+		else window.addEventListener("load", scheduleComments, { once: true, signal: lifecycle.signal });
+		document.addEventListener("astro:page-load", scheduleComments, { once: true, signal: lifecycle.signal });
 
 	})();
 </script>

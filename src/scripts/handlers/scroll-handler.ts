@@ -47,7 +47,7 @@ export class ScrollHandler {
 	 * 添加 KaTeX 滚动条样式（只添加一次）
 	 */
 	private addKatexScrollbarStyle(): void {
-		if (this.katexScrollbarStyleAdded) {
+		if (document.head.querySelector("style[data-katex-scrollbar]")) {
 			return;
 		}
 
@@ -80,7 +80,13 @@ export class ScrollHandler {
 	 */
 	checkKatex(): void {
 		if (document.querySelector(".katex")) {
-			import("katex/dist/katex.css");
+			const styles = new Set(document.head.querySelectorAll("link[rel=stylesheet], style"));
+			void import("katex/dist/katex.css").then(() => {
+				const host = document.getElementById("desk-features");
+				if (host) for (const style of document.head.querySelectorAll("link[rel=stylesheet], style")) {
+					if (!styles.has(style)) host.append(style);
+				}
+			});
 		}
 	}
 

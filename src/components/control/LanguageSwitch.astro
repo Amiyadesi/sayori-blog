@@ -26,10 +26,12 @@ const locales = [
 	)
 }
 
-<script is:inline>
-	(() => {
-		if (document.documentElement.dataset.languageSwitchBound) return;
-		document.documentElement.dataset.languageSwitchBound = "true";
+<script>
+	import { navigate } from "astro:transitions/client";
+	function setupLanguageSwitch() {
+	const scope = window as typeof window & { __sayoriLanguageBound?: boolean };
+	if (scope.__sayoriLanguageBound) return;
+	scope.__sayoriLanguageBound = true;
 		document.addEventListener("change", (event) => {
 			const select = event.target;
 			if (!(select instanceof HTMLSelectElement) || !select.matches("[data-language-switch]")) return;
@@ -43,7 +45,8 @@ const locales = [
 			}
 			document.cookie = `sayori_locale=${encodeURIComponent(locale)}; Domain=.sayori.org; Path=/; Max-Age=31536000; SameSite=Lax; Secure`;
 			document.cookie = "sayori_locale_auto=; Domain=.sayori.org; Path=/; Max-Age=0; SameSite=Lax; Secure";
-			window.location.assign(`${select.value}${window.location.search}${window.location.hash}`);
+			void navigate(`${select.value}${window.location.search}${window.location.hash}`);
 		});
-	})();
+	}
+	setupLanguageSwitch();
 </script>

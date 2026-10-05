@@ -60,10 +60,15 @@ export class FancyboxHandler {
 	 * 加载 Fancybox 模块和样式
 	 */
 	private async loadFancybox(): Promise<void> {
+		const styles = new Set(document.head.querySelectorAll("link[rel=stylesheet], style"));
 		const mod = await import("@fancyapps/ui");
 		this.Fancybox = mod.Fancybox;
 		await import("@fancyapps/ui/dist/fancybox/fancybox.css");
 		await import("../../styles/fancybox-custom.css");
+		const host = document.getElementById("desk-features");
+		if (host) for (const style of document.head.querySelectorAll("link[rel=stylesheet], style")) {
+			if (!styles.has(style)) host.append(style);
+		}
 	}
 
 	/**

@@ -29,6 +29,10 @@ const isDeskBlog = process.env.SITE_VARIANT !== "sayori-diary";
 		copyTextWithFeedback,
 		getCopyFeedbackMessages,
 	} from "@utils/copy-feedback";
+	function setupMarkdown() {
+	const scope = window as typeof window & { __sayoriMarkdownBound?: boolean };
+	if (scope.__sayoriMarkdownBound) return;
+	scope.__sayoriMarkdownBound = true;
 
 	type TrackLike = {
 		title: string;
@@ -510,6 +514,8 @@ const isDeskBlog = process.env.SITE_VARIANT !== "sayori-diary";
 	document.addEventListener("astro:page-load", localizeCopyButtons);
 	document.addEventListener("swup:contentReplaced", localizeCopyButtons);
 	localizeCopyButtons();
+	}
+	setupMarkdown();
 </script>
 
 {isDeskBlog && <script>
@@ -517,14 +523,12 @@ const isDeskBlog = process.env.SITE_VARIANT !== "sayori-diary";
 	import "../../scripts/code-collapse.js";
 	import { initFancybox } from "../../scripts/handlers/fancybox-handler";
 	import { checkKatex, initCustomScrollbar } from "../../scripts/handlers/scroll-handler";
-	if (document.body.classList.contains("desk-lite")) {
+	function initArticleExtras() {
 		void initFancybox();
 		checkKatex();
 		initCustomScrollbar();
 	}
-	document.addEventListener("content-decrypted", () => {
-		void initFancybox();
-		checkKatex();
-		initCustomScrollbar();
-	});
+	initArticleExtras();
+	document.addEventListener("astro:page-load", initArticleExtras);
+	document.addEventListener("content-decrypted", initArticleExtras);
 </script>}

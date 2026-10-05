@@ -70,10 +70,10 @@ button:disabled { cursor: wait; opacity: .6; }
 .skip-link { position: fixed; top: .5rem; left: .5rem; z-index: 9999; padding: .6rem 1rem; background: var(--card-bg); transform: translateY(-200%); }
 .skip-link:focus { transform: none; }
 .desk-header { border-bottom: 1px solid var(--line-divider); }
-.desk-nav { max-width: 68rem; margin: auto; padding: 1.1rem 1.5rem; display: flex; align-items: center; gap: 2rem; font-size: .875rem; }
+.desk-nav { max-width: 68rem; margin: auto; padding: 1.1rem 1.5rem; display: flex; flex-wrap: wrap; align-items: center; gap: .8rem 1.5rem; font-size: .875rem; }
 .desk-brand { font-family: "ZenMaruGothic-Medium", var(--font-sans); font-size: 1.45rem; font-weight: 600; color: var(--text-90); }
 .desk-brand span { color: var(--accent); }
-.desk-nav-links, .desk-nav-actions { display: flex; align-items: center; gap: 1.4rem; }
+.desk-nav-links, .desk-nav-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; }
 .desk-nav-actions { margin-left: auto; gap: 1rem; }
 .desk-nav :is(a, button, select, summary) { min-height: 2.25rem; display: inline-flex; align-items: center; }
 .desk-theme, .desk-search-button { display: inline-flex; gap: .35rem; align-items: center; color: var(--primary); }
@@ -155,7 +155,7 @@ button:disabled { cursor: wait; opacity: .6; }
 .collapsed { height: var(--collapsedHeight); }
 @media (max-width: 760px) {
 	.desk-nav { flex-wrap: wrap; gap: .4rem 1rem; padding: .65rem 1.1rem; }
-	.desk-nav-links { order: 3; flex-basis: 100%; justify-content: space-between; gap: 1rem; }
+	.desk-nav-links { order: 3; flex-basis: 100%; justify-content: flex-start; gap: .3rem 1rem; }
 	.desk-nav-actions { gap: .7rem; }
 	.desk-theme span, .desk-search-button span { display: none; }
 	.desk-shell { width: calc(100% - 2.25rem); margin-top: 2rem; }

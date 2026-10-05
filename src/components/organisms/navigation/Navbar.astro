@@ -3,41 +3,29 @@ import { navBarConfig } from "../../../config";
 import { LinkPresets } from "../../../constants/link-presets";
 import type { LinkPreset, NavBarLink } from "../../../types/config";
 import { url } from "../../../utils/url-utils";
-import { SITE_LOCALE, isEnglishSite, stripLocalePrefix } from "../../../utils/site-locale";
+import { SITE_LOCALE, isEnglishSite } from "../../../utils/site-locale";
 import LanguageSwitch from "../../control/LanguageSwitch.astro";
 import ThemeToggle from "../../control/ThemeToggle.astro";
 import Search from "./Search.svelte";
 
-function flatten(items: (NavBarLink | LinkPreset)[]): NavBarLink[] {
-	return items.flatMap(item => {
-		const link = typeof item === "number" ? LinkPresets[item] : item;
-		return link.children?.length ? flatten(link.children) : [link];
-	});
-}
-const primary = ["/", "/archive/", "/about/"];
-const seen = new Set<string>();
-const more = flatten(navBarConfig.links).filter(link => {
-	const path = stripLocalePrefix(link.url);
-	if (!link.url || primary.includes(path) || seen.has(link.url)) return false;
-	seen.add(link.url);
-	return true;
-});
+const resolveLink = (item: NavBarLink | LinkPreset): NavBarLink =>
+	typeof item === "number" ? LinkPresets[item] : item;
+const links = navBarConfig.links.map(resolveLink);
 ---
 <header class="desk-header" data-pagefind-ignore>
 	<nav id="navbar" class="desk-nav" aria-label={isEnglishSite ? "Primary navigation" : "主导航"}>
 		<a class="desk-brand" href={url("/")}>Amiya<span aria-hidden="true">.</span></a>
 		<div class="desk-nav-links">
-			<a href={url("/")}>{isEnglishSite ? "Posts" : "文章"}</a>
-			<a href={url("/archive/")}>{isEnglishSite ? "Archive" : "归档"}</a>
-			<a href={url("/about/")}>{isEnglishSite ? "About" : "关于"}</a>
-			<details class="desk-more">
-				<summary>{isEnglishSite ? "More" : "更多"}</summary>
-				<div class="desk-menu">
-					{more.map(link => <a href={link.external ? link.url : url(link.url)} target={link.external ? "_blank" : undefined} rel={link.external ? "noopener noreferrer" : undefined}>{link.name}</a>)}
-					{!seen.has("/topics/webmaster/") && <a href={url("/topics/webmaster/")}>{isEnglishSite ? "Webmaster notes" : "个人站长工具箱"}</a>}
-					<a href={url("/settings/")}>{isEnglishSite ? "Settings" : "设置"}</a>
-				</div>
-			</details>
+			{links.map(link => link.children?.length ? (
+				<details class="desk-more">
+					<summary>{link.name}</summary>
+					<div class="desk-menu">{link.children.map(resolveLink).map(child => (
+						<a href={child.external ? child.url : url(child.url)} target={child.external ? "_blank" : undefined} rel={child.external ? "noopener noreferrer" : undefined}>{child.name}</a>
+					))}</div>
+				</details>
+			) : (
+				<a href={link.external ? link.url : url(link.url)} target={link.external ? "_blank" : undefined} rel={link.external ? "noopener noreferrer" : undefined}>{link.name}</a>
+			))}
 		</div>
 		<div class="desk-nav-actions">
 			<Search locale={SITE_LOCALE} client:load />
@@ -47,12 +35,14 @@ const more = flatten(navBarConfig.links).filter(link => {
 	</nav>
 </header>
 <script>
-	const menu = document.querySelector<HTMLDetailsElement>(".desk-more");
 	document.addEventListener("click", event => {
-		if (menu?.open && !menu.contains(event.target as Node)) menu.open = false;
+		for (const menu of document.querySelectorAll<HTMLDetailsElement>(".desk-more[open]")) {
+			if (!menu.contains(event.target as Node)) menu.open = false;
+		}
 	});
 	document.addEventListener("keydown", event => {
-		if (event.key === "Escape" && menu?.open) {
+		const menu = document.querySelector<HTMLDetailsElement>(".desk-more[open]");
+		if (event.key === "Escape" && menu) {
 			menu.open = false;
 			menu.querySelector("summary")?.focus();
 		}

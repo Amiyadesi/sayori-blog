@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import * as OpenCC from "opencc-js";
 
 const blogRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const articlesRoot = path.resolve(
@@ -26,6 +27,8 @@ const segmentChars = Math.max(1_500, Number(process.env.TRANSLATE_SEGMENT_CHARS 
 const includeReadmes = process.env.TRANSLATE_READMES === "1";
 const allowStructureDrift = process.env.TRANSLATE_ALLOW_STRUCTURE_DRIFT === "1";
 const force = process.env.TRANSLATE_FORCE === "1";
+const metadataOnly = process.env.TRANSLATE_METADATA_ONLY === "1";
+const traditional = OpenCC.Converter({ from: "cn", to: "tw" });
 const matches = String(process.env.TRANSLATE_MATCH || "")
 	.split(",")
 	.map((value) => value.trim().replaceAll("\\", "/"))
@@ -35,7 +38,7 @@ const roots = ["posts", "essays", "friends", "anime", "spec", "site"];
 const allFiles = roots
 	.flatMap((root) => [...walk(path.join(articlesRoot, root))])
 	.filter((file) => /\.(md|mdx)$/i.test(file))
-	.filter((file) => !/\.en\.(md|mdx)$/i.test(file))
+	.filter((file) => !/\.(?:en|zh-hant)\.(md|mdx)$/i.test(file))
 	.filter((file) => includeReadmes || !/(^|[\\/])(README|templates)([\\/]|\.)/i.test(file))
 	.filter((file) => !matches.length || matches.some((match) => relative(file).includes(match)));
 const limit = Number(process.env.TRANSLATE_LIMIT || 0);
@@ -52,13 +55,27 @@ async function worker() {
 		if (index >= files.length) return;
 		const sourcePath = files[index];
 		const targetPath = sourcePath.replace(/\.(md|mdx)$/i, ".en.$1");
+		const source = fs.readFileSync(sourcePath, "utf8");
+		const protectedSource = protectSource(source);
+		let traditionalText = restoreProtected(traditional(protectedSource.text), protectedSource.values);
+		const frontmatter = getFrontmatter(traditionalText);
+		if (frontmatter) {
+			const lines = frontmatter.raw.split(/\r?\n/).filter(line => !/^(lang|translationKey):/.test(line));
+			lines.push("lang: zh-Hant", `translationKey: ${relative(sourcePath).replace(/\.(md|mdx)$/i, "")}`);
+			traditionalText = `---\n${lines.join("\n")}\n---\n${frontmatter.body}`;
+		}
+		const traditionalPath = sourcePath.replace(/\.(md|mdx)$/i, ".zh-hant.$1");
+		if (!metadataOnly || fs.existsSync(traditionalPath)) fs.writeFileSync(traditionalPath, traditionalText);
 		if (!force && fs.existsSync(targetPath)) {
+			const existing = fs.readFileSync(targetPath, "utf8");
+			const normalized = normalizeEnglishMetadata(source, existing, relative(sourcePath));
+			if (existing !== normalized) fs.writeFileSync(targetPath, normalized);
 			console.log(`[translate-content] skip existing ${relative(targetPath)}`);
 			continue;
 		}
+		if (metadataOnly) continue;
 
 		try {
-			const source = fs.readFileSync(sourcePath, "utf8");
 			const translated = await translate(source, relative(sourcePath));
 			const normalized = normalizeEnglishMetadata(source, translated, relative(sourcePath));
 			try {
@@ -319,7 +336,7 @@ function normalizeEnglishMetadata(source, translated, sourceName) {
 	};
 	setLine("lang", "en");
 	setLine("translationKey", sourceName.replace(/\.(md|mdx)$/i, ""));
-	for (const key of ["draft", "published", "created", "updated", "lastEdited", "majorUpdated", "encrypted"]) {
+	for (const key of ["draft", "private", "unlisted", "published", "created", "updated", "lastEdited", "majorUpdated", "updateCount", "encrypted", "image", "alias", "permalink"]) {
 		const original = sourceLines.find((line) => new RegExp(`^${key}:`).test(line));
 		if (original) setLine(key, original.slice(key.length + 1).trim());
 	}
@@ -346,7 +363,13 @@ function protectSource(source, options = {}) {
 	};
 	protect(/^(```|~~~)[\s\S]*?^\1[ \t]*$/gm, "BLOCK");
 	protect(/`[^`\n]+`/g, "INLINE");
+	protect(/^(?:image|alias|permalink|translationKey|password|sourceLink|licenseUrl):[^\r\n]*$/gm, "FIELD");
 	protect(/!\[\[[^\]]+\]\]/g, "EMBED");
+	text = text.replace(/(!?\[[^\]\n]*\]\()([^\n)]*)(\))/g, (_match, start, target, end) => {
+		const token = `__PRESERVE_LINK_${values.length}__`;
+		values.push([token, target]);
+		return `${start}${token}${end}`;
+	});
 	protect(/(?:^[ \t]*|[ \t]+)\^[A-Za-z0-9_-]+[ \t]*(?=\r?$)/gm, "BLOCKID");
 	text = text.replace(/\[\[([^\]|]+)(\|[^\]]+)?\]\]/g, (_match, target, alias = "") => {
 		const token = `__PRESERVE_WIKITARGET_${values.length}__`;

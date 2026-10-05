@@ -172,7 +172,7 @@ const finalAuthor = author || profileConfig.name;
 	import { initPostEngagement } from "@/scripts/post-engagement";
 
 	initPostEngagement();
-	document.addEventListener("swup:pageView", initPostEngagement);
+	document.addEventListener("astro:page-load", initPostEngagement);
 </script>
 
 <style>

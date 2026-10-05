@@ -78,7 +78,7 @@ const diaryCopy = isEnglishSite
 		title={i18n(I18nKey.friends)}
 		description={i18n(I18nKey.friends)}
 	>
-	<script is:inline>
+	<script is:inline data-astro-rerun>
 		window.isFriendsPage = true;
 	</script>
 
@@ -210,11 +210,12 @@ const diaryCopy = isEnglishSite
 
 	<!-- 截图瀑布式加载：逐个加载避免 Cloudflare Browser Rendering 并发限制 -->
 	{hasFriends && (
-		<script is:inline>
+		<script is:inline data-astro-rerun>
 		(function() {
 			var imgs = document.querySelectorAll('.friend-card-preview[data-screenshot-src]');
 			var idx = 0;
 			function loadNext() {
+				if (!imgs[0]?.isConnected) return;
 				if (idx >= imgs.length) return;
 				var img = imgs[idx++];
 				var src = img.getAttribute('data-screenshot-src');

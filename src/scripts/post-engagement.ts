@@ -164,7 +164,7 @@ export function initPostEngagement(): void {
 		document.addEventListener("sayori:share-success", shareSuccess, {
 			signal: lifecycle.signal,
 		});
-		document.addEventListener("swup:contentReplaced", () => lifecycle.abort(), {
+		document.addEventListener("astro:before-swap", () => { adminEntryRequest += 1; lifecycle.abort(); }, {
 			once: true,
 			signal: lifecycle.signal,
 		});

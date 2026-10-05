@@ -19,4 +19,5 @@ export function initCodeCollapse() {
 	}
 }
 initCodeCollapse();
+document.addEventListener("astro:page-load", initCodeCollapse);
 document.addEventListener("content-decrypted", initCodeCollapse);

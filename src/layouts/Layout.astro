@@ -1,5 +1,6 @@
 ---
 import CopyFeedback from "@components/misc/CopyFeedback.astro";
+import { ClientRouter } from "astro:transitions";
 import OptionalFeatures from "@components/features/settings/OptionalFeatures.astro";
 import { siteConfig } from "@/config";
 import { SITE_LOCALE, type HreflangMap } from "@utils/site-locale";
@@ -23,9 +24,10 @@ const ogImageUrl = new URL(siteConfig.generateOgImages && postSlug
 	: coverImage || "/assets/desktop-banner/1.webp", Astro.site).toString();
 ---
 <!doctype html>
-<html data-pagefind-ignore={noindex ? "all" : undefined} lang={SITE_LOCALE} data-pagefind-filter={"locale:" + SITE_LOCALE}>
+<html transition:animate="none" data-pagefind-ignore={noindex ? "all" : undefined} lang={SITE_LOCALE} data-pagefind-filter={"locale:" + SITE_LOCALE}>
 	<head>
 		<meta charset="UTF-8" />
+		{process.env.SITE_VARIANT !== "sayori-diary" && <ClientRouter fallback="swap" />}
 		<AnalyticsScripts thirdPartyAnalytics={siteConfig.thirdPartyAnalytics} />
 		<HeadTags title={pageTitle} description={description} ogImageUrl={ogImageUrl}
 			ogImageAlt={ogImageAlt} setOGTypeArticle={setOGTypeArticle}
@@ -38,5 +40,6 @@ const ogImageUrl = new URL(siteConfig.generateOgImages && postSlug
 		<CopyFeedback />
 		<slot />
 		<OptionalFeatures />
+		<div id="twikoo-runtime-host" hidden transition:persist="twikoo-runtime"></div>
 	</body>
 </html>

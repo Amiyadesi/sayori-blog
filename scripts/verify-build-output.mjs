@@ -24,7 +24,6 @@ const requiredFiles = [
 	"en/deals/index.html",
 	"essays/index.html",
 	"sponsor/index.html",
-	"topics/webmaster/index.html",
 	"pagefind/pagefind.js",
 ];
 
@@ -1323,58 +1322,6 @@ function verifySponsorPage(sponsorHtml) {
 	requireJsonLdTypes("sponsor/index.html", sponsorJsonLdNodes, ["WebPage"]);
 	requireNoJsonLdType("sponsor/index.html", sponsorJsonLdNodes, "Service");
 }
-
-function verifyTopicPage(topicHtml) {
-	requireIncludes("topics/webmaster/index.html", topicHtml, [
-		"Amiya_desi&#39;s webmaster topic page",
-		"external webmaster resources",
-		"browser extension list",
-		"个人站长工具箱",
-		"专题文章",
-		"问答答案层",
-		"实体与证据入口",
-		"非商业边界",
-		"/posts/astro-mizuki-blog-from-zero/",
-		"/posts/free-domain-and-web-community/",
-		"/posts/blog-resource-toolbox/",
-		"/posts/site-article-index/",
-		"/posts/useful-free-software-toolbox/",
-		"/posts/useful-browser-extensions-toolbox/",
-		"/posts/internet-community-1/",
-		"/posts/internet-community-2-bangumi-and-doki/internet-community-2/",
-	]);
-
-	const topicJsonLdNodes = getJsonLdNodes(
-		topicHtml,
-		"topics/webmaster/index.html",
-	);
-	requireJsonLdTypes("topics/webmaster/index.html", topicJsonLdNodes, [
-		"CollectionPage",
-		"ItemList",
-		"FAQPage",
-	]);
-	requireNoJsonLdType(
-		"topics/webmaster/index.html",
-		topicJsonLdNodes,
-		"Service",
-	);
-	requireNoHref(
-		"topics/webmaster/index.html",
-		topicHtml,
-		"/posts/indie-webmaster-projects/",
-	);
-	requireNoHref(
-		"topics/webmaster/index.html",
-		topicHtml,
-		"/posts/internet-community-2/",
-	);
-	verifyVisibleFaqMatchesJsonLd(
-		"topics/webmaster/index.html",
-		topicHtml,
-		topicJsonLdNodes,
-	);
-}
-
 if (!fs.existsSync(distDir)) {
 	throw new Error(`Blog dist directory not found: ${distDir}`);
 }
@@ -1394,7 +1341,6 @@ requireIncludes("index.html", indexHtml, [
 	"application/ld+json",
 	"最新文章",
 	"/settings/",
-	"/topics/webmaster/",
 	"/sponsor/",
 ]);
 const indexJsonLdNodes = getJsonLdNodes(indexHtml, "index.html");
@@ -1417,8 +1363,10 @@ verifyHomePagination(indexHtml);
 verifyPostDefaultImageMetadata();
 verifyArticleLandmarks();
 verifySourceSecurityHeaders();
-requireAnyHref("index.html", indexHtml, "/topics/webmaster/");
 requireAnyHref("index.html", indexHtml, "/sponsor/");
+for (const href of ["/guestbook/", "/friends/"]) requireAnyHref("index.html", indexHtml, href);
+requireIncludes("index.html", indexHtml, ['href="https://www.travellings.cn/go.html"']);
+requireExcludes("index.html", indexHtml, ["ldc.sayori.org", "/topics/webmaster/"]);
 
 const essayHtml = files.get("essays/index.html") || "";
 verifyEssayPage(essayHtml);
@@ -1432,8 +1380,14 @@ verifyArchivePage(archiveHtml);
 const dealsHtml = files.get("deals/index.html") || "";
 verifyDealsPage(dealsHtml);
 
-const topicHtml = files.get("topics/webmaster/index.html") || "";
-verifyTopicPage(topicHtml);
+for (const localeBase of ["", "zh-hant/", "en/"]) {
+	if (fs.existsSync(path.join(distDir, localeBase, "topics/webmaster"))) {
+		fail(`Removed webmaster page remains in dist/${localeBase}topics/webmaster`);
+	}
+	const aboutHtml = readDistFile(`${localeBase}about/index.html`);
+	requireIncludes(`${localeBase}about/index.html`, aboutHtml, ["/posts/blog-style-change/"]);
+	requireExcludes(`${localeBase}about/index.html`, aboutHtml, ["/topics/webmaster/"]);
+}
 
 if (fs.existsSync(path.join(distDir, "admin/growth"))) {
 	fail("Private n8n entry must not be emitted as a public static page");
@@ -1481,7 +1435,6 @@ const sitemap = files.get("sitemap-0.xml") || "";
 requireIncludes("sitemap-0.xml", sitemap, [
 	"<urlset",
 	"<loc>https://blog.sayori.org/</loc>",
-	"<loc>https://blog.sayori.org/topics/webmaster/</loc>",
 ]);
 requireExcludes("sitemap-0.xml", sitemap, ["https://blog.sayori.org/posts/diary/"]);
 requireExcludes("sitemap-0.xml", sitemap, ["https://blog.sayori.org/admin/"]);
@@ -1537,8 +1490,6 @@ requireIncludes("llms.txt", llms, [
 	"# Amiya的书桌",
 	"> Amiya的书桌 is Amiya_desi's personal blog",
 	"## Core Links",
-	"## Topics",
-	"[个人站长工具箱](https://blog.sayori.org/topics/webmaster/)",
 	"https://blog.sayori.org/posts/astro-mizuki-blog-from-zero/",
 	"https://blog.sayori.org/posts/free-domain-and-web-community/",
 	"## Recent Posts",
@@ -1546,6 +1497,7 @@ requireIncludes("llms.txt", llms, [
 	"Search indexing, real-time AI grounding, AI citation, and model training uses are allowed for public content",
 ]);
 requireExcludes("llms.txt", llms, [
+	"/topics/webmaster/",
 	"Model training is not granted",
 	"ai-train=no",
 	"Content-Signal declaration in robots.txt",

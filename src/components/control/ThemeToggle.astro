@@ -6,6 +6,10 @@ import { isEnglishSite } from "../../utils/site-locale";
 	<span>{isEnglishSite ? "Theme" : "主题"}</span>
 </button>
 <script>
+	function setupTheme() {
+	const scope = window as typeof window & { __sayoriThemeBound?: boolean };
+	if (scope.__sayoriThemeBound) return;
+	scope.__sayoriThemeBound = true;
 	const root = document.documentElement;
 	function syncTheme() {
 		const dark = root.classList.contains("dark");
@@ -19,8 +23,18 @@ import { isEnglishSite } from "../../utils/site-locale";
 		try { localStorage.setItem("theme", theme); } catch (error) { console.warn("Theme preference could not be saved", error); }
 		syncTheme();
 	}
-	document.querySelectorAll("[data-theme-toggle]").forEach(button => button.addEventListener("click", () => applyTheme(root.classList.contains("dark") ? "light" : "dark")));
-	document.querySelector<HTMLSelectElement>("[data-theme-select]")?.addEventListener("change", event => applyTheme((event.target as HTMLSelectElement).value));
+	document.addEventListener("click", event => {
+		if (event.target instanceof Element && event.target.closest("[data-theme-toggle]")) applyTheme(root.classList.contains("dark") ? "light" : "dark");
+	});
+	document.addEventListener("change", event => {
+		if (event.target instanceof HTMLSelectElement && event.target.matches("[data-theme-select]")) applyTheme(event.target.value);
+	});
+	document.addEventListener("astro:after-swap", () => {
+		try { applyTheme(localStorage.getItem("theme") === "dark" ? "dark" : "light"); }
+		catch (error) { console.warn("Theme preference unavailable", error); syncTheme(); }
+	});
 	window.addEventListener("pageshow", syncTheme);
 	syncTheme();
+	}
+	setupTheme();
 </script>

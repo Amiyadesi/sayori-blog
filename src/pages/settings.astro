@@ -5,12 +5,12 @@ const copy = isEnglishSite ? {
 	title: "Settings", intro: "A quiet desk by default. Make a little room for company if you like.",
 	theme: "Theme", light: "Warm paper", dark: "Evening desk",
 	pet: "Sayori on the desk", petNote: "Load the pet after the page is ready. Keep this choice on this browser.",
-	music: "Music entry", musicNote: "Show a small music button. The player loads when opened; press Play to listen. Music stops when you leave the page.",
+	music: "Music entry", musicNote: "Show a small music button. Open it and press Play to listen. Music continues across blog pages; turning it off, refreshing, or leaving the blog stops playback.",
 } : {
 	title: "书桌设置", intro: "书桌默认安静。如果愿意，也可以留一点陪伴。",
 	theme: "主题", light: "暖纸色", dark: "夜晚的书桌",
 	pet: "桌边的 Sayori", petNote: "页面就绪后加载宠物，并在这个浏览器记住你的选择。",
-	music: "音乐入口", musicNote: "显示一个小小的音乐按钮。点开才加载播放器，按播放才出声；离开页面后停止。",
+	music: "音乐入口", musicNote: "显示一个小小的音乐按钮。点开才加载播放器，按播放才出声；站内切页继续播放，关闭音乐、刷新或离开博客后停止。",
 };
 ---
 <MainGridLayout title={copy.title} description={copy.intro} noindex>

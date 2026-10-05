@@ -8,10 +8,10 @@ This document defines the stable domain language for the blog growth workflow. P
 
 A maintained reading route that connects a specific audience, a set of published articles, public work links, content gaps, and questions.
 
-- Public topics live in `src/data/topics.ts` and are reviewed through Git
+- Public topic landing pages were removed on 2026-10-05; the blog uses articles and its archive as reading entry points
 - Workbench topics use `candidate | draft | published | archived`
 - A D1 topic marked `published` does not publish source files automatically
-- Article footers only use associations from the public topic source; they do not infer generic related posts
+- Article footers no longer render public topic associations
 
 ### Campaign
 

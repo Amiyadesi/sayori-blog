@@ -464,7 +464,7 @@ function toIsoDate(value?: Date | string) {
 <!-- 字体在构建时通过 scripts/compress-fonts.js 处理并复制到 dist/ -->
 
 {process.env.SITE_VARIANT !== "sayori-diary" ? (
-	<script is:inline>
+	<script is:inline data-astro-rerun>
 		(() => {
 			let theme = "light";
 			try { theme = localStorage.getItem("theme") || "light"; }
