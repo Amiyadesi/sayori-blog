@@ -391,7 +391,9 @@ const ownerAvatar = "/assets/profile/avatar-sayori-192.jpg";
 			if (window.twikoo?.init) return Promise.resolve(window.twikoo);
 			if (window.__sayoriTwikooScript) return window.__sayoriTwikooScript;
 			window.__sayoriTwikooScript = new Promise((resolve, reject) => {
-				const host = document.getElementById("twikoo-runtime-host");
+				const host = document.body.classList.contains("desk-lite")
+					? document.getElementById("twikoo-runtime-host")
+					: document.head;
 				if (!host) throw new Error("Missing Twikoo runtime host.");
 				const existingStyles = new Set(document.head.querySelectorAll("style"));
 				const script = document.createElement("script");
