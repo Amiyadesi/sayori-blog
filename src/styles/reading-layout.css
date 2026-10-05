@@ -27,7 +27,10 @@
 	max-width: min(100%, 640px);
 	max-height: 480px;
 	object-fit: contain;
+	margin-inline: auto;
 }
+.desk-lite .custom-md .sayori-figure--left img:not(.music-track-cover) { margin-left: 0; margin-right: auto; }
+.desk-lite .custom-md .sayori-figure--right img:not(.music-track-cover) { margin-left: auto; margin-right: 0; }
 .desk-lite .custom-md blockquote:not(.admonition) { margin: 1.4em 0; border-left: 3px solid var(--primary); background: none; padding: .2em 0 .2em 1em; color: var(--text-75); font-style: normal; }
 .desk-lite .custom-md blockquote:not(.admonition)::before { content: none; }
 .desk-lite .custom-md blockquote:not(.admonition) > :first-child { margin-top: 0; }
