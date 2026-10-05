@@ -268,8 +268,9 @@ const jsonLd = {
 		type="application/ld+json"
 		set:html={JSON.stringify(jsonLd)}
 	/>
-	<div
+	<article
 		class="post-article mb-4"
+		aria-labelledby="post-title"
 	>
 		<div
 			id="post-container"
@@ -300,7 +301,7 @@ const jsonLd = {
 				<LanguageSwitch />
 			</div>
 
-			<h1 data-pagefind-body data-pagefind-weight="10" data-pagefind-meta="title" class="mb-5">{entry.data.title}</h1>
+			<h1 id="post-title" data-pagefind-body data-pagefind-weight="10" data-pagefind-meta="title" class="mb-5">{entry.data.title}</h1>
 			<a class="text-sm" href="#twikoo-container">{siteConfig.lang.startsWith("en") ? "Jump to comments ↓" : "前往评论 ↓"}</a>
 
 			<!-- metadata -->
@@ -408,7 +409,7 @@ const jsonLd = {
 				)
 			}
 		</div>
-	</div>
+	</article>
 
 
 	{

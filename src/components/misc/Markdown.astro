@@ -17,10 +17,8 @@ const isDeskBlog = process.env.SITE_VARIANT !== "sayori-diary";
 
 <div
 	data-pagefind-body
-	class={`prose dark:prose-invert prose-base !max-w-none custom-md ${className}`}
+	class={`prose dark:prose-invert prose-base ${isDeskBlog ? "" : "!max-w-none"} custom-md ${className}`}
 >
-	<!--<div class="prose dark:prose-invert max-w-none custom-md">-->
-	<!--<div class="max-w-none custom-md">-->
 	<slot />
 </div>
 

@@ -1073,6 +1073,12 @@ function verifyArticleLandmarks() {
 		const relativePath = path.join(prefix, trimUrlPath(post.url), "index.html");
 		const html = readDistFile(relativePath);
 		const root = parse(html);
+		const article = root.querySelector('article.post-article[aria-labelledby="post-title"]');
+		if (article?.querySelector("h1#post-title")) {
+			pass(`dist/${relativePath} exposes a semantic article with its title`);
+		} else {
+			fail(`dist/${relativePath} missing semantic article or its title`);
+		}
 		if (root.querySelector("a[data-promote-post]")) {
 			fail(`dist/${relativePath} emits a management link before authentication`);
 		} else {
@@ -1139,6 +1145,17 @@ function verifyHomePagination(indexHtml) {
 			pass(`dist/${relativePath} has a unique document title`);
 		}
 		if (pageNumber > 1) {
+			for (const prefix of ["", "zh-hant/", "en/"]) {
+				const localizedPath = `${prefix}${relativePath}`;
+				const localizedHtml = prefix ? readDistFile(localizedPath) : pageHtml;
+				const robots = parse(localizedHtml).querySelector('meta[name="robots"]')
+					?.getAttribute("content")?.split(",").map((value) => value.trim()) || [];
+				if (robots.includes("noindex") && robots.includes("follow") && !robots.includes("nofollow")) {
+					pass(`dist/${localizedPath} lets crawlers follow article links`);
+				} else {
+					fail(`dist/${localizedPath} must allow following public pagination links`);
+				}
+			}
 			if (pageTitle.includes(`第 ${pageNumber} 页`)) {
 				pass(
 					`dist/${relativePath} identifies pagination page ${pageNumber}`,

@@ -274,9 +274,11 @@ function toIsoDate(value?: Date | string) {
 	(isSayoriDiarySite && !isSayoriDiaryPath) ||
 	isPrivateAdminPage ||
 	isIndexUtilityPage ||
-	isArchivePagination
+	(isSayoriDiarySite && isArchivePagination)
 		? "noindex, nofollow, noarchive"
-		: "index, follow, max-image-preview:large"}
+		: isArchivePagination
+			? "noindex, follow"
+			: "index, follow, max-image-preview:large"}
 />
 <meta name="baidu-site-verification" content="codeva-WBAMs05T4g" />
 <meta name="theme-color" content="#f4f3ef" />

@@ -1,18 +1,26 @@
 .reading-shell { max-width: 72ch; font-size: 18px; position: relative; }
+.desk-lite .desk-article { max-width: 72ch; font-size: 18px; margin-inline: auto; }
 .reading-shell main { min-width: 0; }
 .reading-shell #post-container { padding: 0; background: transparent; border: 0; border-radius: 0; box-shadow: none; }
 .reading-shell .post-paper-note { border: 0; background: transparent; box-shadow: none; }
 .reading-shell h1 { font-size: clamp(1.8rem, 3.5vw, 2.5rem); line-height: 1.4; font-weight: 650; }
-.reading-shell .custom-md { font-size: inherit; line-height: 1.85; color: var(--text-90); }
-.reading-shell .custom-md h1 { font-size: 1.5em; margin-top: 2.3em; }
-.reading-shell .custom-md :is(h2, h3, h4) { color: var(--text-90); scroll-margin-top: 2rem; }
-.reading-shell .custom-md h2 { font-size: 1.4em; margin-top: 2.3em; }
-.reading-shell .custom-md h3 { font-size: 1.15em; margin-top: 2em; }
-.reading-shell .custom-md p { margin: 1.25em 0; }
-.reading-shell .custom-md a:not(.no-styling):not(.anchor) { color: var(--primary); background: none; padding: 0; border: 0; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--primary) 40%, transparent); }
-.reading-shell .custom-md :is(pre, table, .katex-display) { max-width: 100%; overflow-x: auto; }
-.reading-shell .custom-md table { display: block; }
-.reading-shell .custom-md img { max-width: 100%; height: auto; border-radius: .4rem; }
+.desk-lite .custom-md { max-width: 72ch; margin-inline: auto; font-size: 18px; line-height: 1.85; color: var(--text-90); text-align: start; overflow-wrap: anywhere; }
+.desk-lite .custom-md :where(h1, h2, h3, h4, h5, h6) { margin: 2em 0 .65em; line-height: 1.45; font-weight: 650; color: var(--text-90); scroll-margin-top: 2rem; }
+.desk-lite .custom-md :where(h1) { font-size: 1.55em; }
+.desk-lite .custom-md :where(h2) { font-size: 1.35em; }
+.desk-lite .custom-md :where(h3) { font-size: 1.15em; }
+.desk-lite .custom-md :where(h4, h5, h6) { font-size: 1em; }
+.desk-lite .custom-md > :where(h1, h2, h3, h4, h5, h6):first-child { margin-top: 0; }
+.desk-lite .custom-md :where(p) { margin: 1em 0; }
+.desk-lite .custom-md :where(ul, ol) { margin: 1.25em 0; padding-inline-start: 1.55em; }
+.desk-lite .custom-md :where(li) { margin: .35em 0; }
+.desk-lite .custom-md :where(li > p, li > ul, li > ol) { margin: .5em 0; }
+.desk-lite .custom-md :where(details) { margin: 1.25em 0; }
+.desk-lite .custom-md :where(summary) { font-weight: 600; }
+.desk-lite .custom-md a:not(.no-styling):not(.anchor) { color: var(--primary); background: none; padding: 0; border: 0; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--primary) 40%, transparent); }
+.desk-lite .custom-md :is(pre, table, .katex-display) { max-width: 100%; overflow-x: auto; }
+.desk-lite .custom-md table { display: block; }
+.desk-lite .custom-md img { max-width: 100%; height: auto; border-radius: .4rem; }
 .desk-lite .custom-md img:not(.music-track-cover) {
 	width: auto;
 	height: auto;
@@ -20,10 +28,10 @@
 	max-height: 480px;
 	object-fit: contain;
 }
-.reading-shell .custom-md blockquote:not(.admonition) { border-left: 3px solid var(--primary); background: none; padding: .2rem 0 .2rem 1.2rem; font-style: normal; }
-.reading-shell .custom-md blockquote:not(.admonition)::before { content: none; }
-.reading-shell .custom-md blockquote:not(.admonition) > :first-child { margin-top: 0; }
-.reading-shell .custom-md blockquote:not(.admonition) > :last-child { margin-bottom: 0; }
+.desk-lite .custom-md blockquote:not(.admonition) { margin: 1.4em 0; border-left: 3px solid var(--primary); background: none; padding: .2em 0 .2em 1em; color: var(--text-75); font-style: normal; }
+.desk-lite .custom-md blockquote:not(.admonition)::before { content: none; }
+.desk-lite .custom-md blockquote:not(.admonition) > :first-child { margin-top: 0; }
+.desk-lite .custom-md blockquote:not(.admonition) > :last-child { margin-bottom: 0; }
 .reading-toc { font-size: .8rem; margin-bottom: 2rem; color: var(--text-50); }
 .reading-toc summary { padding: .5rem 0; font-weight: 600; }
 .reading-toc nav { max-height: 65vh; overflow: auto; padding: .5rem 0; }
@@ -36,6 +44,6 @@
 	.reading-toc details { position: sticky; top: 2rem; }
 }
 @media (max-width: 760px) {
-	.reading-shell { font-size: 17px; }
+	.reading-shell, .desk-lite .desk-article, .desk-lite .custom-md { font-size: 17px; }
 	.desk-lite .custom-md img:not(.music-track-cover) { max-height: min(480px, 60svh); }
 }
