@@ -82,7 +82,7 @@ describe("effective read qualification", () => {
 		assert.match(permalinkPage, /data-effective-read/);
 		assert.match(analytics, /startEffectiveReadTracking/);
 		assert.match(tracker, /visibilitychange/);
-		assert.match(tracker, /swup:pageView/);
+		assert.match(tracker, /astro:page-load/);
 		assert.match(tracker, /effective_read/);
 	});
 });
