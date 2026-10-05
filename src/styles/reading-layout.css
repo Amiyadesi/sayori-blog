@@ -13,6 +13,13 @@
 .reading-shell .custom-md :is(pre, table, .katex-display) { max-width: 100%; overflow-x: auto; }
 .reading-shell .custom-md table { display: block; }
 .reading-shell .custom-md img { max-width: 100%; height: auto; border-radius: .4rem; }
+.desk-lite .custom-md img:not(.music-track-cover) {
+	width: auto;
+	height: auto;
+	max-width: min(100%, 640px);
+	max-height: 480px;
+	object-fit: contain;
+}
 .reading-shell .custom-md blockquote:not(.admonition) { border-left: 3px solid var(--primary); background: none; padding: .2rem 0 .2rem 1.2rem; font-style: normal; }
 .reading-shell .custom-md blockquote:not(.admonition)::before { content: none; }
 .reading-shell .custom-md blockquote:not(.admonition) > :first-child { margin-top: 0; }
@@ -28,4 +35,7 @@
 	.reading-toc { position: absolute; top: 0; left: calc(100% + 2.5rem); width: 12rem; height: 100%; }
 	.reading-toc details { position: sticky; top: 2rem; }
 }
-@media (max-width: 760px) { .reading-shell { font-size: 17px; } }
+@media (max-width: 760px) {
+	.reading-shell { font-size: 17px; }
+	.desk-lite .custom-md img:not(.music-track-cover) { max-height: min(480px, 60svh); }
+}
