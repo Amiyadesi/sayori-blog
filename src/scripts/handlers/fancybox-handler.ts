@@ -79,9 +79,10 @@ export class FancyboxHandler {
 		}
 
 		const commonConfig = getDefaultFancyboxConfig();
+		// Astro replaces body during navigation; keep click delegation on html.
 
 		// 绑定相册/文章图片
-		this.Fancybox.bind(FANCYBOX_SELECTORS.albumImages, {
+		this.Fancybox.bind(document.documentElement, FANCYBOX_SELECTORS.albumImages, {
 			...commonConfig,
 			groupAll: true,
 			Carousel: {
@@ -92,7 +93,7 @@ export class FancyboxHandler {
 		this.boundSelectors.push(FANCYBOX_SELECTORS.albumImages);
 
 		// 绑定相册链接
-		this.Fancybox.bind(FANCYBOX_SELECTORS.albumLinks, {
+		this.Fancybox.bind(document.documentElement, FANCYBOX_SELECTORS.albumLinks, {
 			...commonConfig,
 			source: (el: any) => {
 				return el.getAttribute("data-src") || el.getAttribute("href");
@@ -101,7 +102,7 @@ export class FancyboxHandler {
 		this.boundSelectors.push(FANCYBOX_SELECTORS.albumLinks);
 
 		// 绑定单独的 fancybox 图片
-		this.Fancybox.bind(FANCYBOX_SELECTORS.singleFancybox, commonConfig);
+		this.Fancybox.bind(document.documentElement, FANCYBOX_SELECTORS.singleFancybox, commonConfig);
 		this.boundSelectors.push(FANCYBOX_SELECTORS.singleFancybox);
 	}
 
@@ -115,7 +116,7 @@ export class FancyboxHandler {
 		}
 
 		this.boundSelectors.forEach((selector) => {
-			this.Fancybox.unbind(selector);
+			this.Fancybox.unbind(document.documentElement, selector);
 		});
 		this.boundSelectors = [];
 	}
