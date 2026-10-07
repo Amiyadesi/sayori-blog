@@ -521,7 +521,55 @@ const isDeskBlog = process.env.SITE_VARIANT !== "sayori-diary";
 	import "../../scripts/code-collapse.js";
 	import { initFancybox } from "../../scripts/handlers/fancybox-handler";
 	import { checkKatex, initCustomScrollbar } from "../../scripts/handlers/scroll-handler";
+	const imageRetries = new WeakMap<HTMLImageElement, HTMLButtonElement>();
+	function showImageError(image: HTMLImageElement) {
+		if (!image.isConnected) return;
+		const lang = document.documentElement.lang;
+		let retry = imageRetries.get(image);
+		if (!retry) {
+			retry = document.createElement("button");
+			retry.type = "button";
+			retry.className = "article-image-retry";
+			const button = retry;
+			button.addEventListener("click", event => {
+				event.preventDefault();
+				event.stopPropagation();
+				button.disabled = true;
+				button.textContent = lang === "en" ? "Loading image…" : lang === "zh-Hant" ? "正在重新載入圖片…" : "正在重新加载图片…";
+				image.loading = "eager";
+				if (image.srcset) image.srcset = image.srcset;
+				image.src = image.src;
+			});
+			imageRetries.set(image, button);
+			image.after(button);
+		}
+		image.hidden = true;
+		retry.disabled = false;
+		retry.textContent = lang === "en" ? "Image failed to load. Retry" : lang === "zh-Hant" ? "圖片載入失敗，點此重試" : "图片加载失败，点此重试";
+		retry.setAttribute("aria-label", `${retry.textContent}${image.alt ? `：${image.alt}` : ""}`);
+	}
+	// Capture image events on document so failure/retry also works after Astro navigation.
+	document.addEventListener("error", event => {
+		const image = event.target;
+		if (image instanceof HTMLImageElement && image.matches(".custom-md img:not(.music-track-cover)")) showImageError(image);
+	}, true);
+	document.addEventListener("load", event => {
+		const image = event.target;
+		if (!(image instanceof HTMLImageElement)) return;
+		const retry = imageRetries.get(image);
+		if (!retry) return;
+		image.hidden = false;
+		if (document.activeElement === retry) {
+			image.tabIndex = -1;
+			image.focus({ preventScroll: true });
+		}
+		retry.remove();
+		imageRetries.delete(image);
+	}, true);
 	function initArticleExtras() {
+		for (const image of document.querySelectorAll<HTMLImageElement>(".custom-md img:not(.music-track-cover)")) {
+			if (image.complete && image.naturalWidth === 0 && image.src) showImageError(image);
+		}
 		void initFancybox();
 		checkKatex();
 		initCustomScrollbar();

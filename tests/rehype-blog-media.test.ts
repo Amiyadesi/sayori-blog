@@ -48,7 +48,7 @@ test("content images receive responsive CDN attributes", () => {
 		image.properties.srcSet,
 		`https://img.sayori.org/blog/v1/${hash}/640.webp 640w, https://img.sayori.org/blog/v1/${hash}/1280.webp 1280w`,
 	);
-	assert.equal(image.properties.sizes, "(max-width: 768px) 100vw, 46rem");
+	assert.equal(image.properties.sizes, "(max-width: 676px) calc(100vw - 2.25rem), 640px");
 	assert.equal(image.properties.width, 1280);
 	assert.equal(image.properties.height, 720);
 	assert.equal(image.properties.loading, "lazy");

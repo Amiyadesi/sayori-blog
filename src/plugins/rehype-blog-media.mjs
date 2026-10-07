@@ -3,7 +3,9 @@ import path from "node:path";
 
 import { visit } from "unist-util-visit";
 
-const DEFAULT_SIZES = "(max-width: 768px) 100vw, 46rem";
+const DEFAULT_SIZES = process.env.SITE_VARIANT === "sayori-diary"
+	? "(max-width: 768px) 100vw, 46rem"
+	: "(max-width: 676px) calc(100vw - 2.25rem), 640px";
 
 export function rehypeBlogMedia(options = {}) {
 	const manifest = Object.hasOwn(options, "manifest")
