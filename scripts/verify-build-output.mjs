@@ -600,6 +600,16 @@ function verifyDeskLocales() {
 		verifyHomepageCriticalMedia(home, homeName);
 		requireNoJsonLdType(homeName, getJsonLdNodes(home, homeName), "FAQPage");
 		requireAnyHref(homeName, home, "/" + prefix + "settings/");
+		const articleName = prefix + "posts/blog-style-change/index.html";
+		const article = parse(readDistFile(articleName));
+		const shortcuts = article.querySelectorAll(".reading-actions a");
+		if (shortcuts.length === 2 &&
+			shortcuts[0].getAttribute("href") === "/" + prefix &&
+			shortcuts[1].getAttribute("href") === "#page-top" &&
+			article.querySelector("#page-top[tabindex='-1']") &&
+			shortcuts.every((link) => link.getAttribute("aria-label"))) {
+			pass(articleName + " has localized home and keyboard-accessible top links");
+		} else fail(articleName + " must keep working reading shortcuts");
 		const settingsName = prefix + "settings/index.html";
 		const settings = parse(readDistFile(settingsName));
 		if (!settings.querySelector('meta[name="robots"]')?.getAttribute("content")?.includes("noindex") ||

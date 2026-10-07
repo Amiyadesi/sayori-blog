@@ -1,8 +1,16 @@
 ---
 import Footer from "@components/organisms/footer/Footer.astro";
 import Navbar from "@components/organisms/navigation/Navbar.astro";
+import I18nKey from "@/i18n/i18nKey";
+import { i18n } from "@/i18n/translation";
 import type { MarkdownHeading } from "astro";
-import { isEnglishSite, type HreflangMap } from "../utils/site-locale";
+import { formatDateToYYYYMMDD } from "../utils/date-utils";
+import {
+	currentLocalePath,
+	isEnglishSite,
+	isTraditionalSite,
+	type HreflangMap,
+} from "../utils/site-locale";
 import Layout from "./Layout.astro";
 interface Props {
 	title?: string; banner?: string; description?: string; lang?: string;
@@ -10,9 +18,19 @@ interface Props {
 	coverImage?: string; ogImageAlt?: string; publishedTime?: Date | string;
 	modifiedTime?: Date | string; tags?: string[]; noindex?: boolean;
 	alternateUrls?: HreflangMap;
+	recentPosts?: { title: string; href: string; published: Date }[];
 }
-const { headings = [], ...metadata } = Astro.props;
+const { headings = [], recentPosts = [], ...metadata } = Astro.props;
 const isPost = Boolean(metadata.postSlug);
+const recentHeading = i18n(I18nKey.recentPosts);
+const tocHeading = isEnglishSite
+	? "On this page"
+	: isTraditionalSite
+		? "文章目錄"
+		: "文章目录";
+const tocLabel = isEnglishSite ? "Table of contents" : tocHeading;
+const homeLabel = isEnglishSite ? "Home" : isTraditionalSite ? "返回首頁" : "返回首页";
+const topLabel = isEnglishSite ? "Back to top" : isTraditionalSite ? "回到頂部" : "回到顶部";
 // rehype-autolink-headings appends one visual # after the authored heading.
 const toc = headings.filter(heading => heading.depth < 4).map(heading => ({
 	...heading,
@@ -24,14 +42,47 @@ const firstDepth = Math.min(...toc.map(heading => heading.depth));
 	<slot slot="head" name="head" />
 	<Navbar />
 	<div class:list={["desk-shell", { "reading-shell": isPost }]}>
-		{isPost && toc.length > 0 && (
-			<aside class="reading-toc" data-pagefind-ignore>
-				<details id="reading-toc">
-					<summary>{isEnglishSite ? "On this page" : "文章目录"}</summary>
-					<nav aria-label={isEnglishSite ? "Table of contents" : "文章目录"}>
-						<ol>{toc.map(heading => <li class:list={[{ "toc-subheading": heading.depth > firstDepth }]}><a href={"#" + heading.slug}>{heading.text}</a></li>)}</ol>
+		{isPost && recentPosts.length > 0 && (
+			<aside class="reading-recent" data-pagefind-ignore>
+				<details id="reading-recent">
+					<summary>{recentHeading}</summary>
+					<nav aria-label={recentHeading}>
+						<ol>
+							{recentPosts.map((post) => (
+								<li>
+									<a href={post.href}>
+										<span>{post.title}</span>
+										<time datetime={formatDateToYYYYMMDD(post.published)}>
+											{formatDateToYYYYMMDD(post.published)}
+										</time>
+									</a>
+								</li>
+							))}
+						</ol>
 					</nav>
 				</details>
+			</aside>
+		)}
+		{isPost && (
+			<aside class="reading-toc" data-pagefind-ignore>
+				<div class="reading-rail">
+				{toc.length > 0 && <details id="reading-toc">
+					<summary>{tocHeading}</summary>
+					<nav aria-label={tocLabel}>
+						<ol>{toc.map(heading => <li class:list={[{ "toc-subheading": heading.depth > firstDepth }]}><a href={"#" + heading.slug}>{heading.text}</a></li>)}</ol>
+					</nav>
+				</details>}
+				<nav class="reading-actions" aria-label={isEnglishSite ? "Reading shortcuts" : isTraditionalSite ? "閱讀捷徑" : "阅读快捷入口"}>
+					<a href={currentLocalePath("/")} aria-label={homeLabel} title={homeLabel}>
+						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7M5 9v12h14V9M9 21v-8h6v8" /></svg>
+						<span>{homeLabel}</span>
+					</a>
+					<a href="#page-top" aria-label={topLabel} title={topLabel}>
+						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20V4m-7 7 7-7 7 7" /></svg>
+						<span>{topLabel}</span>
+					</a>
+				</nav>
+				</div>
 			</aside>
 		)}
 		<main id="swup-container" tabindex="-1"><slot /></main>
@@ -41,6 +92,10 @@ const firstDepth = Math.min(...toc.map(heading => heading.depth));
 <script is:inline data-astro-rerun>
 	(() => {
 	const toc = document.querySelector("#reading-toc");
-	if (toc && matchMedia("(min-width: 1280px)").matches) toc.open = true;
+	if (matchMedia("(min-width: 1280px)").matches) {
+		if (toc) toc.open = true;
+		const recent = document.querySelector("#reading-recent");
+		if (recent) recent.open = true;
+	}
 	})();
 </script>

@@ -12,7 +12,7 @@ const resolveLink = (item: NavBarLink | LinkPreset): NavBarLink =>
 	typeof item === "number" ? LinkPresets[item] : item;
 const links = navBarConfig.links.map(resolveLink);
 ---
-<header class="desk-header" data-pagefind-ignore>
+<header id="page-top" class="desk-header" tabindex="-1" data-pagefind-ignore>
 	<nav id="navbar" class="desk-nav" aria-label={isEnglishSite ? "Primary navigation" : "主导航"}>
 		<a class="desk-brand" href={url("/")}>Amiya<span aria-hidden="true">.</span></a>
 		<div class="desk-nav-links">
