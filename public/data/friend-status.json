@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "checkedAt": "2026-10-05T07:09:16.325Z",
+  "checkedAt": "2026-10-08T07:29:40.057Z",
   "target": null,
   "results": [
     {
@@ -8,12 +8,12 @@
       "siteUrl": "https://blog.0c0.ren/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 1611,
+      "latencyMs": 1919,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:08:21.452Z",
+      "checkedAt": "2026-10-08T07:28:45.088Z",
       "source": "0c0.md"
     },
     {
@@ -21,12 +21,12 @@
       "siteUrl": "https://blog.0c0.ren/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 1611,
+      "latencyMs": 1919,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:08:21.452Z",
+      "checkedAt": "2026-10-08T07:28:45.088Z",
       "source": "0c0.md"
     },
     {
@@ -34,12 +34,12 @@
       "siteUrl": "https://2x.nz/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 445,
+      "latencyMs": 207,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:08:23.620Z",
+      "checkedAt": "2026-10-08T07:28:46.597Z",
       "source": "AF Studio.md"
     },
     {
@@ -47,12 +47,12 @@
       "siteUrl": "https://2x.nz/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 445,
+      "latencyMs": 207,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:08:23.620Z",
+      "checkedAt": "2026-10-08T07:28:46.597Z",
       "source": "AF Studio.md"
     },
     {
@@ -60,12 +60,12 @@
       "siteUrl": "https://daily.yybb.us/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 89,
+      "latencyMs": 37,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:08:23.880Z",
+      "checkedAt": "2026-10-08T07:28:46.710Z",
       "source": "AIOVTUE-雪.md"
     },
     {
@@ -73,12 +73,12 @@
       "siteUrl": "https://daily.yybb.us/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 89,
+      "latencyMs": 37,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:08:23.880Z",
+      "checkedAt": "2026-10-08T07:28:46.710Z",
       "source": "AIOVTUE-雪.md"
     },
     {
@@ -86,12 +86,12 @@
       "siteUrl": "https://www.amisweb.cn/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 555,
+      "latencyMs": 495,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:08:25.171Z",
+      "checkedAt": "2026-10-08T07:28:49.222Z",
       "source": "amisweb.md"
     },
     {
@@ -99,12 +99,12 @@
       "siteUrl": "https://www.amisweb.cn/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 555,
+      "latencyMs": 495,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:08:25.171Z",
+      "checkedAt": "2026-10-08T07:28:49.222Z",
       "source": "amisweb.md"
     },
     {
@@ -112,12 +112,12 @@
       "siteUrl": "https://www.caiguoyu.cn/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 2113,
+      "latencyMs": 864,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:08:29.100Z",
+      "checkedAt": "2026-10-08T07:28:52.152Z",
       "source": "caiguoyu.md"
     },
     {
@@ -125,12 +125,12 @@
       "siteUrl": "https://www.caiguoyu.cn/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 2113,
+      "latencyMs": 864,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:08:29.100Z",
+      "checkedAt": "2026-10-08T07:28:52.152Z",
       "source": "caiguoyu.md"
     },
     {
@@ -138,12 +138,12 @@
       "siteUrl": "https://ftz.is-a.dev/",
       "status": "http_error",
       "httpStatus": 404,
-      "latencyMs": 22,
+      "latencyMs": 3,
       "attempts": 2,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:08:29.880Z",
+      "checkedAt": "2026-10-08T07:28:53.146Z",
       "source": "for-the-zero.md"
     },
     {
@@ -151,12 +151,12 @@
       "siteUrl": "https://ftz.is-a.dev/",
       "status": "http_error",
       "httpStatus": 404,
-      "latencyMs": 22,
+      "latencyMs": 3,
       "attempts": 2,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:08:29.880Z",
+      "checkedAt": "2026-10-08T07:28:53.146Z",
       "source": "for-the-zero.md"
     },
     {
@@ -164,12 +164,12 @@
       "siteUrl": "https://fqzlr.com/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 228,
+      "latencyMs": 156,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:08:30.563Z",
+      "checkedAt": "2026-10-08T07:28:53.616Z",
       "source": "fqzlr.md"
     },
     {
@@ -177,12 +177,12 @@
       "siteUrl": "https://fqzlr.com/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 228,
+      "latencyMs": 156,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:08:30.563Z",
+      "checkedAt": "2026-10-08T07:28:53.616Z",
       "source": "fqzlr.md"
     },
     {
@@ -190,12 +190,12 @@
       "siteUrl": "https://h2sxxa.github.io/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 109,
+      "latencyMs": 9,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:08:30.979Z",
+      "checkedAt": "2026-10-08T07:28:53.737Z",
       "source": "H2Sxxa.md"
     },
     {
@@ -203,12 +203,12 @@
       "siteUrl": "https://h2sxxa.github.io/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 109,
+      "latencyMs": 9,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:08:30.979Z",
+      "checkedAt": "2026-10-08T07:28:53.737Z",
       "source": "H2Sxxa.md"
     },
     {
@@ -216,12 +216,12 @@
       "siteUrl": "https://homulilly.com/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 401,
+      "latencyMs": 417,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:08:31.839Z",
+      "checkedAt": "2026-10-08T07:28:54.665Z",
       "source": "homulilly.md"
     },
     {
@@ -229,38 +229,38 @@
       "siteUrl": "https://homulilly.com/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 401,
+      "latencyMs": 417,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:08:31.839Z",
+      "checkedAt": "2026-10-08T07:28:54.665Z",
       "source": "homulilly.md"
     },
     {
       "title": "Jiwac的个人博客",
       "siteUrl": "https://jmk.gv.uy/posts/blog-anniversary",
-      "status": "network_error",
-      "latencyMs": 7482,
+      "status": "timeout",
+      "latencyMs": 8000,
       "attempts": 2,
-      "error": "fetch failed",
+      "error": "request timed out",
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:09:02.106Z",
+      "checkedAt": "2026-10-08T07:29:27.167Z",
       "source": "jiwac.md"
     },
     {
       "title": "Jiwac的个人博客",
       "siteUrl": "https://jmk.gv.uy/posts/blog-anniversary",
-      "status": "network_error",
-      "latencyMs": 7482,
+      "status": "timeout",
+      "latencyMs": 8000,
       "attempts": 2,
-      "error": "fetch failed",
+      "error": "request timed out",
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:09:02.106Z",
+      "checkedAt": "2026-10-08T07:29:27.167Z",
       "source": "jiwac.md"
     },
     {
@@ -268,12 +268,12 @@
       "siteUrl": "https://moran.cc.cd/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 86,
+      "latencyMs": 92,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:09:02.375Z",
+      "checkedAt": "2026-10-08T07:29:28.069Z",
       "source": "moran.md"
     },
     {
@@ -281,12 +281,12 @@
       "siteUrl": "https://moran.cc.cd/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 86,
+      "latencyMs": 92,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:09:02.375Z",
+      "checkedAt": "2026-10-08T07:29:28.069Z",
       "source": "moran.md"
     },
     {
@@ -294,12 +294,12 @@
       "siteUrl": "https://pasule.com/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 865,
+      "latencyMs": 893,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:09:06.401Z",
+      "checkedAt": "2026-10-08T07:29:31.023Z",
       "source": "Pasule.md"
     },
     {
@@ -307,12 +307,12 @@
       "siteUrl": "https://pasule.com/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 865,
+      "latencyMs": 893,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:09:06.401Z",
+      "checkedAt": "2026-10-08T07:29:31.023Z",
       "source": "Pasule.md"
     },
     {
@@ -320,12 +320,12 @@
       "siteUrl": "https://taoran.weppp.cyou/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 117,
+      "latencyMs": 48,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:09:06.848Z",
+      "checkedAt": "2026-10-08T07:29:31.130Z",
       "source": "taoran.md"
     },
     {
@@ -333,12 +333,12 @@
       "siteUrl": "https://taoran.weppp.cyou/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 117,
+      "latencyMs": 48,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:09:06.848Z",
+      "checkedAt": "2026-10-08T07:29:31.130Z",
       "source": "taoran.md"
     },
     {
@@ -346,12 +346,12 @@
       "siteUrl": "https://daydreammadman.cn/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 1083,
+      "latencyMs": 906,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:09:08.946Z",
+      "checkedAt": "2026-10-08T07:29:33.099Z",
       "source": "tomoto.md"
     },
     {
@@ -359,12 +359,12 @@
       "siteUrl": "https://daydreammadman.cn/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 1083,
+      "latencyMs": 906,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:09:08.946Z",
+      "checkedAt": "2026-10-08T07:29:33.099Z",
       "source": "tomoto.md"
     },
     {
@@ -372,12 +372,12 @@
       "siteUrl": "https://upxuu.com/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 527,
+      "latencyMs": 286,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:09:10.108Z",
+      "checkedAt": "2026-10-08T07:29:33.695Z",
       "source": "upxuu.md"
     },
     {
@@ -385,12 +385,12 @@
       "siteUrl": "https://upxuu.com/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 527,
+      "latencyMs": 286,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:09:10.108Z",
+      "checkedAt": "2026-10-08T07:29:33.695Z",
       "source": "upxuu.md"
     },
     {
@@ -398,12 +398,12 @@
       "siteUrl": "https://xiaodaidai.site/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 57,
+      "latencyMs": 42,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:09:10.467Z",
+      "checkedAt": "2026-10-08T07:29:34.126Z",
       "source": "xiaodaidai.md"
     },
     {
@@ -411,12 +411,12 @@
       "siteUrl": "https://xiaodaidai.site/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 57,
+      "latencyMs": 42,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:09:10.467Z",
+      "checkedAt": "2026-10-08T07:29:34.126Z",
       "source": "xiaodaidai.md"
     },
     {
@@ -424,12 +424,12 @@
       "siteUrl": "https://xiaoxi.ac.cn/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 872,
+      "latencyMs": 584,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:09:12.963Z",
+      "checkedAt": "2026-10-08T07:29:36.826Z",
       "source": "xiaoxi.md"
     },
     {
@@ -437,12 +437,12 @@
       "siteUrl": "https://xiaoxi.ac.cn/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 872,
+      "latencyMs": 584,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:09:12.963Z",
+      "checkedAt": "2026-10-08T07:29:36.826Z",
       "source": "xiaoxi.md"
     },
     {
@@ -450,12 +450,12 @@
       "siteUrl": "https://iamcrl.cn/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 1294,
+      "latencyMs": 1192,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:09:16.324Z",
+      "checkedAt": "2026-10-08T07:29:40.056Z",
       "source": "睿朗的小窝.md"
     },
     {
@@ -463,12 +463,12 @@
       "siteUrl": "https://iamcrl.cn/",
       "status": "up",
       "httpStatus": 200,
-      "latencyMs": 1294,
+      "latencyMs": 1192,
       "attempts": 1,
       "backlink": {
         "status": "not_configured"
       },
-      "checkedAt": "2026-10-05T07:09:16.324Z",
+      "checkedAt": "2026-10-08T07:29:40.056Z",
       "source": "睿朗的小窝.md"
     }
   ]
