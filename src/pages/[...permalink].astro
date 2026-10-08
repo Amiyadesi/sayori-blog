@@ -9,7 +9,6 @@
 import Image from "@components/atoms/Image/Image.astro";
 import Comment from "@components/comment/index.astro";
 import PasswordProtection from "@components/features/auth/PasswordProtection.astro";
-import AiSummary from "@components/features/posts/AiSummary.astro";
 import LastModified from "@components/features/posts/LastModified.astro";
 import PostEngagement from "@components/features/posts/PostEngagement.astro";
 import PostMeta from "@components/features/posts/PostMeta.astro";
@@ -23,8 +22,6 @@ import {
 	getPostDisplayTags,
 	getSortedPosts,
 	isDiaryPost,
-	isHomeListPost,
-	sortPostsByPublishedDateDesc,
 } from "@utils/content-utils";
 import { resolveLocalImage } from "@utils/local-image";
 import {
@@ -35,7 +32,6 @@ import {
 import { getPostPublicDescription } from "@utils/post-card-content";
 import {
 	getFileDirFromPath,
-	getPostUrl,
 	removeFileExtension,
 } from "@utils/url-utils";
 import { getImage } from "astro:assets";
@@ -53,11 +49,6 @@ import { currentLocalePath } from "../utils/site-locale";
 
 export async function getStaticPaths() {
 	const blogEntries = await getSortedPosts();
-	const recentCandidates = sortPostsByPublishedDateDesc(
-		blogEntries.filter(
-			(post) => isHomeListPost(post) && post.data.encrypted !== true,
-		),
-	);
 
 	// 初始化文章 ID 映射
 	initPostIdMap(blogEntries);
@@ -66,7 +57,6 @@ export async function getStaticPaths() {
 		params: { permalink: string };
 		props: {
 			entry: CollectionEntry<"posts">;
-			recentPosts: { title: string; href: string; published: Date }[];
 		};
 	}[] = [];
 
@@ -90,14 +80,6 @@ export async function getStaticPaths() {
 				params: { permalink },
 				props: {
 					entry,
-					recentPosts: recentCandidates
-						.filter((post) => post.id !== entry.id)
-						.slice(0, 5)
-						.map((post) => ({
-							title: post.data.title,
-							href: getPostUrl(post),
-							published: post.data.published,
-						})),
 				},
 			});
 		}
@@ -106,7 +88,7 @@ export async function getStaticPaths() {
 	return paths;
 }
 
-const { entry, recentPosts } = Astro.props;
+const { entry } = Astro.props;
 const { Content, headings } = await render(entry);
 
 const { remarkPluginFrontmatter } = await render(entry);
@@ -196,7 +178,6 @@ const coverImage =
 		: ogCoverUrl;
 const interactionPath = currentLocalePath(Astro.url.pathname);
 const commentPath = `/posts/${removeFileExtension(entry.id)}`;
-const canUseAiSummary = !isEncrypted && !isDiary;
 const jsonLdImage = new URL(
 	ogCoverUrl || coverImage || "/assets/desktop-banner/1.webp",
 	siteConfig.siteURL,
@@ -253,7 +234,7 @@ const jsonLd = {
 	modifiedTime={lastEditedDate}
 	tags={displayTags}
 	noindex={!isIndexablePost}
-	recentPosts={recentPosts}
+	post={entry}
 >
 	<script
 		is:inline
@@ -356,8 +337,6 @@ const jsonLd = {
 					</>
 				)
 			}
-
-			{canUseAiSummary && <AiSummary summary={entry.data.aiSummary} />}
 
 			{
 				isEncrypted ? (

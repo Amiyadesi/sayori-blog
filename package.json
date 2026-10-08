@@ -8,7 +8,6 @@
 		"enrich-music": "node scripts/enrich-music.mjs",
 		"sync-content": "node scripts/sync-content.js",
 		"translate-content": "node scripts/translate-content.mjs",
-		"generate-ai-summaries": "node scripts/generate-ai-summaries.mjs",
 		"init-content": "node scripts/init-content-repo.js",
 		"predev": "node scripts/sync-content.js || true",
 		"prebuild": "node scripts/sync-content.js",

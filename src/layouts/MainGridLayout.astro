@@ -4,6 +4,10 @@ import Navbar from "@components/organisms/navigation/Navbar.astro";
 import I18nKey from "@/i18n/i18nKey";
 import { i18n } from "@/i18n/translation";
 import type { MarkdownHeading } from "astro";
+import type { CollectionEntry } from "astro:content";
+import { relatedPostsConfig } from "../config";
+import { getRelatedPosts } from "../utils/content-utils";
+import { getPostUrl } from "../utils/url-utils";
 import { formatDateToYYYYMMDD } from "../utils/date-utils";
 import {
 	currentLocalePath,
@@ -18,11 +22,14 @@ interface Props {
 	coverImage?: string; ogImageAlt?: string; publishedTime?: Date | string;
 	modifiedTime?: Date | string; tags?: string[]; noindex?: boolean;
 	alternateUrls?: HreflangMap;
-	recentPosts?: { title: string; href: string; published: Date }[];
+	post?: CollectionEntry<"posts">;
 }
-const { headings = [], recentPosts = [], ...metadata } = Astro.props;
+const { headings = [], post, ...metadata } = Astro.props;
 const isPost = Boolean(metadata.postSlug);
-const recentHeading = i18n(I18nKey.recentPosts);
+const relatedPosts = post && relatedPostsConfig.enable
+	? await getRelatedPosts(post, relatedPostsConfig.maxCount)
+	: [];
+const relatedHeading = i18n(I18nKey.relatedPosts);
 const tocHeading = isEnglishSite
 	? "On this page"
 	: isTraditionalSite
@@ -42,18 +49,18 @@ const firstDepth = Math.min(...toc.map(heading => heading.depth));
 	<slot slot="head" name="head" />
 	<Navbar />
 	<div class:list={["desk-shell", { "reading-shell": isPost }]}>
-		{isPost && recentPosts.length > 0 && (
-			<aside class="reading-recent" data-pagefind-ignore>
-				<details id="reading-recent">
-					<summary>{recentHeading}</summary>
-					<nav aria-label={recentHeading}>
+		{isPost && relatedPosts.length > 0 && (
+			<aside class="reading-related" data-pagefind-ignore>
+				<details id="reading-related" open>
+					<summary>{relatedHeading}</summary>
+					<nav aria-label={relatedHeading}>
 						<ol>
-							{recentPosts.map((post) => (
+							{relatedPosts.map((post) => (
 								<li>
-									<a href={post.href}>
-										<span>{post.title}</span>
-										<time datetime={formatDateToYYYYMMDD(post.published)}>
-											{formatDateToYYYYMMDD(post.published)}
+									<a href={getPostUrl(post)}>
+										<span>{post.data.title}</span>
+										<time datetime={formatDateToYYYYMMDD(post.data.published)}>
+											{formatDateToYYYYMMDD(post.data.published)}
 										</time>
 									</a>
 								</li>
@@ -66,7 +73,7 @@ const firstDepth = Math.min(...toc.map(heading => heading.depth));
 		{isPost && (
 			<aside class="reading-toc" data-pagefind-ignore>
 				<div class="reading-rail">
-				{toc.length > 0 && <details id="reading-toc">
+				{toc.length > 0 && <details id="reading-toc" open>
 					<summary>{tocHeading}</summary>
 					<nav aria-label={tocLabel}>
 						<ol>{toc.map(heading => <li class:list={[{ "toc-subheading": heading.depth > firstDepth }]}><a href={"#" + heading.slug}>{heading.text}</a></li>)}</ol>
@@ -89,13 +96,14 @@ const firstDepth = Math.min(...toc.map(heading => heading.depth));
 	</div>
 	<Footer />
 </Layout>
-<script is:inline data-astro-rerun>
-	(() => {
-	const toc = document.querySelector("#reading-toc");
-	if (matchMedia("(min-width: 1280px)").matches) {
-		if (toc) toc.open = true;
-		const recent = document.querySelector("#reading-recent");
-		if (recent) recent.open = true;
+<script>
+	function initReadingRails() {
+		const expanded = matchMedia("(min-width: 1280px)").matches;
+		for (const id of ["reading-toc", "reading-related"]) {
+			const details = document.getElementById(id);
+			if (details instanceof HTMLDetailsElement) details.open = expanded;
+		}
 	}
-	})();
+	initReadingRails();
+	document.addEventListener("astro:page-load", initReadingRails);
 </script>

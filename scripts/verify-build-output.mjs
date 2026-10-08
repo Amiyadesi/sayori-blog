@@ -1074,52 +1074,71 @@ function verifyPostDefaultImageMetadata() {
 }
 
 function verifyArticleLandmarks() {
-	const post = getExpectedArchivePosts()[0];
-	if (!post) {
+	const posts = getExpectedArchivePosts();
+	if (posts.length === 0) {
 		fail("No public post available for article landmark verification");
 		return;
 	}
-	for (const [prefix, lang] of [["", "zh-CN"], ["zh-hant/", "zh-Hant"], ["en/", "en"]]) {
-		const relativePath = path.join(prefix, trimUrlPath(post.url), "index.html");
-		const html = readDistFile(relativePath);
-		const root = parse(html);
-		const article = root.querySelector('article.post-article[aria-labelledby="post-title"]');
-		if (article?.querySelector("h1#post-title")) {
-			pass(`dist/${relativePath} exposes a semantic article with its title`);
-		} else {
-			fail(`dist/${relativePath} missing semantic article or its title`);
-		}
-		if (root.querySelector("a[data-promote-post]")) {
-			fail(`dist/${relativePath} emits a management link before authentication`);
-		} else {
-			pass(`dist/${relativePath} creates the management link only after authentication`);
-		}
-		requireExcludes(relativePath, html, ["n8n.sayori.org"]);
-		if (root.querySelector(".banner-title")) {
-			fail(`dist/${relativePath} renders the homepage banner H1`);
-		} else {
-			pass(`dist/${relativePath} excludes the homepage banner H1`);
-		}
-		if (root.querySelector("nav#navbar")) {
-			pass(`dist/${relativePath} exposes the primary nav landmark`);
-		} else {
-			fail(`dist/${relativePath} missing nav#navbar landmark`);
-		}
-		if (root.querySelector("html")?.getAttribute("lang") !== lang) {
-			fail(`dist/${relativePath} must declare ${lang}`);
-		}
-		for (const link of root.querySelectorAll(".custom-md a[href]")) {
-			const href = link.getAttribute("href");
-			if (!/^\/(?:(?:en|zh-hant)\/)?posts\/[^#]+\/#([A-Za-z0-9_-]+)$/.test(href)) continue;
-			if (!href.startsWith(`/${prefix}posts/`)) {
-				fail(`dist/${relativePath} links a paragraph to another language: ${href}`);
-			}
-			const [targetPath, anchor] = href.split("#");
-			const targetHtml = readTextIfExists(path.join(distDir, trimUrlPath(targetPath), "index.html"));
-			if (!parse(targetHtml).getElementById(anchor)) {
-				fail(`dist/${relativePath} links to a missing article anchor: ${href}`);
+	for (const post of new Set([posts[0], posts.at(-1)])) {
+		for (const [prefix, lang] of [["", "zh-CN"], ["zh-hant/", "zh-Hant"], ["en/", "en"]]) {
+			const relativePath = path.join(prefix, trimUrlPath(post.url), "index.html");
+			const html = readDistFile(relativePath);
+			const root = parse(html);
+			const related = root.querySelector(".reading-related");
+			const relatedLinks = related?.querySelectorAll("a[href]") || [];
+			const relatedLabel = { "zh-CN": "相关文章", "zh-Hant": "相關文章", en: "Related Posts" }[lang];
+			if (relatedLinks.length > 0 && related.querySelector("details[open]") && related.querySelector("nav")?.getAttribute("aria-label") === relatedLabel) {
+				pass(`dist/${relativePath} renders an expanded, localized related-article rail`);
 			} else {
-				pass(`dist/${relativePath} resolves localized article anchor ${href}`);
+				fail(`dist/${relativePath} missing localized related-article rail`);
+			}
+			const canonicalPath = new URL(root.querySelector('link[rel="canonical"]').getAttribute("href")).pathname;
+			for (const link of relatedLinks) {
+				const href = link.getAttribute("href");
+				const linkLang = href.startsWith("/zh-hant/") ? "zh-Hant" : href.startsWith("/en/") ? "en" : "zh-CN";
+				if (linkLang !== lang || href === canonicalPath || !fs.existsSync(path.join(distDir, trimUrlPath(href), "index.html"))) {
+					fail(`dist/${relativePath} has an invalid related-article link: ${href}`);
+				}
+			}
+			requireExcludes(relativePath, html, ["ai-summary", "reading-recent"]);
+			const article = root.querySelector('article.post-article[aria-labelledby="post-title"]');
+			if (article?.querySelector("h1#post-title")) {
+				pass(`dist/${relativePath} exposes a semantic article with its title`);
+			} else {
+				fail(`dist/${relativePath} missing semantic article or its title`);
+			}
+			if (root.querySelector("a[data-promote-post]")) {
+				fail(`dist/${relativePath} emits a management link before authentication`);
+			} else {
+				pass(`dist/${relativePath} creates the management link only after authentication`);
+			}
+			requireExcludes(relativePath, html, ["n8n.sayori.org"]);
+			if (root.querySelector(".banner-title")) {
+				fail(`dist/${relativePath} renders the homepage banner H1`);
+			} else {
+				pass(`dist/${relativePath} excludes the homepage banner H1`);
+			}
+			if (root.querySelector("nav#navbar")) {
+				pass(`dist/${relativePath} exposes the primary nav landmark`);
+			} else {
+				fail(`dist/${relativePath} missing nav#navbar landmark`);
+			}
+			if (root.querySelector("html")?.getAttribute("lang") !== lang) {
+				fail(`dist/${relativePath} must declare ${lang}`);
+			}
+			for (const link of root.querySelectorAll(".custom-md a[href]")) {
+				const href = link.getAttribute("href");
+				if (!/^\/(?:(?:en|zh-hant)\/)?posts\/[^#]+\/#([A-Za-z0-9_-]+)$/.test(href)) continue;
+				if (!href.startsWith(`/${prefix}posts/`)) {
+					fail(`dist/${relativePath} links a paragraph to another language: ${href}`);
+				}
+				const [targetPath, anchor] = href.split("#");
+				const targetHtml = readTextIfExists(path.join(distDir, trimUrlPath(targetPath), "index.html"));
+				if (!parse(targetHtml).getElementById(anchor)) {
+					fail(`dist/${relativePath} links to a missing article anchor: ${href}`);
+				} else {
+					pass(`dist/${relativePath} resolves localized article anchor ${href}`);
+				}
 			}
 		}
 	}

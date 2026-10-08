@@ -17,9 +17,7 @@ import {
 	getPostDisplayTags,
 	getSortedPosts,
 	isDiaryPost,
-	isHomeListPost,
 	isSayoriDiaryPost,
-	sortPostsByPublishedDateDesc,
 } from "@utils/content-utils";
 import { resolveLocalImage } from "@utils/local-image";
 import { getPostPublicDescription } from "@utils/post-card-content";
@@ -37,7 +35,6 @@ import { licenseConfig, randomPostsConfig } from "src/config";
 
 import Image from "../../components/atoms/Image/Image.astro";
 import Encryptor from "../../components/features/auth/Encryptor.astro";
-import AiSummary from "../../components/features/posts/AiSummary.astro";
 import { profileConfig, siteConfig } from "../../config";
 import { formatDateToYYYYMMDD } from "../../utils/date-utils";
 import {
@@ -51,7 +48,6 @@ import {
 interface Props {
 	entry: CollectionEntry<"posts">;
 	alternateUrls?: HreflangMap;
-	recentPosts?: { title: string; href: string; published: Date }[];
 }
 
 export async function getStaticPaths() {
@@ -65,12 +61,6 @@ export async function getStaticPaths() {
 	if (process.env.SITE_VARIANT === "sayori-diary") {
 		return paths;
 	}
-	const recentCandidates = sortPostsByPublishedDateDesc(
-		blogEntries.filter(
-			(post) => isHomeListPost(post) && post.data.encrypted !== true,
-		),
-	);
-
 	const translationCandidates = await getCollection("posts", (post) =>
 		post.data.draft !== true &&
 		post.data.encrypted !== true &&
@@ -99,20 +89,12 @@ export async function getStaticPaths() {
 			props: {
 				...path.props,
 				alternateUrls,
-				recentPosts: recentCandidates
-					.filter((post) => post.id !== path.props.entry.id)
-					.slice(0, 5)
-					.map((post) => ({
-						title: post.data.title,
-						href: getPostUrl(post),
-						published: post.data.published,
-					})),
 			},
 		};
 	});
 }
 
-const { entry, alternateUrls, recentPosts = [] } = Astro.props;
+const { entry, alternateUrls } = Astro.props;
 const { Content, headings } = await render(entry);
 const { remarkPluginFrontmatter } = await render(entry);
 
@@ -205,7 +187,6 @@ const organizationId = `${siteUrl}#organization`;
 const blogId = `${siteUrl}#blog`;
 const interactionPath = currentLocalePath(Astro.url.pathname);
 const commentPath = `/posts/${removeFileExtension(entry.id)}`;
-const canUseAiSummary = !isEncrypted && !isDiary;
 const isSayoriDiarySite = process.env.SITE_VARIANT === "sayori-diary";
 const jsonLdImage = new URL(
 	ogCoverUrl ||
@@ -279,7 +260,7 @@ const jsonLd = {
 	tags={displayTags}
 	noindex={!isIndexablePost}
 	alternateUrls={alternateUrls}
-	recentPosts={recentPosts}
+	post={entry}
 >
 	<script
 		is:inline
@@ -370,8 +351,6 @@ const jsonLd = {
 					</>
 				)
 			}
-
-			{canUseAiSummary && <AiSummary summary={entry.data.aiSummary} />}
 
 			{
 				isEncrypted ? (

@@ -681,14 +681,15 @@ export async function getRelatedPosts(
 	currentPost: CollectionEntry<"posts">,
 	maxCount = 5,
 ): Promise<PostForList[]> {
-	const allPosts = await getCollection<"posts">("posts", ({ data }) => {
-		return data.draft !== true;
-	});
+	const allPosts = await getSortedPostsList();
+	const currentUrl = getPostUrl(currentPost);
 
-	// 排除自身和加密文章
+	// The site list is already deduplicated and limited to the current language.
 	const candidates = allPosts.filter(
 		(p) =>
 			p.id !== currentPost.id &&
+			p.url !== currentUrl &&
+			p.data.encrypted !== true &&
 			!p.data.password &&
 			(isDealsPost(currentPost)
 				? isDealsPost(p)
@@ -735,10 +736,11 @@ export async function getRelatedPosts(
 			post,
 			totalScore,
 			tagMatchScore,
+			titleSimilarityScore,
 			timeFreshnessScore,
 			categoryBonus,
 		};
-	});
+	}).filter((score) => score.tagMatchScore > 0 || score.titleSimilarityScore > 0 || score.categoryBonus > 0);
 
 	// 按总分降序排列
 	scored.sort((a, b) => b.totalScore - a.totalScore);
@@ -756,14 +758,8 @@ export async function getRelatedPosts(
 		result.push({ id: s.post.id, data: s.post.data });
 	}
 
-	// 不足时从剩余候选中按 categoryBonus + timeFreshnessScore 降序补充
+	// Remaining matches retain their category/title ranking; unrelated recent posts stay out.
 	if (result.length < maxCount) {
-		withoutTagMatch.sort(
-			(a, b) =>
-				b.categoryBonus +
-				b.timeFreshnessScore -
-				(a.categoryBonus + a.timeFreshnessScore),
-		);
 		for (const s of withoutTagMatch) {
 			if (result.length >= maxCount) {
 				break;

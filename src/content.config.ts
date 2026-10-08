@@ -28,15 +28,6 @@ const postsCollection = defineCollection({
 		sourceLink: z.string().optional().default(""),
 		licenseName: z.string().optional().default(""),
 		licenseUrl: z.string().optional().default(""),
-		aiSummary: z
-			.object({
-				generatedAt: z.string().optional().default(""),
-				model: z.string().optional().default(""),
-				sourceHash: z.string().optional().default(""),
-				items: z.array(z.string()).optional().default([]),
-			})
-			.optional(),
-
 		/* Page encryption fields */
 		encrypted: z.boolean().optional().default(false),
 		password: z.string().optional().default(""),

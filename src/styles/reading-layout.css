@@ -36,19 +36,19 @@
 .desk-lite .custom-md blockquote:not(.admonition)::before { content: none; }
 .desk-lite .custom-md blockquote:not(.admonition) > :first-child { margin-top: 0; }
 .desk-lite .custom-md blockquote:not(.admonition) > :last-child { margin-bottom: 0; }
-.reading-toc, .reading-recent { font-size: .8rem; margin-bottom: 1.25rem; color: var(--text-50); }
+.reading-toc, .reading-related { font-size: .8rem; margin-bottom: 1.25rem; color: var(--text-50); }
 .reading-toc { margin-bottom: 0; }
 .reading-toc details { margin-bottom: 1.25rem; }
-.reading-toc details, .reading-recent details { border-top: 1px solid var(--line-divider); padding-top: .4rem; }
-.reading-toc summary, .reading-recent summary { padding: .5rem 0; font-weight: 600; color: var(--primary); }
-.reading-toc details nav, .reading-recent nav { max-height: min(60vh, calc(100svh - 12rem)); overflow: auto; padding: .25rem 0; }
+.reading-toc details, .reading-related details { border-top: 1px solid var(--line-divider); padding-top: .4rem; }
+.reading-toc summary, .reading-related summary { padding: .5rem 0; font-weight: 600; color: var(--primary); }
+.reading-toc details nav, .reading-related nav { max-height: min(60vh, calc(100svh - 12rem)); overflow: auto; padding: .25rem 0; }
 .reading-toc li { margin: .5rem 0; line-height: 1.6; }
 .reading-toc .toc-subheading { padding-left: .85rem; font-size: .95em; }
 .reading-toc a { color: var(--text-50); }
-.reading-recent ol { list-style: none; margin: 0; padding: 0; }
-.reading-recent a { display: block; padding: .55rem 0; color: var(--text-75); line-height: 1.6; text-decoration: none; }
-.reading-recent a:hover, .reading-toc a:hover { color: var(--primary); text-decoration: underline; }
-.reading-recent time { display: block; margin-top: .2rem; color: var(--text-50); font-size: .72rem; }
+.reading-related ol { list-style: none; margin: 0; padding: 0; }
+.reading-related a { display: block; padding: .55rem 0; color: var(--text-75); line-height: 1.6; text-decoration: none; }
+.reading-related a:hover, .reading-toc a:hover { color: var(--primary); text-decoration: underline; }
+.reading-related time { display: block; margin-top: .2rem; color: var(--text-50); font-size: .72rem; }
 .reading-actions { position: fixed; right: max(.75rem, env(safe-area-inset-right)); bottom: calc(1rem + env(safe-area-inset-bottom)); z-index: 30; display: flex; gap: .25rem; padding: .2rem; border: 1px solid var(--line-divider); border-radius: .6rem; background: var(--card-bg); }
 .reading-actions a { display: flex; align-items: center; justify-content: center; gap: .5rem; min-width: 44px; min-height: 44px; padding: .5rem; border-radius: .35rem; color: var(--text-75); text-decoration: none; }
 .reading-actions a:hover { color: var(--primary); background: var(--paper-bg-strong); }
@@ -60,9 +60,9 @@
 }
 @media (min-width: 1280px) {
 	.reading-shell { max-width: min(var(--reading-width), calc(100% - 32rem)); }
-	.reading-recent { position: absolute; top: 0; right: calc(100% + 2.5rem); width: 12rem; height: 100%; }
+	.reading-related { position: absolute; top: 0; right: calc(100% + 2.5rem); width: 12rem; height: 100%; }
 	.reading-toc { position: absolute; top: 0; left: calc(100% + 2.5rem); width: 12rem; height: 100%; }
-	.reading-rail, .reading-recent details { position: sticky; top: 2rem; }
+	.reading-rail, .reading-related details { position: sticky; top: 2rem; }
 	.reading-actions { position: static; display: grid; padding: .5rem 0; border: 0; border-top: 1px solid var(--line-divider); border-radius: 0; background: transparent; }
 	.reading-actions a { justify-content: flex-start; }
 	.reading-actions span { display: inline; }
