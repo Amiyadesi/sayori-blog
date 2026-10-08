@@ -2,6 +2,10 @@
 
 本文档说明如何创建和组织 Mizuki 博客的内容仓库。
 
+本博客友链名单维护于 `sayori-articles/friends/*.md`，中文为源文件，英文使用同名 `.en.md`；繁体由构建转换。本地 Obsidian 作者源是 `D:/Amiya/111Me/servers/remote_server/articles/friends/`，请同步修改，避免下次发布覆盖。
+
+友链上线并通过部署核验后，Actions 自动调用现有评论审核服务发信。申请人须在友链页留言，或在其他页面明确申请友链，并留下网站地址和有效邮箱；无需把邮箱写进 Markdown。历史友链不批量补发，已成功通知的站点不重复发送，失败可重新运行部署重试。通知密钥 `FRIEND_NOTIFICATIONS_SECRET` 仅存 Actions 和审核服务环境，收件邮箱只从 Twikoo 私有数据库读取。
+
 ## 📁 推荐的目录结构
 
 ```

@@ -268,6 +268,12 @@ jobs:
         if: github.event_name != 'pull_request'
         run: node scripts/verify-live-deployment.mjs https://blog.sayori.org
 
+      - name: Notify approved friend link applicants
+        if: github.event_name != 'pull_request'
+        env:
+          FRIEND_NOTIFICATIONS_SECRET: ${{ secrets.FRIEND_NOTIFICATIONS_SECRET }}
+        run: node scripts/notify-friend-links.mjs
+
       - name: Submit sitemap URLs to IndexNow when configured
         if: github.event_name != 'pull_request'
         shell: bash
