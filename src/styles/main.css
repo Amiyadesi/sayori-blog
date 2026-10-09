@@ -57,7 +57,7 @@
 	--paper-bg-strong: #34372f;
 	--paper-edge-strong: #606552;
 }
-html { font-family: var(--font-sans); background: var(--page-bg); color: var(--text-90); scrollbar-gutter: stable; scroll-padding-top: 2rem; }
+html { font-family: var(--font-sans); background: var(--page-bg); color: var(--text-90); scrollbar-gutter: stable; scroll-padding-top: var(--desk-header-height, 2rem); }
 body { margin: 0; min-width: 320px; min-height: 100vh; line-height: 1.7; }
 [hidden] { display: none !important; }
 a { color: var(--primary); text-underline-offset: .2em; }
@@ -69,7 +69,7 @@ button:disabled { cursor: wait; opacity: .6; }
 ::selection { background: var(--selection-bg); }
 .skip-link { position: fixed; top: .5rem; left: .5rem; z-index: 9999; padding: .6rem 1rem; background: var(--card-bg); transform: translateY(-200%); }
 .skip-link:focus { transform: none; }
-.desk-header { border-bottom: 1px solid var(--line-divider); }
+.desk-header { position: sticky; top: 0; z-index: 40; background: var(--page-bg); border-bottom: 1px solid var(--line-divider); }
 .desk-nav { max-width: 68rem; margin: auto; padding: 1.1rem 1.5rem; display: flex; flex-wrap: wrap; align-items: center; gap: .8rem 1.5rem; font-size: .875rem; }
 .desk-brand { font-family: "ZenMaruGothic-Medium", var(--font-sans); font-size: 1.45rem; font-weight: 600; color: var(--text-90); }
 .desk-brand span { color: var(--accent); }

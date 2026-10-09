@@ -35,6 +35,19 @@ const links = navBarConfig.links.map(resolveLink);
 	</nav>
 </header>
 <script>
+	let headerObserver: ResizeObserver;
+	function observeHeader() {
+		headerObserver?.disconnect();
+		const header = document.querySelector<HTMLElement>(".desk-header");
+		if (!header) return;
+		headerObserver = new ResizeObserver(() => {
+			document.documentElement.style.setProperty("--desk-header-height", `${header.getBoundingClientRect().height}px`);
+		});
+		headerObserver.observe(header);
+	}
+	document.addEventListener("astro:before-swap", () => headerObserver?.disconnect());
+	document.addEventListener("astro:page-load", observeHeader);
+	observeHeader();
 	document.addEventListener("click", event => {
 		for (const menu of document.querySelectorAll<HTMLDetailsElement>(".desk-more[open]")) {
 			if (!menu.contains(event.target as Node)) menu.open = false;

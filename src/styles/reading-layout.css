@@ -62,7 +62,7 @@
 	.reading-shell { max-width: min(var(--reading-width), calc(100% - 32rem)); }
 	.reading-related { position: absolute; top: 0; right: calc(100% + 2.5rem); width: 12rem; height: 100%; }
 	.reading-toc { position: absolute; top: 0; left: calc(100% + 2.5rem); width: 12rem; height: 100%; }
-	.reading-rail, .reading-related details { position: sticky; top: 2rem; }
+	.reading-rail, .reading-related details { position: sticky; top: calc(var(--desk-header-height, 6rem) + 1rem); }
 	.reading-actions { position: static; display: grid; padding: .5rem 0; border: 0; border-top: 1px solid var(--line-divider); border-radius: 0; background: transparent; }
 	.reading-actions a { justify-content: flex-start; }
 	.reading-actions span { display: inline; }
