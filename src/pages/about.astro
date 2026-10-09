@@ -22,6 +22,9 @@ const jsonLd = {
   <script is:inline slot="head" type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
   <article class="desk-article" data-pagefind-body>
     <PageHeader title={title} />
+    <p class="mb-6" data-pagefind-ignore>
+      <a href={currentLocalePath("/about/stats/")}>{isEnglishSite ? "Blog statistics: articles and updates" : "博客统计：文章与更新记录"}</a>
+    </p>
     <Markdown class="mb-8"><Content /></Markdown>
     <Comment path="/about" />
   </article>

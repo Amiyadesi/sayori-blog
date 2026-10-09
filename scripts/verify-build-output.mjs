@@ -1144,6 +1144,87 @@ function verifyArticleLandmarks() {
 	}
 }
 
+function verifyBlogStatistics() {
+	const expected = [
+		...new Set(getExpectedArchivePosts().map((post) => post.url)),
+	].sort();
+	for (const [prefix, lang] of [
+		["", "zh-CN"],
+		["zh-hant/", "zh-Hant"],
+		["en/", "en"],
+	]) {
+		const name = prefix + "about/stats/index.html";
+		const html = readDistFile(name);
+		const root = parse(html);
+		const pagePath = "/" + prefix + "about/stats/";
+		requireAnyHref(
+			prefix + "about/index.html",
+			readDistFile(prefix + "about/index.html"),
+			pagePath,
+		);
+		if (
+			root.querySelector("html")?.getAttribute("lang") !== lang ||
+			root
+				.querySelector('link[rel="canonical"]')
+				?.getAttribute("href") !==
+				"https://blog.sayori.org" + pagePath
+		) {
+			fail(name + " must use the current language and canonical URL");
+		}
+		for (const [locale, base] of [["zh-Hans", ""], ["zh-Hant", "zh-hant/"], ["en", "en/"]]) {
+			if (root.querySelector(`link[rel="alternate"][hreflang="${locale}"]`)?.getAttribute("href") !== `https://blog.sayori.org/${base}about/stats/`) {
+				fail(name + " is missing the statistics alternate for " + locale);
+			}
+		}
+		if (
+			root.querySelector(
+				".reading-actions, #reading-toc, #reading-related",
+			)
+		) {
+			fail(name + " must not show article reading controls");
+		}
+		const list = root.querySelector("#stats-articles");
+		const actual = (list?.querySelectorAll("a[href]") || [])
+			.map((link) => {
+				const href = link.getAttribute("href");
+				if (
+					!href.startsWith("/" + prefix) ||
+					!fs.existsSync(
+						path.join(distDir, trimUrlPath(href), "index.html"),
+					)
+				) {
+					fail(name + " contains an invalid article link: " + href);
+				}
+				return prefix ? "/" + href.slice(prefix.length + 1) : href;
+			})
+			.sort();
+		if (
+			JSON.stringify(actual) !== JSON.stringify(expected) ||
+			Number(root.querySelector("#stats-post-count")?.text) !==
+				expected.length
+		) {
+			fail(name + " must count and link every archived article once");
+		} else pass(name + " counts and links every archived article");
+		if (
+			list?.querySelectorAll("time[datetime]").length !==
+				expected.length * 2 ||
+			!list.hasAttribute("data-pagefind-ignore")
+		) {
+			fail(
+				name +
+					" must show publication/update dates and exclude duplicate article titles from search",
+			);
+		}
+		if (
+			root.querySelectorAll(
+				'.activity-calendar rect[data-in-range="true"]',
+			).length !== 365
+		) {
+			fail(name + " must show 365 activity days");
+		} else pass(name + " renders the year of activity");
+	}
+}
+
 function verifyHomePagination(indexHtml) {
 	const pageSize = getPageSize();
 	const expectedUrls = getExpectedHomePostUrls();
@@ -1408,6 +1489,7 @@ verifyListingDateRule();
 verifyHomePagination(indexHtml);
 verifyPostDefaultImageMetadata();
 verifyArticleLandmarks();
+verifyBlogStatistics();
 verifySourceSecurityHeaders();
 requireAnyHref("index.html", indexHtml, "/sponsor/");
 for (const href of ["/guestbook/", "/friends/"]) requireAnyHref("index.html", indexHtml, href);

@@ -1,0 +1,408 @@
+---
+import { PageHeader } from "@components/features/page-header";
+import MainGridLayout from "@layouts/MainGridLayout.astro";
+import { siteConfig } from "../../config";
+import {
+	activityDate,
+	buildActivityCalendar,
+	readSiteUpdateDates,
+} from "../../utils/blog-activity";
+import {
+	getPostActivityDate,
+	getSortedPostsList,
+	isOrdinaryPublicPost,
+} from "../../utils/content-utils";
+import {
+	currentLocalePath,
+	isEnglishSite,
+	SITE_LOCALE,
+} from "../../utils/site-locale";
+
+const copy = isEnglishSite
+	? {
+			title: "Blog statistics",
+			about: "About",
+			description: "Articles, updates, and the days this blog has grown.",
+			posts: "Published articles",
+			edits: "Recorded edits",
+			site: "Site changes",
+			latest: "Latest activity",
+			activity: "A year of activity",
+			articles: "All articles",
+			published: "Published",
+			edited: "Last updated",
+			updates: "Edits",
+			note: "Article activity shows publication and the most recent edit. Earlier edit dates are not fully recorded; missing edit counts are shown as —.",
+			history:
+				"Site changes count frontend commits, with history available since",
+			updated:
+				"This page updates with each deployment. Visitor statistics remain private.",
+			list: "Same articles as the archive, sorted by their latest update. Essays and deals have their own pages.",
+			less: "Less",
+			more: "More",
+			scroll: "On a narrow screen, scroll the calendar horizontally.",
+		}
+	: {
+			title: "博客统计",
+			about: "关于",
+			description: "文章、更新，以及这张书桌慢慢充实的日子。",
+			posts: "已发布文章",
+			edits: "已记录更新",
+			site: "站点调整",
+			latest: "最近活动",
+			activity: "近一年活动",
+			articles: "全部文章",
+			published: "发布",
+			edited: "最近更新",
+			updates: "更新次数",
+			note: "文章活动显示发布日期与最近一次编辑日期，更早的编辑日期未完整记录；缺少更新次数的文章显示为 —。",
+			history: "站点调整按前端提交计数，历史记录始于",
+			updated: "本页随部署更新，访问统计保留在后台。",
+			list: "与归档收录范围一致，按最近更新排序；随笔和优惠收录在各自页面。",
+			less: "少",
+			more: "多",
+			scroll: "窄屏可以左右滑动日历。",
+		};
+const posts = (await getSortedPostsList())
+	.filter(isOrdinaryPublicPost)
+	.sort(
+		(a, b) =>
+			getPostActivityDate(b).getTime() - getPostActivityDate(a).getTime(),
+	);
+const siteDates = readSiteUpdateDates(process.cwd());
+const today = activityDate(
+	new Date(process.env.DEPLOYMENT_BUILT_AT || Date.now()),
+);
+const days = buildActivityCalendar(
+	posts.map((post) => ({
+		published: post.data.published,
+		edited: getPostActivityDate(post),
+	})),
+	siteDates,
+	today,
+);
+const editCount = posts.reduce(
+	(total, post) => total + (post.data.updateCount ?? 0),
+	0,
+);
+const latest = [
+	siteConfig.siteStartDate,
+	...posts.map((post) => activityDate(getPostActivityDate(post))),
+	...siteDates,
+]
+	.sort()
+	.at(-1)!;
+const historyStart = [...siteDates].sort()[0];
+const weeks = Array.from({ length: days.length / 7 }, (_, index) =>
+	days.slice(index * 7, index * 7 + 7),
+);
+const monthFormat = new Intl.DateTimeFormat(SITE_LOCALE, {
+	month: "short",
+	timeZone: "UTC",
+});
+const weekdays = isEnglishSite
+	? ["", "Mon", "", "Wed", "", "Fri", ""]
+	: ["", "一", "", "三", "", "五", ""];
+const count = (day: (typeof days)[number]) =>
+	day.published + day.edited + day.site;
+const level = (total: number) =>
+	total === 0 ? 0 : Math.min(4, Math.ceil(Math.log2(total + 1)));
+const dayLabel = (day: (typeof days)[number]) =>
+	`${day.date}: ${copy.published} ${day.published}, ${copy.edits} ${day.edited}, ${copy.site} ${day.site}`;
+const activityCount = days.reduce((total, day) => total + count(day), 0);
+---
+
+<MainGridLayout title={copy.title} description={copy.description}>
+	<article class="desk-article blog-stats" data-pagefind-body>
+		<a class="stats-back" href={currentLocalePath("/about/")}
+			>{copy.about}</a
+		>
+		<PageHeader title={copy.title} subtitle={copy.description} />
+		<dl class="stats-totals">
+			<div>
+				<dt>{copy.posts}</dt><dd id="stats-post-count">
+					{posts.length}
+				</dd>
+			</div>
+			<div><dt>{copy.edits}</dt><dd>{editCount}</dd></div>
+			<div><dt>{copy.site}</dt><dd>{siteDates.length}</dd></div>
+		</dl>
+		<p class="stats-note">
+			{copy.latest}
+			<time datetime={latest}>{latest}</time>. {copy.updated}
+		</p>
+		<section class="stats-section" aria-labelledby="activity-heading">
+			<h2 id="activity-heading">{copy.activity}</h2>
+			<figure data-pagefind-ignore>
+				<div
+					class="activity-scroll"
+					tabindex="0"
+					role="region"
+					aria-label={copy.activity}
+				>
+					<svg
+						class="activity-calendar"
+						width={weeks.length * 13 + 32}
+						height="112"
+						role="img"
+						aria-labelledby="activity-title activity-description"
+					>
+						<title id="activity-title">
+							{copy.activity}: {activityCount}
+						</title>
+						<desc id="activity-description"
+							>{copy.note}
+							{
+								historyStart &&
+									`${copy.history} ${historyStart}.`
+							}</desc
+						>
+						{
+							weekdays.map((label, row) => (
+								<text x="0" y={row * 13 + 28}>
+									{label}
+								</text>
+							))
+						}
+						{
+							weeks.map((week, column) => {
+								const first =
+									week.find(
+										(day) =>
+											day.inRange &&
+											day.date.endsWith("-01"),
+									) ||
+									(column === 0
+										? week.find((day) => day.inRange)
+										: undefined);
+								return (
+									<g>
+										{first && (
+											<text x={32 + column * 13} y="10">
+												{monthFormat.format(
+													new Date(
+														`${first.date}T00:00:00Z`,
+													),
+												)}
+											</text>
+										)}
+										{week.map((day, row) => (
+											<rect
+												x={32 + column * 13}
+												y={20 + row * 13}
+												width="10"
+												height="10"
+												rx="2"
+												class={`activity-day level-${level(count(day))}`}
+												opacity={day.inRange ? 1 : 0}
+												data-date={day.date}
+												data-in-range={
+													day.inRange
+														? "true"
+														: undefined
+												}
+											>
+												<title>{dayLabel(day)}</title>
+											</rect>
+										))}
+									</g>
+								);
+							})
+						}
+					</svg>
+				</div>
+				<figcaption class="stats-note">
+					<span
+						>{days.find((day) => day.inRange)!.date} – {today}</span
+					>
+					<span class="activity-legend"
+						>{copy.less}
+						{
+							[0, 1, 2, 3, 4].map((value) => (
+								<span
+									class={`activity-day level-${value}`}
+									aria-hidden="true"
+								/>
+							))
+						}
+						{copy.more}</span
+					>
+				</figcaption>
+			</figure>
+			<p class="stats-note">
+				{copy.note}
+				{
+					historyStart && (
+						<>
+							{copy.history}{" "}
+							<time datetime={historyStart}>{historyStart}</time>.
+						</>
+					)
+				}
+			</p>
+			<p class="stats-note activity-hint">{copy.scroll}</p>
+		</section>
+		<section class="stats-section" aria-labelledby="articles-heading">
+			<h2 id="articles-heading">{copy.articles}</h2>
+			<p class="stats-note">{copy.list}</p>
+			<ul id="stats-articles" data-pagefind-ignore>
+				{
+					posts.map((post) => (
+						<li>
+							<a class="stats-post-title" href={post.url}>
+								{post.data.title}
+							</a>
+							<div class="stats-post-meta">
+								<span>
+									{copy.published}{" "}
+									<time
+										datetime={activityDate(
+											post.data.published,
+										)}
+									>
+										{activityDate(post.data.published)}
+									</time>
+								</span>
+								<span>
+									{copy.edited}{" "}
+									<time
+										datetime={activityDate(
+											getPostActivityDate(post),
+										)}
+									>
+										{activityDate(
+											getPostActivityDate(post),
+										)}
+									</time>
+								</span>
+								<span>
+									{copy.updates}{" "}
+									{post.data.updateCount ?? "—"}
+								</span>
+							</div>
+						</li>
+					))
+				}
+			</ul>
+		</section>
+	</article>
+</MainGridLayout>
+
+<style>
+	.stats-back {
+		display: inline-block;
+		margin-bottom: 1.25rem;
+	}
+	.stats-totals {
+		display: flex;
+		justify-content: space-between;
+		gap: 1rem;
+		padding: 0 0 1.5rem;
+		border-bottom: 1px solid var(--line-divider);
+	}
+	.stats-totals dt,
+	.stats-note,
+	.stats-post-meta {
+		color: var(--text-50);
+		font-size: 0.8rem;
+	}
+	.stats-totals dd {
+		font-size: 2rem;
+		font-weight: 600;
+		margin: 0.25rem 0 0;
+		font-variant-numeric: tabular-nums;
+	}
+	.stats-note {
+		margin: 0.8rem 0;
+		line-height: 1.8;
+	}
+	.stats-section {
+		margin-top: 2rem;
+	}
+	h2 {
+		font-size: 1.25rem;
+		font-weight: 600;
+		margin-bottom: 1rem;
+	}
+	figure {
+		margin: 0;
+	}
+	.activity-scroll {
+		overflow-x: auto;
+		padding: 0.25rem 0;
+	}
+	.activity-calendar {
+		display: block;
+		max-width: none;
+	}
+	.activity-calendar text {
+		fill: var(--text-50);
+		font-size: 9px;
+	}
+	.activity-day {
+		fill: var(--line-divider);
+		background: var(--line-divider);
+	}
+	.level-1 {
+		fill: color-mix(in srgb, var(--primary) 25%, var(--page-bg));
+		background: color-mix(in srgb, var(--primary) 25%, var(--page-bg));
+	}
+	.level-2 {
+		fill: color-mix(in srgb, var(--primary) 50%, var(--page-bg));
+		background: color-mix(in srgb, var(--primary) 50%, var(--page-bg));
+	}
+	.level-3 {
+		fill: color-mix(in srgb, var(--primary) 75%, var(--page-bg));
+		background: color-mix(in srgb, var(--primary) 75%, var(--page-bg));
+	}
+	.level-4 {
+		fill: var(--primary);
+		background: var(--primary);
+	}
+	figcaption {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+	}
+	.activity-legend {
+		display: inline-flex;
+		align-items: center;
+		gap: 3px;
+	}
+	.activity-legend .activity-day {
+		width: 10px;
+		height: 10px;
+		border-radius: 2px;
+	}
+	.activity-hint {
+		display: none;
+	}
+	#stats-articles {
+		list-style: none;
+		padding: 0;
+	}
+	#stats-articles li {
+		border-bottom: 1px solid var(--line-divider);
+		padding: 1rem 0;
+	}
+	.stats-post-title {
+		line-height: 1.6;
+	}
+	.stats-post-meta {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.2rem 1rem;
+		margin-top: 0.4rem;
+		font-variant-numeric: tabular-nums;
+	}
+	.stats-post-meta span {
+		white-space: nowrap;
+	}
+	@media (max-width: 760px) {
+		.activity-hint {
+			display: block;
+		}
+	}
+</style>
