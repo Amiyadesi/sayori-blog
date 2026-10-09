@@ -97,13 +97,31 @@ const firstDepth = Math.min(...toc.map(heading => heading.depth));
 	<Footer />
 </Layout>
 <script>
+	const readingDesktop = matchMedia("(min-width: 1280px)");
 	function initReadingRails() {
-		const expanded = matchMedia("(min-width: 1280px)").matches;
+		const expanded = readingDesktop.matches;
 		for (const id of ["reading-toc", "reading-related"]) {
 			const details = document.getElementById(id);
-			if (details instanceof HTMLDetailsElement) details.open = expanded;
+			if (details instanceof HTMLDetailsElement) {
+				details.name = expanded ? "" : "reading-rails";
+				details.open = expanded;
+			}
 		}
 	}
 	initReadingRails();
 	document.addEventListener("astro:page-load", initReadingRails);
+	readingDesktop.addEventListener("change", initReadingRails);
+	document.addEventListener("click", event => {
+		if (readingDesktop.matches || !(event.target instanceof Element)) return;
+		for (const details of document.querySelectorAll<HTMLDetailsElement>("#reading-toc[open], #reading-related[open]")) {
+			if (!details.contains(event.target) || event.target.closest("a")) details.open = false;
+		}
+	});
+	document.addEventListener("keydown", event => {
+		if (readingDesktop.matches || event.key !== "Escape") return;
+		for (const details of document.querySelectorAll<HTMLDetailsElement>("#reading-toc[open], #reading-related[open]")) {
+			details.open = false;
+			details.querySelector("summary")?.focus();
+		}
+	});
 </script>

@@ -55,6 +55,39 @@
 .reading-actions svg { flex: none; }
 .reading-actions span { display: none; }
 .article-comments { margin-top: 2.5rem; border-top: 1px solid var(--line-divider); padding-top: 1.5rem; }
+@media (max-width: 1279px) {
+	html:has(.reading-shell) { scroll-padding-top: calc(var(--desk-header-height, 6rem) + 3.5rem); }
+	.desk-shell.reading-shell { margin-top: 5rem; }
+	.reading-related, .reading-toc { margin-bottom: 0; }
+	#reading-related, #reading-toc {
+		position: fixed;
+		top: calc(var(--desk-header-height, 6rem) + .5rem);
+		z-index: 30;
+		margin: 0;
+		padding: 0;
+		border: 1px solid var(--line-divider);
+		border-radius: .6rem;
+		background: var(--card-bg);
+	}
+	#reading-related { left: max(.75rem, env(safe-area-inset-left)); }
+	#reading-toc { right: max(.75rem, env(safe-area-inset-right)); }
+	#reading-related summary, #reading-toc summary { min-height: 44px; padding: .5rem .75rem; }
+	#reading-related[open] summary, #reading-toc[open] summary { background: var(--paper-bg-strong); border-radius: .6rem; }
+	#reading-related nav, #reading-toc nav {
+		position: absolute;
+		top: calc(100% + .5rem);
+		left: 0;
+		width: min(24rem, calc(100vw - 2rem));
+		max-height: min(60svh, calc(100svh - var(--desk-header-height, 6rem) - 5rem));
+		padding: .75rem 1rem;
+		border: 1px solid var(--line-divider);
+		border-radius: .6rem;
+		background: var(--card-bg);
+		overscroll-behavior: contain;
+	}
+	#reading-toc nav { left: auto; right: 0; }
+	#reading-related nav a, #reading-toc nav a { display: block; min-height: 44px; }
+}
 @media (min-width: 769px) and (max-width: 1279px) {
 	.reading-actions { bottom: calc(5rem + env(safe-area-inset-bottom)); }
 }
