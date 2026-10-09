@@ -330,10 +330,13 @@ const activityCount = days.reduce((total, day) => total + count(day), 0);
 	.activity-scroll {
 		overflow-x: auto;
 		padding: 0.25rem 0;
+		/* Keep the latest weeks visible when the calendar overflows. */
+		direction: rtl;
 	}
 	.activity-calendar {
 		display: block;
 		max-width: none;
+		direction: ltr;
 	}
 	.activity-calendar text {
 		fill: var(--text-50);
