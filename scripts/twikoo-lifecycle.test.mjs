@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
 
-const source = fs.readFileSync(new URL("../src/components/comment/Twikoo.astro", import.meta.url), "utf8");
-const script = source.match(/<script\s[\s\S]*?>([\s\S]*?)<\/script>/)[1];
+const source = fs.readFileSync(new URL("../src/scripts/twikoo-runtime.js", import.meta.url), "utf8");
+// The lifecycle harness supplies the persisted stylesheet instead of loading CSS in Node.
+const script = source.replace(/^import styles from[^\n]+\n/, "").replace("export function mountTwikoo", "function mountTwikoo");
 const document = new EventTarget();
 const window = new EventTarget();
 const calls = [];
@@ -23,6 +24,7 @@ function makePage() {
 Object.assign(document, {
 	readyState: "complete", body: { classList: { contains: () => true } },
 	getElementById: () => page,
+	querySelector: selector => selector === "[data-twikoo-styles]" ? {} : null,
 });
 Object.assign(window, {
 	location: { pathname: "/old/", origin: "https://blog.sayori.org", hash: "#comments" },
@@ -46,6 +48,7 @@ const context = vm.createContext({
 const flush = () => new Promise(resolve => setImmediate(resolve));
 page = makePage();
 vm.runInContext(script, context);
+context.mountTwikoo(page, context);
 await flush();
 document.dispatchEvent(new Event("astro:before-swap"));
 finishOldIdentity({ ok: false });
@@ -56,7 +59,7 @@ for (const path of ["/new/", "/third/", "/new/"]) {
 	window.location.pathname = path;
 	context.config = { path, adminLogin: "Amiyadesi" };
 	context.fetch = async () => ({ ok: false });
-	vm.runInContext(script, context);
+	context.mountTwikoo(page, context);
 	await flush();
 	document.dispatchEvent(new Event("astro:page-load"));
 	window.dispatchEvent(new Event("hashchange"));
