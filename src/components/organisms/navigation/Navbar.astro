@@ -3,10 +3,10 @@ import { navBarConfig } from "../../../config";
 import { LinkPresets } from "../../../constants/link-presets";
 import type { LinkPreset, NavBarLink } from "../../../types/config";
 import { url } from "../../../utils/url-utils";
-import { SITE_LOCALE, isEnglishSite } from "../../../utils/site-locale";
+import { SITE_LOCALE, isEnglishSite, isTraditionalSite } from "../../../utils/site-locale";
 import LanguageSwitch from "../../control/LanguageSwitch.astro";
 import ThemeToggle from "../../control/ThemeToggle.astro";
-import Search from "./Search.svelte";
+import Search from "./Search.astro";
 
 const resolveLink = (item: NavBarLink | LinkPreset): NavBarLink =>
 	typeof item === "number" ? LinkPresets[item] : item;
@@ -15,6 +15,7 @@ const links = navBarConfig.links.map(resolveLink);
 <header id="page-top" class="desk-header" tabindex="-1" data-pagefind-ignore>
 	<nav id="navbar" class="desk-nav" aria-label={isEnglishSite ? "Primary navigation" : "主导航"}>
 		<a class="desk-brand" href={url("/")}>Amiya<span aria-hidden="true">.</span></a>
+		<div id="desk-navigation-panel" class="desk-navigation-panel">
 		<div class="desk-nav-links">
 			{links.map(link => link.children?.length ? (
 				<details class="desk-more">
@@ -28,14 +29,28 @@ const links = navBarConfig.links.map(resolveLink);
 			))}
 		</div>
 		<div class="desk-nav-actions">
-			<Search locale={SITE_LOCALE} client:load />
 			<LanguageSwitch />
 			<ThemeToggle />
 		</div>
+		</div>
+		<Search locale={SITE_LOCALE} />
+		<button type="button" class="desk-menu-toggle" aria-expanded="false" aria-controls="desk-navigation-panel">{isEnglishSite ? "Menu" : isTraditionalSite ? "選單" : "菜单"}</button>
 	</nav>
 </header>
 <script>
+	function setupNavbar() {
+	const scope = window as typeof window & { __sayoriNavbarBound?: boolean };
+	if (scope.__sayoriNavbarBound) return;
+	scope.__sayoriNavbarBound = true;
 	let headerObserver: ResizeObserver;
+	const phone = matchMedia("(max-width: 760px)");
+	function closeNavigation(restoreFocus = false) {
+		const button = document.querySelector<HTMLButtonElement>(".desk-menu-toggle");
+		button?.setAttribute("aria-expanded", "false");
+		document.querySelector(".desk-header")?.removeAttribute("data-menu-open");
+		if (restoreFocus) button?.focus();
+	}
+	phone.addEventListener("change", () => closeNavigation());
 	function observeHeader() {
 		headerObserver?.disconnect();
 		const header = document.querySelector<HTMLElement>(".desk-header");
@@ -49,15 +64,36 @@ const links = navBarConfig.links.map(resolveLink);
 	document.addEventListener("astro:page-load", observeHeader);
 	observeHeader();
 	document.addEventListener("click", event => {
+		if (!(event.target instanceof Element)) return;
+		const button = event.target.closest(".desk-menu-toggle");
+		if (button) {
+			const open = button.getAttribute("aria-expanded") !== "true";
+			button.setAttribute("aria-expanded", String(open));
+			document.querySelector(".desk-header")?.toggleAttribute("data-menu-open", open);
+			if (open) for (const rail of document.querySelectorAll<HTMLDetailsElement>("#reading-toc, #reading-related")) rail.open = false;
+		} else if (!event.target.closest("#desk-navigation-panel") || event.target.closest("a")) closeNavigation();
 		for (const menu of document.querySelectorAll<HTMLDetailsElement>(".desk-more[open]")) {
-			if (!menu.contains(event.target as Node)) menu.open = false;
+			if (!menu.contains(event.target) || event.target.closest("a")) menu.open = false;
 		}
 	});
+	document.addEventListener("toggle", event => {
+		const rail = event.target;
+		if (phone.matches && rail instanceof HTMLDetailsElement && rail.open && rail.matches("#reading-toc, #reading-related")) closeNavigation();
+	}, true);
+	document.addEventListener("focusin", event => {
+		if (event.target instanceof Element && !event.target.closest(".desk-header")) closeNavigation();
+	});
+	document.addEventListener("change", event => {
+		if (event.target instanceof Element && event.target.matches("[data-language-switch]")) closeNavigation();
+	});
 	document.addEventListener("keydown", event => {
+		if (event.key === "Escape" && document.querySelector(".desk-header[data-menu-open]")) closeNavigation(true);
 		const menu = document.querySelector<HTMLDetailsElement>(".desk-more[open]");
 		if (event.key === "Escape" && menu) {
 			menu.open = false;
 			menu.querySelector("summary")?.focus();
 		}
 	});
+	}
+	setupNavbar();
 </script>

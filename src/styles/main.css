@@ -75,6 +75,8 @@ button:disabled { cursor: wait; opacity: .6; }
 .desk-brand span { color: var(--accent); }
 .desk-nav-links, .desk-nav-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; }
 .desk-nav-actions { margin-left: auto; gap: 1rem; }
+.desk-navigation-panel { display: flex; flex: 1; flex-wrap: wrap; align-items: center; gap: .8rem 1.5rem; }
+.desk-nav .desk-menu-toggle { display: none; }
 .desk-nav :is(a, button, select, summary) { min-height: 2.25rem; display: inline-flex; align-items: center; }
 .desk-theme, .desk-search-button { display: inline-flex; gap: .35rem; align-items: center; color: var(--primary); }
 .desk-more { position: relative; }
@@ -154,10 +156,18 @@ button:disabled { cursor: wait; opacity: .6; }
 }
 .collapsed { height: var(--collapsedHeight); }
 @media (max-width: 760px) {
-	.desk-nav { flex-wrap: wrap; gap: .4rem 1rem; padding: .65rem 1.1rem; }
-	.desk-nav-links { order: 3; flex-basis: 100%; justify-content: flex-start; gap: .3rem 1rem; }
-	.desk-nav-actions { gap: .7rem; }
-	.desk-theme span, .desk-search-button span { display: none; }
+	.desk-nav { flex-wrap: nowrap; gap: .5rem; padding: .35rem 1rem; min-height: 56px; }
+	.desk-brand { margin-right: auto; }
+	.desk-nav :is(a, button, select, summary) { min-height: 44px; }
+	.desk-nav .desk-menu-toggle { display: inline-flex; padding: .3rem .6rem; color: var(--primary); }
+	.desk-search-button { min-width: 44px; justify-content: center; }
+	.desk-search-button span { display: none; }
+	.desk-navigation-panel { display: none; position: absolute; top: 100%; right: 1rem; width: min(24rem, calc(100vw - 2rem)); max-height: calc(100svh - var(--desk-header-height, 56px) - 1rem); overflow: auto; overscroll-behavior: contain; padding: 1rem; border: 1px solid var(--line-divider); border-radius: .6rem; background: var(--card-bg); }
+	.desk-header[data-menu-open] .desk-navigation-panel { display: flex; }
+	.desk-nav-links { width: 100%; flex-direction: column; align-items: stretch; gap: .15rem; }
+	.desk-nav-actions { width: 100%; margin: 0; gap: 1rem; border-top: 1px solid var(--line-divider); padding-top: .5rem; }
+	.desk-nav-actions .desk-theme span { display: inline; }
+	.desk-more .desk-menu { position: static; width: auto; border: 0; padding: 0 .75rem; box-shadow: none; max-height: none; }
 	.desk-shell { width: calc(100% - 2.25rem); margin-top: 2rem; }
 	.desk-note { display: none; }
 	.desk-intro { gap: 1rem; align-items: flex-start; padding-top: 0; }

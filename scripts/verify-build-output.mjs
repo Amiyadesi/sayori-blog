@@ -580,9 +580,9 @@ function verifyHomepageCriticalMedia(html, name = "index.html") {
 		}
 	}
 	const islands = root.querySelectorAll("astro-island");
-	if (islands.length === 1 && islands[0].getAttribute("component-url")?.includes("Search.")) {
-		pass(name + " hydrates only search");
-	} else fail(name + " must hydrate only the search island");
+	if (islands.length === 0 && root.querySelector("dialog#desk-search") && root.querySelector("[data-search-open]")) {
+		pass(name + " has native search without hydrated islands");
+	} else fail(name + " must render native search without hydrated islands");
 	if (root.querySelectorAll("footer.desk-footer").length === 1) pass(name + " renders one footer");
 	else fail(name + " must render exactly one footer");
 	const avatar = root.querySelector(".desk-avatar");
@@ -602,6 +602,10 @@ function verifyDeskLocales() {
 		requireAnyHref(homeName, home, "/" + prefix + "settings/");
 		const articleName = prefix + "posts/blog-style-change/index.html";
 		const article = parse(readDistFile(articleName));
+		if (article.querySelector("#twikoo-container[data-twikoo-options]") &&
+			!article.querySelectorAll("script:not([src])").some(script => script.innerHTML.includes("TWIKOO_INIT_RETRY_DELAYS"))) {
+			pass(articleName + " defers the comment runtime");
+		} else fail(articleName + " must keep only the comment loader in initial HTML");
 		const shortcuts = article.querySelectorAll(".reading-actions a");
 		if (shortcuts.length === 2 &&
 			shortcuts[0].getAttribute("href") === "/" + prefix &&

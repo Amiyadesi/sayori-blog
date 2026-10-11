@@ -19,6 +19,7 @@
 .desk-lite .custom-md :where(summary) { font-weight: 600; }
 .desk-lite .custom-md a:not(.no-styling):not(.anchor) { color: var(--primary); background: none; padding: 0; border: 0; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--primary) 40%, transparent); }
 .desk-lite .custom-md :is(pre, table, .katex-display) { max-width: 100%; overflow-x: auto; }
+.desk-lite { --ec-codeFontFml: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
 .desk-lite .custom-md table { display: block; }
 .desk-lite .custom-md img { max-width: 100%; height: auto; border-radius: .4rem; }
 .desk-lite .custom-md img:not(.music-track-cover) {

@@ -19,12 +19,23 @@ export class FancyboxHandler {
 	private Fancybox: FancyboxType | null = null;
 	private boundSelectors: string[] = [];
 	private initialized = false;
+	private loading: Promise<void> | null = null;
+	private listening = false;
+	private activation = 0;
 
 	/**
 	 * 初始化 Fancybox
 	 * 按需加载 Fancybox 模块和样式
 	 */
 	async init(): Promise<void> {
+		if (document.body.classList.contains("desk-lite")) {
+			this.listenForActivation();
+			return;
+		}
+		await this.prepare();
+	}
+
+	private async prepare(): Promise<void> {
 		const hasImages = this.checkForImages();
 
 		if (!hasImages) {
@@ -33,7 +44,8 @@ export class FancyboxHandler {
 
 		// 按需加载 Fancybox 模块
 		if (!this.Fancybox) {
-			await this.loadFancybox();
+			this.loading ??= this.loadFancybox().finally(() => { this.loading = null; });
+			await this.loading;
 		}
 
 		// 避免重复初始化
@@ -43,6 +55,70 @@ export class FancyboxHandler {
 
 		this.bindImageSelectors();
 		this.initialized = true;
+	}
+
+	private listenForActivation(): void {
+		for (const image of document.querySelectorAll<HTMLImageElement>(FANCYBOX_SELECTORS.albumImages)) {
+			if (image.closest("a, button")) continue;
+			image.tabIndex = 0;
+			image.setAttribute("role", "button");
+			image.setAttribute("aria-haspopup", "dialog");
+			image.setAttribute("aria-label", `${document.documentElement.lang === "en" ? "Enlarge image" : document.documentElement.lang === "zh-Hant" ? "放大圖片" : "放大图片"}${image.alt ? `: ${image.alt}` : ""}`);
+		}
+		if (this.listening) return;
+		this.listening = true;
+		const selector = Object.values(FANCYBOX_SELECTORS).join(",");
+		document.documentElement.addEventListener("click", event => {
+			if (this.initialized || event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+			const target = event.target instanceof Element ? event.target.closest<HTMLElement>(selector) : null;
+			if (!target) return;
+			event.preventDefault();
+			event.stopImmediatePropagation();
+			void this.openAfterLoad(target);
+		}, true);
+		document.documentElement.addEventListener("keydown", event => {
+			const target = event.target;
+			if ((event.key === "Enter" || event.key === " ") && target instanceof HTMLImageElement && target.matches(`${selector}`) && target.getAttribute("role") === "button") {
+				event.preventDefault();
+				void this.openAfterLoad(target);
+			}
+		});
+		document.addEventListener("astro:before-swap", () => {
+			this.activation++;
+			this.Fancybox?.close();
+		});
+	}
+
+	private async openAfterLoad(target: HTMLElement): Promise<void> {
+		const activation = ++this.activation;
+		const previous = (target.closest("a") || target).nextElementSibling;
+		if (previous?.matches(".lightbox-load-error")) previous.remove();
+		target.setAttribute("aria-busy", "true");
+		try {
+			await this.prepare();
+			if (!target.isConnected || activation !== this.activation) return;
+			this.Fancybox.fromTriggerEl(target);
+		} catch (error) {
+			console.error("Image viewer unavailable", error);
+			if (!target.isConnected || activation !== this.activation) return;
+			const english = document.documentElement.lang === "en";
+			const traditional = document.documentElement.lang === "zh-Hant";
+			const message = document.createElement("p");
+			message.className = "lightbox-load-error";
+			message.setAttribute("role", "status");
+			const retry = document.createElement("button");
+			retry.type = "button";
+			retry.textContent = english ? "Image viewer failed. Retry" : traditional ? "圖片檢視器載入失敗，重試" : "图片查看器加载失败，重试";
+			retry.addEventListener("click", event => { event.preventDefault(); event.stopPropagation(); void this.openAfterLoad(target); });
+			const original = document.createElement("a");
+			const image = target instanceof HTMLImageElement ? target : target.querySelector("img");
+			original.href = target.dataset.src || target.getAttribute("href") || image?.dataset.src || image?.currentSrc || image?.src || "";
+			original.textContent = english ? "Open original" : traditional ? "開啟原圖" : "打开原图";
+			original.target = "_blank";
+			original.rel = "noopener";
+			message.append(retry, " · ", original);
+			(target.closest("a") || target).after(message);
+		} finally { target.removeAttribute("aria-busy"); }
 	}
 
 	/**
@@ -60,14 +136,18 @@ export class FancyboxHandler {
 	 * 加载 Fancybox 模块和样式
 	 */
 	private async loadFancybox(): Promise<void> {
-		const styles = new Set(document.head.querySelectorAll("link[rel=stylesheet], style"));
-		const mod = await import("@fancyapps/ui");
-		this.Fancybox = mod.Fancybox;
-		await import("@fancyapps/ui/dist/fancybox/fancybox.css");
-		const host = document.getElementById("desk-features");
-		if (host) for (const style of document.head.querySelectorAll("link[rel=stylesheet], style")) {
-			if (!styles.has(style)) host.append(style);
+		const [mod, vendorStyles, customStyles] = await Promise.all([
+			import("@fancyapps/ui"),
+			import("@fancyapps/ui/dist/fancybox/fancybox.css?inline"),
+			import("../../styles/fancybox-custom.css?inline"),
+		]);
+		if (!document.querySelector("[data-fancybox-styles]")) {
+			const style = document.createElement("style");
+			style.dataset.fancyboxStyles = "true";
+			style.textContent = vendorStyles.default + customStyles.default;
+			(document.getElementById("desk-features") || document.head).append(style);
 		}
+		this.Fancybox = mod.Fancybox;
 	}
 
 	/**
@@ -119,6 +199,7 @@ export class FancyboxHandler {
 			this.Fancybox.unbind(document.documentElement, selector);
 		});
 		this.boundSelectors = [];
+		this.initialized = false;
 	}
 
 	/**
@@ -146,16 +227,13 @@ export class FancyboxHandler {
 }
 
 // 创建全局实例
-let globalFancyboxHandler: FancyboxHandler | null = null;
+const fancyboxScope = window as typeof window & { __sayoriFancyboxHandler?: FancyboxHandler };
 
 /**
  * 获取全局 Fancybox 处理器实例
  */
 export function getFancyboxHandler(): FancyboxHandler {
-	if (!globalFancyboxHandler) {
-		globalFancyboxHandler = new FancyboxHandler();
-	}
-	return globalFancyboxHandler;
+	return fancyboxScope.__sayoriFancyboxHandler ??= new FancyboxHandler();
 }
 
 /**
@@ -170,7 +248,7 @@ export async function initFancybox(): Promise<void> {
  * 清理 Fancybox（便捷函数）
  */
 export function cleanupFancybox(): void {
-	if (globalFancyboxHandler) {
-		globalFancyboxHandler.cleanup();
+	if (fancyboxScope.__sayoriFancyboxHandler) {
+		fancyboxScope.__sayoriFancyboxHandler.cleanup();
 	}
 }

@@ -75,6 +75,8 @@ console.log(
 );
 
 function shouldKeepBlocking(routePath, href) {
+	// Locale prefixes must not turn article typography into deferred CSS.
+	routePath = routePath.replace(/^\/(?:zh-hant|en)(?=\/)/, "");
 	const fileName = path.basename(href);
 	if (ALWAYS_BLOCKING_PATTERNS.some((pattern) => fileName.includes(pattern))) {
 		return true;

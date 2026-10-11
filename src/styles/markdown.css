@@ -791,37 +791,9 @@
     margin: 0;
   }
 
-  .mermaid-zoom-wrapper {
-    display: block;
-    transform-origin: 0 0;
-    margin: 0;
-    transition: transform 120ms ease-out;
-    will-change: transform;
-    cursor: grab;
-    background: transparent;
-  }
-
-  .mermaid-zoom-wrapper:active {
-    cursor: grabbing;
-  }
-
   .mermaid :where(.nodeLabel, .edgeLabel, .label, text, tspan) {
     fill: color-mix(in srgb, var(--card-content) 92%, black 8%) !important;
     color: color-mix(in srgb, var(--card-content) 92%, black 8%) !important;
-    opacity: 1 !important;
-    font-family: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Noto Sans SC", system-ui, sans-serif !important;
-    font-size: 16px !important;
-    font-weight: 600;
-    line-height: 1.25 !important;
-    text-decoration: none !important;
-  }
-
-  .mermaid :where(foreignObject) {
-    overflow: visible !important;
-  }
-
-  .mermaid :where(.node rect, .node circle, .node ellipse, .node polygon, .node path) {
-    stroke-width: 1.8px !important;
   }
 
   .mermaid-loading,

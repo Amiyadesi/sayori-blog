@@ -68,8 +68,7 @@ export default defineConfig({
 						},
 					}),
 				]),
-		// The blog uses document navigation so third-party widgets keep their styles
-		// and initialize against a fresh page. Leave the separate diary build unchanged.
+		// The blog uses Astro ClientRouter; Swup belongs to the separate diary build.
 		...(isSayoriDiarySite ? [swup({
 			theme: false,
 			animationClass: "transition-swup-",
@@ -117,8 +116,9 @@ export default defineConfig({
 				borderRadius: "0.75rem",
 				borderColor: "none",
 				codeFontSize: "0.875rem",
-				codeFontFamily:
-					"'JetBrains Mono Variable', SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', 'Microsoft JhengHei', '微軟正黑體', 'Microsoft YaHei', '微软雅黑', 'Noto Sans HK', 'Noto Sans TC', 'Noto Sans JP', 'Noto Sans SC', 'Noto Sans KR', ui-monospace, monospace",
+				codeFontFamily: isSayoriDiarySite
+					? "'JetBrains Mono Variable', SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', 'Microsoft JhengHei', '微軟正黑體', 'Microsoft YaHei', '微软雅黑', 'Noto Sans HK', 'Noto Sans TC', 'Noto Sans JP', 'Noto Sans SC', 'Noto Sans KR', ui-monospace, monospace"
+					: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
 				codeLineHeight: "1.5rem",
 				frames: {
 					editorBackground: "var(--codeblock-bg)",
@@ -279,7 +279,7 @@ export default defineConfig({
 					"src/layouts/Layout.astro",
 					"src/pages/index.astro",
 					"src/components/widgets/music-player/MusicPlayer.svelte",
-					"src/components/organisms/navigation/Search.svelte",
+					"src/components/organisms/navigation/Search.astro",
 					"src/components/control/ThemeSwitch.svelte",
 					"src/components/features/settings/DisplaySettings.svelte",
 					"src/scripts/swup-manager.ts",

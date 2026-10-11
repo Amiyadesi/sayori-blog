@@ -432,3 +432,85 @@ html.dark .twikoo select option {
   @apply !rounded-lg;
   clip-path: inset(0 round 0.5rem) !important;
 }
+
+/* Comment runtime states and owner/review presentation. */
+
+	.twikoo-container {
+		min-height: 200px;
+	}
+
+	.twikoo-review-hint {
+		margin-top: 1rem;
+		font-size: 0.9rem;
+		line-height: 1.8;
+		color: rgba(0, 0, 0, 0.56);
+	}
+
+	.twikoo-loading,
+	.twikoo-unavailable {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+		padding: 1.25rem 1.5rem;
+		border: 1px solid var(--paper-edge);
+		border-radius: var(--paper-radius);
+		color: var(--paper-muted);
+		background:
+			var(--paper-overlay), var(--paper-line-image), var(--paper-bg-soft);
+		background-position:
+			0 0,
+			0 var(--paper-line-offset),
+			0 0;
+		box-shadow: var(--paper-shadow-flat);
+		transition:
+			border-color 0.2s ease,
+			box-shadow 0.2s ease;
+	}
+
+	.twikoo-loading,
+	.twikoo-unavailable {
+		flex-direction: column;
+		align-items: flex-start;
+		justify-content: flex-start;
+	}
+
+	.twikoo-loading span,
+	.twikoo-unavailable span {
+		font-size: 0.875rem;
+		opacity: 0.75;
+	}
+
+	.dark .twikoo-loading,
+	.dark .twikoo-unavailable {
+		color: var(--paper-muted);
+		background:
+			var(--paper-overlay), var(--paper-line-image), var(--paper-bg-soft);
+		border-color: var(--paper-edge);
+	}
+
+	.dark .twikoo-review-hint {
+		color: rgba(255, 255, 255, 0.62);
+	}
+
+	.is-review-only .tk-comments-container,
+	.is-review-only .tk-expand-wrap,
+	.is-review-only .tk-collapse-wrap {
+		display: none !important;
+	}
+
+	.is-review-only .tk-submit-review-only {
+		border-top: 0;
+		padding-top: 0;
+	}
+
+	.tk-owner-comment {
+		border-color: color-mix(in srgb, var(--primary) 26%, transparent);
+	}
+
+	.tk-owner-avatar img {
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}

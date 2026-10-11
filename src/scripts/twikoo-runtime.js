@@ -1,0 +1,995 @@
+import styles from "../styles/twikoo.css?inline";
+
+export function mountTwikoo(pageContainer, { config, ownerNick, ownerAvatar, reviewOnly, isEnglishSite }) {
+	if (!document.querySelector("[data-twikoo-styles]")) {
+		const style = document.createElement("style");
+		style.dataset.twikooStyles = "true";
+		style.textContent = styles;
+		(document.getElementById("twikoo-runtime-host") || document.head).append(style);
+	}
+
+	const TWIKOO_CONTAINER_ID = "twikoo-container";
+	if (!pageContainer) throw new Error("Twikoo container is missing.");
+	window.__sayoriTwikooCleanup?.();
+	const lifecycle = new AbortController();
+	const observers = [];
+	const isCurrentPage = () => !lifecycle.signal.aborted && document.getElementById(TWIKOO_CONTAINER_ID) === pageContainer;
+	window.__sayoriTwikooCleanup = () => {
+		if (lifecycle.signal.aborted) return;
+		lifecycle.abort();
+		clearRetryTimer();
+		for (const observer of observers) observer.disconnect();
+		pageContainer.querySelector("#twikoo, .twikoo")?.__vue__?.$destroy();
+	};
+	document.addEventListener("astro:before-swap", window.__sayoriTwikooCleanup, { once: true, signal: lifecycle.signal });
+	const TWIKOO_SCRIPT_URL = "/assets/js/twikoo.all.min.js";
+	const TWIKOO_SCRIPT_TIMEOUT_MS = 8000;
+	const TWIKOO_INIT_RETRY_DELAYS = [600, 1800, 4000];
+	const COMMENT_PROFILE_KEY = "sayori-comment-profile";
+	const TWIKOO_PROFILE_KEY = "twikoo";
+	const GITHUB_EMOJI_CACHE_KEY = "sayori-github-emoji-map";
+	const GITHUB_EMOJI_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
+	const GITHUB_EMOJI_API = "https://api.github.com/emojis";
+	const GITHUB_ALERTS = {
+		note: "Note",
+		tip: "Tip",
+		important: "Important",
+		warning: "Warning",
+		caution: "Caution",
+	};
+	const COMMON_GITHUB_EMOJI = {
+		"+1": "👍",
+		"-1": "👎",
+		"100": "💯",
+		clap: "👏",
+		confused: "😕",
+		cry: "😢",
+		eyes: "👀",
+		fire: "🔥",
+		heart: "❤️",
+		heart_eyes: "😍",
+		joy: "😂",
+		laughing: "😆",
+		ok_hand: "👌",
+		rocket: "🚀",
+		smile: "😄",
+		sparkles: "✨",
+		tada: "🎉",
+		thinking: "🤔",
+		warning: "⚠️",
+		wink: "😉",
+	};
+
+	let isInitializing = false;
+	let initializedPath = "";
+	let initRetryCount = 0;
+	let retryTimer = 0;
+	let githubEmojiMapPromise = null;
+	let footnoteScopeCounter = 0;
+	const ownerIdentity = {
+		checked: false,
+		isOwner: false,
+	};
+
+	function getCurrentPath() {
+		const pathname = window.location.pathname;
+		return pathname.endsWith("/") && pathname.length > 1
+			? pathname.slice(0, -1)
+			: pathname;
+	}
+
+	function getConfiguredPath() {
+		const configuredPath = String(config?.path || "").trim();
+		return configuredPath || "";
+	}
+
+	function getTwikooPath() {
+		return getConfiguredPath() || getCurrentPath();
+	}
+
+	function createTwikooConfig() {
+		return {
+			...config,
+			envId: `${window.location.origin}/api/twikoo`,
+			path: getTwikooPath(),
+			el: "#tcomment",
+		};
+	}
+
+	function isProfileValue(value) {
+		return typeof value === "string" && value.trim().length > 0;
+	}
+
+	function readJsonStorage(key) {
+		try {
+			const raw = localStorage.getItem(key);
+			if (!raw) {
+				return null;
+			}
+			const value = JSON.parse(raw);
+			return value && typeof value === "object" ? value : null;
+		} catch {
+			return null;
+		}
+	}
+
+	function normalizeProfile(profile) {
+		if (!profile || typeof profile !== "object") {
+			return null;
+		}
+		const normalized = {
+			nick: isProfileValue(profile.nick) ? profile.nick.trim() : "",
+			mail: isProfileValue(profile.mail) ? profile.mail.trim() : "",
+			link: isProfileValue(profile.link) ? profile.link.trim() : "",
+		};
+		return normalized.nick || normalized.mail || normalized.link
+			? normalized
+			: null;
+	}
+
+	function readStoredProfile() {
+		return (
+			normalizeProfile(readJsonStorage(COMMENT_PROFILE_KEY)) ||
+			normalizeProfile(readJsonStorage(TWIKOO_PROFILE_KEY))
+		);
+	}
+
+	function normalizeNick(value) {
+		return String(value || "")
+			.trim()
+			.toLowerCase();
+	}
+
+	function isOwnerProfile(profile) {
+		return normalizeNick(profile?.nick) === normalizeNick(ownerNick);
+	}
+
+	function clearStoredOwnerProfile() {
+		if (!isOwnerProfile(readStoredProfile())) {
+			return;
+		}
+		try {
+			localStorage.removeItem(COMMENT_PROFILE_KEY);
+			localStorage.removeItem(TWIKOO_PROFILE_KEY);
+		} catch {
+			// localStorage may be blocked; comments still work without memory.
+		}
+	}
+
+	async function ensureOwnerIdentity() {
+		if (ownerIdentity.checked) {
+			return ownerIdentity.isOwner;
+		}
+		ownerIdentity.checked = true;
+		try {
+			const response = await fetch("/api/admin/me", {
+				signal: lifecycle.signal,
+				credentials: "same-origin",
+				headers: { accept: "application/json" },
+			});
+			if (!response.ok) {
+				ownerIdentity.isOwner = false;
+				clearStoredOwnerProfile();
+				return false;
+			}
+			const data = await response.json();
+			ownerIdentity.isOwner = Boolean(
+				data?.success &&
+				data?.user?.login &&
+				data.user.login === data?.config?.adminLogin,
+			);
+		} catch {
+			ownerIdentity.isOwner = false;
+		}
+		if (!ownerIdentity.isOwner) {
+			clearStoredOwnerProfile();
+		}
+		return ownerIdentity.isOwner;
+	}
+
+	function getPreferredProfile() {
+		if (!ownerIdentity.isOwner) {
+			return readStoredProfile();
+		}
+		return normalizeProfile({
+			...(readStoredProfile() || {}),
+			nick: ownerNick,
+			mail: "me@sayori.org",
+			link: "https://sayori.org",
+		});
+	}
+
+	function saveStoredProfile(profile) {
+		const normalized = normalizeProfile(profile);
+		if (!normalized) {
+			return;
+		}
+		try {
+			const serialized = JSON.stringify(normalized);
+			localStorage.setItem(COMMENT_PROFILE_KEY, serialized);
+			localStorage.setItem(TWIKOO_PROFILE_KEY, serialized);
+		} catch {
+			// localStorage may be blocked; comments still work without memory.
+		}
+	}
+
+	function setNativeInputValue(input, value) {
+		if (!input || !isProfileValue(value)) {
+			return;
+		}
+		const prototype = Object.getPrototypeOf(input);
+		const descriptor = Object.getOwnPropertyDescriptor(
+			prototype,
+			"value",
+		);
+		if (descriptor?.set) {
+			descriptor.set.call(input, value);
+		} else {
+			input.value = value;
+		}
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+		input.dispatchEvent(new Event("change", { bubbles: true }));
+	}
+
+	function getMetaInputs(root) {
+		return {
+			nick: root.querySelector('input[name="nick"]'),
+			mail: root.querySelector('input[name="mail"]'),
+			link: root.querySelector('input[name="link"]'),
+		};
+	}
+
+	function guardReservedNick(root) {
+		const inputs = getMetaInputs(root);
+		if (
+			ownerIdentity.isOwner ||
+			!isOwnerProfile({ nick: inputs.nick?.value || "" })
+		) {
+			return true;
+		}
+		setNativeInputValue(inputs.nick, "");
+		clearStoredOwnerProfile();
+		const textarea = root.querySelector(
+			".tk-input textarea, .el-textarea__inner",
+		);
+		textarea?.focus();
+		const error = root.querySelector(".tk-error-message");
+		if (error) {
+			error.textContent = isEnglishSite
+				? "Please sign in with GitHub in the admin area before commenting as Amiya_desi."
+				: "请先在后台用 GitHub 登录，再使用 Amiya_desi 评论。";
+		}
+		return false;
+	}
+
+	function applyStoredProfile(root) {
+		const profile = getPreferredProfile();
+		if (!profile) {
+			return;
+		}
+		const inputs = getMetaInputs(root);
+		for (const key of ["nick", "mail", "link"]) {
+			if (!inputs[key] || !isProfileValue(profile[key])) {
+				continue;
+			}
+			if (
+				ownerIdentity.isOwner
+					? key !== "nick" && inputs[key].value
+					: inputs[key].value
+			) {
+				continue;
+			}
+			setNativeInputValue(inputs[key], profile[key]);
+		}
+	}
+
+	function captureProfileFromDom(root) {
+		const inputs = getMetaInputs(root);
+		const profile = {
+			nick: inputs.nick?.value || "",
+			mail: inputs.mail?.value || "",
+			link: inputs.link?.value || "",
+		};
+		if (ownerIdentity.isOwner) {
+			profile.nick = ownerNick;
+		}
+		saveStoredProfile(profile);
+	}
+
+	function setupProfileMemory(root) {
+		applyStoredProfile(root);
+		if (root.dataset.profileMemoryBound === "true") {
+			return;
+		}
+		root.dataset.profileMemoryBound = "true";
+		root.addEventListener("change", (event) => {
+			const target = event.target;
+			if (
+				target instanceof HTMLInputElement &&
+				["nick", "mail", "link"].includes(target.name)
+			) {
+				captureProfileFromDom(root);
+			}
+		});
+		root.addEventListener(
+			"click",
+			(event) => {
+				const target = event.target;
+				if (
+					target instanceof Element &&
+					target.closest(".tk-send")
+				) {
+					if (!guardReservedNick(root)) {
+						event.preventDefault();
+						event.stopPropagation();
+						return;
+					}
+					captureProfileFromDom(root);
+				}
+			},
+			true,
+		);
+		const observer = new MutationObserver(() => {
+			applyStoredProfile(root);
+		});
+		observer.observe(root, { childList: true, subtree: true });
+		observers.push(observer);
+	}
+
+	function getCommentContainer() {
+		return pageContainer;
+	}
+
+	function getOrCreateCommentMount(container) {
+		const existingMount = container.querySelector("#tcomment");
+		if (existingMount) {
+			return existingMount;
+		}
+
+		container.querySelector("#twikoo.twikoo, .twikoo")?.remove();
+		const mount = document.createElement("div");
+		mount.id = "tcomment";
+		container.insertBefore(mount, container.firstChild);
+		return mount;
+	}
+
+	function loadTwikooScript() {
+		if (window.twikoo?.init) return Promise.resolve(window.twikoo);
+		if (window.__sayoriTwikooScript) return window.__sayoriTwikooScript;
+		window.__sayoriTwikooScript = new Promise((resolve, reject) => {
+			const host = document.body.classList.contains("desk-lite")
+				? document.getElementById("twikoo-runtime-host")
+				: document.head;
+			if (!host) throw new Error("Missing Twikoo runtime host.");
+			const existingStyles = new Set(document.head.querySelectorAll("style"));
+			const script = document.createElement("script");
+			script.id = "twikoo-script-loaded";
+			script.src = TWIKOO_SCRIPT_URL;
+			script.async = true;
+			const timeout = window.setTimeout(
+				() => fail("Twikoo script timed out."),
+				TWIKOO_SCRIPT_TIMEOUT_MS,
+			);
+			function fail(message) {
+				window.clearTimeout(timeout);
+				script.remove();
+				reject(new Error(message));
+			}
+			script.onload = () => {
+				if (!window.twikoo?.init) {
+					fail("Twikoo script loaded without its runtime.");
+					return;
+				}
+				window.clearTimeout(timeout);
+				for (const style of document.head.querySelectorAll("style")) {
+					if (!existingStyles.has(style)) host.appendChild(style);
+				}
+				resolve(window.twikoo);
+			};
+			script.onerror = () => fail("Twikoo script failed to load.");
+			host.appendChild(script);
+		}).catch((error) => {
+			window.__sayoriTwikooScript = null;
+			throw error;
+		});
+		return window.__sayoriTwikooScript;
+	}
+
+	function clearRetryTimer() {
+		if (!retryTimer) {
+			return;
+		}
+		window.clearTimeout(retryTimer);
+		retryTimer = 0;
+	}
+
+	function scheduleInitRetry() {
+		if (initRetryCount >= TWIKOO_INIT_RETRY_DELAYS.length) {
+			return false;
+		}
+		const delay = TWIKOO_INIT_RETRY_DELAYS[initRetryCount];
+		initRetryCount += 1;
+		clearRetryTimer();
+		retryTimer = window.setTimeout(() => {
+			retryTimer = 0;
+			initializedPath = "";
+			initTwikoo();
+		}, delay);
+		return true;
+	}
+
+	function showUnavailableMessage(commentEl, willRetry = false) {
+		commentEl.innerHTML = [
+			'<div class="twikoo-unavailable">',
+			isEnglishSite
+				? "<strong>Comments are temporarily unavailable.</strong>"
+				: "<strong>评论区暂时没接上。</strong>",
+			"<span>" +
+				(willRetry
+					? isEnglishSite
+						? "Retrying automatically; you can also try manually."
+						: "正在自动重试，也可以手动点一下。"
+					: isEnglishSite
+						? "Please come back later or reload manually."
+						: "晚点再来看看，或手动重新加载。") +
+				"</span>",
+			'<button type="button" class="twikoo-retry-button" data-twikoo-retry>' +
+				(isEnglishSite ? "Reload" : "重新加载") +
+				"</button>",
+			"</div>",
+		].join("");
+		commentEl
+			.querySelector("[data-twikoo-retry]")
+			?.addEventListener("click", () => {
+				clearRetryTimer();
+				initRetryCount = 0;
+				initializedPath = "";
+				initTwikoo();
+			});
+	}
+
+	function renderLoadingMessage(commentEl) {
+		commentEl.innerHTML = [
+			'<div class="twikoo-loading">',
+			isEnglishSite
+				? "<strong>Loading comments.</strong>"
+				: "<strong>评论区加载中。</strong>",
+			isEnglishSite
+				? "<span>Just a moment.</span>"
+				: "<span>稍等一下。</span>",
+			"</div>",
+		].join("");
+	}
+
+	function getEnhancementTargets(root) {
+		return root.querySelectorAll(".tk-content, .tk-preview-container");
+	}
+
+	function shouldSkipTextEnhancement(node) {
+		const parent = node.parentElement;
+		return Boolean(
+			parent?.closest(
+				"code, pre, a, textarea, .tk-gfm-footnote-ref, .tk-gfm-footnotes, .tk-owo-emotion",
+			),
+		);
+	}
+
+	function removeLeadingMarker(element, pattern) {
+		const walker = document.createTreeWalker(
+			element,
+			NodeFilter.SHOW_TEXT,
+		);
+		const firstText = walker.nextNode();
+		if (!firstText) {
+			return "";
+		}
+		const original = firstText.textContent || "";
+		const match = original.match(pattern);
+		if (!match) {
+			return "";
+		}
+		firstText.textContent = original.slice(match[0].length);
+		return match[1] || "";
+	}
+
+	function enhanceGithubAlerts(scope) {
+		for (const blockquote of scope.querySelectorAll("blockquote")) {
+			if (blockquote.dataset.gfmAlert === "true") {
+				continue;
+			}
+			const firstElement = blockquote.firstElementChild;
+			if (!firstElement) {
+				continue;
+			}
+			const raw = firstElement.textContent || "";
+			const match = raw.match(
+				/^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*(?:\n|$)/i,
+			);
+			if (!match) {
+				continue;
+			}
+			const type = match[1].toLowerCase();
+			removeLeadingMarker(
+				firstElement,
+				/^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*(?:\n)?/i,
+			);
+			if (!firstElement.textContent?.trim()) {
+				firstElement.remove();
+			}
+
+			blockquote.dataset.gfmAlert = "true";
+			blockquote.classList.add(
+				"tk-gfm-alert",
+				`tk-gfm-alert-${type}`,
+			);
+			const title = document.createElement("div");
+			title.className = "tk-gfm-alert-title";
+			title.textContent = GITHUB_ALERTS[type] || type.toUpperCase();
+			blockquote.prepend(title);
+		}
+	}
+
+	function slugFootnoteId(value) {
+		return String(value || "")
+			.trim()
+			.toLowerCase()
+			.replace(/[^a-z0-9_-]+/g, "-")
+			.replace(/^-+|-+$/g, "");
+	}
+
+	function collectFootnotes(scope) {
+		const notes = [];
+		for (const paragraph of scope.querySelectorAll("p")) {
+			const raw = paragraph.textContent || "";
+			const match = raw.match(/^\s*\[\^([^\]\s]+)\]:\s*/);
+			if (!match) {
+				continue;
+			}
+			const id = match[1];
+			const clone = paragraph.cloneNode(true);
+			removeLeadingMarker(clone, /^\s*\[\^([^\]\s]+)\]:\s*/);
+			const html = clone.innerHTML.trim();
+			if (html) {
+				notes.push({ id, html });
+			}
+			paragraph.remove();
+		}
+		return notes;
+	}
+
+	function replaceFootnoteRefs(scope, notes, scopeId) {
+		const noteIds = new Set(notes.map((note) => note.id));
+		const walker = document.createTreeWalker(
+			scope,
+			NodeFilter.SHOW_TEXT,
+			{
+				acceptNode(node) {
+					if (
+						shouldSkipTextEnhancement(node) ||
+						!/\[\^[^\]\s]+\]/.test(node.textContent || "")
+					) {
+						return NodeFilter.FILTER_REJECT;
+					}
+					return NodeFilter.FILTER_ACCEPT;
+				},
+			},
+		);
+		const nodes = [];
+		let node = walker.nextNode();
+		while (node) {
+			nodes.push(node);
+			node = walker.nextNode();
+		}
+
+		for (const textNode of nodes) {
+			const text = textNode.textContent || "";
+			const fragment = document.createDocumentFragment();
+			let lastIndex = 0;
+			let changed = false;
+			for (const match of text.matchAll(/\[\^([^\]\s]+)\]/g)) {
+				const id = match[1];
+				if (!noteIds.has(id) || match.index === undefined) {
+					continue;
+				}
+				fragment.append(text.slice(lastIndex, match.index));
+				const safeId = slugFootnoteId(id);
+				const refId = `${scopeId}-fnref-${safeId}`;
+				const noteId = `${scopeId}-fn-${safeId}`;
+				const sup = document.createElement("sup");
+				sup.className = "tk-gfm-footnote-ref";
+				sup.id = refId;
+				const link = document.createElement("a");
+				link.href = `#${noteId}`;
+				link.textContent = id;
+				link.setAttribute("aria-label", `Footnote ${id}`);
+				sup.appendChild(link);
+				fragment.appendChild(sup);
+				lastIndex = match.index + match[0].length;
+				changed = true;
+			}
+			if (!changed) {
+				continue;
+			}
+			fragment.append(text.slice(lastIndex));
+			textNode.parentNode?.replaceChild(fragment, textNode);
+		}
+	}
+
+	function renderFootnotes(scope, notes, scopeId) {
+		if (!notes.length) {
+			return;
+		}
+		scope.querySelector(".tk-gfm-footnotes")?.remove();
+		const section = document.createElement("section");
+		section.className = "tk-gfm-footnotes";
+		const list = document.createElement("ol");
+		for (const note of notes) {
+			const safeId = slugFootnoteId(note.id);
+			const item = document.createElement("li");
+			item.id = `${scopeId}-fn-${safeId}`;
+			item.innerHTML = note.html;
+			const back = document.createElement("a");
+			back.className = "tk-gfm-footnote-backref";
+			back.href = `#${scopeId}-fnref-${safeId}`;
+			back.textContent = "↩";
+			item.append(" ");
+			item.appendChild(back);
+			list.appendChild(item);
+		}
+		section.appendChild(list);
+		scope.appendChild(section);
+	}
+
+	function enhanceGithubFootnotes(scope) {
+		if (scope.dataset.gfmFootnotesEnhanced === "true") {
+			return;
+		}
+		const notes = collectFootnotes(scope);
+		if (!notes.length) {
+			scope.dataset.gfmFootnotesEnhanced = "true";
+			return;
+		}
+		const scopeId = `tkfn-${++footnoteScopeCounter}`;
+		replaceFootnoteRefs(scope, notes, scopeId);
+		renderFootnotes(scope, notes, scopeId);
+		scope.dataset.gfmFootnotesEnhanced = "true";
+	}
+
+	function enhanceGithubTaskLists(scope) {
+		for (const input of scope.querySelectorAll(
+			'li > input[type="checkbox"]',
+		)) {
+			input.disabled = true;
+			input.closest("li")?.classList.add("tk-gfm-task-list-item");
+		}
+	}
+
+	function readCachedGithubEmojiMap() {
+		try {
+			const raw = localStorage.getItem(GITHUB_EMOJI_CACHE_KEY);
+			if (!raw) {
+				return null;
+			}
+			const cached = JSON.parse(raw);
+			if (
+				!cached ||
+				typeof cached !== "object" ||
+				Date.now() - Number(cached.savedAt || 0) >
+					GITHUB_EMOJI_CACHE_TTL
+			) {
+				return null;
+			}
+			return cached.map && typeof cached.map === "object"
+				? cached.map
+				: null;
+		} catch {
+			return null;
+		}
+	}
+
+	function isSafeGithubEmojiUrl(value) {
+		try {
+			const url = new URL(value);
+			return (
+				url.protocol === "https:" &&
+				["github.githubassets.com", "github.com"].includes(
+					url.hostname,
+				)
+			);
+		} catch {
+			return false;
+		}
+	}
+
+	async function getGithubEmojiMap() {
+		if (!githubEmojiMapPromise) {
+			githubEmojiMapPromise = (async () => {
+				const cached = readCachedGithubEmojiMap();
+				if (cached) {
+					return cached;
+				}
+				const response = await fetch(GITHUB_EMOJI_API, {
+					headers: { accept: "application/json" },
+				});
+				if (!response.ok) {
+					return {};
+				}
+				const data = await response.json();
+				const safeMap = {};
+				for (const [key, value] of Object.entries(data || {})) {
+					if (isSafeGithubEmojiUrl(value)) {
+						safeMap[key] = value;
+					}
+				}
+				try {
+					localStorage.setItem(
+						GITHUB_EMOJI_CACHE_KEY,
+						JSON.stringify({
+							savedAt: Date.now(),
+							map: safeMap,
+						}),
+					);
+				} catch {
+					// Emoji rendering still works without persistent cache.
+				}
+				return safeMap;
+			})().catch(() => ({}));
+		}
+		return githubEmojiMapPromise;
+	}
+
+	function createEmojiNode(code, emojiMap) {
+		if (COMMON_GITHUB_EMOJI[code]) {
+			const span = document.createElement("span");
+			span.className = "tk-gfm-emoji";
+			span.textContent = COMMON_GITHUB_EMOJI[code];
+			return span;
+		}
+		const imageUrl = emojiMap?.[code];
+		if (!imageUrl) {
+			return null;
+		}
+		const image = document.createElement("img");
+		image.className = "tk-gfm-emoji";
+		image.src = imageUrl;
+		image.alt = `:${code}:`;
+		image.loading = "lazy";
+		image.decoding = "async";
+		return image;
+	}
+
+	function enhanceGithubEmoji(scope, emojiMap = {}) {
+		let hasUnresolvedEmoji = false;
+		const walker = document.createTreeWalker(
+			scope,
+			NodeFilter.SHOW_TEXT,
+			{
+				acceptNode(node) {
+					if (
+						shouldSkipTextEnhancement(node) ||
+						!/:([+\-a-z0-9_]+):/i.test(node.textContent || "")
+					) {
+						return NodeFilter.FILTER_REJECT;
+					}
+					return NodeFilter.FILTER_ACCEPT;
+				},
+			},
+		);
+		const nodes = [];
+		let node = walker.nextNode();
+		while (node) {
+			nodes.push(node);
+			node = walker.nextNode();
+		}
+
+		for (const textNode of nodes) {
+			const text = textNode.textContent || "";
+			const fragment = document.createDocumentFragment();
+			let lastIndex = 0;
+			let changed = false;
+			for (const match of text.matchAll(/:([+\-a-z0-9_]+):/gi)) {
+				const code = match[1];
+				const emojiNode = createEmojiNode(code, emojiMap);
+				if (!emojiNode || match.index === undefined) {
+					hasUnresolvedEmoji = true;
+					continue;
+				}
+				fragment.append(text.slice(lastIndex, match.index));
+				fragment.appendChild(emojiNode);
+				lastIndex = match.index + match[0].length;
+				changed = true;
+			}
+			if (!changed) {
+				continue;
+			}
+			fragment.append(text.slice(lastIndex));
+			textNode.parentNode?.replaceChild(fragment, textNode);
+		}
+		return hasUnresolvedEmoji;
+	}
+
+	function enhanceGithubMarkdown(root) {
+		let needsRemoteEmojiMap = false;
+		for (const target of getEnhancementTargets(root)) {
+			enhanceGithubAlerts(target);
+			enhanceGithubFootnotes(target);
+			enhanceGithubTaskLists(target);
+			needsRemoteEmojiMap =
+				enhanceGithubEmoji(target) || needsRemoteEmojiMap;
+		}
+		if (!needsRemoteEmojiMap) {
+			return;
+		}
+		getGithubEmojiMap().then((emojiMap) => {
+			for (const target of getEnhancementTargets(root)) {
+				enhanceGithubEmoji(target, emojiMap);
+			}
+		});
+	}
+
+	function markOwnerComments(commentEl) {
+		const targetNick = normalizeNick(ownerNick);
+		for (const comment of commentEl.querySelectorAll(".tk-comment")) {
+			const nickEl = comment.querySelector(
+				".tk-nick strong, .tk-nick-link strong, .tk-nick",
+			);
+			if (
+				!nickEl ||
+				normalizeNick(nickEl.textContent) !== targetNick
+			) {
+				continue;
+			}
+
+			comment.classList.add("tk-owner-comment");
+			const avatar = comment.querySelector(".tk-avatar");
+			if (!avatar || avatar.dataset.ownerAvatar === "true") {
+				continue;
+			}
+			avatar.dataset.ownerAvatar = "true";
+			avatar.classList.add("tk-owner-avatar", "tk-has-avatar");
+			avatar.innerHTML = "";
+			const image = document.createElement("img");
+			image.src = ownerAvatar;
+			image.alt = "";
+			image.loading = "lazy";
+			avatar.appendChild(image);
+		}
+	}
+
+	function setupCommentEnhancements(root) {
+		markOwnerComments(root);
+		enhanceGithubMarkdown(root);
+
+		if (root.dataset.ownerObserverBound === "true") {
+			return;
+		}
+		root.dataset.ownerObserverBound = "true";
+		const observer = new MutationObserver(() => {
+			markOwnerComments(root);
+			enhanceGithubMarkdown(root);
+		});
+		observer.observe(root, { childList: true, subtree: true });
+		observers.push(observer);
+	}
+
+	function setupReviewOnlyMode(root) {
+		if (!reviewOnly) {
+			return;
+		}
+
+		const applyReviewOnlyMode = () => {
+			for (const el of root.querySelectorAll(
+				".tk-comments-container, .tk-expand-wrap, .tk-collapse-wrap",
+			)) {
+				el.remove();
+			}
+
+			const submit = root.querySelector(".tk-submit");
+			if (submit) {
+				submit.classList.add("tk-submit-review-only");
+			}
+
+			const textarea = root.querySelector(
+				".tk-input textarea, .el-textarea__inner",
+			);
+			if (textarea) {
+				textarea.setAttribute(
+					"placeholder",
+					isEnglishSite
+						? "Fill in the site details using the template above; your submission will enter the review queue."
+						: "按上面的模板填写站点信息，提交后会进入审核队列。",
+				);
+			}
+		};
+
+		applyReviewOnlyMode();
+		if (root.dataset.reviewOnlyObserverBound === "true") {
+			return;
+		}
+		root.dataset.reviewOnlyObserverBound = "true";
+		const observer = new MutationObserver(applyReviewOnlyMode);
+		observer.observe(root, { childList: true, subtree: true });
+		observers.push(observer);
+	}
+
+	function applyTwikooEnhancements(root) {
+		const textarea = root.querySelector(
+			".tk-input textarea, .el-textarea__inner",
+		);
+		if (textarea && !textarea.getAttribute("placeholder")) {
+			textarea.setAttribute(
+				"placeholder",
+				isEnglishSite
+					? "Say something… Markdown is supported"
+					: "说点什么吧… 支持 Markdown 语法",
+			);
+		}
+		setupReviewOnlyMode(root);
+		setupProfileMemory(root);
+		setupCommentEnhancements(root);
+	}
+
+	async function initTwikoo() {
+		const container = getCommentContainer();
+		if (!isCurrentPage()) {
+			return;
+		}
+
+		const path = getTwikooPath();
+		if (isInitializing) {
+			return;
+		}
+		if (
+			initializedPath === path &&
+			container.querySelector("#twikoo, .twikoo")
+		) {
+			applyTwikooEnhancements(container);
+			return;
+		}
+
+		const commentEl = getOrCreateCommentMount(container);
+
+		isInitializing = true;
+		try {
+			renderLoadingMessage(commentEl);
+			const twikooRuntime = await loadTwikooScript();
+			if (!isCurrentPage()) return;
+
+			if (!twikooRuntime?.init) {
+				throw new Error("Twikoo runtime is unavailable.");
+			}
+
+			commentEl.innerHTML = "";
+			await ensureOwnerIdentity();
+			if (!isCurrentPage()) return;
+			const dynamicConfig = createTwikooConfig();
+			setupReviewOnlyMode(container);
+			setupCommentEnhancements(container);
+			await twikooRuntime.init(dynamicConfig);
+			if (!isCurrentPage()) {
+				container.querySelector("#twikoo, .twikoo")?.__vue__?.$destroy();
+				return;
+			}
+			initializedPath = path;
+			initRetryCount = 0;
+			clearRetryTimer();
+			applyTwikooEnhancements(container);
+			document.dispatchEvent(new Event("sayori:comments-ready"));
+		} catch (error) {
+			if (!isCurrentPage()) return;
+			console.error("[Twikoo] 初始化失败:", error);
+			initializedPath = "";
+			const willRetry =
+				initRetryCount < TWIKOO_INIT_RETRY_DELAYS.length;
+			showUnavailableMessage(commentEl, willRetry);
+			if (willRetry) {
+				scheduleInitRetry();
+			}
+		} finally {
+			isInitializing = false;
+		}
+	}
+
+	void initTwikoo();
+	return window.__sayoriTwikooCleanup;
+}

@@ -2,5 +2,5 @@ export { default as AnnouncementEntry } from "./AnnouncementEntry.astro";
 export { default as DropdownMenu } from "./DropdownMenu.astro";
 export { default as Navbar } from "./Navbar.astro";
 export { default as NavMenuPanel } from "./NavMenuPanel.astro";
-export { default as Search } from "./Search.svelte";
+export { default as Search } from "./Search.astro";
 export * from "./types";
