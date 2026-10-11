@@ -45,7 +45,10 @@ self.addEventListener("fetch", (event) => {
 		return;
 	}
 
-	if (request.mode === "navigate") {
+	// ClientRouter fetches HTML with mode=cors, so the blog's page URLs also need fresh responses.
+	const isBlogPage = self.location.hostname === "blog.sayori.org" &&
+		(!/\/[^/]*\.[^/]+$/.test(url.pathname) || /\.html$/.test(url.pathname));
+	if (request.mode === "navigate" || isBlogPage) {
 		event.respondWith(
 			fetch(request, { cache: "no-store" })
 				.then((response) => {

@@ -43,3 +43,12 @@ const ogImageUrl = new URL(siteConfig.generateOgImages && postSlug
 		<div id="twikoo-runtime-host" hidden transition:persist="twikoo-runtime"></div>
 	</body>
 </html>
+
+<script>
+	// Earlier blog versions installed a worker; update it without installing one for new visitors.
+	if ("serviceWorker" in navigator && navigator.serviceWorker.controller?.scriptURL === new URL("/sw.js", location.origin).href) {
+		navigator.serviceWorker.getRegistration("/")
+			.then(registration => registration?.update())
+			.catch(error => console.error("Legacy service worker update failed", error));
+	}
+</script>
