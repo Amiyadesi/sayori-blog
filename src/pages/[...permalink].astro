@@ -250,6 +250,7 @@ const jsonLd = {
 			id="post-container"
 			class="post-body"
 			data-post-id={entry.id}
+			data-translation-key={entry.data.translationKey || ""}
 			data-content-kind={isDiary ? "diary" : "article"}
 			data-effective-read={!isDiary && !isEncrypted ? "true" : "false"}
 		>

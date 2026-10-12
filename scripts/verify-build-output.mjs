@@ -1610,6 +1610,7 @@ requireExcludes("en/sitemap-0.xml", englishSitemap, [
 const redirectSources = new Set(readTextIfExists(path.join(distDir, "_redirects"))
 	.split(/\r?\n/).map((line) => line.trim().split(/\s+/))
 	.filter(([, , status]) => /^30[1278]$/.test(status)).map(([source]) => source));
+const postTranslations = new Map();
 for (const sitemapName of ["sitemap-0.xml", "zh-hant/sitemap-0.xml", "en/sitemap-0.xml"]) {
 	for (const [, location] of (files.get(sitemapName) || "").matchAll(/<loc>([^<]+)<\/loc>/g)) {
 		const pathname = new URL(location).pathname;
@@ -1625,6 +1626,27 @@ for (const sitemapName of ["sitemap-0.xml", "zh-hant/sitemap-0.xml", "en/sitemap
 		}
 		if (page.querySelector('link[rel="canonical"]')?.getAttribute("href") !== location) {
 			fail(`${sitemapName} submits a noncanonical page: ${pathname}`);
+		}
+		const article = page.querySelector("#post-container");
+		if (article) {
+			const key = article.getAttribute("data-translation-key");
+			if (key === undefined) fail(`Article is missing translation metadata: ${pathname}`);
+			const group = postTranslations.get(key || location) || [];
+			group.push({ page, location, locale: sitemapName.startsWith("en/") ? "en" : sitemapName.startsWith("zh-hant/") ? "zh-Hant" : "zh-Hans" });
+			postTranslations.set(key || location, group);
+		}
+	}
+}
+for (const group of postTranslations.values()) {
+	const expected = group.map(({ locale, location }) => [locale, location]);
+	const defaultUrl = group.find(({ locale }) => locale === "zh-Hans")?.location
+		|| group.find(({ locale }) => locale === "en")?.location || group[0].location;
+	expected.push(["x-default", defaultUrl]);
+	for (const { page, location } of group) {
+		const links = page.querySelectorAll('head link[rel="alternate"][hreflang]');
+		if (links.length !== expected.length || expected.some(([locale, href]) =>
+			!links.some((link) => link.getAttribute("hreflang") === locale && link.getAttribute("href") === href))) {
+			fail(`Article translations must have reciprocal hreflang links: ${location}`);
 		}
 	}
 }

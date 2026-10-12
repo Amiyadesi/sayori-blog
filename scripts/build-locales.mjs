@@ -75,6 +75,7 @@ const localeSitemapIndex = `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapinde
 fs.writeFileSync(path.join(dist, "sitemap-index.xml"), localeSitemapIndex);
 fs.writeFileSync(path.join(dist, "sitemap.xml"), localeSitemapIndex);
 if (process.env.SITE_VARIANT !== "sayori-diary") {
+	run(["node", "scripts/link-post-translations.mjs"]);
 	run(["pagefind", "--site", "dist"]);
 }
 run(["node", "scripts/compress-fonts.js"]);
