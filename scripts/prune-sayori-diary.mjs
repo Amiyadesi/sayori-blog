@@ -66,7 +66,7 @@ for (const root of [
 		for (const font of fs.readdirSync(path.join(root, "font"), {
 			withFileTypes: true,
 		})) {
-			if (font.name !== "ZenMaruGothic-Medium.ttf") {
+			if (!/^ZenMaruGothic-Medium\.(?:ttf|woff2)$/.test(font.name)) {
 				fs.rmSync(path.join(root, "font", font.name), {
 					recursive: true,
 					force: true,

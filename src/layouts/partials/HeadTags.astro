@@ -378,13 +378,6 @@ function toIsoDate(value?: Date | string) {
 			if (["zh-hans", "zh-cn", "zh", "cn"].includes(input)) return "zh-Hans";
 			return "en";
 		};
-		const cookie = (name) => document.cookie
-			.split(";")
-			.map((part) => part.trim().split("="))
-			.find(([key]) => key === name)?.slice(1).join("=") || "";
-		const decode = (value) => {
-			try { return decodeURIComponent(value); } catch { return value; }
-		};
 		const save = (locale) => {
 			try {
 				localStorage.setItem("sayori-locale", locale);
@@ -411,35 +404,7 @@ function toIsoDate(value?: Date | string) {
 			window.location.replace(`${localized(path, locale)}${url.search}${url.hash}`);
 			return;
 		}
-		if (path === "/en" || path.startsWith("/en/") || path === "/zh-hant" || path.startsWith("/zh-hant/")) return;
-		let stored = decode(cookie("sayori_locale"));
-		if (!stored) {
-			try {
-				stored = localStorage.getItem("sayori-locale") || localStorage.getItem("sayori:ui-language") || "";
-			} catch {}
-			if (stored) {
-				stored = normalize(stored);
-				save(stored);
-			}
-		}
-		// Locale lookup must never hide otherwise readable static content.
-		const finish = (locale) => {
-			if (locale === "zh-Hans") document.documentElement.style.visibility = "";
-			else window.location.replace(`${localized(path, locale)}${window.location.search}${window.location.hash}`);
-		};
-		if (stored) {
-			finish(normalize(stored));
-			return;
-		}
-		const automatic = decode(cookie("sayori_locale_auto"));
-		if (automatic) {
-			finish(normalize(automatic));
-			return;
-		}
-		fetch("https://sayori.org/api/locale", { credentials: "include" })
-			.then((response) => response.ok ? response.json() : Promise.reject(new Error("locale unavailable")))
-			.then((data) => finish(normalize(data.locale)))
-			.catch(() => finish(normalize(navigator.languages?.[0] || navigator.language || "en")));
+		// The URL selects the language; automatic redirects disrupt reading and crawling.
 	})();
 </script>
 <!-- Viewport and Generator -->

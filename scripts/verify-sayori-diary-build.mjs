@@ -72,6 +72,17 @@ const totalBytes = walk(dist).reduce(
 );
 assert.ok(totalBytes < 38 * 1024 * 1024, `diary build too large: ${totalBytes} bytes`);
 
+// Validate the final CSS after font compression and asset pruning.
+for (const file of walk(dist).filter((file) => file.endsWith(".css"))) {
+	const css = fs.readFileSync(file, "utf8");
+	for (const match of css.matchAll(/url\(\s*["']?([^\s"')]+)["']?\s*\)/g)) {
+		const url = match[1].split(/[?#]/)[0];
+		if (!/\.(?:woff2?|ttf|otf)$/i.test(url) || /^(?:https?:|\/\/)/.test(url)) continue;
+		const asset = url.startsWith("/") ? path.join(dist, decodeURIComponent(url)) : path.resolve(path.dirname(file), decodeURIComponent(url));
+		assert.ok(fs.existsSync(asset), `${path.relative(dist, file)} references missing font: ${url}`);
+	}
+}
+
 const textFiles = walk(dist).filter((file) =>
 	/\.(?:html|xml|txt)$/i.test(file),
 );
