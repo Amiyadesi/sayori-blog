@@ -1531,11 +1531,11 @@ const robotsTxt = files.get("robots.txt") || "";
 requireIncludes("robots.txt", robotsTxt, [
 	"User-agent: *",
 	"Allow: /",
-	"Disallow: /admin/",
 	"Disallow: /api/",
 	"Sitemap: https://blog.sayori.org/sitemap.xml",
 ]);
 requireExcludes("robots.txt", robotsTxt, [
+	"Disallow: /admin/",
 	"Content-Signal:",
 	"LLMs:",
 	"ai-train=no",
@@ -1605,6 +1605,29 @@ requireExcludes("en/sitemap-0.xml", englishSitemap, [
 	"https://blog.sayori.org/en/atom/",
 	"<lastmod>",
 ]);
+
+// Submitted URLs must be the final, indexable HTML pages, not aliases or private shells.
+const redirectSources = new Set(readTextIfExists(path.join(distDir, "_redirects"))
+	.split(/\r?\n/).map((line) => line.trim().split(/\s+/))
+	.filter(([, , status]) => /^30[1278]$/.test(status)).map(([source]) => source));
+for (const sitemapName of ["sitemap-0.xml", "zh-hant/sitemap-0.xml", "en/sitemap-0.xml"]) {
+	for (const [, location] of (files.get(sitemapName) || "").matchAll(/<loc>([^<]+)<\/loc>/g)) {
+		const pathname = new URL(location).pathname;
+		if (redirectSources.has(pathname)) fail(`${sitemapName} submits a redirect: ${pathname}`);
+		const html = readTextIfExists(path.join(distDir, decodeURIComponent(pathname), "index.html"));
+		if (!html) {
+			fail(`${sitemapName} submits a missing page: ${pathname}`);
+			continue;
+		}
+		const page = parse(html);
+		if (page.querySelector('meta[name="robots"]')?.getAttribute("content")?.includes("noindex")) {
+			fail(`${sitemapName} submits a noindex page: ${pathname}`);
+		}
+		if (page.querySelector('link[rel="canonical"]')?.getAttribute("href") !== location) {
+			fail(`${sitemapName} submits a noncanonical page: ${pathname}`);
+		}
+	}
+}
 
 const rss = files.get("rss.xml") || "";
 requireIncludes("rss.xml", rss, [

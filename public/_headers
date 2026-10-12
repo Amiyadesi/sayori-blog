@@ -30,6 +30,9 @@
 /data/friend-status.json
   Cache-Control: public, max-age=300, must-revalidate
 
+/admin/*
+  X-Robots-Tag: noindex, nofollow, noarchive
+
 /*.woff2
   Cache-Control: public, max-age=31536000, immutable
 

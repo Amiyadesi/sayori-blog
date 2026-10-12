@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import sitemap from "@astrojs/sitemap";
 import mdx from "@astrojs/mdx";
 import svelte, { vitePreprocess } from "@astrojs/svelte";
@@ -46,6 +47,13 @@ const disabledFeaturePathPrefixes = Object.entries(featurePagePaths)
 	.filter(([feature]) => siteConfig.featurePages[feature] === false)
 	.flatMap(([, paths]) => paths);
 const isSayoriDiarySite = process.env.SITE_VARIANT === "sayori-diary";
+const redirectSources = new Set(
+	readFileSync(new URL("./public/_redirects", import.meta.url), "utf8")
+		.split(/\r?\n/)
+		.map((line) => line.trim().split(/\s+/))
+		.filter(([, , status]) => /^30[1278]$/.test(status))
+		.map(([source]) => source),
+);
 
 // https://astro.build/config
 export default defineConfig({
@@ -158,6 +166,7 @@ export default defineConfig({
 					);
 				}
 				return !(
+					redirectSources.has(new URL(page).pathname) ||
 					pathname.startsWith("/admin/") ||
 					/^\/\d+\/$/.test(pathname) ||
 					/^\/(?:rss|atom)\/$/.test(pathname) ||
