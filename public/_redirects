@@ -15,3 +15,9 @@
 /posts/sayori-server-01-vps-start/sayori-server-01-vps-start-en/ /en/posts/sayori-server-01-vps-start/ 301
 /posts/selfhost-vaultwarden-on-2c2g/selfhost-vaultwarden-on-2c2g-en/ /en/posts/selfhost-vaultwarden-on-2c2g/ 301
 /posts/resource-index/resource-index-en/ /en/posts/resource-index/ 301
+/posts/mobile-app-ad-targeting-device-profiling/ /posts/cross-app-tracking-device-fingerprinting/ 301
+/zh-hant/posts/mobile-app-ad-targeting-device-profiling/ /zh-hant/posts/cross-app-tracking-device-fingerprinting/ 301
+/en/posts/mobile-app-ad-targeting-device-profiling/ /en/posts/cross-app-tracking-device-fingerprinting/ 301
+/posts/rogue-app-advertising-user-traps/ /posts/cross-app-tracking-device-fingerprinting/ 301
+/zh-hant/posts/rogue-app-advertising-user-traps/ /zh-hant/posts/cross-app-tracking-device-fingerprinting/ 301
+/en/posts/rogue-app-advertising-user-traps/ /en/posts/cross-app-tracking-device-fingerprinting/ 301
