@@ -6,7 +6,7 @@
 .reading-shell #license-component { margin-top: 1.5rem; }
 .reading-shell .post-paper-note { border: 0; background: transparent; box-shadow: none; }
 .reading-shell h1 { font-size: clamp(1.8rem, 3.5vw, 2.5rem); line-height: 1.4; font-weight: 650; }
-.desk-lite .custom-md { max-width: var(--reading-width, 72ch); margin-inline: auto; font-size: 18px; line-height: 1.85; color: var(--text-90); text-align: start; overflow-wrap: anywhere; }
+.desk-lite .custom-md { max-width: var(--reading-width, 72ch); margin-inline: auto; font-size: 18px; line-height: 1.4; color: var(--text-90); text-align: start; overflow-wrap: anywhere; }
 .desk-lite .custom-md :where(h1, h2, h3, h4, h5, h6) { margin: 2em 0 .65em; line-height: 1.45; font-weight: 650; color: var(--text-90); scroll-margin-top: 2rem; }
 .desk-lite .custom-md :where(h1) { font-size: 1.55em; }
 .desk-lite .custom-md :where(h2) { font-size: 1.35em; }
@@ -17,6 +17,7 @@
 .desk-lite .custom-md :where(ul, ol) { margin: 1.25em 0; padding-inline-start: 1.55em; }
 .desk-lite .custom-md :where(li) { margin: .35em 0; }
 .desk-lite .custom-md :where(li > p, li > ul, li > ol) { margin: .5em 0; }
+.desk-lite .custom-md :where(p + p) { margin-top: 1.2em; }
 .desk-lite .custom-md :where(details) { margin: 1.25em 0; }
 .desk-lite .custom-md :where(summary) { font-weight: 600; }
 .desk-lite .custom-md a:not(.no-styling):not(.anchor) { color: var(--primary); background: none; padding: 0; border: 0; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--primary) 40%, transparent); }
@@ -104,7 +105,5 @@
 }
 @media (max-width: 760px) {
 	.reading-shell, .desk-lite .desk-article, .desk-lite .custom-md { font-size: 17px; }
-	.desk-lite .custom-md { line-height: 1.4; }
-	.desk-lite .custom-md :where(p + p) { margin-top: 1.2em; }
 	.desk-lite .custom-md img:not(.music-track-cover) { max-height: min(480px, 60svh); }
 }
