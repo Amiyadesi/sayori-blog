@@ -2,7 +2,7 @@ name: Sync public calendar
 
 on:
   schedule:
-    - cron: '2-59/5 * * * *'
+    - cron: '4/5 * * * *'
   workflow_dispatch:
 
 concurrency:
