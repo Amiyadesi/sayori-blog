@@ -1,0 +1,623 @@
+---
+import OpenCC from "opencc-js";
+import MainGridLayout from "../layouts/MainGridLayout.astro";
+import { courseProject, courses, holidays, semester } from "../data/timetable";
+import { addDays, courseTimes } from "../utils/timetable";
+import {
+	isEnglishSite,
+	isTraditionalSite,
+	SITE_LOCALE,
+} from "../utils/site-locale";
+
+const translate = isTraditionalSite
+	? OpenCC.Converter({ from: "cn", to: "t" })
+	: (text: string) => text;
+const copy = Object.fromEntries(
+	Object.entries(
+		isEnglishSite
+			? {
+					title: "Timetable",
+					term: "Autumn 2026 · Anji campus",
+					description: "My classes, now and next, on Beijing time.",
+					current: "In class",
+					free: "Between classes",
+					break: "Short break",
+					noClass: "No class right now",
+					next: "Next class",
+					noNext: "No more scheduled classes this semester",
+					beforeTerm: "The semester has not started",
+					afterTerm: "The semester has ended",
+					clock: "Beijing time",
+					week: "Week {n}",
+					period: "Period {n}",
+					weekSelect: "Teaching week",
+					previous: "Previous week",
+					following: "Next week",
+					today: "Today",
+					allWeek: "Full week",
+					empty: "No scheduled classes",
+					makeup: "Makeup classes for",
+					holiday: "Holiday",
+					project: "Course project week",
+					unscheduled: "Time and room to be announced",
+					note: "Includes the published holidays and makeup days. Temporary changes and exam times follow university notices.",
+					sources: "Academic calendar and class times",
+					changes: "Holiday and makeup notice",
+					noScript:
+						"The full semester timetable is shown below. Enable JavaScript for the current class and week filters.",
+				}
+			: {
+					title: "课表",
+					term: "2026—2027 第一学期 · 安吉校区",
+					description: "按北京时间，看看现在在哪上课，下一节要去哪里",
+					current: "正在上课",
+					free: "课余时间",
+					break: "课间休息",
+					noClass: "现在没有课",
+					next: "下一节课",
+					noNext: "本学期没有其他定时课程",
+					beforeTerm: "学期还没开始",
+					afterTerm: "本学期已结束",
+					clock: "北京时间",
+					week: "第 {n} 周",
+					period: "第 {n} 节",
+					weekSelect: "教学周",
+					previous: "上一周",
+					following: "下一周",
+					today: "今天",
+					allWeek: "整周",
+					empty: "没有安排课程",
+					makeup: "补课安排来自",
+					holiday: "放假",
+					project: "课程设计周",
+					unscheduled: "时间与地点另行安排",
+					note: "已计入公布的节假日与补课安排，临时调课、运动会停课和考试时间按学校通知",
+					sources: "校历与作息时间",
+					changes: "节假日停补课通知",
+					noScript:
+						"下方显示完整学期课表，开启 JavaScript 后可查看当前课程并切换教学周",
+				},
+	).map(([key, value]) => [key, translate(value)]),
+);
+const weekdays = isEnglishSite
+	? [
+			"Monday",
+			"Tuesday",
+			"Wednesday",
+			"Thursday",
+			"Friday",
+			"Saturday",
+			"Sunday",
+		]
+	: ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"];
+const shortDays = isEnglishSite
+	? ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+	: ["一", "二", "三", "四", "五", "六", "日"];
+const periodRange = (start: number, end: number) =>
+	isEnglishSite ? `Periods ${start}–${end}` : `第 ${start}–${end} 节`;
+const weekRange = (start: number, end: number) =>
+	isEnglishSite ? `Weeks ${start}–${end}` : `第 ${start}–${end} 周`;
+const name = (course: (typeof courses)[number]) =>
+	translate(isEnglishSite ? course.titleEn : course.title);
+const room = (course: (typeof courses)[number]) =>
+	translate(isEnglishSite ? course.roomEn : course.room);
+---
+
+<MainGridLayout title={copy.title} description={copy.description} noindex>
+	<section
+		id="class-timetable"
+		class="timetable"
+		data-locale={SITE_LOCALE}
+		data-copy={JSON.stringify(copy)}
+		data-holidays={JSON.stringify(
+			holidays.map((holiday) => [
+				holiday.start,
+				translate(isEnglishSite ? holiday.titleEn : holiday.title),
+			]),
+		)}
+		data-pagefind-ignore="all"
+	>
+		<header class="timetable-heading">
+			<div>
+				<p class="timetable-term">{copy.term}</p><h1>{copy.title}</h1>
+			</div>
+			<p class="timetable-clock" hidden data-clock-wrap>
+				<span>{copy.clock} UTC+8</span><time data-clock></time>
+			</p>
+		</header>
+		<section
+			class="timetable-now"
+			aria-live="polite"
+			aria-atomic="true"
+			hidden
+			data-now
+		>
+			<div class="timetable-current">
+				<p class="timetable-status" data-current-label></p><h2
+					data-current-name
+				>
+				</h2><p class="timetable-detail" data-current-detail></p>
+			</div>
+			<div class="timetable-next">
+				<p class="timetable-status">{copy.next}</p><h3 data-next-name>
+				</h3><p class="timetable-detail" data-next-detail></p>
+			</div>
+		</section>
+		<div class="timetable-controls" hidden data-controls>
+			<div class="timetable-week">
+				<button type="button" data-previous aria-label={copy.previous}
+					>‹</button
+				>
+				<label
+					><span class="sr-only">{copy.weekSelect}</span><select
+						data-week
+					>
+						{
+							Array.from(
+								{ length: semester.weeks },
+								(_, index) => {
+									const monday = addDays(
+										semester.firstMonday,
+										index * 7,
+									);
+									return (
+										<option value={index + 1}>
+											{copy.week.replace(
+												"{n}",
+												String(index + 1),
+											)}{" "}
+											·{" "}
+											{monday.slice(5).replace("-", "/")}–
+											{addDays(monday, 6)
+												.slice(5)
+												.replace("-", "/")}
+										</option>
+									);
+								},
+							)
+						}
+					</select></label
+				>
+				<button type="button" data-following aria-label={copy.following}
+					>›</button
+				>
+			</div>
+			<button type="button" class="timetable-today" data-today
+				>{copy.today}</button
+			>
+		</div>
+		<nav class="timetable-days" aria-label={copy.title} hidden data-days>
+			{
+				shortDays.map((day, index) => (
+					<button
+						type="button"
+						data-day-button={index + 1}
+						aria-label={weekdays[index]}
+						aria-pressed="false"
+					>
+						<>
+							<span>{day}</span>
+							<span class="timetable-day-date" data-day-date />
+						</>
+					</button>
+				))
+			}
+			<button
+				type="button"
+				class="timetable-all"
+				data-all-week
+				aria-pressed="false">{copy.allWeek}</button
+			>
+		</nav>
+		<noscript><p>{copy.noScript}</p></noscript>
+		<div class="timetable-agenda" data-agenda>
+			{
+				weekdays.map((day, index) => (
+					<section
+						class="timetable-day"
+						data-day={index + 1}
+						aria-labelledby={`timetable-day-${index + 1}`}
+					>
+						<h2 id={`timetable-day-${index + 1}`}>
+							{day}
+							<time data-panel-date />
+						</h2>
+						<p class="timetable-day-note" data-day-note hidden />
+						<ol>
+							{courses
+								.filter((course) => course.day === index + 1)
+								.map((course) => (
+									<li
+										class="timetable-course"
+										data-course-id={course.id}
+									>
+										<div class="timetable-course-time">
+											<span>
+												{courseTimes(course).start}
+											</span>
+											<span>
+												{courseTimes(course).end}
+											</span>
+										</div>
+										<div class="timetable-course-content">
+											<h3 class="course-title">
+												{name(course)}
+											</h3>
+											<p>
+												<span class="course-room">
+													{room(course)}
+												</span>
+												<span>
+													{periodRange(
+														...course.periods,
+													)}
+												</span>
+											</p>
+											<p class="timetable-course-weeks">
+												{weekRange(...course.weeks)}
+											</p>
+										</div>
+										<span
+											class="timetable-course-badge"
+											data-course-state
+											hidden
+										/>
+									</li>
+								))}
+						</ol>
+						<p
+							class="timetable-empty"
+							data-empty
+							hidden={index < 5}
+						>
+							{copy.empty}
+						</p>
+					</section>
+				))
+			}
+		</div>
+		<aside class="timetable-project" data-project>
+			<strong
+				>{
+					isEnglishSite ? courseProject.titleEn : courseProject.title
+				}</strong
+			><p>
+				{copy.week.replace("{n}", String(courseProject.week))} · {
+					copy.unscheduled
+				}
+			</p>
+		</aside>
+		<footer class="timetable-footnote">
+			<p>{copy.note}</p><p>
+				<a
+					href="https://www.zust.edu.cn/fw/xl.htm"
+					target="_blank"
+					rel="noopener noreferrer">{copy.sources}</a
+				><a
+					href="https://shxy.zust.edu.cn/info/1082/7909.htm"
+					target="_blank"
+					rel="noopener noreferrer">{copy.changes}</a>
+			</p>
+		</footer>
+	</section>
+</MainGridLayout>
+
+<script>
+	import "../scripts/timetable";
+</script>
+
+<style>
+	.timetable {
+		max-width: 52rem;
+		margin: auto;
+	}
+	.timetable-heading {
+		display: flex;
+		align-items: flex-end;
+		justify-content: space-between;
+		gap: 1rem;
+		margin-bottom: 1.8rem;
+	}
+	.timetable-term {
+		color: var(--text-50);
+		font-size: 0.85rem;
+		margin: 0 0 0.45rem;
+	}
+	h1 {
+		font-size: clamp(1.9rem, 5vw, 2.5rem);
+		line-height: 1.2;
+		font-weight: 650;
+		margin: 0;
+	}
+	.timetable-clock {
+		display: grid;
+		text-align: right;
+		font-size: 0.8rem;
+		color: var(--text-50);
+		margin: 0;
+		white-space: nowrap;
+	}
+	.timetable-clock time {
+		color: var(--text-75);
+		font-variant-numeric: tabular-nums;
+	}
+	.timetable-now {
+		display: grid;
+		grid-template-columns: 1.3fr 1fr;
+		gap: 1.5rem;
+		padding: 1.5rem 0;
+		border-block: 1px solid var(--line-divider);
+		margin-bottom: 1.5rem;
+	}
+	.timetable-current {
+		border-left: 3px solid var(--primary);
+		padding-left: 1rem;
+	}
+	.timetable-now[data-phase="class"] .timetable-status:first-child {
+		color: var(--primary);
+	}
+	.timetable-status {
+		font-size: 0.8rem;
+		color: var(--text-50);
+		margin: 0 0 0.5rem;
+	}
+	.timetable-now h2 {
+		font-size: 1.4rem;
+		font-weight: 650;
+		line-height: 1.5;
+		margin: 0;
+	}
+	.timetable-next h3 {
+		font-size: 1rem;
+		font-weight: 600;
+		line-height: 1.6;
+		margin: 0;
+	}
+	.timetable-detail {
+		color: var(--text-50);
+		font-size: 0.85rem;
+		line-height: 1.8;
+		margin: 0.45rem 0 0;
+	}
+	.timetable-controls,
+	.timetable-week {
+		display: flex;
+		align-items: center;
+		gap: 0.45rem;
+	}
+	.timetable-controls {
+		justify-content: space-between;
+		margin-bottom: 1rem;
+	}
+	.timetable-week select,
+	.timetable button {
+		min-height: 44px;
+		border-radius: 0.4rem;
+		border: 1px solid var(--line-divider);
+		background: transparent;
+		color: var(--primary);
+	}
+	.timetable-week button {
+		min-width: 44px;
+		font-size: 1.5rem;
+		line-height: 1;
+	}
+	.timetable-week select {
+		padding: 0.4rem 0.6rem;
+		color: var(--text-90);
+		font-size: 0.9rem;
+	}
+	.timetable-today {
+		padding: 0.35rem 0.8rem;
+		font-size: 0.85rem;
+	}
+	.timetable-days {
+		display: grid;
+		grid-template-columns: repeat(7, 1fr) auto;
+		gap: 0.2rem;
+		padding-bottom: 0.8rem;
+		border-bottom: 1px solid var(--line-divider);
+	}
+	.timetable-days button {
+		display: grid;
+		align-content: center;
+		border-color: transparent;
+		padding: 0.4rem 0.2rem;
+		font-size: 0.9rem;
+		line-height: 1.5;
+	}
+	.timetable-days button[aria-pressed="true"] {
+		background: var(--primary);
+		color: var(--card-bg);
+	}
+	.timetable-days button[aria-current="date"]:not([aria-pressed="true"]) {
+		border-color: var(--primary);
+	}
+	.timetable-day-date {
+		font-size: 0.75rem;
+		font-variant-numeric: tabular-nums;
+		opacity: 0.8;
+	}
+	.timetable-days .timetable-all {
+		min-width: 44px;
+		margin-left: 0.3rem;
+		padding-inline: 0.6rem;
+		font-size: 0.8rem;
+	}
+	.timetable-agenda[data-whole-week] {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.5rem 2rem;
+	}
+	.timetable-day > h2 {
+		display: flex;
+		align-items: baseline;
+		gap: 0.6rem;
+		font-size: 1rem;
+		font-weight: 600;
+		margin: 1.3rem 0 0.35rem;
+	}
+	.timetable-day > h2 time {
+		color: var(--text-50);
+		font-size: 0.8rem;
+		font-weight: 400;
+	}
+	.timetable-day ol {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	.timetable-course {
+		position: relative;
+		display: flex;
+		gap: 1.25rem;
+		padding: 1.25rem 0;
+		border-bottom: 1px solid var(--line-divider);
+	}
+	.timetable-course-time {
+		flex: 0 0 3.2rem;
+		display: flex;
+		flex-direction: column;
+		font-size: 0.9rem;
+		line-height: 1.7;
+		font-variant-numeric: tabular-nums;
+	}
+	.timetable-course-time span + span {
+		color: var(--text-50);
+		font-size: 0.8rem;
+	}
+	.timetable-course h3 {
+		font-size: 1.05rem;
+		font-weight: 600;
+		line-height: 1.6;
+		margin: 0 0 0.25rem;
+		overflow-wrap: anywhere;
+	}
+	.timetable-course-content {
+		min-width: 0;
+	}
+	.timetable-course-content p {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.1rem 0.75rem;
+		font-size: 0.85rem;
+		color: var(--text-50);
+		margin: 0;
+	}
+	.timetable-course-weeks {
+		font-size: 0.75rem !important;
+		margin-top: 0.2rem !important;
+	}
+	.timetable-course[data-current] {
+		background: var(--paper-bg-strong);
+		border-radius: 0.4rem;
+		padding-inline: 0.8rem;
+		margin-inline: -0.8rem;
+	}
+	.timetable-course-badge {
+		align-self: flex-start;
+		flex: none;
+		margin-left: auto;
+		font-size: 0.75rem;
+		color: var(--primary);
+	}
+	.timetable-day-note {
+		font-size: 0.85rem;
+		color: var(--accent);
+		margin: 0.4rem 0;
+	}
+	.timetable-empty {
+		color: var(--text-50);
+		font-size: 0.9rem;
+		padding: 1.2rem 0;
+	}
+	.timetable-project {
+		border-left: 2px solid var(--accent);
+		margin-top: 1.5rem;
+		padding-left: 1rem;
+		font-size: 0.9rem;
+	}
+	.timetable-project strong {
+		font-weight: 600;
+	}
+	.timetable-project p {
+		color: var(--text-50);
+		font-size: 0.8rem;
+		margin: 0.2rem 0 0;
+	}
+	.timetable-footnote {
+		color: var(--text-50);
+		font-size: 0.8rem;
+		margin-top: 2rem;
+	}
+	.timetable-footnote p {
+		margin: 0.5rem 0;
+	}
+	.timetable-footnote p:last-child {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem 1rem;
+	}
+	@media (max-width: 760px) {
+		.timetable-now {
+			grid-template-columns: 1fr;
+			gap: 1.2rem;
+		}
+		.timetable-next {
+			padding-left: calc(1rem + 3px);
+		}
+		.timetable-heading {
+			align-items: flex-start;
+		}
+		.timetable-term {
+			font-size: 0.75rem;
+			max-width: 14rem;
+		}
+		.timetable-clock {
+			font-size: 0.7rem;
+		}
+		.timetable-clock time {
+			max-width: 7rem;
+			white-space: normal;
+		}
+		.timetable-week select {
+			width: 100%;
+			padding-inline: 0.25rem;
+			font-size: 0.8rem;
+		}
+		.timetable-week {
+			flex: 1;
+			min-width: 0;
+			gap: 0.15rem;
+		}
+		.timetable-week label {
+			flex: 1;
+			min-width: 0;
+		}
+		.timetable-days {
+			grid-template-columns: repeat(7, minmax(44px, 1fr));
+			overflow-x: auto;
+		}
+		.timetable-days button {
+			min-width: 0;
+		}
+		.timetable-days .timetable-all {
+			grid-column: 1 / -1;
+			margin: 0.25rem 0 0;
+			min-height: 44px;
+			border-color: var(--line-divider);
+		}
+		.timetable-agenda[data-whole-week] {
+			grid-template-columns: 1fr;
+		}
+		.timetable-course {
+			gap: 0.85rem;
+		}
+		.timetable-course-badge {
+			position: absolute;
+			right: 0.8rem;
+			top: 0.3rem;
+			font-size: 0.65rem;
+		}
+	}
+</style>

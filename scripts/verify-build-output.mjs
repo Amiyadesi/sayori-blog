@@ -600,6 +600,7 @@ function verifyDeskLocales() {
 		verifyHomepageCriticalMedia(home, homeName);
 		requireNoJsonLdType(homeName, getJsonLdNodes(home, homeName), "FAQPage");
 		requireAnyHref(homeName, home, "/" + prefix + "settings/");
+		requireAnyHref(homeName, home, "/" + prefix + "timetable/");
 		const articleName = prefix + "posts/blog-style-change/index.html";
 		const article = parse(readDistFile(articleName));
 		if (article.querySelector("#twikoo-container[data-twikoo-options]") &&
@@ -621,7 +622,15 @@ function verifyDeskLocales() {
 			fail(settingsName + " must be noindex and excluded from Pagefind");
 		} else pass(settingsName + " is excluded from indexing");
 		const sitemap = readDistFile(prefix + "sitemap-0.xml");
-		requireExcludes(prefix + "sitemap-0.xml", sitemap, ["/settings/"]);
+		requireExcludes(prefix + "sitemap-0.xml", sitemap, ["/settings/", "/timetable/"]);
+		const timetableName = prefix + "timetable/index.html";
+		const timetable = parse(readDistFile(timetableName));
+		if (timetable.querySelectorAll("[data-course-id]").length !== 14 ||
+			!timetable.querySelector("[data-week]") ||
+			!timetable.querySelector('meta[name="robots"]')?.getAttribute("content")?.includes("noindex") ||
+			timetable.querySelector("html")?.getAttribute("data-pagefind-ignore") !== "all") {
+			fail(timetableName + " must contain the complete timetable without search indexing");
+		} else pass(timetableName + " includes all classes and stays out of search indexes");
 	}
 }
 
