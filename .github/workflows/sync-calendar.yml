@@ -1,0 +1,41 @@
+name: Sync public calendar
+
+on:
+  schedule:
+    - cron: '2-59/5 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: sayori-blog-calendar-sync
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  sync:
+    if: github.repository == 'Amiyadesi/sayori-blog' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - id: google
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: projects/334518754089/locations/global/workloadIdentityPools/sayori-blog-calendar/providers/github
+          service_account: sayori-blog-calendar@second-raceway-511814-b4.iam.gserviceaccount.com
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/calendar.events.readonly
+          create_credentials_file: false
+          export_environment_variables: false
+      - name: Sync filtered calendar to D1
+        env:
+          GOOGLE_CALENDAR_ID: ${{ secrets.GOOGLE_CALENDAR_ID }}
+          GOOGLE_ACCESS_TOKEN: ${{ steps.google.outputs.access_token }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: node scripts/sync-calendar.mjs

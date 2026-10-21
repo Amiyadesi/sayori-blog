@@ -18,64 +18,100 @@ const copy = Object.fromEntries(
 			? {
 					title: "Timetable",
 					term: "Autumn 2026 · Anji campus",
-					description: "My classes, now and next, on Beijing time.",
+					description:
+						"Classes and selected plans from my calendar, on Beijing time.",
 					current: "In class",
 					free: "Between classes",
 					break: "Short break",
 					noClass: "No class right now",
-					next: "Next class",
+					next: "Up next",
 					noNext: "No more scheduled classes this semester",
 					beforeTerm: "The semester has not started",
 					afterTerm: "The semester has ended",
 					clock: "Beijing time",
 					week: "Week {n}",
 					period: "Period {n}",
-					weekSelect: "Teaching week",
+					weekSelect: "Week",
 					previous: "Previous week",
 					following: "Next week",
 					today: "Today",
 					allWeek: "Full week",
-					empty: "No scheduled classes",
+					empty: "Nothing scheduled",
+					ongoing: "Happening now",
+					noEvent: "Nothing happening right now",
+					noNextEvent: "No more public plans in this calendar window",
+					allDay: "All day",
+					syncLoading:
+						"Reading calendar · local timetable until connected",
+					syncRefreshing:
+						"Refreshing calendar · keeping the last sync",
+					localBaseline: "Local semester timetable",
+					syncLocal:
+						"Calendar unavailable · showing the local timetable",
+					syncReady: "Google Calendar · last synced",
+					syncFailed:
+						"Refresh failed · showing the last calendar sync",
+					syncDelayed: "Calendar sync delayed · last synced",
+					refresh: "Refresh calendar",
+					retry: "Retry sync",
+					publicNote:
+						"Classes and plans tagged #博客 in the title sync from Google Calendar. Only the title, time and location are public.",
 					makeup: "Makeup classes for",
 					holiday: "Holiday",
 					project: "Course project week",
 					unscheduled: "Time and room to be announced",
-					note: "Includes the published holidays and makeup days. Temporary changes and exam times follow university notices.",
+					note: "The local timetable follows the university calendar. Once connected, Google Calendar supplies the latest plans.",
 					sources: "Academic calendar and class times",
 					changes: "Holiday and makeup notice",
 					noScript:
-						"The full semester timetable is shown below. Enable JavaScript for the current class and week filters.",
+						"The local semester timetable is shown below. Enable JavaScript for the latest calendar, current plans and week filters.",
 				}
 			: {
 					title: "课表",
 					term: "2026—2027 第一学期 · 安吉校区",
-					description: "按北京时间，看看现在在哪上课，下一节要去哪里",
+					description:
+						"按北京时间，看看现在在哪上课，接下来有什么安排",
 					current: "正在上课",
 					free: "课余时间",
 					break: "课间休息",
 					noClass: "现在没有课",
-					next: "下一节课",
+					next: "接下来",
 					noNext: "本学期没有其他定时课程",
 					beforeTerm: "学期还没开始",
 					afterTerm: "本学期已结束",
 					clock: "北京时间",
 					week: "第 {n} 周",
 					period: "第 {n} 节",
-					weekSelect: "教学周",
+					weekSelect: "选择周次",
 					previous: "上一周",
 					following: "下一周",
 					today: "今天",
 					allWeek: "整周",
-					empty: "没有安排课程",
+					empty: "这天没有安排",
+					ongoing: "正在进行",
+					noEvent: "现在没有安排",
+					noNextEvent: "同步范围内没有其他公开日程",
+					allDay: "全天",
+					syncLoading: "正在读取日历 · 连接前显示本地课表",
+					syncRefreshing: "正在刷新日历 · 保留上次同步内容",
+					localBaseline: "本地学期课表",
+					syncLocal: "日历暂不可用 · 当前显示本地课表",
+					syncReady: "Google 日历 · 上次同步",
+					syncFailed: "刷新失败 · 保留上次日历同步",
+					syncDelayed: "日历同步延迟 · 上次同步",
+					refresh: "刷新日历",
+					retry: "重试同步",
+					publicNote:
+						"课程与标题带 #博客 的日程从 Google 日历同步，只公开标题、时间和地点",
 					makeup: "补课安排来自",
 					holiday: "放假",
 					project: "课程设计周",
 					unscheduled: "时间与地点另行安排",
-					note: "已计入公布的节假日与补课安排，临时调课、运动会停课和考试时间按学校通知",
+					note: "本地课表按公布的校历与作息整理，连接后以 Google 日历中的安排为准",
 					sources: "校历与作息时间",
 					changes: "节假日停补课通知",
 					noScript:
-						"下方显示完整学期课表，开启 JavaScript 后可查看当前课程并切换教学周",
+						"下方是本地学期课表，开启 JavaScript 后可同步最新日历、查看当前安排并切换周次",
 				},
 	).map(([key, value]) => [key, translate(value)]),
 );
@@ -125,6 +161,12 @@ const room = (course: (typeof courses)[number]) =>
 				<span>{copy.clock} UTC+8</span><time data-clock></time>
 			</p>
 		</header>
+		<div class="timetable-sync">
+			<p role="status" data-calendar-status>{copy.localBaseline}</p>
+			<button type="button" data-calendar-sync hidden
+				>{copy.refresh}</button
+			>
+		</div>
 		<section
 			class="timetable-now"
 			aria-live="polite"
@@ -247,7 +289,7 @@ const room = (course: (typeof courses)[number]) =>
 												<span class="course-room">
 													{room(course)}
 												</span>
-												<span>
+												<span data-course-periods>
 													{periodRange(
 														...course.periods,
 													)}
@@ -288,7 +330,7 @@ const room = (course: (typeof courses)[number]) =>
 			</p>
 		</aside>
 		<footer class="timetable-footnote">
-			<p>{copy.note}</p><p>
+			<p>{copy.publicNote}</p><p>{copy.note}</p><p>
 				<a
 					href="https://www.zust.edu.cn/fw/xl.htm"
 					target="_blank"
@@ -296,7 +338,8 @@ const room = (course: (typeof courses)[number]) =>
 				><a
 					href="https://shxy.zust.edu.cn/info/1082/7909.htm"
 					target="_blank"
-					rel="noopener noreferrer">{copy.changes}</a>
+					rel="noopener noreferrer">{copy.changes}</a
+				>
 			</p>
 		</footer>
 	</section>
@@ -310,6 +353,25 @@ const room = (course: (typeof courses)[number]) =>
 	.timetable {
 		max-width: 52rem;
 		margin: auto;
+	}
+	.timetable [hidden] {
+		display: none !important;
+	}
+	.timetable-sync {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+		margin-bottom: 1rem;
+		color: var(--text-50);
+		font-size: 0.8rem;
+	}
+	.timetable-sync p {
+		margin: 0;
+	}
+	.timetable-sync button {
+		flex: none;
+		padding: 0.35rem 0.6rem;
 	}
 	.timetable-heading {
 		display: flex;

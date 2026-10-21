@@ -627,6 +627,8 @@ function verifyDeskLocales() {
 		const timetable = parse(readDistFile(timetableName));
 		if (timetable.querySelectorAll("[data-course-id]").length !== 14 ||
 			!timetable.querySelector("[data-week]") ||
+			!timetable.querySelector("[data-calendar-status]") ||
+			!timetable.querySelector("[data-calendar-sync]") ||
 			!timetable.querySelector('meta[name="robots"]')?.getAttribute("content")?.includes("noindex") ||
 			timetable.querySelector("html")?.getAttribute("data-pagefind-ignore") !== "all") {
 			fail(timetableName + " must contain the complete timetable without search indexing");

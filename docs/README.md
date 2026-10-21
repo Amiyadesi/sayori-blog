@@ -51,6 +51,8 @@
 
 ### 站长运营
 
+- **[TIMETABLE.md](./TIMETABLE.md)** - Google 日历课表同步与选择性公开
+
 - **[GROWTH_WORKBENCH.md](./GROWTH-WORKBENCH.md)** - 私有增长工作台
   - 专题、四源证据分析、任务、渠道档案、分发证据包和复盘
   - GSC Service Account 与 Cloudflare Secrets 最小权限配置
