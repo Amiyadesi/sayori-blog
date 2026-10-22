@@ -1,3 +1,4 @@
+function initEchoArchive() {
 // 《书桌背面：回声档案》交互逻辑。仅使用本地浏览器存档，不上传用户输入。
 const KEY = "amiya.echoes.v1";
 const chapters = [
@@ -124,7 +125,8 @@ const endings = {
   continue: {title:"结局 / 下一页",body:["你在档案最后点击了『新增页面』。","光标闪了很久，才出现第一句话：『今天我仍然想做点什么。』","你不知道接下来会写成喜剧、冒险，还是一本普通的开发日志。","但空白不再只是必须填满的缺陷。它也可能是下一个故事的位置。"]}
 };
 const root = document.querySelector("#echo-app");
-if (!root) throw new Error("echo app root not found");
+if (!root || root.dataset.echoInit === "1") return;
+root.dataset.echoInit = "1";
 function defaultSave(){return {started:false,chapter:0,visited:[],unlocked:0,hints:[0,0,0,0],ending:null,secret:false};}
 let state = defaultSave();
 try{const raw=localStorage.getItem(KEY);if(raw){const old=JSON.parse(raw);if(old && typeof old==="object")state={...defaultSave(),...old};}}catch(_){/* private mode can disable storage */}
@@ -200,3 +202,8 @@ root.addEventListener("input",event=>{
  root.querySelectorAll(".echo-file").forEach(el=>{const name=el.textContent?.toLowerCase()||"";el.hidden=!name.includes(filter);});
 });
 render();
+
+}
+document.addEventListener('astro:page-load', initEchoArchive);
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initEchoArchive, { once: true });
+else initEchoArchive();
