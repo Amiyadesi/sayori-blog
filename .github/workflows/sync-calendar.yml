@@ -1,8 +1,6 @@
 name: Sync public calendar
 
 on:
-  schedule:
-    - cron: '4/5 * * * *'
   workflow_dispatch:
 
 concurrency:

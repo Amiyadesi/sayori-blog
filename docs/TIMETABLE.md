@@ -8,7 +8,7 @@
 - 课程按描述开头的 `【上课提醒】` 识别，新建课程也可以使用这个标记
 - 只展示标题、时间和地点，备注、邮箱、参与人和 Google 活动 ID 不会写入公开快照
 
-同步工作流每 5 分钟计划运行一次，GitHub 排队时会延后；页面打开时读取最新快照，停留期间每 5 分钟刷新，时间统一按北京时间显示
+Home 每 5 分钟触发一次同步工作流，Home 离线或 GitHub 排队时会延后；页面打开时读取最新快照，停留期间每 5 分钟刷新，时间统一按北京时间显示
 
 页面显示上次同步时间。超过 15 分钟没有新快照会提示延迟；读取失败保留已有日历并提供重试。首次连接失败时明确显示本地课表，不把本地课表当作最新日历
 
@@ -18,7 +18,7 @@
 
 主日历仅向专用服务账号授予“查看活动详情”，主日历本身不公开。GitHub OIDC 只允许 `Amiyadesi/sayori-blog` 的 `main` 分支中 `.github/workflows/sync-calendar.yml` 使用该账号，Google scope 为 `calendar.events.readonly`，不存储服务账号密钥
 
-- 定时同步：`.github/workflows/sync-calendar.yml` → `scripts/sync-calendar.mjs`
+- 定时同步：Home 用户级 `sayori-blog-calendar.timer` → `.github/workflows/sync-calendar.yml`（`main`）→ `scripts/sync-calendar.mjs`
 - 公开规则：`functions/_lib/timetable-calendar.js`
 - 已筛选快照：现有 D1 的 `timetable_calendar` 单行表
 - 三语接口：`/api/timetable?locale=zh-CN`、`zh-Hant`、`en`
@@ -29,6 +29,8 @@
 
 日历 ID 保存在 GitHub secret `GOOGLE_CALENDAR_ID`。Google 项目、Workload Identity Provider 与只读账号在工作流中配置；Cloudflare 沿用当前账户、D1 和既有部署凭据
 
-更换主日历时，先对同一服务账号共享只读权限，再修改 `GOOGLE_CALENDAR_ID`。停止同步可禁用该工作流并在 Google 日历中撤销共享；已公开的旧快照需一并清除后才能撤下历史展示
+Home 的触发凭据保存在 `~/.config/sayori-calendar/github-token`，只授予博客仓库的 Actions 读写权限；到期前在同一路径轮换。Home 不保存 Google 或 Cloudflare 凭据
+
+更换主日历时，先对同一服务账号共享只读权限，再修改 `GOOGLE_CALENDAR_ID`。停止同步时，先在 Home 执行 `systemctl --user disable --now sayori-blog-calendar.timer`，再禁用工作流并在 Google 日历中撤销共享；已公开的旧快照需一并清除后才能撤下历史展示
 
 设置页与课表页仍为 `noindex`，课表不进入 sitemap 或 Pagefind
