@@ -1,0 +1,18 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import Navbar from "../../components/organisms/navigation/Navbar.astro";
+import Footer from "../../components/organisms/footer/Footer.astro";
+import "../../styles/echoes.css";
+---
+<Layout title="书桌背面：回声档案" description="一部从 Amiya 的书桌生长出来的互动虚构小说。探索四卷档案、寻找隐藏记录，为未完成的故事选择去向。">
+  <Navbar />
+  <main id="swup-container" class="echo-viewport" tabindex="-1">
+    <div id="echo-app">
+      <noscript>《回声档案》需要浏览器启用 JavaScript 才能探索记录与保存进度。</noscript>
+    </div>
+  </main>
+  <Footer />
+</Layout>
+<script>
+  import "../../scripts/echoes-game.js";
+</script>
