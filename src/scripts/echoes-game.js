@@ -153,7 +153,7 @@ function issueCommand(line){
  const bits=s.split(/\s+/);const cmd=bits[0].toLowerCase();const arg=bits.slice(1).join(" ");
  if(cmd==="help")terminal.push("命令：help, ls, status, hint, open <编号>, unlock <答案>, whoami, echo, clear, find future");
  else if(cmd==="ls")terminal.push(visibleRecords().map(r=>r.id).join("  /  "));
- else if(cmd==="status")terminal.push("已恢复 "+progressCount()+"/17 份公开档案；卷 "+(state.unlocked+1)+"/4；"+(state.unlocked===4?"校对全部完成":"仍有未解锁的记录"));
+ else if(cmd==="status")terminal.push("已恢复 "+progressCount()+"/17 份公开档案；卷 "+Math.min(state.unlocked+1,4)+"/4；"+(state.unlocked===4?"校对全部完成":"仍有未解锁的记录"));
  else if(cmd==="hint"){state.hints[state.chapter]=Math.min(3,state.hints[state.chapter]+1);terminal.push(chapters[state.chapter].hints[state.hints[state.chapter]-1]);save();}
  else if(cmd==="open"){const r=visibleRecords().find(x=>x.id===arg);if(r){showRecord(r.id);terminal.push("已打开 "+r.title);}else terminal.push("没有找到这份可访问的档案。");}
  else if(cmd==="unlock"){solve(arg);terminal.push(feedback);}
