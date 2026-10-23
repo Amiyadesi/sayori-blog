@@ -5,6 +5,11 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
 
+/unsaved/*
+  Cache-Control: no-cache
+  Referrer-Policy: no-referrer
+  X-Robots-Tag: noindex, nofollow
+
 /atom.xml
   Access-Control-Allow-Origin: *
   Access-Control-Allow-Methods: GET

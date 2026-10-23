@@ -22,6 +22,7 @@ const removedRoutes = [
 	"privacy",
 	"api",
 	"sayori-diary",
+	"unsaved",
 ];
 
 for (const localeRoot of localeRoots) {

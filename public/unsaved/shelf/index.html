@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="zh-CN">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<meta name="robots" content="noindex,nofollow" />
+		<meta name="referrer" content="no-referrer" />
+		<title>谁能署名 · Amiya 的未保存版本</title>
+		<link rel="icon" href="data:," />
+		<link rel="stylesheet" href="/unsaved/game.css" />
+		<script type="module" src="/unsaved/app.js"></script>
+	</head>
+	<body data-pagefind-ignore class="page-blog" data-scene="shelf">
+		<a class="skip" href="#main">跳到署名页</a>
+		<div class="wrap">
+			<header class="toolbar" id="toolbar"></header>
+			<div id="notice" role="status"></div>
+			<main id="main">
+				<section class="page-title">
+					<p class="overline">发布说明 / 作者栏仍然空着</p>
+					<h1>这次，<br />谁来署名？</h1>
+					<p class="lead">
+						它们仍在等你挑出最像样的那一个。<br />你手里却有三份不肯配合的证据。
+					</p>
+				</section>
+				<article class="reading">
+					<p>
+						这一次，你已经知道「完成」不是描述出来的。你推过箱子，试过缺桥的关卡，也亲自按过一次删减后的试玩按钮。
+					</p>
+					<p>
+						三个版本的 Amiya
+						看着你带回来的东西。没有人消失，也没有哪个突然变成反派。只是它们各自拿来概括全部生活的那句话，似乎都漏了一段。
+					</p>
+					<p>
+						把证据放到它所回应的结论旁边。不是证明谁不配署名，而是让它们看见自己没保留的那一面。
+					</p>
+				</article>
+				<form id="evidence-form">
+					<article class="evidence">
+						<p class="meta">起点留下的结论</p>
+						<blockquote>
+							「如果还做不出足够好的东西，那当初那些兴奋，是不是都不算数？」
+						</blockquote>
+						<label for="evidence-builder">给它看哪份经历？</label
+						><select id="evidence-builder" name="builder" required>
+							<option value="">选一份实际发生过的证据</option>
+							<option value="connections">
+								关系图：网站经验帮助实现了一件小作品。
+							</option>
+							<option value="first">
+								第一间房：粗糙的方块也能回应操作，并让人走到旗帜。
+							</option>
+							<option value="edit">
+								Jam 工程：不添新工具，亲手决定保留哪些模块。
+							</option>
+						</select>
+					</article>
+					<article class="evidence">
+						<p class="meta">工具箱留下的结论</p>
+						<blockquote>
+							「只要准备得更多，最后一幕总会自己出现吧？」
+						</blockquote>
+						<label for="evidence-collector">给它看哪份经历？</label
+						><select
+							id="evidence-collector"
+							name="collector"
+							required
+						>
+							<option value="">选一份实际发生过的证据</option>
+							<option value="first">
+								第一间房：粗糙的方块也能回应操作，并让人走到旗帜。
+							</option>
+							<option value="edit">
+								Jam 工程：不添新工具，亲手决定保留哪些模块。
+							</option>
+							<option value="connections">
+								关系图：网站经验帮助实现了一件小作品。
+							</option>
+						</select>
+					</article>
+					<article class="evidence">
+						<p class="meta">旁观者留下的结论</p>
+						<blockquote>
+							「既然有时是在逃避，那些离开游戏的探索，是不是都该删掉？」
+						</blockquote>
+						<label for="evidence-observer">给它看哪份经历？</label
+						><select
+							id="evidence-observer"
+							name="observer"
+							required
+						>
+							<option value="">选一份实际发生过的证据</option>
+							<option value="edit">
+								Jam 工程：不添新工具，亲手决定保留哪些模块。
+							</option>
+							<option value="connections">
+								关系图：网站经验帮助实现了一件小作品。
+							</option>
+							<option value="first">
+								第一间房：粗糙的方块也能回应操作，并让人走到旗帜。
+							</option>
+						</select>
+					</article>
+					<button class="primary" type="submit">
+						把这些经历留在名字旁边
+					</button>
+					<p id="evidence-status" class="status" role="status"></p>
+				</form>
+				<section class="unlock" data-unlock="shelf" hidden>
+					<h2>作者不是三选一。</h2>
+					<div class="reading">
+						<p>
+							「起点」先把那面小旗收下了。它说，虽然还是想做很厉害的游戏，不过刚才那一下开心，也可以先算数。
+						</p>
+						<p>
+							「工具箱」没有关掉收藏夹。它只把「最后一幕」从自动任务列表里移了出来，放回桌面中央。那些工具还在，但它们不能替作者决定这一次要做什么。
+						</p>
+						<p>
+							「旁观者」看了看自己写的清单，又在最下面加了一行：也请记录那些好玩的部分。
+						</p>
+						<p>三份介绍终于都能保存。作者栏却仍然没有自动填上。</p>
+						<p>
+							原来它们只能告诉你，我怎样来到这里。接下来那一步，得由现在的人走。
+						</p>
+						<p class="red-pen">
+							剩下的文件不在历史里。它在主页那个空白窗口。
+						</p>
+					</div>
+					<div class="actions">
+						<a
+							class="button"
+							data-route="end"
+							href="https://sayori.org/unsaved/end/"
+							>回到现在，完成最后一幕</a
+						>
+					</div>
+				</section>
+				<section class="main-section prose">
+					<h2>你没有替我总结完这一生</h2>
+					<p>
+						你只是替几段经历留了位置。在真实生活里，一个人仍然可能反复兴奋、绕路、失落，再改变主意。读懂一次，不会把以后的问题全部解开。
+					</p>
+					<p>
+						但现在，有一件很具体的事情可以完成：让这部游戏的最后一个画面，被你看见。
+					</p>
+				</section>
+			</main>
+			<footer class="footer" id="footer"></footer>
+		</div>
+	</body>
+</html>

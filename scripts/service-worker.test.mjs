@@ -43,3 +43,10 @@ test("offline pages, hashed assets, API exclusions and diary behavior are preser
 	assert.equal(await requestPage("blog.sayori.org", "/api/twikoo"), undefined);
 	assert.equal(await requestPage("diary.sayori.org", "/about/"), "old page");
 });
+
+test("standalone ARG documents and runtime bypass stale blog caches", async () => {
+	for (const route of ["/unsaved/", "/unsaved/margins/", "/unsaved/app.js", "/unsaved/game.css"]) {
+		assert.equal(await requestPage("blog.sayori.org", route), undefined);
+		assert.equal(await requestPage("blog.sayori.org", route, { offline: true }), undefined);
+	}
+});
