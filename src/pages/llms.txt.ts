@@ -36,6 +36,7 @@ export const GET: APIRoute = async () => {
 		"- Main desk: https://sayori.org/",
 		"- About: https://sayori.org/about/",
 		"- GitHub: https://github.com/Amiyadesi",
+		"- Blog guide: https://blog.sayori.org/posts/astro-mizuki-blog-from-zero/",
 		"- itch.io: https://amiya-desi.itch.io/",
 		"- Bilibili: https://space.bilibili.com/3546919890585725",
 		"- Guestbook: https://blog.sayori.org/guestbook/",
