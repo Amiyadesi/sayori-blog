@@ -2,6 +2,7 @@ import Key from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
 
 import {
+	DEFAULT_METING_API,
 	DEFAULT_SONG,
 	LOCAL_PLAYLIST,
 	MUSIC_SETTINGS,
@@ -124,9 +125,7 @@ function matchesSongIdentity(currentSong: SongIdentity, targetSong: SongIdentity
 }
 
 function buildMetingApiUrl(type: string, id: string): string {
-	const api =
-		musicPlayerConfig.meting_api ||
-		"https://api.injahow.cn/meting/?server=:server&type=:type&id=:id";
+	const api = musicPlayerConfig.meting_api || DEFAULT_METING_API;
 	const server = musicPlayerConfig.server || "netease";
 	return api
 		.replace(":server", encodeURIComponent(server))
@@ -487,6 +486,7 @@ class MusicPlayerStore {
 		this.updateAudioDuration();
 
 		if (this.state.willAutoPlay || this.state.isPlaying) {
+			this.state.willAutoPlay = false;
 			const playPromise = this.audio?.play();
 			if (playPromise !== undefined) {
 				playPromise.catch(() => {
@@ -506,12 +506,14 @@ class MusicPlayerStore {
 			return;
 		}
 
+		const autoPlay = this.state.willAutoPlay || this.state.isPlaying;
 		this.audio.pause();
-		this.audio.src = "";
+		this.audio.removeAttribute("src");
+		this.audio.load();
 		this.state.isLoading = false;
 		this.state.externalPlayerUrl = external.url;
 		this.state.externalProvider = external.provider;
-		this.state.isPlaying = this.state.willAutoPlay || this.state.isPlaying;
+		this.state.isPlaying = autoPlay;
 		this.externalFrameArmed = this.state.isPlaying;
 		if (this.state.isPlaying) {
 			this.claimPlayback();
@@ -560,9 +562,7 @@ class MusicPlayerStore {
 
 	private async loadPlaylist(): Promise<void> {
 		const mode = musicPlayerConfig.mode ?? "meting";
-		const meting_api =
-			musicPlayerConfig.meting_api ??
-			"https://www.bilibili.uno/api?server=:server&type=:type&id=:id&auth=:auth&r=:r";
+		const meting_api = musicPlayerConfig.meting_api ?? DEFAULT_METING_API;
 		const meting_id = musicPlayerConfig.id ?? "14164869977";
 		const meting_server = musicPlayerConfig.server ?? "netease";
 		const meting_type = musicPlayerConfig.type ?? "playlist";
@@ -708,9 +708,6 @@ class MusicPlayerStore {
 		this.state.willAutoPlay = autoPlay;
 		if (this.audio && !external.url) {
 			this.syncExternalFrame();
-			if (this.audio.src) {
-				this.audio.src = "";
-			}
 			this.state.currentTime = 0;
 			this.state.duration = song.duration ?? 0;
 			if (audioSource) {
@@ -719,7 +716,8 @@ class MusicPlayerStore {
 			}
 		} else if (this.audio) {
 			this.audio.pause();
-			this.audio.src = "";
+			this.audio.removeAttribute("src");
+			this.audio.load();
 			this.state.isPlaying = autoPlay;
 			this.state.currentTime = 0;
 			this.state.duration = song.duration ?? 0;
@@ -834,6 +832,8 @@ class MusicPlayerStore {
 	}
 
 	pause(): void {
+		this.state.willAutoPlay = false;
+		this.state.autoplayFailed = false;
 		if (this.state.externalPlayerUrl) {
 			this.state.isPlaying = false;
 			this.externalFrameArmed = false;
@@ -1010,6 +1010,7 @@ class MusicPlayerStore {
 	}
 
 	destroy(): void {
+		this.pause();
 		if (this.unregisterInteraction) {
 			this.unregisterInteraction();
 		}
@@ -1018,16 +1019,21 @@ class MusicPlayerStore {
 			this.unregisterPlaybackLock = undefined;
 		}
 		if (this.audio) {
-			this.audio.pause();
-			this.audio.src = "";
+			this.audio.removeAttribute("src");
+			this.audio.load();
 			this.audio = null;
 		}
 		if (this.externalFrame) {
-			this.externalFrame.src = "";
+			this.externalFrame.src = "about:blank";
 			this.externalFrame = null;
 		}
 		this.externalFrameArmed = false;
+		this.state.isPlaying = false;
+		this.state.isLoading = false;
+		this.state.externalPlayerUrl = "";
+		this.state.externalProvider = "";
 		this.isInitialized = false;
+		this.broadcastState();
 	}
 
 	private getNextShuffleIndex(): number {
