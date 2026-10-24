@@ -79,7 +79,7 @@ export const DEFAULT_SONG: Song = {
 };
 
 export const DEFAULT_METING_API =
-	"https://www.bilibili.uno/api?server=:server&type=:type&id=:id&auth=:auth&r=:r";
+	"https://api.injahow.cn/meting/?server=:server&type=:type&id=:id";
 export const DEFAULT_METING_ID = "14164869977";
 export const DEFAULT_METING_SERVER = "netease";
 export const DEFAULT_METING_TYPE = "playlist";

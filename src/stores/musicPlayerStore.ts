@@ -126,7 +126,7 @@ function matchesSongIdentity(currentSong: SongIdentity, targetSong: SongIdentity
 function buildMetingApiUrl(type: string, id: string): string {
 	const api =
 		musicPlayerConfig.meting_api ||
-		"https://meting.mysqil.com/api?server=:server&type=:type&id=:id&auth=:auth&r=:r";
+		"https://api.injahow.cn/meting/?server=:server&type=:type&id=:id";
 	const server = musicPlayerConfig.server || "netease";
 	return api
 		.replace(":server", encodeURIComponent(server))
