@@ -50,7 +50,8 @@ describe("fixed paper theme contract", () => {
 	it("invalidates stale PWA assets after a deployment", () => {
 		const worker = read("public/sw.js");
 
-		assert.match(worker, /CACHE_NAME\s*=\s*["']sayori-blog-v2["']/);
+		// 版本号必须显式，允许随资源变更递增（v2 → v3-settings-entry 等）
+		assert.match(worker, /CACHE_NAME\s*=\s*["']sayori-blog-v\d+[-a-z0-9]*["']/);
 		assert.match(worker, /fetch\(request,\s*\{\s*cache:\s*["']no-store["']/);
 	});
 
