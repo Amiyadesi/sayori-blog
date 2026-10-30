@@ -49,12 +49,41 @@ function bindSearch() {
 		retry.addEventListener("click", () => void search(), options);
 		status.replaceChildren(retry);
 	}
+	function openArchive() {
+        if (new URLSearchParams(location.search).get("paper") !== "0617" || !/^(0617|p34|第34个作品)$/i.test(input.value.trim().normalize("NFKC"))) return false;
+        window.dispatchEvent(new Event("p34:archive-open"));
+        location.assign("/p34-record/?paper=0617&record=0617");
+        return true;
+      }
 	async function search() {
 		clearTimeout(timer);
 		const id = ++revision;
 		const term = input.value.trim();
 		list.replaceChildren();
 		status.textContent = term ? labels.busy : "";
+        // The fictional build note belongs only to this paper stock. Keep the
+        // existing dialog, debounce, keyboard handling and ordinary results.
+        const noteTitle = "第 34 个文件夹 · 构建笔记";
+        const noteText = "P34-0617 0.3.4 索引 工程检查 房间截图";
+        const paperNote = new URLSearchParams(location.search).get("paper") === "0617"
+          && term && (noteTitle + " " + noteText).toLowerCase().includes(term.toLowerCase());
+        if (paperNote) {
+          const item = document.createElement("li");
+          const link = document.createElement("a");
+          const title = document.createElement("strong");
+          const excerpt = document.createElement("p");
+          link.href = "/project-34/?paper=0617";
+          title.textContent = noteTitle;
+          excerpt.textContent = noteText;
+          link.append(title, excerpt); item.append(link); list.append(item);
+          status.textContent = "";
+        }
+        const archiveTerm = new URLSearchParams(location.search).get("paper") === "0617" && /^(0617|p34|第34个作品)$/i.test(term.normalize("NFKC"));
+        if (archiveTerm) {
+          const item = document.createElement("li"), link = document.createElement("a");
+          link.href = "/p34-record/?paper=0617&record=0617"; link.textContent = "0617 · 未合并的工作副本";
+          item.append(link); list.prepend(item); status.textContent = "";
+        }
 		try {
 			const pagefind = await loadIndex(locale);
 			if (!isCurrent(id) || !term) return;
@@ -74,10 +103,10 @@ function bindSearch() {
 				item.append(link);
 				return item;
 			});
-			list.replaceChildren(...items);
-			status.textContent = results.length ? "" : labels.empty;
+			list.append(...items);
+			status.textContent = results.length || paperNote || archiveTerm ? "" : labels.empty;
 		} catch (error) {
-			if (isCurrent(id)) failure(error);
+			if (isCurrent(id) && !paperNote && !archiveTerm) failure(error);
 		}
 	}
 	trigger.addEventListener("click", () => {
@@ -93,6 +122,7 @@ function bindSearch() {
 	}, options);
 	dialog.querySelector("form")!.addEventListener("submit", event => {
 		event.preventDefault();
+        if (openArchive()) return;
 		void search();
 	}, options);
 	input.addEventListener("input", () => {

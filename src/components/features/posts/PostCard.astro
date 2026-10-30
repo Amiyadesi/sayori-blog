@@ -4,14 +4,16 @@ import { render } from "astro:content";
 import { getPostUrl, url } from "@/utils/url-utils";
 import { isEnglishSite } from "@/utils/site-locale";
 import type { PostCardProps } from "./types";
-const { entry, style, class: className } = Astro.props as PostCardProps;
-const { title, published, category, description, hideHomeContent, password, pinned } = entry.data;
-const { remarkPluginFrontmatter } = await render(entry);
-const excerpt = getPostHomeContent({ description, hideHomeContent, password }, remarkPluginFrontmatter.excerpt);
-const date = published.toISOString().slice(0, 10);
+type Note = { title: string; published: Date; description: string; href: string };
+const { entry, note, style, class: className } = Astro.props as Partial<PostCardProps> & { note?: Note };
+if (!entry && !note) throw new Error("PostCard requires an entry or a build note");
+const { title, published, category, description, hideHomeContent, password, pinned } = entry ? entry.data : { ...note!, category: "", pinned: false, hideHomeContent: false, password: "" };
+const rendered = entry ? await render(entry) : undefined;
+const excerpt = getPostHomeContent({ description, hideHomeContent, password }, rendered?.remarkPluginFrontmatter.excerpt || "");
+const date = note ? published.toLocaleDateString("sv-SE", { timeZone: "Asia/Shanghai" }) : published.toISOString().slice(0, 10);
 ---
 <article class:list={["post-row", className]} style={style}>
-	<h2><a href={getPostUrl(entry)}>{title}</a>{pinned && <span class="post-pinned">{isEnglishSite ? "Pinned" : "置顶"}</span>}</h2>
+	<h2><a href={entry ? getPostUrl(entry) : note!.href}>{title}</a>{pinned && <span class="post-pinned">{isEnglishSite ? "Pinned" : "置顶"}</span>}</h2>
 	{excerpt && <p class="post-excerpt">{excerpt}</p>}
 	<div class="post-row-meta"><time datetime={date}>{date}</time>{category && <><span aria-hidden="true">·</span><a href={url("/archive/") + "?category=" + encodeURIComponent(category)}>{category}</a></>}</div>
 </article>

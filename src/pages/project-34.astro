@@ -1,0 +1,55 @@
+---
+import MainGridLayout from "../layouts/MainGridLayout.astro";
+import Markdown from "../components/misc/Markdown.astro";
+import PostCard from "../components/features/posts/PostCard.astro";
+const note = {
+  title: "第 34 个文件夹 · 构建笔记",
+  description: "P34-0617 / 0.3.4。索引与工程检查记录，附房间截图。",
+  published: new Date("2026-06-17T03:40:00+08:00"),
+  href: "/project-34/?paper=0617",
+};
+---
+<MainGridLayout title={note.title} description={note.description} postSlug="project-34" headings={[
+  { depth: 2, slug: "index", text: "索引抄录" },
+  { depth: 2, slug: "revision", text: "工程检查" },
+  { depth: 2, slug: "capture", text: "房间截图" },
+]} noindex>
+  <article id="post-container" class="desk-article" data-paper-record>
+    <header id="page-top">
+      <p class="desk-eyebrow">BUILD NOTES / 034</p>
+      <h1 data-pagefind-meta="title">{note.title}</h1>
+      <p class="post-row-meta"><time datetime="2026-06-17T03:40:00+08:00">2026-06-17 · 03:40 UTC+8</time><span>作者：<a data-paper-author href="https://sayori.org/">Amiya_desi</a></span></p>
+    </header>
+    <Markdown class="">
+      <p class="decay-text" data-decay-from="工程检查" data-decay-to="实验观察">整理第 34 个文件夹时，把索引和工程检查留在同一页。构建编号 P34-0617，版本 0.3.4。下面的时间均为 2026-06-17，UTC+8。</p>
+      <h2 id="index">索引抄录</h2>
+      <blockquote><p><time datetime="2026-06-17T02:13:00+08:00">02:13</time> · 留白手工整理<br />索引第 34 行：状态「已发布」。文件：P34-0617；版本：0.3.4。</p></blockquote>
+      <p>这是人工录入的索引，不是上传回执，也不是运行日志。状态栏沿用了上一行，不能据此确认发行。原始清单保留在 <a href="https://github.com/Amiyadesi/project-34-archive/blob/main/releases/release-034.txt">release-034.txt</a>。</p>
+      <h2 id="revision">工程检查</h2>
+      <blockquote><p><time datetime="2026-06-17T03:40:00+08:00">03:40</time> · Amiya_desi<br />检查 P34-0617 / 0.3.4：工程还在，没有导出可执行文件；Steam 商店未建立，没有 App ID。房间场景只有一扇无把手的门。截图由编辑器视口保存。</p></blockquote>
+      <p class="decay-text" data-decay-from="未改过" data-decay-to="已经替换">这两个时间分别记录整理和检查，不能当作程序发布与运行的先后证据。我把未改过的视口截图附在下面，方便以后认出这个工程。</p>
+      <h2 id="capture">房间截图</h2>
+      <details data-paper-proof>
+        <summary>查看附件：room-P34-0617.svg · 编辑器视口</summary>
+        <figure>
+          <svg viewBox="0 0 640 360" role="img" aria-label="P34-0617 编辑器视口：灰色房间，背墙一扇没有把手的门">
+            <rect width="640" height="360" fill="#bac3b9" /><path d="M0 0 110 65H530L640 0M110 65V270L0 360M530 65V270L640 360M110 270H530" fill="#d4d9cf" stroke="#566457" stroke-width="2" />
+            <path d="M246 270V110H341V270Z" fill="#687568" stroke="#3c483c" stroke-width="3" /><path d="M251 115H336V268" fill="none" stroke="#99a594" />
+            <text x="20" y="30" font-family="monospace" font-size="16" fill="#26372b">EDITOR VIEWPORT / P34-0617 / 0.3.4</text>
+            <text x="20" y="338" font-family="monospace" font-size="14" fill="#26372b">2026-06-17 03:40 UTC+8 / Amiya_desi</text>
+            <g data-paper-second-door display="none">
+              <path d="M435 270V125L501 107V270Z" fill="#5a4b61" stroke="#3b3144" stroke-width="3" /><path d="M442 265V131L494 117" fill="none" stroke="#a2af9b" />
+            </g>
+          </svg>
+          <figcaption data-paper-caption>P34-0617 / 0.3.4 · 作者保存的视口副本，一扇门。未使用其他构建替换。</figcaption>
+        </figure>
+        <p>附件登记署名：<span data-paper-signature>Amiya_desi</span></p>
+      </details>
+      <p data-paper-comparison hidden>页内预览仍标着同一个构建号。右墙多了一扇门；附件登记署名也不是保存截图时的名字。</p>
+      <p><span class="secret-text">副本里的运行者不是作者。</span></p>
+      <hr />
+      <p class="post-row-meta">这页只保存工程检查时留下的副本。索引状态不代表发行。</p>
+    </Markdown>
+  </article>
+  <template id="paper-note-card"><PostCard note={note} /></template>
+</MainGridLayout>

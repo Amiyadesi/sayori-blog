@@ -1,11 +1,11 @@
-const CACHE_NAME = "sayori-blog-v2";
+const CACHE_NAME = "sayori-blog-v3-settings-entry";
 const CORE_ASSETS = [
 	"/",
 	"/manifest.webmanifest",
 	"/favicon/amiya-desk-192.png",
 	"/favicon/amiya-desk-512.png",
 ];
-const EXCLUDED_PREFIXES = ["/api/", "/admin/", "/project-34/"];
+const EXCLUDED_PREFIXES = ["/api/", "/admin/", "/project-34/", "/p34-record/", "/p34-organic", "/p34-decay", "/paper-blog"];
 
 self.addEventListener("install", (event) => {
 	event.waitUntil(
