@@ -4,7 +4,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const tempRoot = path.join(root, ".codex-tmp", "locales");
+const tempRoot = process.env.BLOG_BUILD_TEMP_DIR
+	? path.resolve(process.env.BLOG_BUILD_TEMP_DIR)
+	: path.join(root, ".codex-tmp", "locales");
+if (tempRoot === root || root.startsWith(tempRoot + path.sep)) throw new Error("Unsafe build temporary directory");
 const dist = path.join(root, "dist");
 const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 const siteOrigin = String(
@@ -29,7 +32,7 @@ fs.rmSync(tempRoot, { recursive: true, force: true });
 fs.rmSync(dist, { recursive: true, force: true });
 fs.mkdirSync(tempRoot, { recursive: true });
 
-if (process.env.SITE_VARIANT !== "sayori-diary") {
+if (process.env.SITE_VARIANT !== "sayori-diary" && process.env.BLOG_SKIP_ANIME_UPDATE !== "1") {
 	run(["run", "update-anime"], { SITE_LANG: "zh_CN", SITE_BASE: "/" });
 }
 

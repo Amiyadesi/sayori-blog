@@ -171,6 +171,8 @@ export default defineConfig({
 					/^\/\d+\/$/.test(pathname) ||
 					/^\/(?:rss|atom)\/$/.test(pathname) ||
 					pathname === "/404/" ||
+					pathname === "/project-34/" ||
+					pathname === "/p34-record/" ||
 					pathname === "/settings/" ||
 					pathname === "/timetable/" ||
 					disabledFeaturePathPrefixes.some((prefix) =>

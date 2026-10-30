@@ -30,5 +30,17 @@ const copy = isEnglishSite ? {
 			<div><label for="desk-music-setting">{copy.music}</label><p id="desk-music-description">{copy.musicNote}</p></div>
 			<input type="checkbox" id="desk-music-setting" data-music-preference aria-describedby="desk-music-description" />
 		</div>
+    <div class="desk-paper-corner">
+      <label for="desk-paper-setting" title="纸张校样 · 0617"><span>0617</span>
+        <input type="checkbox" id="desk-paper-setting" data-paper-preference aria-label="纸张校样 · 0617" />
+      </label>
+    </div>
 	</section>
 </MainGridLayout>
+
+<style>
+  .desk-paper-corner { display: flex; justify-content: flex-end; padding-top: .8rem; }
+  .desk-paper-corner label { display: inline-flex; align-items: center; gap: .5rem; min-height: 36px; color: var(--text-50); font: .7rem ui-monospace, monospace; opacity: .6; cursor: pointer; }
+  .desk-paper-corner label:hover, .desk-paper-corner label:focus-within { opacity: 1; }
+  .desk-paper-corner input { width: .85rem; height: .85rem; margin: 0; accent-color: var(--primary); }
+</style>

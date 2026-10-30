@@ -1,0 +1,2 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {replaceDecayWord} from '../public/p34-decay.js';
+test('40 percent mutation has a testable boundary and touches only supplied words',()=>{assert.equal(replaceDecayWord('开发日记在这里','开发日记','实验观察',()=>.399),'实验观察在这里');assert.equal(replaceDecayWord('开发日记在这里','开发日记','实验观察',()=>.4),'开发日记在这里');assert.equal(replaceDecayWord('真实文章没有此词','开发日记','实验观察',()=>0),'真实文章没有此词');});

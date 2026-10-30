@@ -41,6 +41,27 @@ const ogImageUrl = new URL(siteConfig.generateOgImages && postSlug
 		<slot />
 		<OptionalFeatures />
 		<div id="twikoo-runtime-host" hidden transition:persist="twikoo-runtime"></div>
+		{process.env.SITE_VARIANT !== "sayori-diary" && <script>
+      // Normal pages load only this gate, never the anomaly module or stylesheet.
+      let generation = 0;
+      let dispose: (() => void) | undefined;
+      const clearPaper = () => { generation++; dispose?.(); dispose = undefined; };
+      async function syncPaper() {
+        clearPaper();
+        if (new URLSearchParams(location.search).get("paper") !== "0617") return;
+        const current = generation;
+        try {
+          const modulePath = "/paper-blog.js?v=20261024-bio1";
+          const { mountPaperBlog } = await import(/* @vite-ignore */ modulePath);
+          if (current === generation) dispose = mountPaperBlog();
+        } catch (error) { console.warn("Paper stock unavailable", error); }
+      }
+      void syncPaper();
+      document.addEventListener("astro:page-load", () => void syncPaper());
+      document.addEventListener("astro:before-swap", clearPaper);
+      window.addEventListener("pagehide", clearPaper);
+      window.addEventListener("pageshow", event => { if (event.persisted) void syncPaper(); });
+    </script>}
 	</body>
 </html>
 

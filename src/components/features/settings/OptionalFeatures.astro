@@ -52,6 +52,8 @@ import { isEnglishSite } from "../../../utils/site-locale";
 		finally { petLoading = false; }
 	}
 	function syncInputs() {
+        const paperInput = document.querySelector<HTMLInputElement>("[data-paper-preference]");
+        if (paperInput) paperInput.checked = new URLSearchParams(location.search).get("paper") === "0617";
 		const petInput = document.querySelector<HTMLInputElement>("[data-pet-preference]");
 		const musicInput = document.querySelector<HTMLInputElement>("[data-music-preference]");
 		if (petInput) petInput.checked = petEnabled;
@@ -68,6 +70,16 @@ import { isEnglishSite } from "../../../utils/site-locale";
 	document.addEventListener("change", event => {
 		const input = event.target;
 		if (!(input instanceof HTMLInputElement)) return;
+        if (input.matches("[data-paper-preference]")) {
+          const destination = new URL(location.href);
+          if (input.checked) {
+            destination.pathname = destination.pathname.replace(/settings\/?$/, "");
+            destination.searchParams.set("paper", "0617");
+          }
+          else destination.searchParams.delete("paper");
+          location.assign(destination.pathname + destination.search + destination.hash);
+          return;
+        }
 		const isPet = input.matches("[data-pet-preference]");
 		if (!isPet && !input.matches("[data-music-preference]")) return;
 		status.hidden = true;
