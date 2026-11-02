@@ -3,6 +3,9 @@
 // Native split-grapheme layer + Web Animations API (Element.animate) + cipher decode + suspended layout reflow.
 // No doll/avatar actors, no trajectory emitters, no red-boxed floating widgets.
 
+import { STORY_COOKIE, LEGACY_COOKIE, parseStory, serializeStory, migrateFromWorld, normalizeStory } from './p34-story.js';
+import { mountArc, line as arcLine } from './p34-arc.js';
+
 export const WORLD_COOKIE_KEY = 'p34_world_v1';
 const VALID_SITES = new Set(['none', 'home', 'blog', 'store']);
 const VALID_MOODS = new Set(['warm', 'curious', 'playful', 'shy']);
@@ -338,6 +341,30 @@ export function mountLivingWorld({ signal: externalSignal } = {}) {
       + (location.protocol === 'https:' ? '; Secure' : '');
     root.dataset.p34GirlStage = String(state.st);
   }
+  /* ---------- 新剧情状态 ---------- */
+  function readStoryCookie() {
+    const row = document.cookie.split('; ').find((r) => r.startsWith(STORY_COOKIE + '='));
+    if (row) {
+      const parsed = parseStory(decodeURIComponent(row.slice(STORY_COOKIE.length + 1)));
+      if (parsed.valid) return parsed.story;
+    }
+    // 迁移一次旧存档：只继承"见过她"和一部分好感，旧任务进度全部作废
+    const legacy = readWorldCookie(document.cookie);
+    const migrated = migrateFromWorld(legacy);
+    writeStoryCookie(migrated);
+    return migrated;
+  }
+  function writeStoryCookie(next) {
+    const domain = resolveCookieDomain(location.hostname);
+    document.cookie = STORY_COOKIE + '=' + encodeURIComponent(serializeStory(next))
+      + (domain ? '; Domain=' + domain : '') + '; Path=/; Max-Age=15552000; SameSite=Lax'
+      + (location.protocol === 'https:' ? '; Secure' : '');
+  }
+  let story = readStoryCookie();
+  function setStory(next) { story = normalizeStory(next); writeStoryCookie(story); return story; }
+  function getStory() { return story; }
+  let stopArc = null;
+
   function apply(actionName) {
     sync();
     const result = applyPuzzleAction(state, actionName);
@@ -517,12 +544,19 @@ export function mountLivingWorld({ signal: externalSignal } = {}) {
       if (requestShown || leaving || document.hidden || document.activeElement?.matches('input,textarea')) return;
       if (voice.section.getBoundingClientRect().bottom < 0) return;
       requestShown = true;
-      say(GIRL_TEST_COPY.request);
+      say(['陪我玩一个吧？', '架子上那几个，都是我做的。挑一个。']);
     }, 14000);
   }
   function speak() {
     explore();
-    say(GIRL_TEST_COPY.who[talkIndex++ % GIRL_TEST_COPY.who.length]);
+    const s = normalizeStory(story);
+    const lines = [
+      ['嗯，我在。', '你有什么想问的？下面那些是我能聊的。'],
+      ['我刚刚在东张西望。', '别管我，你继续。'],
+      ['你说话的方式，和他不太一样。', '我喜欢。'],
+    ];
+    say(lines[talkIndex++ % lines.length]);
+    if (s.chapter === 'arrive') { setStory({ ...s, chapter: 'explore', met: 1 }); }
   }
   function rearrange() {
     const nav = document.querySelector('.entries');
@@ -568,9 +602,11 @@ export function mountLivingWorld({ signal: externalSignal } = {}) {
   }
   function initialLine() {
     sync();
-    if (!firstVisit && encounter.encounterType.endsWith('-return')) return ['你回来啦。', '字还记得上次的位置。慢慢看，我在。'];
-    if (site === 'blog') return encounter.encounterType === 'blog-from-home' ? ['你跟过来了。', '没错，这里也是我。文章都还在，随便翻。'] : GIRL_TEST_COPY.blog;
-    return encounter.encounterType === 'home-from-blog' ? ['原来你先去了那边。', '欢迎回来。这一页，也留了位置给你。'] : GIRL_TEST_COPY.first;
+    const s = normalizeStory(story);
+    if (site === 'blog' && s.chapter === 'arrive') {
+      return ['你也翻到这一页了。', '这里是他写的东西。我只偷偷挪动了一点点。'];
+    }
+    return arcLine('greet', s, site);
   }
   function setupHome() {
     const notebook = document.querySelector('.notebook-page');
@@ -624,7 +660,10 @@ export function mountLivingWorld({ signal: externalSignal } = {}) {
         choice('去博客', null, 'https://blog.sayori.org/?paper=0617');
       }
     }
-    if (pageContent) say(initialLine());
+    if (pageContent) {
+      say(initialLine());
+      stopArc = mountArc({ root, site, voice, say, choice, getStory, setStory });
+    }
   }
   function setupBlog() {
     const intro = document.querySelector('.desk-intro');
@@ -643,6 +682,7 @@ export function mountLivingWorld({ signal: externalSignal } = {}) {
       choice('去另一页', null, 'https://sayori.org/?paper=0617');
     }
     for (const secret of document.querySelectorAll('.secret-text')) secret.addEventListener('click', () => secret.classList.add('is-rubbed'), { signal });
+    stopArc = mountArc({ root, site, voice, say, choice, getStory, setStory });
   }
   function resumed() {
     sync();
@@ -681,6 +721,7 @@ export function mountLivingWorld({ signal: externalSignal } = {}) {
   function cleanup() {
     if(closed) return;
     closed=true; controller.abort();
+    if (typeof stopArc === 'function') stopArc();
     transition?.skipTransition();
     [...jobs.values()].forEach(f=>f());
     animations.forEach(a=>a.cancel());
