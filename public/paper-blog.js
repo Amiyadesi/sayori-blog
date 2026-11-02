@@ -1,5 +1,6 @@
 import { mountP34 } from './p34-organic.js?v=20261024-bio1';
 import { mountTextDecay, mountDateScramble } from './p34-decay.js?v=20261024-bio1';
+import { mountLivingWorld } from './p34-living.js?v=20261101-r5';
 // Loaded only by the blog's paper=0617 lifecycle gate.
 export function mountPaperBlog() {
   if (new URLSearchParams(location.search).get('paper') !== '0617') return () => {};
@@ -13,6 +14,8 @@ export function mountPaperBlog() {
   document.head.append(stylesheet);
   root.classList.add('blog-altered');
   const runtime = mountP34({ stageSelector: '.desk-shell,.post-row,.desk-note', preservePaper: true });
+  // 她的层：和主页共用同一份世界状态。只在 ?paper=0617 下挂载，普通页一行都不碰。
+  const stopLiving = mountLivingWorld();
   const stopDecay = mountTextDecay({ signal, setLevel: runtime.setLevel, getLevel: () => runtime.level });
   const stopDates = mountDateScramble({ signal, reducedMotion: () => runtime.reducedMotion });
   const isArchive = Boolean(document.querySelector('[data-p34-archive]'));
@@ -91,6 +94,7 @@ export function mountPaperBlog() {
   return () => {
     lifecycle.abort();
     stopDecay(); stopDates(); runtime.destroy();
+    if (typeof stopLiving === 'function') stopLiving();
     clearTimeout(timer);
     lastSurface?.classList.remove('paper-pull');
     document.querySelectorAll('.paper-open').forEach(node => node.classList.remove('paper-open'));

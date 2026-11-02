@@ -34,10 +34,11 @@ function harness(search = "?paper=0617", reduce = false, hasDoll = false) {
     querySelectorAll() { return [{ classList }]; },
     addEventListener(name: string, fn: Function, options: any) { handlers.set(name, [...(handlers.get(name) || []), { fn, signal: options.signal }]); },
   };
+  let livingMounted = 0, livingStopped = 0;
   const media = { matches: reduce, addEventListener(name: string, fn: Function, options: any) { handlers.set(`media:${name}`, [{ fn, signal: options.signal }]); } };
-  const context = vm.createContext({ mountP34:()=>({destroy(){},setLevel(){},triggerVhsGlitch(){},level:1,reducedMotion:reduce}),mountTextDecay:()=>()=>{},mountDateScramble:()=>()=>{}, document, location: { search }, URLSearchParams, AbortController, matchMedia: () => media, HTMLDetailsElement: Details, Element: class {}, setTimeout, clearTimeout });
+  const context = vm.createContext({ mountLivingWorld: () => { livingMounted++; return () => { livingStopped++; }; }, mountP34:()=>({destroy(){},setLevel(){},triggerVhsGlitch(){},level:1,reducedMotion:reduce}),mountTextDecay:()=>()=>{},mountDateScramble:()=>()=>{}, document, location: { search }, URLSearchParams, AbortController, matchMedia: () => media, HTMLDetailsElement: Details, Element: class {}, setTimeout, clearTimeout });
   vm.runInContext(engine.replace(/^import .*;\r?\n/gm, "").replace("export function", "function") + ";globalThis.mount = mountPaperBlog", context);
-  return { attrs, dollClasses, mount: context.mount as () => () => void, classes, styleNodes, door, signature, caption, comparison, author, proof, handlers, media,
+  return { living: () => ({ mounted: livingMounted, stopped: livingStopped }), attrs, dollClasses, mount: context.mount as () => () => void, classes, styleNodes, door, signature, caption, comparison, author, proof, handlers, media,
     emit(name: string, target: unknown) { handlers.get(name)?.forEach(h => { if (!h.signal.aborted) h.fn({ target }); }); } };
 }
 
@@ -101,4 +102,16 @@ test('VHS material, decay and archive search stay inside anomaly mode',()=>{
  assert.match(shared,/#b8b4a2/);assert.match(shared,/#a89f78/);assert.match(shared,/180ms/);assert.match(shared,/\.secret-text::selection/);
  const search=read('src/scripts/desk-search.ts');assert.match(search,/function openArchive/);assert.match(search,/if \(openArchive\(\)\) return/);assert.match(search,/p34-record\/\?paper=0617&record=0617/);
  const archive=read('src/pages/p34-record.astro');assert.match(archive,/data-p34-archive/);assert.match(archive,/class="decay-text"/);assert.match(archive,/class="secret-text"/);assert.match(archive,/noindex/);
+});
+
+test("her living layer mounts only inside the anomaly and leaves with the blog lifecycle", () => {
+  const normal = harness("");
+  normal.mount()();
+  assert.deepEqual(normal.living(), { mounted: 0, stopped: 0 }, "normal page must not mount her layer");
+
+  const world = harness();
+  const stop = world.mount();
+  assert.deepEqual(world.living(), { mounted: 1, stopped: 0 });
+  stop();
+  assert.deepEqual(world.living(), { mounted: 1, stopped: 1 });
 });

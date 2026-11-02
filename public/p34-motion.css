@@ -1,0 +1,44 @@
+/* Project 34 · 共用动效 tokens
+   主页 / 博客 / store 三处共用同一套时长与缓动，避免各写一套。 */
+:root{
+  --p34-ease-out:cubic-bezier(.2,.7,.2,1);
+  --p34-ease-soft:cubic-bezier(.4,0,.2,1);
+  --p34-ease-snap:cubic-bezier(.16,1.16,.3,1);
+
+  --p34-dur-fast:180ms;
+  --p34-dur-base:320ms;
+  --p34-dur-slow:620ms;
+  --p34-dur-moment:900ms;
+
+  --p34-sway:3.4px;      /* 指针靠近时的位移上限 */
+  --p34-lift:2px;        /* hover 上浮 */
+  --p34-breath:8s;       /* 呼吸周期 */
+}
+
+/* 纸张错位：像两层纸没对齐，一下就好 */
+@keyframes p34-misregister{
+  0%{transform:translate(0,0) rotate(0)}
+  18%{transform:translate(7px,-2px) rotate(.35deg)}
+  42%{transform:translate(-3px,1px) rotate(-.2deg)}
+  70%{transform:translate(1px,0) rotate(.05deg)}
+  100%{transform:translate(0,0) rotate(0)}
+}
+
+/* 抬起又放下 */
+@keyframes p34-lift{
+  0%{transform:translateY(0) rotate(0)}
+  35%{transform:translateY(-8px) rotate(.5deg)}
+  70%{transform:translateY(-3px) rotate(.2deg)}
+  100%{transform:translateY(0) rotate(0)}
+}
+
+/* 墨迹扫过 */
+@keyframes p34-ink{
+  0%{clip-path:inset(0 100% 0 0);opacity:.9}
+  60%{clip-path:inset(0 0 0 0);opacity:.55}
+  100%{clip-path:inset(0 0 0 0);opacity:0}
+}
+
+@media (prefers-reduced-motion:reduce){
+  :root{--p34-dur-fast:0ms;--p34-dur-base:0ms;--p34-dur-slow:0ms;--p34-dur-moment:0ms;--p34-sway:0px}
+}
