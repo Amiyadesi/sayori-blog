@@ -714,8 +714,14 @@ export function mountLivingWorld({ signal: externalSignal } = {}) {
     later(() => void morph(init), 320);
   }
   function ready() {
-    if (site==='home' && document.getElementById('sticky-note') && document.body.dataset.surfaceReady!=='true') window.addEventListener('sayori:surface-ready', enter, { once:true, signal });
-    else enter();
+    // 主页有贴纸时要等它摆好再动；但表面事件偶尔不会到，别让整层卡在那里。
+    const waitsForSurface = site === 'home' && document.getElementById('sticky-note') && document.body.dataset.surfaceReady !== 'true';
+    if (waitsForSurface) {
+      const fallback = later(enter, 1500);
+      window.addEventListener('sayori:surface-ready', () => { clearTimeout(fallback); enter(); }, { once: true, signal });
+    } else {
+      enter();
+    }
   }
   if(style.sheet) ready(); else style.addEventListener('load',ready,{once:true,signal});
   function cleanup() {
