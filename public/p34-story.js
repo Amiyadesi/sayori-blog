@@ -1,4 +1,4 @@
-// Project 34 · 剧情状态（v2）
+// Project 34 · 剧情状态（v3，兼容 v2）
 // 与旧的 p34_world_v1 分开：那个只记录"她在哪见过你"，这个记录故事走到了哪。
 // 纯逻辑，不碰 DOM，方便单测。
 
@@ -35,7 +35,7 @@ const bit = (list, id) => {
 
 export function createStory() {
   return {
-    v: 2,
+    v: 3,
     chapter: 'arrive',
     met: 0,
     trust: 0,
@@ -43,6 +43,7 @@ export function createStory() {
     clues: [],
     topics: [],
     works: { light: 0, words: 0, drift: 0 },
+    post: 0,
     beats: {},
   };
 }
@@ -51,13 +52,14 @@ const clampChapter = (name) => (CHAPTERS.includes(name) ? name : 'arrive');
 
 export function normalizeStory(raw) {
   const s = { ...createStory(), ...(raw || {}) };
-  s.v = 2;
+  s.v = 3;
   s.chapter = clampChapter(s.chapter);
   s.met = s.met ? 1 : 0;
   s.trust = Math.max(0, Math.min(100, Math.trunc(Number(s.trust) || 0)));
   s.pressure = Math.max(0, Math.min(100, Math.trunc(Number(s.pressure) || 0)));
-  s.clues = Array.isArray(s.clues) ? s.clues.filter((c) => CLUES.includes(c)) : [];
-  s.topics = Array.isArray(s.topics) ? s.topics.filter((t) => TOPICS.includes(t)) : [];
+  s.clues = Array.isArray(s.clues) ? [...new Set(s.clues.filter((c) => CLUES.includes(c)))] : [];
+  s.topics = Array.isArray(s.topics) ? [...new Set(s.topics.filter((t) => TOPICS.includes(t)))] : [];
+  s.post = Math.max(0, Math.min(6, Math.trunc(Number(s.post) || 0)));
   const works = typeof s.works === 'object' && s.works ? s.works : {};
   s.works = Object.fromEntries(WORKS.map((id) => [id, works[id] ? 1 : 0]));
   s.beats = typeof s.beats === 'object' && s.beats ? { ...s.beats } : {};
@@ -83,13 +85,13 @@ export function serializeStory(story) {
   let workMask = 0;
   WORKS.forEach((w, i) => { if (s.works[w]) workMask |= 1 << i; });
   const ci = CHAPTERS.indexOf(s.chapter);
-  return `2.${ci}.${s.met}.${s.trust}.${s.pressure}.${clueMask.toString(16)}.${topicMask.toString(16)}.${workMask.toString(16)}`;
+  return `3.${ci}.${s.met}.${s.trust}.${s.pressure}.${clueMask.toString(16)}.${topicMask.toString(16)}.${workMask.toString(16)}.${s.post}`;
 }
 
 export function parseStory(raw) {
   if (typeof raw !== 'string') return { valid: false, story: createStory() };
   const parts = raw.trim().split('.');
-  if (parts.length !== 8 || parts[0] !== '2') return { valid: false, story: createStory() };
+  if (!/^(?:2\.[0-7]\.[01]\.\d{1,3}\.\d{1,3}\.[a-f\d]{1,2}\.[a-f\d]{1,2}\.[0-7]|3\.[0-7]\.[01]\.\d{1,3}\.\d{1,3}\.[a-f\d]{1,2}\.[a-f\d]{1,2}\.[0-7]\.[0-6])$/i.test(raw.trim())) return { valid: false, story: createStory() };
   const [, ci, met, trust, pressure, clueHex, topicHex, workHex] = parts;
   const chapterIndex = Number(ci);
   if (!Number.isInteger(chapterIndex) || chapterIndex < 0 || chapterIndex >= CHAPTERS.length) {
@@ -109,6 +111,7 @@ export function parseStory(raw) {
     clues: CLUES.filter((_, i) => clueMask & (1 << i)),
     topics: TOPICS.filter((_, i) => topicMask & (1 << i)),
     works: Object.fromEntries(WORKS.map((w, i) => [w, workMask & (1 << i) ? 1 : 0])),
+    post: parts[0] === '3' ? Number(parts[8]) : 0,
   });
   return { valid: true, story };
 }
@@ -121,7 +124,7 @@ export function discover(story, clue) {
   s.trust = Math.min(100, s.trust + 6);
   s.pressure = Math.min(100, s.pressure + 4);
   const before = new Set(s.topics);
-  for (const t of topicsFor(s)) s.topics = [...s.topics, t];
+  s.topics = [...new Set([...s.topics, ...topicsFor(s)])];
   const unlockedTopics = s.topics.filter((t) => !before.has(t));
   if (s.chapter === 'arrive' && s.met) s.chapter = 'explore';
   return { story: s, fresh: true, unlockedTopics };
@@ -142,9 +145,20 @@ export function topicsFor(story) {
 export function finishWork(story, workId) {
   const s = normalizeStory(story);
   if (!WORKS.includes(workId)) return s;
+  if (s.works[workId]) return s;
   s.works = { ...s.works, [workId]: 1 };
   s.trust = Math.min(100, s.trust + 4);
   if (s.chapter === 'explore' && Object.values(s.works).every(Boolean)) s.pressure = Math.min(100, s.pressure + 10);
+  return s;
+}
+
+// Legacy postcard progress keeps its meaning; typewalk uses p34_play_v1.
+export function finishPostcard(story, level) {
+  const s = normalizeStory(story);
+  const progress = Math.max(s.post, Math.min(6, Math.trunc(level)));
+  if (progress === s.post) return s;
+  s.post = progress;
+  s.trust = Math.min(100, s.trust + 5);
   return s;
 }
 
@@ -163,7 +177,7 @@ export function talk(story, topic, tone) {
 }
 
 /* 章节推进：由压力和信任共同决定，不由玩家选。 */
-export function advanceChapter(story) {
+export function advanceChapter(story, typewalkProgress = 0) {
   const s = normalizeStory(story);
   const played = Object.values(s.works).filter(Boolean).length;
   switch (s.chapter) {
@@ -171,7 +185,7 @@ export function advanceChapter(story) {
       if (s.met) s.chapter = 'explore';
       break;
     case 'explore':
-      if (played >= 2 && s.trust >= 18) s.chapter = 'doubt';
+      if ((played >= 2 || s.post >= 3 || typewalkProgress >= 2) && s.trust >= 18) s.chapter = 'doubt';
       break;
     case 'doubt':
       if (s.pressure >= 45) s.chapter = 'rift';

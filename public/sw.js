@@ -5,7 +5,7 @@ const CORE_ASSETS = [
 	"/favicon/amiya-desk-192.png",
 	"/favicon/amiya-desk-512.png",
 ];
-const EXCLUDED_PREFIXES = ["/api/", "/admin/", "/project-34/", "/p34-record/", "/p34-organic", "/p34-decay", "/paper-blog"];
+const EXCLUDED_PREFIXES = ["/api/", "/admin/", "/project-34/", "/p34-", "/paper-blog"];
 
 self.addEventListener("install", (event) => {
 	event.waitUntil(

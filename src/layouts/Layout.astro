@@ -27,6 +27,37 @@ const ogImageUrl = new URL(siteConfig.generateOgImages && postSlug
 <html transition:animate="none" data-pagefind-ignore={noindex ? "all" : undefined} lang={SITE_LOCALE} data-pagefind-filter={"locale:" + SITE_LOCALE}>
 	<head>
 		<meta charset="UTF-8" />
+        <script is:inline data-astro-rerun>
+          // Registered before ClientRouter: world scene history never enters Astro's page swap.
+          if (!window.__p34HistoryGate) {
+            window.__p34HistoryGate = true;
+            window.addEventListener('popstate', event => {
+              const path = location.pathname + location.search;
+              if (document.documentElement.dataset.p34Active === 'true' && event.state?.p34 === path && new URLSearchParams(location.search).get('paper') === '0617') {
+                event.stopImmediatePropagation();
+                window.dispatchEvent(new Event('p34:history'));
+              }
+            }, true);
+          }
+          if (new URLSearchParams(location.search).get('paper') === '0617') {
+            const root = document.documentElement;
+            const referrer = document.referrer ? new URL(document.referrer) : null;
+            const fromWorld = referrer && /(^|\.)sayori\.org$/.test(referrer.hostname) && referrer.searchParams.get('paper') === '0617';
+            const reload = performance.getEntriesByType('navigation')[0]?.type === 'reload' && document.cookie.includes('p34_world_v1=');
+            root.dataset.p34Entry ||= fromWorld || reload ? 'quiet' : 'morph';
+            if (root.dataset.p34Entry === 'quiet') root.classList.add('p34-world');
+            const style = document.createElement('link');
+            style.rel = 'stylesheet'; style.href = '/p34-living.css?v=20261102-r12';
+            style.dataset.p34LivingStyle = ''; document.head.append(style);
+          } else if (document.referrer && new URL(document.referrer).origin === location.origin && new URL(document.referrer).searchParams.get('paper') === '0617') {
+            const travel = document.createElement('style');
+            travel.textContent = '@view-transition{navigation:auto}html::view-transition-old(root),html::view-transition-new(root){animation-duration:180ms}@media(prefers-reduced-motion:reduce){html::view-transition-old(root),html::view-transition-new(root){animation-duration:0ms}}';
+            document.head.append(travel);
+            const content = document.createElement('link');
+            content.rel = 'expect'; content.href = '#swup-container'; content.setAttribute('blocking', 'render');
+            document.head.append(content);
+          }
+        </script>
 		{process.env.SITE_VARIANT !== "sayori-diary" && <ClientRouter fallback="swap" />}
 		<AnalyticsScripts thirdPartyAnalytics={siteConfig.thirdPartyAnalytics} />
 		<HeadTags title={pageTitle} description={description} ogImageUrl={ogImageUrl}
@@ -51,14 +82,20 @@ const ogImageUrl = new URL(siteConfig.generateOgImages && postSlug
         if (new URLSearchParams(location.search).get("paper") !== "0617") return;
         const current = generation;
         try {
-          const modulePath = "/paper-blog.js?v=20261024-bio1";
+          const modulePath = "/paper-blog.js?v=20261102-r12";
           const { mountPaperBlog } = await import(/* @vite-ignore */ modulePath);
           if (current === generation) dispose = mountPaperBlog();
         } catch (error) { console.warn("Paper stock unavailable", error); }
       }
-      void syncPaper();
       document.addEventListener("astro:page-load", () => void syncPaper());
-      document.addEventListener("astro:before-swap", clearPaper);
+      document.addEventListener("astro:before-swap", event => {
+        if (new URL(event.to).searchParams.get('paper') === '0617') {
+          const next = event.newDocument.documentElement;
+          next.dataset.p34Entry = dispose ? 'quiet' : 'morph';
+          if (dispose) next.classList.add('p34-world');
+        }
+        clearPaper();
+      });
       window.addEventListener("pagehide", clearPaper);
       window.addEventListener("pageshow", event => { if (event.persisted) void syncPaper(); });
     </script>}

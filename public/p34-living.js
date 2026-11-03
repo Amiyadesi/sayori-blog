@@ -1,29 +1,13 @@
-// Project 34 · Revision 04: The Webpage Itself Is Her — Suspended Typographic Space
-// Shared across sayori.org & blog.sayori.org under the ?paper=0617 gate.
-// Native split-grapheme layer + Web Animations API (Element.animate) + cipher decode + suspended layout reflow.
-// No doll/avatar actors, no trajectory emitters, no red-boxed floating widgets.
+// Shared abnormal edition. Normal routes never mount this world.
+import { STORY_COOKIE, parseStory, serializeStory, migrateFromWorld, normalizeStory } from './p34-story.js?v=20261102-r12';
+import { mountArc, HER_NOTES, parseSceneHash, serializeSceneHash, sceneDocumentTitle } from './p34-arc.js?v=20261102-r12';
+import { createMotion, segmentGraphemes } from './p34-motion.js?v=20261102-r12';
 
-import { STORY_COOKIE, LEGACY_COOKIE, parseStory, serializeStory, migrateFromWorld, normalizeStory } from './p34-story.js';
-import { mountArc, line as arcLine } from './p34-arc.js';
-
+export { HER_NOTES, parseSceneHash, serializeSceneHash, sceneDocumentTitle };
 export const WORLD_COOKIE_KEY = 'p34_world_v1';
 const VALID_SITES = new Set(['none', 'home', 'blog', 'store']);
 const VALID_MOODS = new Set(['warm', 'curious', 'playful', 'shy']);
 const TOKEN_PATTERN = /^v1\.(none|home|blog|store)\.([01])\.([01])\.([0-5])\.([01])\.([01])\.([01])\.(\d{1,2})\.(warm|curious|playful|shy)(?:\.(\d{1,3}))?$/;
-const CIPHER_GLYPHS = ['◊', '∆', '░', '▒', '✦', '§', '0', '3', '4', '⋮'];
-
-// 可替换的试玩台词；人物身份、动机与正式剧情由作者定稿。
-export const GIRL_TEST_COPY = Object.freeze({
-  first: ['啊。\n你看得见我？', '等一下，这几行字还没排好。'],
-  blog: ['你也翻到\n这一页了。', '这里都是他写下的东西。我只偷偷挪动了一点。'],
-  who: [
-    ['先别找我。', '你正在看的，就是我能碰到的地方。'],
-    ['嗯，你好。', '刚才把这里挪开了一点……没有挡住你吧？'],
-    ['你可以慢慢看。', '不急。我会待在这里。'],
-  ],
-  request: ['可以陪我\n试一试吗？', '你翻到另一页的时候，看看还能不能认出我。'],
-  meta: { authorPending: ['名字与身份', '真正的请求与目的', '正式谜题和结局'] },
-});
 
 export function createDefaultWorldState() {
   return {
@@ -175,62 +159,6 @@ export function advanceEncounterState(state, site) {
   return { state: current, encounterType: `${targetSite}-return` };
 }
 
-export function applyPuzzleAction(state, action) {
-  const current = normalizeInvariants(state);
-  switch (action) {
-    case 'explore': {
-      const sc = Math.min(20, current.sc + 1);
-      const st = sc >= 2 ? Math.max(current.st, 2) : current.st;
-      const next = normalizeInvariants({ ...current, sc, st, aff: Math.min(100, current.aff + 1) });
-      return { ok: true, unlocked: st >= 2 && current.st < 2 ? 'request' : null, state: next };
-    }
-    case 'find-rubbing': {
-      const next = normalizeInvariants({
-        ...current,
-        hk: 1,
-        st: Math.max(current.st, 3),
-        sc: Math.min(20, current.sc + 1),
-        mood: 'curious',
-      });
-      return { ok: true, unlocked: 'rubbing', state: next };
-    }
-    case 'try-blog-door': {
-      if (current.hk === 0) {
-        const next = normalizeInvariants({
-          ...current,
-          st: Math.max(current.st, 2),
-          sc: Math.min(20, current.sc + 1),
-          mood: 'curious',
-        });
-        return { ok: false, reason: 'locked-from-back', state: next };
-      }
-      const next = normalizeInvariants({
-        ...current,
-        ba: 1,
-        st: Math.max(current.st, 4),
-        sc: Math.min(20, current.sc + 1),
-        mood: 'playful',
-      });
-      return { ok: true, unlocked: 'music-strip', state: next };
-    }
-    case 'play-desk-chime': {
-      if (current.ba === 0) {
-        return { ok: false, reason: 'missing-strip', state: current };
-      }
-      const next = normalizeInvariants({
-        ...current,
-        dc: 1,
-        st: 5,
-        sc: Math.min(20, current.sc + 1),
-        mood: 'warm',
-      });
-      return { ok: true, unlocked: 'interleaf', state: next };
-    }
-    default:
-      return { ok: false, reason: 'unknown-action', state: current };
-  }
-}
-
 export function stepSpring(pos, vel, target = 0, stiffness = 240, damping = 18, dt = 1 / 60) {
   const safeDt = Math.min(Math.max(dt, 0.001), 0.034);
   const force = -stiffness * (pos - target) - damping * vel;
@@ -251,498 +179,212 @@ export function resolveCookieDomain(hostname) {
   return '';
 }
 
-/**
- * Grapheme-safe segmentation so Chinese characters, punctuation, and emojis
- * are never split mid-codepoint during visual glyph assembly.
- */
-let sharedSegmenter = null;
-export function segmentGraphemes(text) {
-  const str = String(text ?? '');
-  if (!str) return [];
-  try {
-    if (typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function') {
-      sharedSegmenter ||= new Intl.Segmenter('zh-CN', { granularity: 'grapheme' });
-      return Array.from(sharedSegmenter.segment(str), s => s.segment);
+export function createWorldSession() {
+  function cookie(key, value) {
+    const domain = resolveCookieDomain(location.hostname);
+    document.cookie = key + '=' + encodeURIComponent(value) + (domain ? '; Domain=' + domain : '') + '; Path=/; Max-Age=15552000; SameSite=Lax' + (location.protocol === 'https:' ? '; Secure' : '');
+  }
+  function getStory() {
+    const row = document.cookie.split('; ').find(r => r.startsWith(STORY_COOKIE + '='));
+    if (row) {
+      try {
+        const saved = parseStory(decodeURIComponent(row.slice(STORY_COOKIE.length + 1)));
+        if (saved.valid) return saved.story;
+      } catch (e) { if (!(e instanceof URIError)) throw e; }
     }
-  } catch {}
-  return Array.from(str);
-}
-
-/**
- * Multi-directional scatter vectors distributed around 360 degrees.
- * Characters assemble from the surrounding typographic field, never from a single emitter point.
- */
-export function buildScatterVector(index, total = 24, intensity = 1) {
-  const safeTotal = Math.max(1, total);
-  const goldenAngle = index * 2.399963229728653 + (index % 3) * 0.45;
-  const ring = 0.45 + ((index * 7 + 3) % 11) / 11;
-  const radiusX = (46 + ring * 88) * intensity;
-  const radiusY = (32 + ring * 64) * intensity;
-  const dx = Math.round(Math.cos(goldenAngle) * radiusX * 10) / 10;
-  const dy = Math.round(Math.sin(goldenAngle) * radiusY * 10) / 10;
-  const rot = Math.round(((index % 2 === 0 ? 1 : -1) * (10 + ((index * 13) % 26))) * intensity);
-  const scale = Number((1.16 + ((index % 4) * 0.06) * intensity).toFixed(2));
-  return { dx, dy, rot, scale, progressOffset: index / safeTotal };
-}
-
-/**
- * Deterministic bounded symbol-to-character decode.
- * Early progress shows cipher symbols on a subset of characters; progress >= 1 always returns exact graphemes.
- */
-export function decodeCipherFrame(graphemes, progress, stepSeed = 0) {
-  const list = Array.isArray(graphemes) ? graphemes : segmentGraphemes(graphemes);
-  if (progress >= 1) return list.slice();
-  const clamped = Math.max(0, Math.min(1, Number(progress) || 0));
-  return list.map((ch, idx) => {
-    if (!ch || /^\s+$/.test(ch)) return ch;
-    const threshold = 0.18 + ((idx * 5 + 1) % 10) * 0.068;
-    if (clamped >= threshold) return ch;
-    const cipherIdx = (idx * 3 + stepSeed * 7 + list.length) % CIPHER_GLYPHS.length;
-    return CIPHER_GLYPHS[cipherIdx];
-  });
+    return migrateFromWorld(readWorldCookie(document.cookie));
+  }
+  function setStory(value) {
+    const story = normalizeStory(value);
+    cookie(STORY_COOKIE, serializeStory(story));
+    return story;
+  }
+  function readPlay() {
+    const value = document.cookie.split('; ').find(r => r.startsWith('p34_play_v1='))?.slice(12) || '';
+    const match = /^v1\.([0-4])\.([0-9a-f])$/.exec(value);
+    return match ? { best: +match[1], stars: parseInt(match[2], 16) } : { best: 0, stars: 0 };
+  }
+  return { cookie, getStory, setStory, readPlay };
 }
 
 const activeMounts = new WeakMap();
 
-export function mountLivingWorld({ signal: externalSignal } = {}) {
+export function mountLivingWorld() {
   if (new URLSearchParams(location.search).get('paper') !== '0617') return () => {};
   const root = document.documentElement;
   if (activeMounts.has(root)) return activeMounts.get(root);
-  if (externalSignal?.aborted) return () => {};
   const controller = new AbortController(), { signal } = controller;
-  const media = matchMedia('(prefers-reduced-motion: reduce)');
-  const site = /^store\./.test(location.hostname) ? 'store'
-    : document.querySelector('.desk-shell, #swup-container') ? 'blog' : 'home';
-  let manualStill = false, closed = false, voice, currentLine, leaving = false, transition;
-  let talkIndex = 0, layout = 0, requestShown = false;
-  const nodes = new Set(), jobs = new Map(), animations = new Set(), timers = new Set();
-  const hrefs = new Map(), referrers = new Map(), navAnimations = new Map();
-  const motionOff = () => media.matches || manualStill;
-  const encounter = advanceEncounterState(readWorldCookie(document.cookie), site);
-  let state = encounter.state;
-  const firstVisit = encounter.encounterType.endsWith('-first');
-  const entering = root.dataset.p34Entry !== 'quiet';
-
-  function later(fn, ms) {
-    const id = setTimeout(() => { timers.delete(id); if (!closed) fn(); }, ms);
+  const motion = createMotion(signal);
+  const site = document.querySelector('#swup-container') ? 'blog' : 'home';
+  const main = document.querySelector(site === 'blog' ? '#swup-container' : '#main-content, main');
+  if (!main) throw new Error('Project 34 needs the original main element');
+  const original = document.createDocumentFragment(), parked = [];
+  const originalTitle = document.title, originalURL = location.href;
+  const originalState = history.state;
+  const normalFrame = main.closest(site === 'blog' ? '.desk-shell' : '.desk-surface');
+  const mainMark = document.createComment('normal main position');
+  const timers = new Set();
+  let arc, mounted = false, leaving = false, destroyed = false;
+  const listen = (el, type, fn, options = {}) => el.addEventListener(type, fn, { signal, ...options });
+  function later(fn, time) {
+    const id = setTimeout(() => { timers.delete(id); if (!signal.aborted) fn(); }, time);
     timers.add(id);
-    return id;
   }
-  function sync() {
-    state = mergeWorldStates(state, readWorldCookie(document.cookie));
-    root.dataset.p34GirlStage = String(state.st);
-    return state;
+  const { cookie, getStory, setStory, readPlay } = createWorldSession();
+  function park(el) {
+    if (!el || !el.isConnected || main.contains(el) || el.contains(main)) return;
+    const mark = document.createComment('normal website');
+    el.before(mark); el.remove(); parked.push([el, mark]);
   }
-  function save(next) {
-    state = mergeWorldStates(readWorldCookie(document.cookie), next);
-    const domain = resolveCookieDomain(location.hostname);
-    document.cookie = WORLD_COOKIE_KEY + '=' + encodeURIComponent(serializeWorldState(state))
-      + (domain ? '; Domain=' + domain : '') + '; Path=/; Max-Age=15552000; SameSite=Lax'
-      + (location.protocol === 'https:' ? '; Secure' : '');
-    root.dataset.p34GirlStage = String(state.st);
-  }
-  /* ---------- 新剧情状态 ---------- */
-  function readStoryCookie() {
-    const row = document.cookie.split('; ').find((r) => r.startsWith(STORY_COOKIE + '='));
-    if (row) {
-      const parsed = parseStory(decodeURIComponent(row.slice(STORY_COOKIE.length + 1)));
-      if (parsed.valid) return parsed.story;
+  function sourcePoints() {
+    const points = [];
+    for (const el of document.querySelectorAll('.entry-title, .page-title, .desk-intro h1, .desk-intro-copy p, .desk-quick-links a, .post-row h2, #post-container h1, #post-container p')) {
+      const r = el.getBoundingClientRect();
+      if (!r.width || r.top > innerHeight || r.bottom < 0) continue;
+      const chars = segmentGraphemes(el.textContent.trim());
+      for (let i = 0; i < Math.min(chars.length, 8); i++) points.push({ x: r.x + r.width * (i + .5) / Math.min(chars.length, 8), y: r.y + r.height / 2, char: chars[i] });
     }
-    // 迁移一次旧存档：只继承"见过她"和一部分好感，旧任务进度全部作废
-    const legacy = readWorldCookie(document.cookie);
-    const migrated = migrateFromWorld(legacy);
-    writeStoryCookie(migrated);
-    return migrated;
+    return points.slice(0, 64);
   }
-  function writeStoryCookie(next) {
-    const domain = resolveCookieDomain(location.hostname);
-    document.cookie = STORY_COOKIE + '=' + encodeURIComponent(serializeStory(next))
-      + (domain ? '; Domain=' + domain : '') + '; Path=/; Max-Age=15552000; SameSite=Lax'
-      + (location.protocol === 'https:' ? '; Secure' : '');
-  }
-  let story = readStoryCookie();
-  function setStory(next) { story = normalizeStory(next); writeStoryCookie(story); return story; }
-  function getStory() { return story; }
-  let stopArc = null;
-
-  function apply(actionName) {
-    sync();
-    const result = applyPuzzleAction(state, actionName);
-    save(result.state);
-    return result;
-  }
-  function urlFor(href) {
-    const url = new URL(href, location.href);
-    if (!['sayori.org', 'blog.sayori.org'].includes(url.hostname)) return url.href;
-    if (/\.[a-z\d]+$/i.test(url.pathname)) return url.href;
-    url.searchParams.set('paper', '0617');
-    url.searchParams.delete('p34s');
-    if (location.port && location.hostname.endsWith('sayori.org')) {
-      url.protocol = location.protocol;
-      url.port = location.port;
-    }
-    return url.href;
-  }
-  function connectLink(a) {
-    if (/^(#|mailto:|javascript:)/.test(a.getAttribute('href'))) return;
-    const next = urlFor(a.href);
-    if (next !== a.href) {
-      if (!hrefs.has(a)) hrefs.set(a, a.getAttribute('href'));
-      a.href = next;
-    }
-    if (['sayori.org', 'blog.sayori.org'].includes(new URL(a.href).hostname)) {
-      // Full referrer only between our two sites identifies world travel without URL state tokens.
-      if (!referrers.has(a)) referrers.set(a, a.getAttribute('referrerpolicy'));
-      a.referrerPolicy = 'no-referrer-when-downgrade';
-    }
-  }
-  function connectLinks() {
-    for (const a of document.querySelectorAll('a[href]')) connectLink(a);
-  }
-  function restoreLinks() {
-    for (const [el, href] of hrefs) el.setAttribute('href', href);
-    for (const [el, policy] of referrers) {
-      if (policy === null) el.removeAttribute('referrerpolicy'); else el.setAttribute('referrerpolicy', policy);
-    }
-  }
-  document.addEventListener('click', event => {
-    const a = event.target.closest('a[href]');
-    if (a && !leaving) connectLink(a);
-  }, { capture: true, signal });
-
-  function animate(el, frames, timing) {
-    if (motionOff() || document.hidden) return null;
-    const animation = el.animate(frames, timing);
-    animations.add(animation);
-    animation.finished.then(() => animations.delete(animation), () => animations.delete(animation));
-    return animation;
-  }
-  function text(el, value, entrance = false) {
-    if (el.textContent === value && !entrance) return;
-    jobs.get(el)?.();
-    if (motionOff() || document.hidden) { el.textContent = value; return; }
-    if (!entrance) {
-      el.textContent = value;
-      animate(el, [{ opacity: .35, translate: '0 4px' }, { opacity: 1, translate: '0 0' }], { duration: 320, easing: 'ease-out' });
-      return;
-    }
-    const chars = segmentGraphemes(value);
-    const readable = document.createElement('span');
-    readable.className = 'p34-sr-only';
-    readable.textContent = value;
-    const visual = document.createElement('span');
-    visual.className = 'p34-glyph-stage';
-    visual.setAttribute('aria-hidden', 'true');
-    const glyphs = chars.map(char => {
-      const span = document.createElement('span');
-      span.className = 'p34-glyph';
-      span.textContent = char;
-      if (char === '\n') span.classList.add('p34-linebreak');
-      visual.append(span);
-      return span;
-    });
-    el.replaceChildren(readable, visual);
-    const localAnimations = [], localTimers = [];
-    glyphs.forEach((glyph, i) => {
-      if (/^\s+$/.test(chars[i])) return;
-      glyph.style.width = glyph.getBoundingClientRect().width + 'px';
-      const vector = buildScatterVector(i, chars.length, entrance ? 2.5 : 0.62);
-      const tint = i % 3 === 0 ? '#a73176' : i % 3 === 1 ? '#168a8d' : '#5349a1';
-      const a = animate(glyph, [
-        { transform: 'translate(' + vector.dx + 'px,' + vector.dy + 'px) rotate(' + vector.rot + 'deg) scale(1.15)', opacity: 0.72, color: tint, filter: 'blur(1px)', textShadow: '-4px 1px #4ebdb77a,4px -1px #e58eb870' },
-        { transform: 'translate(' + (vector.dx*.82) + 'px,' + (vector.dy*.82) + 'px) rotate(' + (-vector.rot*.4) + 'deg) scale(.96)', opacity: .9, color: tint, offset: .22 },
-        { transform: 'translate(0,-3px) rotate(0) scale(1.02)', opacity: 1, filter: 'blur(0)', offset: 0.82 },
-        { transform: 'translate(0,0) rotate(0) scale(1)', opacity: 1, color: '#202943', filter: 'blur(0)', textShadow: '0 0 transparent' },
-      ], { duration: entrance ? 1700 : 640, delay: Math.min(i * (entrance ? 28 : 12), entrance ? 560 : 180), fill: 'both', easing: 'cubic-bezier(.2,.8,.2,1)' });
-      if (a) localAnimations.push(a);
-    });
-    for (let frame = 0; frame < 6; frame++) {
-      localTimers.push(later(() => {
-        const decoded = decodeCipherFrame(chars, frame / 5, frame);
-        glyphs.forEach((glyph, i) => { if (!/^\s+$/.test(chars[i])) glyph.textContent = i % 3 === 1 ? decoded[i] : chars[i]; });
-      }, 70 + frame * (entrance ? 110 : 65)));
-    }
-    function finish() {
-      localTimers.forEach(id => { clearTimeout(id); timers.delete(id); });
-      localAnimations.forEach(a => a.cancel());
-      visual.remove();
-      readable.classList.remove('p34-sr-only');
-      jobs.delete(el);
-    }
-    localTimers.push(later(finish, entrance ? 2350 : 850));
-    jobs.set(el, finish);
-  }
-  function say(line, entrance = false) {
-    if (!voice) return;
-    currentLine = line;
-    text(voice.headline, line[0], entrance);
-    voice.body.textContent = line[1];
-    animate(voice.body, [{ opacity: .2, transform: 'translateY(9px)' }, { opacity: 1, transform: 'translateY(0)' }], { duration: 600, easing: 'ease-out' });
-  }
-  function createVoice(host, compact = false) {
-    const section = document.createElement('section');
-    section.className = compact ? 'p34-voice p34-voice-small' : 'p34-voice';
-    section.setAttribute('aria-label', '与她交谈');
-    section.innerHTML = '<h2 class="p34-voice-headline" data-p34-voice-main aria-live="polite"></h2><p class="p34-voice-body" data-p34-voice-sub></p><div class="p34-choices"></div>';
-    host.prepend(section);
-    nodes.add(section);
-    voice = { section, headline: section.querySelector('h2'), body: section.querySelector('p'), choices: section.querySelector('.p34-choices') };
-    voice.headline.setAttribute('role','button'); voice.headline.setAttribute('tabindex','0');
-    voice.headline.addEventListener('click',speak,{signal});
-    voice.headline.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' ') {e.preventDefault();speak();} },{signal});
-    return section;
-  }
-  // Snapshots move the real links between both layouts; no duplicate overlay site.
-  async function morph(update, reverse = false) {
-    if (motionOff() || document.hidden) { update(); return; }
-    const elements = [...document.querySelectorAll('.entries .entry, .page-header, .desk-header, .desk-quick-links a, .post-row')].slice(0, 14);
-    const greeting = reverse ? voice?.section : document.querySelector('.desk-intro-copy');
-    const names = new Map(elements.map((el, i) => [el, 'p34-part-' + i]));
-    if (greeting) names.set(greeting, 'p34-greeting');
-    const previous = new Map([...names].map(([el]) => [el, el.style.viewTransitionName]));
-    root.classList.add('p34-morph');
-    root.classList.toggle('p34-morph-back', reverse);
-    if (document.startViewTransition) {
-      for (const [el, name] of names) el.style.viewTransitionName = name;
-      transition = document.startViewTransition(() => {
-        if (closed) return;
-        update();
-        const target = reverse ? document.querySelector('.desk-intro-copy') : voice?.section;
-        if (greeting && target) { previous.set(target, target.style.viewTransitionName); target.style.viewTransitionName = 'p34-greeting'; }
-      });
-      // Hidden tabs may skip snapshots; a failed DOM update still rejects finished.
-      transition.ready.catch(error => { if (error.name !== 'AbortError') console.error('Page transition unavailable', error); });
-      try { await transition.finished; }
-      finally {
-        for (const [el, value] of previous) el.style.viewTransitionName = value;
-        transition = null;
-        root.classList.remove('p34-morph', 'p34-morph-back');
-      }
-    } else {
-      const before = elements.map(el => el.getBoundingClientRect());
-      update();
-      const moving = elements.map((el, i) => {
-        const next = el.getBoundingClientRect();
-        return animate(el, [{ transform: `translate(${before[i].x-next.x}px,${before[i].y-next.y}px)` }, { transform: 'none' }], { duration: 1400, easing: 'cubic-bezier(.22,1,.36,1)' });
-      }).filter(Boolean);
-      await Promise.all(moving.map(a => a.finished.catch(() => {})));
-      root.classList.remove('p34-morph', 'p34-morph-back');
-    }
-  }
-  function choice(label, callback, href) {
-    const el = document.createElement(href ? 'a' : 'button');
-    if (href) el.href = urlFor(href);
-    else { el.type = 'button'; el.addEventListener('click', callback, { signal }); }
-    el.textContent = label;
-    el.className = 'p34-choice';
-    voice.choices.append(el);
-    return el;
-  }
-  function explore() {
-    apply('explore');
-    if (state.st >= 2 && !requestShown) later(() => {
-      if (requestShown || leaving || document.hidden || document.activeElement?.matches('input,textarea')) return;
-      if (voice.section.getBoundingClientRect().bottom < 0) return;
-      requestShown = true;
-      say(['陪我玩一个吧？', '架子上那几个，都是我做的。挑一个。']);
-    }, 14000);
-  }
-  function speak() {
-    explore();
-    const s = normalizeStory(story);
-    const lines = [
-      ['嗯，我在。', '你有什么想问的？下面那些是我能聊的。'],
-      ['我刚刚在东张西望。', '别管我，你继续。'],
-      ['你说话的方式，和他不太一样。', '我喜欢。'],
-    ];
-    say(lines[talkIndex++ % lines.length]);
-    if (s.chapter === 'arrive') { setStory({ ...s, chapter: 'explore', met: 1 }); }
-  }
-  function rearrange() {
-    const nav = document.querySelector('.entries');
-    if (!nav) return;
-    const links = [...nav.querySelectorAll('.entry')];
-    navAnimations.forEach(a => a.cancel());
-    const rects = links.map(el => el.getBoundingClientRect());
-    nav.dataset.layout = String(layout = (layout + 1) % 3);
-    links.forEach((el, i) => {
-      const next = el.getBoundingClientRect(), before = rects[i];
-      const a = animate(el, [
-        { transform: 'translate('+(before.x-next.x)+'px,'+(before.y-next.y)+'px) rotate('+((i%2 ? 1:-1)*3)+'deg)' },
-        { transform: 'translate(0,0) rotate(0deg)' },
-      ], { duration: 1000, easing: 'cubic-bezier(.22,1,.32,1)' });
-      if (a) navAnimations.set(el, a);
-    });
+  function restore() {
+    if (!mounted) return;
+    arc.destroy(); arc = null;
+    main.replaceChildren(original);
+    for (const [el, mark] of parked) mark.replaceWith(el);
+    parked.length = 0;
+    mainMark.replaceWith(main);
+    main.classList.remove('p34-host');
+    root.classList.remove('p34-world', 'p34-ready', 'p34-playing', 'p34-talking');
+    for (const key of ['p34Scene','p34Chapter','p34Mood','p34Site','p34Active','p34Pose','p34Moment']) delete root.dataset[key];
+    document.title = originalTitle;
+    mounted = false;
   }
   async function sendBack() {
     if (leaving) return;
     leaving = true;
-    say(['好，送你回去。', '东西放回原处。下次见。']);
-    const url = new URL(location.href);
-    url.searchParams.delete('paper');
-    url.searchParams.delete('p34s');
-    if (/\/(?:project-34|p34-record)\/?$/.test(url.pathname)) url.pathname = url.pathname.replace(/(?:project-34|p34-record)\/?$/, '');
-    later(async () => {
-      await morph(() => {
-        [...jobs.values()].forEach(f => f());
-        animations.forEach(a => a.cancel());
-        voice?.section.remove();
-        root.classList.remove('p34-world', 'p34-ready', 'p34-still');
-        restoreLinks();
-        document.querySelector('.entries')?.removeAttribute('data-layout');
-      }, true);
-      if (!closed) {
-        // Hold the restored scene across the native reload so its parser never flashes an empty desk.
-        const travel = document.createElement('style');
-        travel.textContent = '@view-transition{navigation:auto}';
-        document.head.append(travel); nodes.add(travel);
-        location.assign(url.href);
-      }
-    }, motionOff() ? 0 : 650);
-  }
-  function initialLine() {
-    sync();
-    const s = normalizeStory(story);
-    if (site === 'blog' && s.chapter === 'arrive') {
-      return ['你也翻到这一页了。', '这里是他写的东西。我只偷偷挪动了一点点。'];
+    arc.say('好，稍等。我把这页放回去。');
+    const from = arc.headline.getBoundingClientRect();
+    await motion.animate(arc.page, [{ opacity: 1 }, { opacity: 0, translate: '0px -18px' }], { duration: 420 });
+    if (destroyed) return;
+    restore();
+    const url = new URL(originalURL);
+    url.searchParams.delete('paper'); url.searchParams.delete('p34s');
+    if (/^#(?:space|blog|play|note-)/.test(url.hash)) url.hash = '';
+    history.replaceState(originalState, '', url);
+    const target = main.querySelector('.page-title, .desk-intro h1, #post-container h1');
+    if (target) {
+      const to = target.getBoundingClientRect();
+      void motion.animate(target, [{ translate: `${from.x - to.x}px ${from.y - to.y}px`, scale: '.86' }, { translate: '0 0', scale: '1' }], { duration: 820 });
     }
-    return arcLine('greet', s, site);
-  }
-  function setupHome() {
-    const notebook = document.querySelector('.notebook-page');
-    const pageContent = notebook?.querySelector('.page-content');
-    if (pageContent) {
-      createVoice(pageContent);
-      const seam = document.createElement('button');
-      seam.className = 'p34-type-seam'; seam.type = 'button'; seam.dataset.p34Seam = '';
-      seam.textContent = '？'; seam.setAttribute('aria-label', '碰一下这个歪掉的问号');
-      seam.addEventListener('click', () => {
-        say(['咦，现在正了吗？', '只动这几个字。其他的，我好好放着。'], true);
-        rearrange();
-      }, { signal });
-      voice.section.append(seam);
-      choice('你好。', speak);
-      choice('这里是谁写的？', () => {
-        explore(); say(['是 Amiya_desi。', '游戏、工具、还有这些絮絮叨叨的记录，都是他做的。你想先看哪一个？']);
-      });
-      choice('换个排法？', () => { explore(); rearrange(); say(['这样呢？', '我有时候也会把这里搬来搬去。别担心，入口一个都没少。']); });
-      const hints = [
-        ['他把想到的东西，都写在那边。', '开发记录、踩过的坑，偶尔还有一点碎碎念。'],
-        ['想去别的地方找他？', '这些地址都是真的。想玩游戏的话，记得看看 itch.io。'],
-        ['你想认识写下这些的人。', '那就去读这封信吧。我把位置让给他。'],
-        ['不只有游戏哦。', '也有能拿来用的工具。点开看看？'],
-        ['这里还通向别的地方。', '工具、资料，还有他收下的许多地址。'],
-        ['还有一起做过的东西。', '工作室的作品，都放在那边。'],
-      ];
-      const entries = [...document.querySelectorAll('.entries .entry')];
-      entries.forEach((entry, i) => {
-        let previewTimer;
-        const show = () => {
-          navAnimations.get(entry)?.cancel();
-          previewTimer = later(() => { if (!voice.section.matches(':focus-within')) {
-            text(voice.headline, hints[i][0]); voice.body.textContent = hints[i][1];
-          } }, 180);
-        };
-        const leave = () => { clearTimeout(previewTimer); timers.delete(previewTimer); if (currentLine) say(currentLine); };
-        entry.addEventListener('pointerenter', show, { signal });
-        entry.addEventListener('pointerleave', leave, { signal });
-        entry.addEventListener('focus', show, { signal });
-        entry.addEventListener('blur', leave, { signal });
-      });
-    } else {
-      const host = document.querySelector('.letter-paper') || document.querySelector('.hero-inner');
-      if (host) {
-        createVoice(host, true);
-        const path = location.pathname;
-        say(path.includes('/social') ? ['你想去哪里找他？', '这些地址，我替你留好了。'] : path.includes('/about') ? ['这一次，听他说。', '我把这一页让给他。'] : ['这些也都是他做的。', '有些是游戏，有些能直接拿来用。慢慢挑。']);
-        choice('和你说说话。', speak);
-        choice('回到刚才那页', null, '/?paper=0617');
-        choice('去博客', null, 'https://blog.sayori.org/?paper=0617');
-      }
+    const originalTabindex = main.getAttribute('tabindex');
+    main.tabIndex = -1; main.focus({ preventScroll: true });
+    if (originalTabindex === null) main.removeAttribute('tabindex');
+    else main.setAttribute('tabindex', originalTabindex);
+    if (site === 'home') {
+      // Plain HTML has no router to remount a world reached through same-document history.
+      const resume = () => {
+        if (new URLSearchParams(location.search).get('paper') !== '0617') return;
+        window.removeEventListener('popstate', resume);
+        cleanup(); root.dataset.p34Entry = 'morph'; mountLivingWorld();
+      };
+      window.addEventListener('popstate', resume);
+      window.addEventListener('pagehide', () => window.removeEventListener('popstate', resume), { once: true });
     }
-    if (pageContent) {
-      say(initialLine());
-      stopArc = mountArc({ root, site, voice, say, choice, getStory, setStory });
-    }
-  }
-  function setupBlog() {
-    const intro = document.querySelector('.desk-intro');
-    const article = document.querySelector('#post-container') || document.querySelector('#swup-container');
-    if (intro) {
-      createVoice(intro);
-      choice('你好。', speak);
-      choice('你在看哪篇？', () => { explore(); say(['还没挑好呢。', '这里都是他自己的记录。你选一篇，我跟你一起看。']); });
-      choice('回另一页看看', null, 'https://sayori.org/?paper=0617');
-      say(initialLine());
-    } else if (article) {
-      createVoice(article, true);
-      say(['我把字放稳了。', '你读吧。读完了，再叫我。']);
-      choice('你还在吗？', speak);
-      choice('回到文章列表', null, '/?paper=0617');
-      choice('去另一页', null, 'https://sayori.org/?paper=0617');
-    }
-    for (const secret of document.querySelectorAll('.secret-text')) secret.addEventListener('click', () => secret.classList.add('is-rubbed'), { signal });
-    stopArc = mountArc({ root, site, voice, say, choice, getStory, setStory });
-  }
-  function resumed() {
-    sync();
-  }
-  window.addEventListener('focus', resumed, { signal });
-  document.addEventListener('visibilitychange', () => { if(!document.hidden) resumed(); }, { signal });
-  const stopMotion = () => { if (motionOff()) { transition?.skipTransition(); [...jobs.values()].forEach(f => f()); animations.forEach(a=>a.cancel()); } };
-  media.addEventListener('change', stopMotion, { signal });
-  window.addEventListener('paper:motion', e => { manualStill = e.detail===false; root.classList.toggle('p34-still',manualStill); stopMotion(); }, { signal });
-  window.addEventListener('p34:send-back', sendBack, { signal });
-  save(state);
-
-  let style = document.querySelector('link[data-p34-living-style]');
-  if (!style) {
-    style = document.createElement('link'); style.rel='stylesheet'; style.href='/p34-living.css?v=20261101-r5'; style.dataset.p34LivingStyle=''; document.head.append(style);
-  }
-  nodes.add(style);
-  function init() {
-    if (closed) return;
-    root.classList.add('p34-world');
-    if (site==='home') setupHome(); else setupBlog();
-    if (voice) choice('送我回去吧。', sendBack);
-    connectLinks();
-    root.classList.add('p34-ready');
+    later(cleanup, 900);
   }
   function enter() {
-    if (!entering || motionOff()) { init(); return; }
-    // Let the authored page settle before she starts moving it.
-    later(() => void morph(init), 320);
-  }
-  function ready() {
-    // 主页有贴纸时要等它摆好再动；但表面事件偶尔不会到，别让整层卡在那里。
-    const waitsForSurface = site === 'home' && document.getElementById('sticky-note') && document.body.dataset.surfaceReady !== 'true';
-    if (waitsForSurface) {
-      const fallback = later(enter, 1500);
-      window.addEventListener('sayori:surface-ready', () => { clearTimeout(fallback); enter(); }, { once: true, signal });
-    } else {
-      enter();
+    if (destroyed) return;
+    const beforePaper = main.getBoundingClientRect();
+    const departing = root.dataset.p34Entry === 'quiet' ? [] : [...main.querySelectorAll('.entry-title, .desk-quick-links a, .post-row h2, .page-title, .desk-intro h1, #post-container h1')].slice(0, 9).map(el => {
+      const rect = el.getBoundingClientRect(), style = getComputedStyle(el);
+      return { rect, text: el.textContent.trim(), font: style.font, color: style.color };
+    }).filter(item => item.rect.width && item.rect.top < innerHeight && item.rect.bottom > 0);
+    const sources = sourcePoints(), encounter = advanceEncounterState(readWorldCookie(document.cookie), site);
+    let story = getStory();
+    const first = !story.met;
+    story = setStory({ ...story, met: 1, chapter: story.chapter === 'arrive' ? 'explore' : story.chapter });
+    cookie(WORLD_COOKIE_KEY, serializeWorldState(encounter.state));
+    original.append(...main.childNodes);
+    main.before(mainMark); document.body.append(main);
+    park(normalFrame);
+    document.querySelectorAll(site === 'blog'
+      ? '.desk-header, .desk-footer, .reading-toc, .reading-related, .desk-music-entry'
+      : '.sayori-sketch, .desk-piano, .desk-odd-object, .side-notes-layer, .sticker-heart').forEach(park);
+    main.classList.add('p34-host');
+    root.classList.add('p34-world'); root.dataset.p34Site = site; root.dataset.p34Active = 'true';
+    mounted = true;
+    const scene = parseSceneHash(location.hash, site);
+    const path = location.pathname + location.search;
+    history.replaceState({ p34: path }, '', path + serializeSceneHash(scene));
+    arc = mountArc({ root, site, main, motion, signal, first, getStory, setStory, readPlay, sendBack,
+      initialScene: scene,
+      onSceneChange(next) { history.pushState({ p34: path }, '', path + serializeSceneHash(next)); },
+    });
+    root.classList.add('p34-ready');
+    if (root.dataset.p34Entry !== 'quiet') {
+      const target = arc.headline.getBoundingClientRect(), afterPaper = main.getBoundingClientRect();
+      void motion.animate(main, [
+        { translate: `${beforePaper.x-afterPaper.x}px ${beforePaper.y-afterPaper.y}px`, scale: `${beforePaper.width/afterPaper.width} ${beforePaper.height/afterPaper.height}` },
+        { translate: '0 0', scale: '1' },
+      ], { duration: 1100 });
+      for (const [i, item] of departing.entries()) {
+        const ghost = document.createElement('span');
+        ghost.className = 'p34-departing-text'; ghost.ariaHidden = 'true'; ghost.textContent = item.text;
+        Object.assign(ghost.style, { left: item.rect.x+'px', top: item.rect.y+'px', width: item.rect.width+'px', font: item.font, color: item.color });
+        document.body.append(ghost);
+        signal.addEventListener('abort', () => ghost.remove(), { once: true });
+        void motion.animate(ghost, [
+          { translate: '0 0', scale: '1', opacity: 1 },
+          { translate: `${(target.x-item.rect.x)*.3}px ${(target.y-item.rect.y)*.3-28}px`, rotate: `${i%2?9:-9}deg`, opacity: .8, offset: .45 },
+          { translate: `${target.x-item.rect.x+24*i}px ${target.y-item.rect.y}px`, scale: '.15', opacity: 0 },
+        ], { duration: 950, delay: i*32 }).then(() => ghost.remove());
+      }
+      void motion.assemble(arc.headline, arc.headline.textContent, sources);
+      void motion.liftGlyphs(sources, arc.headline);
+      for (const [i, plane] of [...arc.page.querySelectorAll('.p34-plane')].entries()) {
+        const endRotate = getComputedStyle(plane).rotate;
+        void motion.animate(plane, [
+          { scale: i ? '.12' : '.7', rotate: `${i % 2 ? 34 : -24}deg`, translate: `${i % 2 ? -innerWidth * .5 : innerWidth * .3}px ${innerHeight * .24}px` },
+          { scale: '1', rotate: endRotate, translate: '0 0' },
+        ], { duration: 1550, delay: 80 + i * 110 });
+      }
+      for (const [i, node] of [...arc.page.querySelectorAll('.p34-navigation, .p34-presence, .p34-rest, .p34-note, .p34-call-place')].filter(el => el.getBoundingClientRect().width).entries()) {
+        const from = sources[(i * 5) % Math.max(1, sources.length)];
+        const to = node.getBoundingClientRect();
+        void motion.animate(node, [
+          { translate: `${from ? from.x - to.x : 0}px ${from ? from.y - to.y : 70}px`, rotate: `${i % 2 ? -5 : 5}deg`, opacity: 0 },
+          { translate: '0px -6px', rotate: '0deg', opacity: 1, offset: .76 },
+          { translate: '0 0', opacity: 1 },
+        ], { duration: 1200, delay: 180 + i * 70 });
+      }
     }
   }
-  if(style.sheet) ready(); else style.addEventListener('load',ready,{once:true,signal});
-  function cleanup() {
-    if(closed) return;
-    closed=true; controller.abort();
-    if (typeof stopArc === 'function') stopArc();
-    transition?.skipTransition();
-    [...jobs.values()].forEach(f=>f());
-    animations.forEach(a=>a.cancel());
-    timers.forEach(clearTimeout);
-    restoreLinks();
-    nodes.forEach(el=>el.remove());
-    document.querySelector('.entries')?.removeAttribute('data-layout');
-    document.querySelectorAll('.secret-text.is-rubbed').forEach(el=>el.classList.remove('is-rubbed'));
-    root.classList.remove('p34-world','p34-living-gate','p34-ready','p34-still','p34-morph','p34-morph-back');
-    delete root.dataset.p34Entry;
-    delete root.dataset.p34GirlStage;
-    activeMounts.delete(root);
+  let style = document.querySelector('link[data-p34-living-style]');
+  if (!style) {
+    style = document.createElement('link'); style.rel = 'stylesheet';
+    style.dataset.p34LivingStyle = ''; document.head.append(style);
   }
-  externalSignal?.addEventListener('abort', cleanup, {once:true});
-  window.addEventListener('pagehide',cleanup,{once:true,signal});
-  activeMounts.set(root,cleanup);
+  if (!style.href.includes('20261102-r12')) style.href = '/p34-living.css?v=20261102-r12';
+  if (style.sheet) later(enter, root.dataset.p34Entry === 'quiet' ? 0 : 260);
+  else listen(style, 'load', () => later(enter, 260), { once: true });
+  listen(style, 'error', () => { throw new Error('Project 34 stylesheet did not load'); }, { once: true });
+  function sceneBack(e) {
+    if (!mounted || leaving || new URLSearchParams(location.search).get('paper') !== '0617') return;
+    if (e.type === 'popstate' && site === 'blog') return; // The head gate owns Astro history interception.
+    void arc.applyScene(parseSceneHash(location.hash, site), { push: false });
+  }
+  listen(window, 'p34:history', sceneBack);
+  listen(window, 'popstate', sceneBack);
+  listen(window, 'p34:fold', () => { if (arc) void arc.applyScene({ view: 'blog', noteId: null }); });
+  listen(window, 'p34:send-back', () => { if (arc) void sendBack(); });
+  listen(window, 'focus', () => arc?.refresh());
+  function cleanup() {
+    if (destroyed) return;
+    destroyed = true;
+    restore(); controller.abort(); timers.forEach(clearTimeout);
+    delete root.dataset.p34Entry; activeMounts.delete(root);
+  }
+  listen(window, 'pagehide', cleanup, { once: true });
+  activeMounts.set(root, cleanup);
   return cleanup;
 }
