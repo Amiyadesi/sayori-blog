@@ -28,34 +28,26 @@ const ogImageUrl = new URL(siteConfig.generateOgImages && postSlug
 	<head>
 		<meta charset="UTF-8" />
         <script is:inline data-astro-rerun>
-          // Registered before ClientRouter: world scene history never enters Astro's page swap.
-          if (!window.__p34HistoryGate) {
-            window.__p34HistoryGate = true;
+          if (!window.__p34OwnPopstateGate) {
+            window.__p34OwnPopstateGate = true;
             window.addEventListener('popstate', event => {
-              const path = location.pathname + location.search;
-              if (document.documentElement.dataset.p34Active === 'true' && event.state?.p34 === path && new URLSearchParams(location.search).get('paper') === '0617') {
+              if (document.documentElement.dataset.p34Active === 'true' && new URLSearchParams(location.search).get('paper') === '0617') {
                 event.stopImmediatePropagation();
-                window.dispatchEvent(new Event('p34:history'));
+                window.dispatchEvent(new Event('p34:navigate'));
               }
             }, true);
           }
           if (new URLSearchParams(location.search).get('paper') === '0617') {
             const root = document.documentElement;
-            const referrer = document.referrer ? new URL(document.referrer) : null;
-            const fromWorld = referrer && /(^|\.)sayori\.org$/.test(referrer.hostname) && referrer.searchParams.get('paper') === '0617';
-            const reload = performance.getEntriesByType('navigation')[0]?.type === 'reload' && document.cookie.includes('p34_world_v1=');
-            root.dataset.p34Entry ||= fromWorld || reload ? 'quiet' : 'morph';
-            if (root.dataset.p34Entry === 'quiet') root.classList.add('p34-world');
-            const style = document.createElement('link');
-            style.rel = 'stylesheet'; style.href = '/p34-living.css?v=20261102-r12';
-            style.dataset.p34LivingStyle = ''; document.head.append(style);
-          } else if (document.referrer && new URL(document.referrer).origin === location.origin && new URL(document.referrer).searchParams.get('paper') === '0617') {
-            const travel = document.createElement('style');
-            travel.textContent = '@view-transition{navigation:auto}html::view-transition-old(root),html::view-transition-new(root){animation-duration:180ms}@media(prefers-reduced-motion:reduce){html::view-transition-old(root),html::view-transition-new(root){animation-duration:0ms}}';
-            document.head.append(travel);
-            const content = document.createElement('link');
-            content.rel = 'expect'; content.href = '#swup-container'; content.setAttribute('blocking', 'render');
-            document.head.append(content);
+            root.classList.add('p34-luminous');
+            root.dataset.p34Active = 'true';
+            if (!document.querySelector('link[data-p34-reading-style]')) {
+              const style = document.createElement('link');
+              style.rel = 'stylesheet';
+              style.href = '/p34-reading.css?v=20261103-luminous';
+              style.dataset.p34ReadingStyle = '';
+              document.head.append(style);
+            }
           }
         </script>
 		{process.env.SITE_VARIANT !== "sayori-diary" && <ClientRouter fallback="swap" />}
@@ -72,32 +64,66 @@ const ogImageUrl = new URL(siteConfig.generateOgImages && postSlug
 		<slot />
 		<OptionalFeatures />
 		<div id="twikoo-runtime-host" hidden transition:persist="twikoo-runtime"></div>
-		{process.env.SITE_VARIANT !== "sayori-diary" && <script>
+		{process.env.SITE_VARIANT !== "sayori-diary" && <script is:inline>
       // Normal pages load only this gate, never the anomaly module or stylesheet.
-      let generation = 0;
-      let dispose: (() => void) | undefined;
-      const clearPaper = () => { generation++; dispose?.(); dispose = undefined; };
-      async function syncPaper() {
-        clearPaper();
-        if (new URLSearchParams(location.search).get("paper") !== "0617") return;
-        const current = generation;
-        try {
-          const modulePath = "/paper-blog.js?v=20261102-r12";
-          const { mountPaperBlog } = await import(/* @vite-ignore */ modulePath);
-          if (current === generation) dispose = mountPaperBlog();
-        } catch (error) { console.warn("Paper stock unavailable", error); }
+      if (!window.__p34ReadingGate) {
+        let generation = 0;
+        let dispose;
+        const clearPaper = () => {
+          generation++;
+          if (typeof dispose === "function") dispose();
+          dispose = undefined;
+          if (new URLSearchParams(location.search).get("paper") !== "0617") {
+            const root = document.documentElement;
+            root.classList.remove("p34-luminous", "p34-world", "p34-ready", "p34-talking", "p34-chat-open");
+            for (const key of ["p34Active", "p34Site", "p34Entry", "p34Chapter", "p34Mood", "p34Scene", "p34Pose", "p34Moment"]) {
+              delete root.dataset[key];
+            }
+            document.querySelectorAll("link[data-p34-reading-style], link[data-p34-living-style]").forEach(el => el.remove());
+          }
+        };
+        const syncPaper = async () => {
+          clearPaper();
+          if (new URLSearchParams(location.search).get("paper") !== "0617") return;
+          const current = generation;
+          try {
+            const modulePath = "/paper-blog.js?v=20261103-luminous";
+            const { mountPaperBlog } = await import(/* @vite-ignore */ modulePath);
+            if (current === generation) dispose = mountPaperBlog();
+          } catch (error) { console.warn("Paper stock unavailable", error); }
+        };
+        window.__p34ReadingGate = { clearPaper, syncPaper };
+        document.addEventListener("astro:page-load", () => void syncPaper());
+        document.addEventListener("astro:before-swap", event => {
+          clearPaper();
+          const next = event.newDocument?.documentElement;
+          if (!next) return;
+          if (new URL(event.to).searchParams.get("paper") === "0617") {
+            next.classList.add("p34-luminous");
+            next.dataset.p34Active = "true";
+            if (!event.newDocument.querySelector("link[data-p34-reading-style]")) {
+              const style = event.newDocument.createElement("link");
+              style.rel = "stylesheet";
+              style.href = "/p34-reading.css?v=20261103-luminous";
+              style.dataset.p34ReadingStyle = "";
+              event.newDocument.head.append(style);
+            }
+          } else {
+            next.classList.remove("p34-luminous", "p34-world", "p34-ready", "p34-talking", "p34-chat-open");
+            delete next.dataset.p34Active;
+            event.newDocument.querySelectorAll("link[data-p34-reading-style], link[data-p34-living-style]").forEach(el => el.remove());
+          }
+        });
+        window.addEventListener("popstate", () => {
+          if (typeof dispose === "function" && new URLSearchParams(location.search).get("paper") === "0617") {
+            window.dispatchEvent(new Event("p34:navigate"));
+            return;
+          }
+          void syncPaper();
+        });
+        window.addEventListener("pagehide", clearPaper);
+        window.addEventListener("pageshow", event => { if (event.persisted) void syncPaper(); });
       }
-      document.addEventListener("astro:page-load", () => void syncPaper());
-      document.addEventListener("astro:before-swap", event => {
-        if (new URL(event.to).searchParams.get('paper') === '0617') {
-          const next = event.newDocument.documentElement;
-          next.dataset.p34Entry = dispose ? 'quiet' : 'morph';
-          if (dispose) next.classList.add('p34-world');
-        }
-        clearPaper();
-      });
-      window.addEventListener("pagehide", clearPaper);
-      window.addEventListener("pageshow", event => { if (event.persisted) void syncPaper(); });
     </script>}
 	</body>
 </html>
