@@ -1,0 +1,26 @@
+@import url('/p34-motion.css?v=20261102-r12');
+
+.p34-sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.p34-reading-presence { color: #75608e; font-size: 15px; line-height: 1.8; margin: 16px 0; }
+.p34-reading-presence > button { color: inherit; border-bottom: 1px solid #a68abf; cursor: pointer; padding: 4px 0; font: inherit; background: none; }
+.p34-reading-presence:has(+ article) { max-width: 760px; margin: 0 auto 24px; }
+.p34-reading-answer { padding: 12px 0 4px; max-width: 50ch; }
+.p34-reading-answer p { margin: 0 0 8px; }
+.p34-reading-answer a, .p34-reading-answer button { display: inline-block; margin: 4px 22px 4px 0; color: #715584; padding: 2px 0; border: 0; border-bottom: 1px solid #cabbd5; font: inherit; background: none; cursor: pointer; }
+.p34-margin { margin: 8px 0 24px; color: #75608b; font: inherit; }
+.p34-margin > button { border: 1px solid #baa6c9; border-radius: 50% 40% 48% 45%; color: #7d5c92; background: transparent; padding: 4px 18px; font: inherit; font-size: 14px; cursor: pointer; }
+.p34-margin > p { max-width: 52ch; margin: 16px 0 0 12px !important; padding-left: 20px; border-left: 2px solid #c8b4d9; line-height: 1.9; color: #6a5b77; font-size: 16px; }
+.p34-reading :is(.p34-margin, .p34-reading-presence) [hidden] { display: none; }
+.p34-reading :is(.p34-margin, .p34-reading-presence) :is(a, button):focus-visible { outline: 2px solid #9c78bc; outline-offset: 5px; }
+
+.her-notes { max-width: 740px; margin: 30px auto 100px; padding: 0 24px; color: #47414d; font-size: 17px; line-height: 1.95; }
+.her-notes h1 { font-size: clamp(32px, 5vw, 48px); line-height: 1.4; font-weight: 500; letter-spacing: .015em; margin: 30px 0 24px; color: #655078; }
+.her-notes p { margin: 22px 0; }
+.her-notes header > p { font-size: 14px; color: #8d7b9a; }
+.her-notes nav { display: flex; gap: 24px; flex-wrap: wrap; font-size: 15px; margin-bottom: 32px; }
+.her-notes a { color: #76578f; text-decoration: none; border-bottom: 1px solid #c9b9d6; }
+.her-notes ol { list-style: none; margin: 32px 0; padding: 0; }
+.her-notes li { margin: 28px 0; }
+.her-notes li a { font-size: 23px; }
+.her-notes li p { color: #82758d; font-size: 15px; margin: 8px 0; }
+.her-notes .her-draft { margin-top: 50px; padding-top: 24px; border-top: 1px dashed #cdbcd6; }

@@ -1,0 +1,13 @@
+---
+import MainGridLayout from '../../layouts/MainGridLayout.astro';
+import { herNotes } from '../../data/p34-notes';
+---
+<MainGridLayout title="夹在页边的几笔" noindex>
+  <link slot="head" rel="stylesheet" href="/paper-blog.css?v=20261103-r13" />
+  <section class="her-notes" data-pagefind-ignore="all">
+    <nav><a href="/?paper=0617">回到博客</a><a href="https://sayori.org/?paper=0617">去玩《借道》</a></nav>
+    <h1>夹在页边的几笔</h1>
+    <p>不全是修改记录。有些只是我想说。</p>
+    <ol>{herNotes.map(note => <li><a href={`/notes/${note.slug}/?paper=0617`}>{note.title}</a><p>{note.summary}</p></li>)}</ol>
+  </section>
+</MainGridLayout>
