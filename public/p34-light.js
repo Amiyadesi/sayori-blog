@@ -25,16 +25,19 @@ const TAU = Math.PI * 2;
 const mix = (a, b, t) => a + (b - a) * t;
 
 export function createLightSpace(canvas, { signal, reduced }) {
-  const output = canvas.getContext('2d', { alpha: false });
+  const output = canvas.getContext('2d');
   if (!output) throw new Error('Light space requires Canvas 2D');
   let ctx = output;
   const atmosphere = document.createElement('canvas');
   const bg = atmosphere.getContext('2d');
   const scenery = document.createElement('canvas'), previous = document.createElement('canvas'), experiment = document.createElement('canvas');
+  for (const layer of [scenery, previous]) { layer.className = 'space-scenery'; layer.setAttribute('aria-hidden', 'true'); }
+  previous.hidden = true;
+  canvas.before(scenery, previous);
   const sceneryContext = scenery.getContext('2d'), previousContext = previous.getContext('2d'), experimentContext = experiment.getContext('2d');
-  let w = 0, h = 0, dpr = 1, frame = 0, last = 0, until = 0;
-  let room = 'home', presence = 1, blend = 1, bend = 0, rigDirty = true;
-  let pointer = [0, 0], targetPointer = [0, 0];
+  let w = 0, h = 0, dpr = 1, frame = 0, last = 0, resizeFrame = 0, sceneTransition;
+  let room = 'home', presence = 1, bend = 0, rigDirty = true;
+  const pointer = [0, 0];
   let nodes = INITIAL_LIGHT.map(p => [...p]), rig = null;
   let snapshot = null, displayedSnapshot = null;
   let particles = [];
@@ -177,14 +180,14 @@ export function createLightSpace(canvas, { signal, reduced }) {
   }
 
   function paintScenery() {
+    sceneTransition?.cancel();
     previous.width = scenery.width; previous.height = scenery.height;
     if (scenery.width && scenery.height) previousContext.drawImage(scenery, 0, 0);
     scenery.width = canvas.width; scenery.height = canvas.height;
     ctx = sceneryContext;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.drawImage(atmosphere, 0, 0, w, h);
-    const t = 0, savedPointer = pointer;
-    pointer = [0, 0];
+    const t = 0;
     const calm = room === 'blog' || room === 'archive' || room === 'guestbook';
     if (!calm) {
       prism(w * .49 + pointer[0] * 18, -h * .08 + pointer[1] * 8, w * .16, -.2, .65);
@@ -202,8 +205,13 @@ export function createLightSpace(canvas, { signal, reduced }) {
       ctx.fillStyle = i % 3 ? '#c0e9ff' : '#f6d7ff';
       ctx.beginPath(); ctx.moveTo(x + size, y - size * 1.4); ctx.lineTo(x + size * .6, y + size * .4); ctx.lineTo(x - size, y + size * 1.4); ctx.lineTo(x - size * .6, y - size * .4); ctx.closePath(); ctx.fill();
     }
-    ctx.restore(); pointer = savedPointer; ctx = output;
-    blend = reduced() || !previous.width ? 1 : 0;
+    ctx.restore(); ctx = output;
+    if (!reduced() && previous.width) {
+      previous.hidden = false;
+      const animation = previous.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 440, easing: 'ease-out' });
+      sceneTransition = animation;
+      animation.finished.then(() => { if (sceneTransition === animation) previous.hidden = true; }, () => {});
+    } else previous.hidden = true;
   }
 
   function paintExperiment() {
@@ -223,16 +231,11 @@ export function createLightSpace(canvas, { signal, reduced }) {
     frame = 0;
     const dt = Math.min(.05, (now - (last || now)) / 1000); last = now;
     const k = 1 - Math.exp(-dt * 7);
-    pointer = pointer.map((v, i) => mix(v, targetPointer[i], k));
-    blend = reduced() ? 1 : Math.min(1, blend + dt * 2.5);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const x = pointer[0] * 9, y = pointer[1] * 7;
-    if (blend < 1) ctx.drawImage(previous, -w * .015 + x, -h * .015 + y, w * 1.03, h * 1.03);
-    ctx.globalAlpha = blend;
-    ctx.drawImage(scenery, -w * .015 + x, -h * .015 + y, w * 1.03, h * 1.03);
-    ctx.globalAlpha = 1;
+    ctx.clearRect(0, 0, w, h);
+    let moving = false;
     if (snapshot) {
-      const moving = displayedSnapshot.some((p, i) => p.some((v, axis) => Math.abs(v - snapshot[i][axis]) > .0001));
+      moving = displayedSnapshot.some((p, i) => p.some((v, axis) => Math.abs(v - snapshot[i][axis]) > .0001));
       if (moving) {
         displayedSnapshot = displayedSnapshot.map((p, i) => p.map((v, axis) => mix(v, snapshot[i][axis], reduced() ? 1 : k)));
         rigDirty = true;
@@ -248,36 +251,43 @@ export function createLightSpace(canvas, { signal, reduced }) {
       ctx.beginPath(); ctx.ellipse(p.x, p.y, p.size, p.size * .5, p.angle, 0, TAU); ctx.fill();
     }
     ctx.restore();
-    if (!reduced() && !document.hidden && (now < until || particles.length || blend < 1)) frame = requestAnimationFrame(draw);
+    if (!reduced() && !document.hidden && (particles.length || moving)) frame = requestAnimationFrame(draw);
   }
 
-  function wake(duration = 1100) {
+  function wake() {
     if (signal.aborted || document.hidden) return;
-    until = performance.now() + duration;
     if (!frame) { last = performance.now(); frame = requestAnimationFrame(draw); }
   }
   function resize() {
-    w = innerWidth; h = innerHeight; dpr = Math.min(devicePixelRatio || 1, w < 650 ? 1.5 : 1.75);
+    w = innerWidth; h = innerHeight;
+    // Light is soft; cap raster area instead of multiplying every layer by Retina resolution.
+    dpr = Math.min(devicePixelRatio || 1, 1.5, Math.sqrt(3_000_000 / (w * h)));
     canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
     experiment.width = canvas.width; experiment.height = canvas.height; rigDirty = true;
-    paintAtmosphere(); paintScenery(); wake(400);
+    paintAtmosphere(); paintScenery(); wake();
   }
-  window.addEventListener('resize', resize, { signal });
+  window.addEventListener('resize', () => {
+    if (!resizeFrame) resizeFrame = requestAnimationFrame(() => { resizeFrame = 0; resize(); });
+  }, { signal });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) { cancelAnimationFrame(frame); frame = 0; particles = []; }
-    else wake(200);
+    else wake();
   }, { signal });
   matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', () => {
-    particles = []; blend = 1; wake(0);
+    particles = []; sceneTransition?.cancel(); previous.hidden = true; wake();
   }, { signal });
-  signal.addEventListener('abort', () => { cancelAnimationFrame(frame); particles = []; }, { once: true });
+  signal.addEventListener('abort', () => { cancelAnimationFrame(frame); cancelAnimationFrame(resizeFrame); sceneTransition?.cancel(); particles = []; scenery.remove(); previous.remove(); }, { once: true });
   resize();
   return {
-    scene(value) { room = value; presence = value === 'home' ? 1 : 0; snapshot = null; displayedSnapshot = null; rigDirty = true; paintAtmosphere(); paintScenery(); wake(1500); },
-    turn() { bend = bend ? 0 : 1; paintScenery(); wake(1500); },
-    pointer(x, y) { if (reduced()) return; targetPointer = [x / w - .5, y / h - .5]; wake(650); },
-    shape(value, rect) { nodes = value; rig = rect; rigDirty = true; wake(650); },
-    preview(value, rect) { displayedSnapshot ||= nodes.map(p => [...p]); snapshot = value; rig = rect; rigDirty = true; wake(1100); },
+    scene(value) { if (value === room) return; room = value; presence = value === 'home' ? 1 : 0; snapshot = null; displayedSnapshot = null; rigDirty = true; paintAtmosphere(); paintScenery(); wake(); },
+    turn() { bend = bend ? 0 : 1; paintScenery(); },
+    pointer(x, y) {
+      if (reduced()) return;
+      const transform = `translate3d(${(x / w - .5) * 9}px, ${(y / h - .5) * 7}px, 0) scale(1.03)`;
+      scenery.style.transform = previous.style.transform = transform;
+    },
+    shape(value, rect) { nodes = value; rig = rect; rigDirty = true; wake(); },
+    preview(value, rect) { displayedSnapshot ||= nodes.map(p => [...p]); snapshot = value; rig = rect; rigDirty = true; wake(); },
     burst(x, y, count = 24) {
       if (reduced() || document.hidden) return;
       const colors = ['#d7fbff', '#a5e8ff', '#d9c4ff', '#ffe6bd'];
@@ -286,7 +296,7 @@ export function createLightSpace(canvas, { signal, reduced }) {
         const a = i * 2.4, speed = 25 + i % 7 * 12;
         particles.push({ x, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, size: 1 + i % 4, angle: a, color: colors[i % 4], life: .65 + i % 5 * .15 });
       }
-      wake(1500);
+      wake();
     },
     get active() { return Boolean(frame); },
   };

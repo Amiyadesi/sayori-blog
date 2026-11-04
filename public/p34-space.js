@@ -1,7 +1,8 @@
-import { createMotion } from './p34-motion.js?v=20261104-prism';
-import { WORLD_COOKIE_KEY, advanceEncounterState, readWorldCookie, serializeWorldState, createWorldSession } from './p34-living.js?v=20261104-prism';
-import { createLightSpace, INITIAL_LIGHT, readSketches } from './p34-light.js?v=20261104-prism';
-import { FEATURED_WORK } from './p34-space-content.js?v=20261104-prism';
+import { createMotion } from './p34-motion.js?v=20261104-flow';
+import { WORLD_COOKIE_KEY, advanceEncounterState, readWorldCookie, serializeWorldState, createWorldSession } from './p34-living.js?v=20261104-flow';
+import { createLightSpace, INITIAL_LIGHT, readSketches } from './p34-light.js?v=20261104-flow';
+import { FEATURED_WORK } from './p34-space-content.js?v=20261104-flow';
+import { capturePage, playPassage, cancelPassage } from './p34-passage.js?v=20261104-flow';
 
 export const SKETCH_KEY = 'p34-light-sketches-v1';
 export const ROOMS = ['home', 'works', 'lab', 'blog', 'archive', 'guestbook'];
@@ -43,7 +44,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
       style.addEventListener('load', resolve, { once: true });
       style.addEventListener('error', () => reject(new Error('Space stylesheet failed to load')), { once: true });
       if (ownedStyle) {
-        style.rel = 'stylesheet'; style.href = site === 'blog' ? '/p34-reading.css?v=20261104-prism' : '/p34-luminous.css?v=20261104-prism';
+        style.rel = 'stylesheet'; style.href = site === 'blog' ? '/p34-reading.css?v=20261104-flow' : '/p34-luminous.css?v=20261104-flow';
         style.dataset.p34SpaceStyle = ''; document.head.append(style);
       }
     });
@@ -79,9 +80,8 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
     const id = setTimeout(() => { timers.delete(id); if (!disposed) fn(); }, ms);
     timers.add(id); return id;
   };
-  const sources = [...document.querySelectorAll('h1, .page-title, .letter-title')].slice(0, 3).map(el => {
-    const r = el.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2, char: el.textContent.trim()[0] };
-  });
+  const normalPage = capturePage();
+  const sources = normalPage.words.map(word => ({ x: word.x, y: word.y, char: word.text[0] }));
   for (const el of [...document.body.children]) {
     if (['SCRIPT', 'STYLE', 'LINK'].includes(el.tagName)) continue;
     const mark = document.createComment('p34:normal'); el.before(mark); el.remove(); parked.push([el, mark]);
@@ -117,10 +117,10 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
   const light = createLightSpace(shell.querySelector('canvas'), { signal, reduced: motion.reduced });
   const panels = new Map();
 
-  function speak(text, { mood = 'plain', note = null, animate = true } = {}) {
+  function speak(text, { mood = 'plain', note = null, animate = true, origins = null } = {}) {
     shell.dataset.expression = mood;
     if (note !== null) under.textContent = note;
-    if (animate) void motion.assemble(voice, text);
+    if (animate) void motion.assemble(voice, text, origins);
     else { motion.cancelText(voice); voice.textContent = text; }
   }
   function setStatus(text) { status.textContent = text; }
@@ -160,11 +160,15 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
     shell.querySelector('[data-map]').hidden = true;
   }
 
+  const nodeElements = [...shell.querySelectorAll('[data-node]')];
+  let labRect = null;
+  function placeNode(index, rect) {
+    nodeElements[index].style.transform = `translate3d(${nodes[index][0] * rect.width}px, ${nodes[index][1] * rect.height}px, 0)`;
+  }
   function updateNodes() {
-    shell.querySelectorAll('[data-node]').forEach((el, i) => {
-      el.style.left = `${nodes[i][0] * 100}%`; el.style.top = `${nodes[i][1] * 100}%`;
-    });
-    updateRig();
+    if (room !== 'lab') return;
+    nodeElements.forEach((_, i) => placeNode(i, labRect));
+    light.shape(nodes, labRect);
   }
   function updateRig() {
     if (disposed) return;
@@ -172,6 +176,10 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
     if (element) {
       const r = element.getBoundingClientRect();
       const rect = { x: r.x, y: r.y, width: r.width, height: r.height };
+      if (room === 'lab') {
+        labRect = rect;
+        nodeElements.forEach((_, i) => placeNode(i, rect));
+      }
       if (room === 'archive' && sketches[revisionIndex]) light.preview(sketches[revisionIndex].nodes, rect);
       else light.shape(nodes, rect);
     }
@@ -347,6 +355,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
 
   listen(shell, 'click', event => {
     const el = event.target.closest('button, a'); if (!el || !shell.contains(el) || leaving) return;
+    cancelPassage(shell);
     if (el.matches('[data-talk]')) converse();
     else if (el.matches('[data-map]')) toggleMap();
     else if (el.matches('[data-sound]')) {
@@ -394,7 +403,8 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
     if (drag) {
       if (event.pointerId !== drag.id) return;
       nodes[drag.index] = [Math.max(.04, Math.min(.96, (event.clientX - drag.rect.x) / drag.rect.width)), Math.max(.04, Math.min(.96, (event.clientY - drag.rect.y) / drag.rect.height))];
-      drag.moved = true; updateNodes();
+      drag.moved = true;
+      placeNode(drag.index, drag.rect); light.shape(nodes, drag.rect);
     } else if (!articleOpen && room !== 'blog') light.pointer(event.clientX, event.clientY);
   }, { passive: true });
   listen(shell, 'keydown', event => {
@@ -427,15 +437,16 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
   async function sendBack() {
     if (leaving) return; leaving = true; closeConversation();
     speak('好。\n下次还来找我。', { note: '' });
-    await motion.animate(shell, [{ opacity: 1 }, { opacity: 0, filter: 'blur(5px)' }], { duration: 500 });
+    await playPassage(shell, normalPage, motion, false);
     if (disposed) return;
     const url = new URL(originalURL); url.searchParams.delete('paper'); url.searchParams.delete('room');
     const ownNote = site === 'blog' && url.pathname.startsWith('/notes/');
     if (ownNote) { cleanup(); location.assign('/'); return; }
     history.replaceState(normalState, '', url.pathname + url.search + url.hash);
     cleanup();
-    const heading = document.querySelector('h1, .page-title');
-    if (heading) void heading.animate([{ opacity: 0, translate: '0px 12px' }, { opacity: 1, translate: '0px 0px' }], { duration: motion.reduced() ? 0 : 550 });
+    if (!motion.reduced()) normalPage.words.forEach(({ el }, i) => {
+      el.animate([{ opacity: .45, translate: '0px 10px' }, { opacity: 1, translate: '0px 0px' }], { duration: 500, delay: i * 22, easing: 'cubic-bezier(.22,1,.36,1)' });
+    });
   }
   function cleanup() {
     if (disposed) return; disposed = true; articleRequest++; articleTransition?.skipTransition(); controller.abort(); timers.forEach(clearTimeout); timers.clear();
@@ -449,9 +460,8 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
   active.set(html, cleanup);
   selectRoom(room, { announce: false }); updateNodes();
   if (site === 'blog') fromLocation();
-  else speak(headingForRoom(), { note: HEADINGS[room][1], animate: true });
-  if (sources.length && room === 'home') void motion.liftGlyphs(sources, voice);
+  else speak(headingForRoom(), { note: HEADINGS[room][1], animate: true, origins: sources });
   if (storageError && room === 'archive') speak('这里还不能保存。', { note: '浏览器限制了本地存储。实验仍然可以玩。' });
-  void motion.animate(shell, [{ opacity: 0 }, { opacity: 1 }], { duration: 950 });
+  void playPassage(shell, normalPage, motion, true);
   return cleanup;
 }

@@ -33,7 +33,7 @@ preserved in `LICENSE.MIT`.
 
 异常入口就是她自己的博客：独立的文章目录与阅读空间，不显示普通博客的侧栏、工具或文章列表。只有一个通往她的主页的跨站入口。
 
-大字交流与正文分开；打开文章时保留 Canvas 和交流节点。浏览器前后退、刷新与 `/notes/[slug]/?paper=0617` 深链接可用。通过「聊两句」请求返回普通博客。Twikoo 及正常文章流程保留，没有自动发布评论。
+大字交流与正文分开；打开文章时保留 Canvas 和交流节点。浏览器前后退、刷新与 `/notes/[slug]/?paper=0617` 深链接可用。入场与送回使用文字、光带的连续过渡，可随操作打断；减少动态设置下直接切换。Twikoo 及正常文章流程保留，没有自动发布评论。
 
 文章直接写入 `src/content/her-space/*.md`，使用 `title`、`description` 和 `draft` frontmatter。Astro 渲染完整 Markdown，`/her-space.json` 仅提供目录元数据。目前只有一篇标记为未发布的试写；不复用 Amiya 的文章。
 
@@ -45,7 +45,7 @@ node node_modules/tsx/dist/cli.mjs --test tests/paper-blog.test.ts
 node node_modules/typescript/bin/tsc --noEmit
 ```
 
-字体许可见 `public/assets/p34/OFL.txt`。本轮没有新增正式域名、生产部署或最终剧情。
+字体许可见 `public/assets/p34/OFL.txt`。独立域名、人物身份与后续剧情仍由作者决定。
 
 ---
 
