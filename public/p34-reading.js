@@ -7,9 +7,9 @@ import {
   serializeWorldState,
   createWorldSession,
 } from './p34-living.js?v=20261102-r12';
-import { readBreakoutCookie } from './p34-breakout-state.js?v=20261104-pixelfx';
+import { readBreakoutCookie } from './p34-breakout-state.js?v=20261104-fold';
 import { createMotion } from './p34-motion.js?v=20261102-r12';
-import { createParticleStage } from './p34-fx.js?v=20261104-pixelfx';
+import { createParticleStage } from './p34-fx.js?v=20261104-fold';
 import { timeOfVisit, mountVisitEvents } from './p34-dialogue.js?v=20261102-r12';
 import {
   HER_OWN_POSTS,
@@ -17,7 +17,7 @@ import {
   getOwnPostBySlug,
   getOwnPostByPath,
   isOwnNotePath,
-} from './p34-own-posts.js?v=20261104-pixelfx';
+} from './p34-own-posts.js?v=20261104-fold';
 
 export {
   HER_OWN_POSTS,
@@ -157,7 +157,7 @@ function blogRootNode(_story, c) {
   const post = getOwnPostByPath(c.pathname || '/') || getOwnPostBySlug(c.activeSlug || '');
   const choices = post
     ? [choice(post.slug === 'prism-and-paddle' ? 'talk-prism' : post.slug === 'empty-corners' ? 'talk-corners' : 'talk-afternoon', '这篇我想问问你。'), choice('open-index','看看其他的。')]
-    : [choice('talk-prism','你在折腾什么？'),choice('talk-corners','你不喜欢别人动你的东西？')];
+    : [choice('talk-prism','你在折腾什么？'),choice('talk-corners','你放的那些东西，都能碰？')];
   choices.push(choice('return','送我去普通博客。'));
   if(c.lingered) choices.unshift(choice('linger','你刚才是不是在偷看？'));
   return {text: post ? post.voiceRemark : '看完可以告诉我你怎么想。不同意也可以。', pose:'rest', choices};
@@ -166,9 +166,9 @@ const READING_NODES = {
   root: blogRootNode, 'blog-root': blogRootNode,
   'talk-prism': (_s,c) => {
     const note = formatBreakoutNote(c.breakout);
-    return {text:'在试怎么把网页弄得更好玩。那个按钮躲两次以后就停了，不会一直欺负你。' + (note ? '\n'+note.text : ''),pose:'unfold',choices:[choice('open-prism','读读你写的。'),choice('stay','行，我接着看。')]};
+    return {text:'球会把字撞歪。我最喜欢的是打完以后，假装什么都没发生，全部摆回去。' + (note ? '\n'+note.text : ''),pose:'unfold',choices:[choice('open-prism','读读你写的。'),choice('stay','行，我接着看。')]};
   },
-  'talk-corners': {text:'不是不让动。是别一上来就替我收拾！\n你可以拉，也可以撞。我放那儿就是给你碰的。',pose:'align',choices:[choice('open-corners','那我看看这篇。'),choice('stay','知道了。')]},
+  'talk-corners': {text:'能碰。边上那个还可以拉。\n不过拉完要松手，我得把整页拽回来。',pose:'align',choices:[choice('open-corners','那我看看这篇。'),choice('stay','知道了。')]},
   'talk-afternoon': {text:'我坚持汽水第一。不接受闹钟。\n你要提名的话，先让我听听。',pose:'gather',choices:[choice('open-afternoon','再看一遍你的榜单。'),choice('stay','那你先排着。')]},
   'talk-amiya': {text:'他的在另一面。这边都是我写的。',pose:'rest',choices:[choice('return','送我过去。'),choice('stay','我先看你的。')]},
   linger: {text:'我想知道你读到哪儿了。\n……不催，你慢慢看。',pose:'gather',choices:[choice('stay','那别偷改我正在看的字。'),choice('talk-afternoon','汽水凭什么第一？')]},
@@ -196,6 +196,8 @@ function mountInlineConversation({
   sendBack,
   onNode = () => {},
   onAction = () => {},
+  onOpen = () => {},
+  onClose = () => {},
   getContext = () => ({}),
 }) {
   const panel = document.createElement('section');
@@ -257,6 +259,7 @@ function mountInlineConversation({
       } else if (node.action === 'close') {
         close();
       } else {
+        close();
         await onAction(node, id);
       }
       return;
@@ -281,6 +284,7 @@ function mountInlineConversation({
     panel.hidden = false;
     root.classList.add('p34-chat-open');
     call.setAttribute('aria-expanded', 'true');
+    onOpen();
     void showNode(typeof initialNode === 'string' ? initialNode : 'root');
     void motion.animate(panel, [{ opacity: 0, translate: '0 -4px' }, { opacity: 1, translate: '0 0' }], { duration: 200 });
     motion.tone(0, true);
@@ -290,6 +294,7 @@ function mountInlineConversation({
     if (!talking) return;
     talking = false;
     panel.hidden = true;
+    onClose();
     root.classList.remove('p34-chat-open');
     call.setAttribute('aria-expanded', 'false');
     (returnFocus?.isConnected ? returnFocus : call)?.focus({ preventScroll: true });
@@ -360,8 +365,8 @@ function buildIndexEntryHtml(post) {
       <div class="p34-entry-body" inert><div class="p34-body-inner">
         <p class="p34-article-lead">${post.lead}</p>
         <div class="p34-article-prose">${post.sections.map(section=>`<section class="p34-prose-section">${section.heading?`<h3>${section.heading}</h3>`:''}${section.paragraphs.map(p=>`<p>${p}</p>`).join('')}</section>`).join('')}</div>
-        <button type="button" class="p34-margin-secret" data-p34-doodle aria-label="碰一下这道划痕"><svg viewBox="0 0 180 60" aria-hidden="true"><path d="M8 25 Q45 5 70 25 T132 23 M90 42 Q129 26 170 40"/></svg></button>
-        <p class="p34-doodle-reply" hidden>你也看到了？我刚想划掉这一段。</p>
+        <button type="button" class="p34-margin-secret" data-p34-doodle aria-label="碰一下这个句号"><svg viewBox="0 0 180 60" aria-hidden="true"><path d="M12 28 C50 5 75 49 105 25 S145 16 158 28"/><circle cx="168" cy="28" r="4"/></svg></button>
+        <p class="p34-doodle-reply" hidden>别戳了。句号都要掉下去了。</p>
         <a class="p34-back-index" href="/?paper=0617" data-p34-nav="index">← 看别的</a>
       </div></div>
     </article>
@@ -413,8 +418,8 @@ export function mountReadingWorld() {
     style.dataset.p34ReadingStyle = '';
     document.head.append(style);
   }
-  if (!style.href.includes('20261104-pixelfx')) {
-    style.href = '/p34-reading.css?v=20261104-pixelfx';
+  if (!style.href.includes('20261104-fold')) {
+    style.href = '/p34-reading.css?v=20261104-fold';
   }
 
   function parkElement(el) {
@@ -444,18 +449,18 @@ export function mountReadingWorld() {
   worldRoot.setAttribute('data-pagefind-ignore', 'all');
 
   worldRoot.innerHTML = `
+    <div class="p34-reading-architecture" aria-hidden="true"><div class="p34-reading-fold p34-reading-mist"></div><div class="p34-reading-fold p34-reading-paper"></div><div class="p34-reading-fold p34-reading-ink"></div><svg class="p34-writing-trail" viewBox="0 0 1400 1000" preserveAspectRatio="none"><path d="M-40 890 C310 990 270 210 650 330 S1070 600 1440 80"/></svg></div>
     <header class="p34-own-masthead">
-      <a href="/?paper=0617" class="p34-wordmark" data-p34-nav="index">34<span aria-hidden="true">.</span></a>
+      <a href="/?paper=0617" class="p34-wordmark" data-p34-nav="index" aria-label="她写的东西"><svg viewBox="0 0 52 32" aria-hidden="true"><path d="M2 25 19 5 31 25 49 5"/><path d="M30 5h19v19"/></svg></a>
       <a href="https://sayori.org/?paper=0617" class="p34-own-nav-home" data-p34-home-link>回去玩 ↗</a>
     </header>
-    <svg class="p34-writing-trail" viewBox="0 0 1200 1400" preserveAspectRatio="none" aria-hidden="true"><path d="M100 -40 C100 320 1150 100 1050 450 S20 600 150 920 S1190 1000 1000 1460"/></svg>
     <div class="p34-own-layout">
       <aside class="p34-own-margin" aria-label="她说">
         <p class="p34-voice-line" data-p34-voice-line data-p34-marker-line aria-live="polite"></p>
-        <div class="p34-inline-presence" data-p34-presence="true"><button type="button" class="p34-call" data-p34-call aria-controls="p34-conversation" aria-expanded="false"><span class="p34-call-label">···</span><span class="p34-sr-only">跟我聊聊</span></button></div>
+        <div class="p34-inline-presence" data-p34-presence="true"><button type="button" class="p34-call" data-p34-call aria-controls="p34-conversation" aria-expanded="false"><span class="p34-call-label">说句话 ···</span></button></div>
       </aside>
       <div class="p34-own-stage" data-p34-stage>
-        <header class="p34-index-heading"><h1>乱写的<button type="button" class="p34-ink-dot" data-p34-ink aria-label="点这个句号">。</button></h1><span class="p34-scribble" aria-hidden="true">改了又改</span></header>
+        <header class="p34-index-heading"><h1>写了这些<button type="button" class="p34-ink-dot" data-p34-ink aria-label="点这个句号">。</button></h1></header>
         <ol class="p34-editorial-list">${HER_OWN_POSTS.map(buildIndexEntryHtml).join('')}</ol>
       </div>
     </div>`;
@@ -463,15 +468,17 @@ export function mountReadingWorld() {
   main.append(worldRoot);
 
   const voiceLineEl = worldRoot.querySelector('[data-p34-voice-line]');
-  const presenceHost = worldRoot.querySelector('[data-p34-presence]');
   const callBtn = worldRoot.querySelector('[data-p34-call]');
   const callLabel = worldRoot.querySelector('.p34-call-label');
   const wordmarkLink = worldRoot.querySelector('.p34-wordmark');
   const entries = [...worldRoot.querySelectorAll('.p34-index-item')];
+  const planes = [...worldRoot.querySelectorAll('.p34-reading-fold')];
+  const layoutNodes = () => [...planes, ...entries, worldRoot.querySelector('.p34-index-heading'), worldRoot.querySelector('.p34-own-margin')];
+  let chatScroll = 0;
   const headings = [...worldRoot.querySelectorAll('.p34-entry-title')];
 
   function syncTitleAndNav(post) {
-    document.title = post ? `${post.title} · 乱写的` : '乱写的。';
+    document.title = post ? `${post.title} · 她写的` : '写了这些。';
     if (wordmarkLink) {
       if (!post) wordmarkLink.setAttribute('aria-current', 'page');
       else wordmarkLink.removeAttribute('aria-current');
@@ -498,7 +505,7 @@ export function mountReadingWorld() {
 
   renderActiveView({ slug: activeSlug, encounterKind: encounter.encounterType });
   if(root.dataset.p34Entry !== 'quiet') {
-    headings.forEach((el,i)=>void motion.animate(el,[{translate:`${i%2?180:-140}px ${40+i*20}px`,rotate:`${i%2?14:-12}deg`,opacity:0},{translate:'0 0',rotate:'0deg',opacity:1}],{duration:850,delay:i*95}));
+    layoutNodes().forEach((el,i)=>void motion.animate(el,[{translate:`${i%2?150:-120}px ${45+i*9}px`,rotate:`${i%2?8:-7}deg`,opacity:0},{translate:'0 0',rotate:getComputedStyle(el).rotate==='none'?'0deg':getComputedStyle(el).rotate,opacity:1}],{duration:1050,delay:i*35}));
   }
   let navSequence = 0;
   async function navigateOwnView(targetSlug = null, { push = true, animate = true, customVoice = null } = {}) {
@@ -511,7 +518,7 @@ export function mountReadingWorld() {
     if(push && normalizeBlogPath(location.pathname)!==normalizeBlogPath(targetPath)) history.pushState({p34OwnPath:targetPath},'',targetHref);
     const selectedTitle = post ? worldRoot.querySelector(`[data-p34-index-slug="${post.slug}"] .p34-entry-title`) : null;
     const update = ()=>renderActiveView({slug:nextSlug,encounterKind:'blog-return',customVoice});
-    const transition = animate ? motion.layout([...headings,worldRoot.querySelector('.p34-index-heading'),presenceHost,voiceLineEl],update,14) : Promise.resolve(update());
+    const transition = animate ? motion.layout(layoutNodes(),update,18) : Promise.resolve(update());
     if(post && animate) {
       const r=selectedTitle.getBoundingClientRect();
       fx.directionalSpark(r.left+r.width*.6,r.top+r.height*.5,-.45,{palette:'arcane'});
@@ -526,7 +533,7 @@ export function mountReadingWorld() {
 
   conversation = mountInlineConversation({
     root,
-    host: presenceHost,
+    host: worldRoot,
     call: callBtn,
     motion,
     signal,
@@ -539,12 +546,23 @@ export function mountReadingWorld() {
       encounterType: encounter.encounterType,
       breakout: readBreakoutCookie(),
     }),
+    onOpen() {
+      worldRoot.querySelector('.p34-own-stage').inert=true;worldRoot.querySelector('.p34-own-margin').inert=true;wordmarkLink.inert=true;
+      chatScroll=window.scrollY;window.scrollTo({top:0,behavior:'instant'});
+      void motion.layout(layoutNodes(),()=>{worldRoot.dataset.chat='open';},16);
+    },
+    onClose() {
+      worldRoot.querySelector('.p34-own-stage').inert=false;worldRoot.querySelector('.p34-own-margin').inert=false;wordmarkLink.inert=false;
+      void motion.layout(layoutNodes(),()=>{delete worldRoot.dataset.chat;delete worldRoot.dataset.intent;},12);
+      window.scrollTo({top:chatScroll,behavior:'instant'});
+    },
     onNode(_node, id) {
+      void motion.layout(planes,()=>{worldRoot.dataset.intent=id==='talk-corners'?'pull':id==='talk-prism'?'play':'listen';},18);
       if(id==='talk-corners'){ const el=worldRoot.querySelector('.is-active .p34-entry-title')||headings[0];void motion.animate(el,[{rotate:'0deg'},{rotate:'-4deg',offset:.4},{rotate:'0deg'}],{duration:600}); }
       if(id==='talk-prism'){const r=callBtn.getBoundingClientRect();fx.directionalSpark(r.left,r.top,-1,{palette:'blue'});}
       if (id === 'linger') {
         lingered = false;
-        callLabel.textContent = '···';
+        callLabel.textContent = '说句话 ···';
       }
     },
     onAction(node) {
@@ -578,13 +596,13 @@ export function mountReadingWorld() {
     if(ink){
       const r=ink.getBoundingClientRect();
       fx.manaNova(r.left+r.width/2,r.top+r.height/2,{palette:'arcane',scale:1.4});
-      void motion.layout(headings,()=>{worldRoot.dataset.shuffle=worldRoot.dataset.shuffle==='yes'?'no':'yes';},30);
-      voiceLineEl.textContent='喂，墨水还没干！';motion.tone(3,true);return;
+      void motion.layout(layoutNodes(),()=>{worldRoot.dataset.shuffle=worldRoot.dataset.shuffle==='yes'?'no':'yes';},24);
+      voiceLineEl.textContent='等下，我把这几篇挪一下。';motion.tone(3,true);return;
     }
     const doodle=target.closest('[data-p34-doodle]');
     if(doodle){
       const line=doodle.nextElementSibling;line.hidden=!line.hidden;
-      const r=doodle.getBoundingClientRect();fx.directionalSpark(r.left,r.top,0,{palette:'gold'});
+      const r=doodle.getBoundingClientRect();fx.homingVolley(r.right,r.top+r.height/2,[{x:r.left,y:r.top,onHit:()=>{void motion.animate(doodle,[{rotate:'-4deg'},{rotate:'12deg',offset:.4},{rotate:'-4deg'}],{duration:500});}}],{palette:'gold'});
       void motion.animate(doodle,[{scale:'1 1'},{scale:'1.15 .7',offset:.3},{scale:'1'}],{duration:440});return;
     }
     const postLink = target.closest('[data-p34-post-link]');

@@ -115,7 +115,7 @@ test('three substantive own articles share one canonical source between Astro da
   assert.match(gamePost.paragraphs.join('\n'), /按钮|挡板|球/);
   assert.doesNotMatch(gamePost.paragraphs.join('\n'), /三棱镜|光弦|卡片/);
   const cornersPost = getOwnPostBySlug('empty-corners')!;
-  assert.match(cornersPost.paragraphs.join('\n'), /粉色圈|问号/);
+  assert.match(cornersPost.paragraphs.join('\n'), /边|逗号/);
 
   // Article 3 is her concise sound ranking without ontology exposition
   const afternoonPost = getOwnPostBySlug('afternoon-rankings')!;
@@ -151,12 +151,12 @@ test('three substantive own articles share one canonical source between Astro da
   assert.match(astroConfig, /pathname\.startsWith\(["']\/notes\/["']\)/);
 });
 
-test('fullscreen CSS owns author-selected pink-purple viewport, hides normal blog chrome, and removes obsolete bookmark layer', () => {
+test('fullscreen CSS owns the whole viewport and keeps the normal blog chrome out', () => {
   const readingCss = fs.readFileSync(new URL('../public/p34-reading.css', import.meta.url), 'utf8');
   const readingJs = fs.readFileSync(new URL('../public/p34-reading.js', import.meta.url), 'utf8');
 
-  assert.match(readingCss, /#F3D8FA/i);
-  assert.match(readingCss, /#17131D/i);
+  assert.match(readingCss, /\.p34-reading-architecture/);
+  assert.match(readingCss, /min-height:\s*100svh/);
   assert.match(readingCss, /\.desk-header[\s\S]*?display:\s*none\s*!important/);
   assert.match(readingCss, /html:not\(\.p34-luminous\)\s*\[data-p34-own-route\]/);
   assert.doesNotMatch(readingJs, /p34-reading-marker|p34-side-observation|BLOG_READING_ANCHORS/);
@@ -274,7 +274,7 @@ test('voice copy and inline dialogue respond to encounterType, active own articl
   assert.ok(rootIndex.choices.some(c => c.id === 'return'));
 
   const prismNode = readingDialogueNode('talk-prism', story, { pathname: '/notes/prism-and-paddle/' });
-  assert.match(prismNode.text, /按钮/);
+  assert.match(prismNode.text, /球/);
 
   const prismWithStats = readingDialogueNode('talk-prism', story, {
     pathname: '/notes/prism-and-paddle/',

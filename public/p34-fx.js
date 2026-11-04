@@ -37,10 +37,10 @@ const ease = {
 
 // High-contrast daylight palettes: deep chromatic anchors + vivid midtones + bright cores
 export const FX_PALETTES = {
-  cyan: ['#17131D','#2430B0','#2949FF','#5470FF','#A4B0FF','#E3D8FF','#FFFFFF'],
-  gold: ['#17131D','#9D6710','#E7BA18','#FFE747','#FFF58A','#FFFBD2','#FFFFFF'],
-  arcane: ['#17131D','#5E2193','#A542E7','#E66CEB','#F4A9EB','#F9D8F8','#FFFFFF'],
-  blue: ['#17131D','#2430B0','#2949FF','#5470FF','#A4B0FF','#E3D8FF','#FFFFFF'],
+  cyan: ['#203B48','#247888','#28B5C1','#76D7CF','#BAEEE3','#E9FFF5','#FFFFFF'],
+  gold: ['#54412A','#B57525','#E9A440','#F6C668','#FFE5A9','#FFF6DC','#FFFFFF'],
+  arcane: ['#512D38','#B64C42','#E96D51','#F9A17B','#FFD0A2','#FFF1DD','#FFFFFF'],
+  blue: ['#202D35','#203591','#284CCE','#5D7BE6','#AEC5FF','#E1EDFF','#FFFFFF'],
 };
 
 const SIGIL_GLYPHS = ['◇', '✦', '⟡', '⟐', '△', '❖'];
