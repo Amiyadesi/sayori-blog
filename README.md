@@ -29,23 +29,16 @@ target R2 bucket; API tokens are never written to the manifest or repository.
 The application remains licensed under Apache-2.0; the bundled MIT notices are
 preserved in `LICENSE.MIT`.
 
-## 📖 Her Own Blog World (`?paper=0617`)
+## Her Own Blog World (`/?paper=0617`)
 
-- **Local Commands**:
-  - Build: `pnpm exec astro build --outDir .codex-tmp/p34-native-build`
-  - Dev server: `pnpm exec astro dev --host 127.0.0.1 --port 8971` (plain `pnpm run dev` serves on Astro's default `4321`)
-- **Abnormal Query (`?paper=0617`)**:
-  - Appending `?paper=0617` parks the normal Amiya masthead, sidebars, footer, and page content into retained fragments and mounts her fullscreen editorial blog (`#F7F9FC` cold white, luminous cyan/clear blue, restrained warm edge, `#202B37` body ink).
-  - Normal pages without `?paper=0617` remain completely untouched.
-- **Her Own Articles (Astro-Generated, Noindex, Isolated from Normal Feeds/Sitemap/Search)**:
-  - Canonical source: `public/p34-own-posts.js` (re-exported for Astro via `src/data/p34-own-posts.ts` and consumed directly by `public/p34-reading.js`).
-  - `/notes/prism-and-paddle/?paper=0617` (《把折光拨偏一点，顺便在底下接球》) — adjusting the prism angle, cyan/blue/gold string tension, and rallying the orb against page titles and cards with five-hit corner repair.
-  - `/notes/empty-corners/?paper=0617` (《左边空着就空着，别往里塞小挂件》) — her opinion on leaving empty page corners alone versus cutting unfinished GMTK puzzle mechanics.
-  - `/notes/afternoon-rankings/?paper=0617` (《暂时第一名：倒汽水的声音》) — short ranking of pouring soda over ice, clean paper/switch clicks, and a stuck four-note phrase.
-- **Breakout Cookie Consumption**:
-  - Read-only shared cookie `p34_breakout_v1` (`v1.<runs>.<bestScore>.<maxCombo>.<edition>`) via `readBreakoutCookie()` (`public/p34-breakout-state.js`).
-  - When `runs > 0`, displays a compact personal note (`[data-p34-breakout-note]`) with the player's lifetime best score and max combo on Home, linking back to `https://sayori.org/?paper=0617`. Omitted when `runs === 0`.
-- **Exit**: Click "返回原站" in the masthead or choose "先回到原来的普通页面" in the inline conversation to remove `?paper=0617` and restore the exact original DOM nodes.
+她自己的全文博客，使用粉紫、蓝、黄、黑；与普通博客完全分开。
+
+- 点标题，原来的标题就地移动成正文标题，文章节点保留；浏览器前进/后退可回到同一篇。
+- 点「乱写的。」的句号可打乱目录；正文尾部有可以碰的划痕。
+- 「···」打开对话，普通博客通过对话返回；仅一个「回去玩」跨站入口。
+- 三篇文章共用 `public/p34-own-posts.js` 与真实 Astro `/notes/[slug]` 路由；旧 slug 保留。内容重写为按钮恶作剧、页面摆放和声音排名。
+- 世界与弹球记录继续读原有共享 Cookie；Twikoo 没有自动发帖。
+- 事件驱动粒子参考 PixelFX，完整 MIT 许可在 `public/third-party/pixelfx-LICENSE.txt`。
 
 ---
 

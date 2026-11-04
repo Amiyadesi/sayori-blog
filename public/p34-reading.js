@@ -1,5 +1,5 @@
 // Fullscreen girl-owned blog world for Project 34 (?paper=0617).
-// Shared baseline p34 modules remain untouched and byte-identical.
+// Shared world/motion modules retain the cross-site state contract.
 import {
   WORLD_COOKIE_KEY,
   readWorldCookie,
@@ -7,8 +7,9 @@ import {
   serializeWorldState,
   createWorldSession,
 } from './p34-living.js?v=20261102-r12';
-import { readBreakoutCookie } from './p34-breakout-state.js?v=20261103-luminous';
+import { readBreakoutCookie } from './p34-breakout-state.js?v=20261104-pixelfx';
 import { createMotion } from './p34-motion.js?v=20261102-r12';
+import { createParticleStage } from './p34-fx.js?v=20261104-pixelfx';
 import { timeOfVisit, mountVisitEvents } from './p34-dialogue.js?v=20261102-r12';
 import {
   HER_OWN_POSTS,
@@ -16,7 +17,7 @@ import {
   getOwnPostBySlug,
   getOwnPostByPath,
   isOwnNotePath,
-} from './p34-own-posts.js?v=20261103-luminous';
+} from './p34-own-posts.js?v=20261104-pixelfx';
 
 export {
   HER_OWN_POSTS,
@@ -130,22 +131,10 @@ export function shouldCarryPaperQuery(rawHref, currentOrigin = 'https://blog.say
 
 export function initialVoiceCopy(pathname = '/', encounterType = 'blog-first') {
   const post = getOwnPostByPath(pathname);
-  if (post) {
-    if (encounterType === 'blog-first') {
-      return `咦，你直接翻到这一篇啦。${post.voiceRemark}`;
-    }
-    if (encounterType === 'blog-from-home') {
-      return `从主页那边逛过来啦？${post.voiceRemark}`;
-    }
-    return post.voiceRemark;
-  }
-  if (encounterType === 'blog-first') {
-    return '欢迎来读我的手记。这几篇都是我平时记下来的，挑一篇顺眼的看吧。';
-  }
-  if (encounterType === 'blog-from-home') {
-    return '从主页那边过来啦？这边是我平时写手记的地方。';
-  }
-  return '又翻回这边啦。这几篇手记都在这儿，挑一篇顺眼的慢慢读就好。';
+  if (post) return post.voiceRemark;
+  if (encounterType === 'blog-first') return '哎，先别翻！……算了，给你看。';
+  if (encounterType === 'blog-from-home') return '主页那边玩够了？来挑一篇。';
+  return '又翻回来了？我还没加新的。';
 }
 
 export const initialMarkerCopy = initialVoiceCopy;
@@ -166,107 +155,28 @@ const choice = (id, label) => ({ id, label });
 
 function blogRootNode(_story, c) {
   const post = getOwnPostByPath(c.pathname || '/') || getOwnPostBySlug(c.activeSlug || '');
-  const encounterType = c.encounterType || 'blog-first';
-  const choices = [];
-
-  if (post?.slug === 'prism-and-paddle') {
-    choices.push(choice('talk-prism', '聊聊三棱镜和页面底下的挡板。'));
-    choices.push(choice('open-corners', '去看看《左边空着就空着，别往里塞小挂件》。'));
-    choices.push(choice('open-afternoon', '去看看《暂时第一名：倒汽水的声音》。'));
-  } else if (post?.slug === 'empty-corners') {
-    choices.push(choice('talk-corners', '聊聊左边那块空地。'));
-    choices.push(choice('open-prism', '去看看《把折光拨偏一点，顺便在底下接球》。'));
-    choices.push(choice('open-afternoon', '去看看《暂时第一名：倒汽水的声音》。'));
-  } else if (post?.slug === 'afternoon-rankings') {
-    choices.push(choice('talk-afternoon', '聊聊倒汽水的声音和那四个音。'));
-    choices.push(choice('open-prism', '去看看《把折光拨偏一点，顺便在底下接球》。'));
-    choices.push(choice('open-corners', '去看看《左边空着就空着，别往里塞小挂件》。'));
-  } else {
-    choices.push(choice('talk-prism', '聊聊《把折光拨偏一点，顺便在底下接球》。'));
-    choices.push(choice('talk-corners', '聊聊《左边空着就空着，别往里塞小挂件》。'));
-    choices.push(choice('talk-afternoon', '聊聊《暂时第一名：倒汽水的声音》。'));
-  }
-
-  choices.push(choice('talk-amiya', '原来的博客去哪了？'));
-  choices.push(choice('visit-home', '去你的主页那边看看。'));
-  choices.push(choice('return', '先回到原来的普通页面。'));
-
-  if (c.lingered) choices.unshift(choice('linger', '刚才，你是不是想说什么？'));
-
-  let text;
-  if (post?.slug === 'prism-and-paddle') {
-    text = encounterType === 'blog-from-home'
-      ? '刚从主页过来就翻到这篇啦。\n本来只是嫌那束光太直，结果把三棱镜拨偏一点又支起挡板之后，每次试角度都会多打好几个回合。'
-      : '这篇记的是主页那块三棱镜和底下的挡板。\n原本只想把光路拨偏一点，没想到拿光球去撞标题和卡片还挺上瘾的。';
-  } else if (post?.slug === 'empty-corners') {
-    text = '看见空地方就想塞小挂件，十有八九会把页面越改越乱。\n明明已经排完了，忍住别往左边硬塞东西才最要紧。';
-  } else if (post?.slug === 'afternoon-rankings') {
-    text = '下午不想改字，就给听见的几个声音排了个名次。\n往冰块上倒汽水的前两秒暂时排第一，突然炸响的闹钟直接除名。';
-  } else if (encounterType === 'blog-from-home') {
-    text = '从主页那边晃过来啦。\n这边放着我平时写的几篇手记，想先看哪一篇？';
-  } else if (encounterType === 'blog-return') {
-    text = '你又翻回这边啦。\n这三篇手记都在这儿，想聊哪一篇？';
-  } else {
-    text = '欢迎来读我的手记。\n这里记的都是我平时折腾的小东西和一点偏见。';
-  }
-
-  return { text, pose: 'rest', choices };
+  const choices = post
+    ? [choice(post.slug === 'prism-and-paddle' ? 'talk-prism' : post.slug === 'empty-corners' ? 'talk-corners' : 'talk-afternoon', '这篇我想问问你。'), choice('open-index','看看其他的。')]
+    : [choice('talk-prism','你在折腾什么？'),choice('talk-corners','你不喜欢别人动你的东西？')];
+  choices.push(choice('return','送我去普通博客。'));
+  if(c.lingered) choices.unshift(choice('linger','你刚才是不是在偷看？'));
+  return {text: post ? post.voiceRemark : '看完可以告诉我你怎么想。不同意也可以。', pose:'rest', choices};
 }
-
 const READING_NODES = {
-  root: (s, c) => blogRootNode(s, c),
-  'blog-root': (s, c) => blogRootNode(s, c),
-  'talk-prism': {
-    text: '我嫌主页那束光太直，就把三棱镜拨偏了一点。\n后来又在底下支起挡板拿光球去撞标题和卡片，连撞五下我还会顺手帮卡片修好一处折角。',
-    pose: 'unfold',
-    choices: [
-      choice('open-prism', '读《把折光拨偏一点，顺便在底下接球》'),
-      choice('visit-home', '去主页试试接球 ↗'),
-      choice('talk-corners', '聊聊《左边空着就空着，别往里塞小挂件》'),
-    ],
+  root: blogRootNode, 'blog-root': blogRootNode,
+  'talk-prism': (_s,c) => {
+    const note = formatBreakoutNote(c.breakout);
+    return {text:'在试怎么把网页弄得更好玩。那个按钮躲两次以后就停了，不会一直欺负你。' + (note ? '\n'+note.text : ''),pose:'unfold',choices:[choice('open-prism','读读你写的。'),choice('stay','行，我接着看。')]};
   },
-  'talk-corners': {
-    text: '限时做游戏最后六个小时砍掉解谜，那是因为做不完不得不砍。\n但页面左边空着要不要放挂件是另一回事——明明已经排完了，纯粹是看着空地手痒。',
-    pose: 'align',
-    choices: [
-      choice('open-corners', '读《左边空着就空着，别往里塞小挂件》'),
-      choice('talk-afternoon', '聊聊《暂时第一名：倒汽水的声音》'),
-      choice('stay', '我接着读正文。'),
-    ],
-  },
-  'talk-afternoon': {
-    text: '视频里往冰块上倒汽水的前两秒，暂时还是我的第一名。\n过了前两秒气跑掉一半就不算数了；至于那句卡住的四个音，短得根本没法搜歌名。',
-    pose: 'gather',
-    choices: [
-      choice('open-afternoon', '读《暂时第一名：倒汽水的声音》'),
-      choice('talk-prism', '聊聊《把折光拨偏一点，顺便在底下接球》'),
-      choice('stay', '好，我慢慢看。'),
-    ],
-  },
-  'talk-amiya': {
-    text: '在另一面。这里是我写的。想看他的文章，我送你过去？',
-    pose: 'align',
-    choices: [
-      choice('return', '现在回到原来的普通博客。'),
-      choice('open-index', '先留在你这边看目录。'),
-      choice('stay', '好，我在这边多待会儿。'),
-    ],
-  },
-  linger: {
-    text: '没什么。\n只是看你在这页停了好一会儿，猜你大概也在琢磨刚刚读到的那段话。',
-    pose: 'gather',
-    choices: [
-      choice('stay', '嗯，还在读。'),
-      choice('talk-afternoon', '跟你聊聊下午那份声音榜单。'),
-    ],
-  },
-  'open-prism': { action: 'open-post', slug: 'prism-and-paddle', href: '/notes/prism-and-paddle/?paper=0617' },
-  'open-corners': { action: 'open-post', slug: 'empty-corners', href: '/notes/empty-corners/?paper=0617' },
-  'open-afternoon': { action: 'open-post', slug: 'afternoon-rankings', href: '/notes/afternoon-rankings/?paper=0617' },
-  'open-index': { action: 'open-index', href: '/?paper=0617' },
-  return: { action: 'return' },
-  stay: { action: 'close' },
-  'visit-home': { action: 'navigate', href: 'https://sayori.org/?paper=0617' },
+  'talk-corners': {text:'不是不让动。是别一上来就替我收拾！\n你可以拉，也可以撞。我放那儿就是给你碰的。',pose:'align',choices:[choice('open-corners','那我看看这篇。'),choice('stay','知道了。')]},
+  'talk-afternoon': {text:'我坚持汽水第一。不接受闹钟。\n你要提名的话，先让我听听。',pose:'gather',choices:[choice('open-afternoon','再看一遍你的榜单。'),choice('stay','那你先排着。')]},
+  'talk-amiya': {text:'他的在另一面。这边都是我写的。',pose:'rest',choices:[choice('return','送我过去。'),choice('stay','我先看你的。')]},
+  linger: {text:'我想知道你读到哪儿了。\n……不催，你慢慢看。',pose:'gather',choices:[choice('stay','那别偷改我正在看的字。'),choice('talk-afternoon','汽水凭什么第一？')]},
+  'open-prism': {action:'open-post',slug:'prism-and-paddle',href:'/notes/prism-and-paddle/?paper=0617'},
+  'open-corners': {action:'open-post',slug:'empty-corners',href:'/notes/empty-corners/?paper=0617'},
+  'open-afternoon': {action:'open-post',slug:'afternoon-rankings',href:'/notes/afternoon-rankings/?paper=0617'},
+  'open-index': {action:'open-index',href:'/?paper=0617'},
+  return: {action:'return'}, stay: {action:'close'},
 };
 
 export function readingDialogueNode(id, story, context = {}) {
@@ -294,7 +204,7 @@ function mountInlineConversation({
   panel.setAttribute('role', 'region');
   panel.setAttribute('aria-labelledby', 'p34-her-line');
   panel.hidden = true;
-  panel.innerHTML = `<div class="p34-dialogue-tools"><button type="button" class="p34-sound-toggle" data-p34-sound aria-pressed="false">微音：关</button><button type="button" data-dialogue="root" class="p34-change-topic" hidden>换个话题</button><button type="button" class="p34-goodbye">收起<span aria-hidden="true"> / Esc</span></button></div><div class="p34-her"><p id="p34-her-line" class="p34-her-line" aria-live="polite"></p></div><div class="p34-response"><div class="p34-answers" aria-label="你的回应"></div><nav class="p34-more" aria-label="其他话题" hidden><button type="button" data-turn="-1">上一页</button><button type="button" data-turn="1">更多话题</button></nav></div>`;
+  panel.innerHTML = `<div class="p34-dialogue-tools"><button type="button" class="p34-sound-toggle" data-p34-sound aria-pressed="false" aria-label="开启声效">♪</button><button type="button" data-dialogue="root" class="p34-change-topic" hidden>换个话题</button><button type="button" class="p34-goodbye">收起</button></div><div class="p34-her"><p id="p34-her-line" class="p34-her-line" aria-live="polite"></p></div><div class="p34-response"><div class="p34-answers" aria-label="你的回应"></div><nav class="p34-more" aria-label="其他话题" hidden><button type="button" data-turn="-1">上一页</button><button type="button" data-turn="1">更多话题</button></nav></div>`;
   host.append(panel);
   call.setAttribute('aria-controls', panel.id);
   call.setAttribute('aria-expanded', 'false');
@@ -313,7 +223,7 @@ function mountInlineConversation({
   function syncSoundButton() {
     const active = Boolean(motion.sound);
     soundBtn.setAttribute('aria-pressed', String(active));
-    soundBtn.textContent = active ? '微音：开' : '微音：关';
+    soundBtn.setAttribute('aria-label', active ? '关闭声效' : '开启声效');
   }
   syncSoundButton();
 
@@ -372,7 +282,7 @@ function mountInlineConversation({
     root.classList.add('p34-chat-open');
     call.setAttribute('aria-expanded', 'true');
     void showNode(typeof initialNode === 'string' ? initialNode : 'root');
-    void motion.animate(panel, [{ opacity: 0, translate: '0 -6px' }, { opacity: 1, translate: '0 0' }], { duration: 240 });
+    void motion.animate(panel, [{ opacity: 0, translate: '0 -4px' }, { opacity: 1, translate: '0 0' }], { duration: 200 });
     motion.tone(0, true);
   }
 
@@ -443,70 +353,19 @@ function mountInlineConversation({
 }
 
 function buildIndexEntryHtml(post) {
-  return `
-    <li class="p34-index-item" data-p34-index-slug="${post.slug}">
-      <article class="p34-index-article">
-        <div class="p34-entry-meta">
-          <time>${post.date}</time>
-          <span class="p34-meta-sep" aria-hidden="true">·</span>
-          <span>${post.kicker}</span>
-        </div>
-        <h2 class="p34-entry-title">
-          <a href="${post.href}" data-p34-post-link="${post.slug}">${post.title}</a>
-        </h2>
-        <p class="p34-entry-excerpt">${post.excerpt}</p>
-        <div class="p34-entry-foot">
-          <a href="${post.href}" class="p34-read-link" data-p34-post-link="${post.slug}">展开全文 <span aria-hidden="true">→</span></a>
-        </div>
-      </article>
-    </li>
-  `;
-}
-
-function buildFullArticleHtml(post) {
-  const others = HER_OWN_POSTS.filter(item => item.slug !== post.slug);
-  const sectionsHtml = post.sections.map(section => `
-    <section class="p34-prose-section">
-      ${section.heading ? `<h2>${section.heading}</h2>` : ''}
-      ${section.paragraphs.map(p => `<p>${p}</p>`).join('')}
-    </section>
-  `).join('');
-
-  const othersHtml = others.map(item => `
-    <a href="${item.href}" class="p34-next-card" data-p34-post-link="${item.slug}">
-      <span class="p34-next-meta">${item.date} · ${item.kicker}</span>
-      <strong class="p34-next-title">${item.title}</strong>
-    </a>
-  `).join('');
-
-  return `
-    <article class="p34-full-article" data-p34-article-slug="${post.slug}">
-      <div class="p34-article-top">
-        <a href="/?paper=0617" class="p34-back-index" data-p34-nav="index"><span aria-hidden="true">←</span> 返回手记目录</a>
-        <div class="p34-entry-meta">
-          <time>${post.date}</time>
-          <span class="p34-meta-sep" aria-hidden="true">·</span>
-          <span>${post.kicker}</span>
-        </div>
-      </div>
-      <header class="p34-article-header">
-        <h1 class="p34-article-title" tabindex="-1">${post.title}</h1>
+  return `<li class="p34-index-item" data-p34-index-slug="${post.slug}">
+    <article class="p34-index-article" data-p34-article-slug="${post.slug}">
+      <time class="p34-entry-date">${post.date}</time>
+      <h2 class="p34-entry-title" tabindex="-1"><a href="${post.href}" data-p34-post-link="${post.slug}">${post.title}</a></h2>
+      <div class="p34-entry-body" inert><div class="p34-body-inner">
         <p class="p34-article-lead">${post.lead}</p>
-      </header>
-      <div class="p34-article-prose">
-        ${sectionsHtml}
-      </div>
-      <footer class="p34-article-footer">
-        <div class="p34-next-grid" aria-label="继续阅读">
-          ${othersHtml}
-        </div>
-        <div class="p34-footer-links">
-          <a href="/?paper=0617" data-p34-nav="index">← 回到全部手记</a>
-          <a href="https://sayori.org/?paper=0617" data-p34-home-link>去她住的那一面 ↗</a>
-        </div>
-      </footer>
+        <div class="p34-article-prose">${post.sections.map(section=>`<section class="p34-prose-section">${section.heading?`<h3>${section.heading}</h3>`:''}${section.paragraphs.map(p=>`<p>${p}</p>`).join('')}</section>`).join('')}</div>
+        <button type="button" class="p34-margin-secret" data-p34-doodle aria-label="碰一下这道划痕"><svg viewBox="0 0 180 60" aria-hidden="true"><path d="M8 25 Q45 5 70 25 T132 23 M90 42 Q129 26 170 40"/></svg></button>
+        <p class="p34-doodle-reply" hidden>你也看到了？我刚想划掉这一段。</p>
+        <a class="p34-back-index" href="/?paper=0617" data-p34-nav="index">← 看别的</a>
+      </div></div>
     </article>
-  `;
+  </li>`;
 }
 
 const activeMounts = new WeakMap();
@@ -521,6 +380,7 @@ export function mountReadingWorld() {
   const controller = new AbortController();
   const { signal } = controller;
   const motion = createMotion(signal);
+  const fx = createParticleStage({ signal, motion });
   const shell = main.closest('.desk-shell');
   const originalTitle = document.title;
   const originalURL = location.href;
@@ -553,8 +413,8 @@ export function mountReadingWorld() {
     style.dataset.p34ReadingStyle = '';
     document.head.append(style);
   }
-  if (!style.href.includes('20261103-luminous')) {
-    style.href = '/p34-reading.css?v=20261103-luminous';
+  if (!style.href.includes('20261104-pixelfx')) {
+    style.href = '/p34-reading.css?v=20261104-pixelfx';
   }
 
   function parkElement(el) {
@@ -576,7 +436,7 @@ export function mountReadingWorld() {
   main.classList.add('p34-reading-active');
   shell?.classList.add('p34-shell-active');
 
-  // Construct her single coherent fullscreen blog root.
+  // Construct her single coherent open spatial blog root.
   const worldRoot = document.createElement('div');
   worldRoot.className = 'p34-own-blog';
   worldRoot.dataset.p34OwnRoot = 'true';
@@ -584,44 +444,21 @@ export function mountReadingWorld() {
   worldRoot.setAttribute('data-pagefind-ignore', 'all');
 
   worldRoot.innerHTML = `
-    <div class="p34-own-ambient" aria-hidden="true">
-      <div class="p34-ambient-beam"></div>
-      <div class="p34-ambient-warm"></div>
-    </div>
     <header class="p34-own-masthead">
-      <a href="/?paper=0617" class="p34-wordmark" data-p34-nav="index">
-        <span class="p34-prism-dot" aria-hidden="true"></span>
-        <span class="p34-wordmark-text">北窗偏光</span>
-      </a>
-      <nav class="p34-own-nav" aria-label="站点导航">
-        <a href="/?paper=0617" class="p34-own-nav-link" data-p34-nav="index">手记</a>
-        <a href="https://sayori.org/?paper=0617" class="p34-own-nav-link p34-own-nav-home" data-p34-home-link>去主页那边 ↗</a>
-        <button type="button" class="p34-own-nav-return" data-p34-return>返回原站</button>
-      </nav>
+      <a href="/?paper=0617" class="p34-wordmark" data-p34-nav="index">34<span aria-hidden="true">.</span></a>
+      <a href="https://sayori.org/?paper=0617" class="p34-own-nav-home" data-p34-home-link>回去玩 ↗</a>
     </header>
+    <svg class="p34-writing-trail" viewBox="0 0 1200 1400" preserveAspectRatio="none" aria-hidden="true"><path d="M100 -40 C100 320 1150 100 1050 450 S20 600 150 920 S1190 1000 1000 1460"/></svg>
     <div class="p34-own-layout">
-      <aside class="p34-own-margin" aria-label="此刻的话">
-        <div class="p34-voice-card">
-          <p class="p34-voice-line" data-p34-voice-line data-p34-marker-line aria-live="polite"></p>
-        </div>
-        <div class="p34-inline-presence" data-p34-presence="true">
-          <button type="button" class="p34-call" data-p34-call aria-controls="p34-conversation" aria-expanded="false">
-            <span class="p34-prism-dot" aria-hidden="true"></span>
-            <span class="p34-call-label">在这边坐会儿？跟我聊聊</span>
-          </button>
-        </div>
-        <div class="p34-breakout-note" data-p34-breakout-note hidden></div>
+      <aside class="p34-own-margin" aria-label="她说">
+        <p class="p34-voice-line" data-p34-voice-line data-p34-marker-line aria-live="polite"></p>
+        <div class="p34-inline-presence" data-p34-presence="true"><button type="button" class="p34-call" data-p34-call aria-controls="p34-conversation" aria-expanded="false"><span class="p34-call-label">···</span><span class="p34-sr-only">跟我聊聊</span></button></div>
       </aside>
       <div class="p34-own-stage" data-p34-stage>
-        <section class="p34-index-section" data-p34-index-view aria-label="手记目录">
-          <ol class="p34-editorial-list">
-            ${HER_OWN_POSTS.map(post => buildIndexEntryHtml(post)).join('')}
-          </ol>
-        </section>
-        <section class="p34-article-section-host" data-p34-article-view hidden aria-label="手记正文"></section>
+        <header class="p34-index-heading"><h1>乱写的<button type="button" class="p34-ink-dot" data-p34-ink aria-label="点这个句号">。</button></h1><span class="p34-scribble" aria-hidden="true">改了又改</span></header>
+        <ol class="p34-editorial-list">${HER_OWN_POSTS.map(buildIndexEntryHtml).join('')}</ol>
       </div>
-    </div>
-  `;
+    </div>`;
 
   main.append(worldRoot);
 
@@ -629,31 +466,15 @@ export function mountReadingWorld() {
   const presenceHost = worldRoot.querySelector('[data-p34-presence]');
   const callBtn = worldRoot.querySelector('[data-p34-call]');
   const callLabel = worldRoot.querySelector('.p34-call-label');
-  const breakoutSlot = worldRoot.querySelector('[data-p34-breakout-note]');
-  const indexViewEl = worldRoot.querySelector('[data-p34-index-view]');
-  const articleViewEl = worldRoot.querySelector('[data-p34-article-view]');
-  const stageEl = worldRoot.querySelector('[data-p34-stage]');
-  const navIndexLinks = [...worldRoot.querySelectorAll('.p34-own-nav-link[data-p34-nav="index"]')];
-
-  function refreshBreakoutNote() {
-    if (!breakoutSlot) return;
-    const breakout = readBreakoutCookie();
-    const note = formatBreakoutNote(breakout, 'https://sayori.org/?paper=0617');
-    if (note) {
-      breakoutSlot.hidden = false;
-      breakoutSlot.innerHTML = `<p class="p34-breakout-copy">${note.text}<a href="${note.linkHref}" class="p34-breakout-link">${note.linkText}</a></p>`;
-    } else {
-      breakoutSlot.hidden = true;
-      breakoutSlot.innerHTML = '';
-    }
-  }
-  refreshBreakoutNote();
+  const wordmarkLink = worldRoot.querySelector('.p34-wordmark');
+  const entries = [...worldRoot.querySelectorAll('.p34-index-item')];
+  const headings = [...worldRoot.querySelectorAll('.p34-entry-title')];
 
   function syncTitleAndNav(post) {
-    document.title = post ? `${post.title} · 北窗偏光` : '北窗偏光';
-    for (const link of navIndexLinks) {
-      if (!post) link.setAttribute('aria-current', 'page');
-      else link.removeAttribute('aria-current');
+    document.title = post ? `${post.title} · 乱写的` : '乱写的。';
+    if (wordmarkLink) {
+      if (!post) wordmarkLink.setAttribute('aria-current', 'page');
+      else wordmarkLink.removeAttribute('aria-current');
     }
   }
 
@@ -661,64 +482,46 @@ export function mountReadingWorld() {
     const post = slug ? getOwnPostBySlug(slug) : null;
     activeSlug = post ? post.slug : null;
     worldRoot.dataset.p34View = post ? 'article' : 'index';
-    if (post) {
-      indexViewEl.hidden = true;
-      articleViewEl.hidden = false;
-      articleViewEl.innerHTML = buildFullArticleHtml(post);
-    } else {
-      articleViewEl.hidden = true;
-      articleViewEl.innerHTML = '';
-      indexViewEl.hidden = false;
+    worldRoot.querySelector('.p34-index-heading').inert = Boolean(post);
+    for (const entry of entries) {
+      const selected = entry.dataset.p34IndexSlug === activeSlug;
+      entry.classList.toggle('is-active', selected);
+      entry.inert = Boolean(post && !selected);
+      entry.querySelector('.p34-entry-body').inert = !selected;
+      entry.querySelector('.p34-entry-body').setAttribute('aria-hidden', String(!selected));
+      entry.querySelector('.p34-entry-title').setAttribute('aria-level', selected ? '1' : '2');
+      entry.querySelector('.p34-entry-title a').tabIndex = selected ? -1 : 0;
     }
     voiceLineEl.textContent = customVoice || initialVoiceCopy(post ? post.path : '/', encounterKind);
     syncTitleAndNav(post);
   }
 
   renderActiveView({ slug: activeSlug, encounterKind: encounter.encounterType });
-  void motion.animate(worldRoot, [{ opacity: 0, translate: '0 8px' }, { opacity: 1, translate: '0 0' }], { duration: 280 });
-
+  if(root.dataset.p34Entry !== 'quiet') {
+    headings.forEach((el,i)=>void motion.animate(el,[{translate:`${i%2?180:-140}px ${40+i*20}px`,rotate:`${i%2?14:-12}deg`,opacity:0},{translate:'0 0',rotate:'0deg',opacity:1}],{duration:850,delay:i*95}));
+  }
+  let navSequence = 0;
   async function navigateOwnView(targetSlug = null, { push = true, animate = true, customVoice = null } = {}) {
     const post = targetSlug ? getOwnPostBySlug(targetSlug) : null;
-    const nextSlug = post ? post.slug : null;
+    const nextSlug = post?.slug || null;
+    if(nextSlug === activeSlug) return;
+    const sequence = ++navSequence;
     const targetHref = post ? post.href : '/?paper=0617';
     const targetPath = post ? post.path : '/';
-
-    if (push && normalizeBlogPath(location.pathname) !== normalizeBlogPath(targetPath)) {
-      history.pushState({ p34OwnPath: targetPath }, '', targetHref);
+    if(push && normalizeBlogPath(location.pathname)!==normalizeBlogPath(targetPath)) history.pushState({p34OwnPath:targetPath},'',targetHref);
+    const selectedTitle = post ? worldRoot.querySelector(`[data-p34-index-slug="${post.slug}"] .p34-entry-title`) : null;
+    const update = ()=>renderActiveView({slug:nextSlug,encounterKind:'blog-return',customVoice});
+    const transition = animate ? motion.layout([...headings,worldRoot.querySelector('.p34-index-heading'),presenceHost,voiceLineEl],update,14) : Promise.resolve(update());
+    if(post && animate) {
+      const r=selectedTitle.getBoundingClientRect();
+      fx.directionalSpark(r.left+r.width*.6,r.top+r.height*.5,-.45,{palette:'arcane'});
+      const paragraphs=[...worldRoot.querySelector('.is-active').querySelectorAll('.p34-prose-section p')];
+      paragraphs.forEach((el,i)=>void motion.animate(el,[{opacity:0,translate:`${i%2?24:-24}px 30px`},{opacity:1,translate:'0 0'}],{duration:600,delay:70+i*35}));
     }
-
-    const update = () => {
-      renderActiveView({
-        slug: nextSlug,
-        encounterKind: 'blog-return',
-        customVoice,
-      });
-    };
-
-    if (animate) {
-      await motion.layout([voiceLineEl, presenceHost, stageEl], update, 18);
-      if (post) {
-        const blocks = [...articleViewEl.querySelectorAll('.p34-article-header, .p34-prose-section p, .p34-prose-section h2')].slice(0, 8);
-        blocks.forEach((el, i) => {
-          void motion.animate(el, [{ opacity: 0, translate: '0 10px' }, { opacity: 1, translate: '0 0' }], { duration: 260, delay: i * 28 });
-        });
-        articleViewEl.querySelector('.p34-article-title')?.focus({ preventScroll: true });
-      } else {
-        const items = [...indexViewEl.querySelectorAll('.p34-index-item')];
-        items.forEach((el, i) => {
-          void motion.animate(el, [{ opacity: 0, translate: '0 8px' }, { opacity: 1, translate: '0 0' }], { duration: 240, delay: i * 36 });
-        });
-      }
-      if (typeof window.scrollTo === 'function') {
-        window.scrollTo({ top: 0, behavior: motion.reduced() ? 'auto' : 'smooth' });
-      }
-    } else {
-      update();
-    }
-
-    if (conversation?.talking) {
-      void conversation.showNode('root');
-    }
+    await transition;
+    if(sequence!==navSequence||destroyed) return;
+    if(post) selectedTitle.focus({preventScroll:true});
+    if(conversation?.talking) void conversation.showNode('root');
   }
 
   conversation = mountInlineConversation({
@@ -734,11 +537,14 @@ export function mountReadingWorld() {
       pathname: activeSlug ? `/notes/${activeSlug}` : '/',
       activeSlug,
       encounterType: encounter.encounterType,
+      breakout: readBreakoutCookie(),
     }),
     onNode(_node, id) {
+      if(id==='talk-corners'){ const el=worldRoot.querySelector('.is-active .p34-entry-title')||headings[0];void motion.animate(el,[{rotate:'0deg'},{rotate:'-4deg',offset:.4},{rotate:'0deg'}],{duration:600}); }
+      if(id==='talk-prism'){const r=callBtn.getBoundingClientRect();fx.directionalSpark(r.left,r.top,-1,{palette:'blue'});}
       if (id === 'linger') {
         lingered = false;
-        callLabel.textContent = '在这边坐会儿？跟我聊聊';
+        callLabel.textContent = '···';
       }
     },
     onAction(node) {
@@ -757,8 +563,9 @@ export function mountReadingWorld() {
     canPlay: () => !conversation.talking,
     onLinger() {
       lingered = true;
-      callLabel.textContent = '刚才，你是不是想说什么？';
-      voiceLineEl.textContent = '还在读呀。要是累了，随时可以在旁边跟我搭句话。';
+      callLabel.textContent = '嗯？';
+      voiceLineEl.textContent = '……没走啊。我还以为你看完了。';
+      const r=callBtn.getBoundingClientRect();fx.collectBurst(r.left+r.width/2,r.top+r.height/2,{palette:'arcane',scale:.8});
       motion.tone(3, true);
     },
   });
@@ -767,12 +574,19 @@ export function mountReadingWorld() {
     const target = event.target instanceof Element ? event.target : null;
     if (!target) return;
 
-    if (target.closest('[data-p34-return]')) {
-      event.preventDefault();
-      void sendBack();
-      return;
+    const ink=target.closest('[data-p34-ink]');
+    if(ink){
+      const r=ink.getBoundingClientRect();
+      fx.manaNova(r.left+r.width/2,r.top+r.height/2,{palette:'arcane',scale:1.4});
+      void motion.layout(headings,()=>{worldRoot.dataset.shuffle=worldRoot.dataset.shuffle==='yes'?'no':'yes';},30);
+      voiceLineEl.textContent='喂，墨水还没干！';motion.tone(3,true);return;
     }
-
+    const doodle=target.closest('[data-p34-doodle]');
+    if(doodle){
+      const line=doodle.nextElementSibling;line.hidden=!line.hidden;
+      const r=doodle.getBoundingClientRect();fx.directionalSpark(r.left,r.top,0,{palette:'gold'});
+      void motion.animate(doodle,[{scale:'1 1'},{scale:'1.15 .7',offset:.3},{scale:'1'}],{duration:440});return;
+    }
     const postLink = target.closest('[data-p34-post-link]');
     if (postLink) {
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
@@ -808,7 +622,6 @@ export function mountReadingWorld() {
   }
   if (location.hash) applyLegacyHash(location.hash);
   listen(window, 'hashchange', () => applyLegacyHash(location.hash));
-  listen(window, 'focus', refreshBreakoutNote);
 
   function syncFromLocation() {
     if (destroyed || leaving) return;
@@ -865,6 +678,7 @@ export function mountReadingWorld() {
   listen(window, 'p34:send-back', () => { void sendBack(); });
 
   function cleanup() {
+    fx.clearAll();
     if (destroyed) return;
     destroyed = true;
     restore();

@@ -55,7 +55,7 @@ test('Layout manages fullscreen luminous blog lifecycle and SPA/bfcache hooks', 
   assert.match(layout, /pageshow/);
 });
 
-test('shared baseline p34 modules stay byte-identical with home while own blog world is isolated', () => {
+test('shared baseline p34 modules stay text-identical (normalized line endings) with home while own blog world is isolated', () => {
   const homeDir = new URL('../../sayori-home/public/', import.meta.url);
   const blogDir = new URL('../public/', import.meta.url);
   assert.equal(fs.existsSync(new URL('p34-reading.js', blogDir)), true);
@@ -72,10 +72,11 @@ test('shared baseline p34 modules stay byte-identical with home while own blog w
       'p34-dialogue.css',
       'p34-story.js',
       'p34-breakout-state.js',
+      'p34-fx.js',
     ]) {
       assert.equal(
-        fs.readFileSync(new URL(file, blogDir), 'utf8'),
-        fs.readFileSync(new URL(file, homeDir), 'utf8'),
+        fs.readFileSync(new URL(file, blogDir), 'utf8').replace(/\r\n/g, '\n'),
+        fs.readFileSync(new URL(file, homeDir), 'utf8').replace(/\r\n/g, '\n'),
         file,
       );
     }
@@ -110,22 +111,11 @@ test('three substantive own articles share one canonical source between Astro da
     );
   }
 
-  // Article 1 covers real Home interactions: prism angle, cyan/blue/gold string tension, paddle + orb hitting titles/cards, five-hit corner repair
-  const prismPost = getOwnPostBySlug('prism-and-paddle')!;
-  const prismText = prismPost.paragraphs.join('\n');
-  assert.match(prismText, /三棱镜/);
-  assert.match(prismText, /清透青/);
-  assert.match(prismText, /晴空蓝/);
-  assert.match(prismText, /晨光金/);
-  assert.match(prismText, /标题|卡片/);
-  assert.match(prismText, /挡板|光球/);
-  assert.match(prismText, /折角/);
-
-  // Article 2 centers her opinion on leaving empty corners alone vs cutting GMTK puzzles
+  const gamePost = getOwnPostBySlug('prism-and-paddle')!;
+  assert.match(gamePost.paragraphs.join('\n'), /按钮|挡板|球/);
+  assert.doesNotMatch(gamePost.paragraphs.join('\n'), /三棱镜|光弦|卡片/);
   const cornersPost = getOwnPostBySlug('empty-corners')!;
-  const cornersText = cornersPost.paragraphs.join('\n');
-  assert.match(cornersText, /小卡片/);
-  assert.match(cornersText, /六个小时|解谜/);
+  assert.match(cornersPost.paragraphs.join('\n'), /粉色圈|问号/);
 
   // Article 3 is her concise sound ranking without ontology exposition
   const afternoonPost = getOwnPostBySlug('afternoon-rankings')!;
@@ -134,9 +124,19 @@ test('three substantive own articles share one canonical source between Astro da
   assert.match(afternoonText, /汽水|冰/);
   assert.match(afternoonText, /四个音/);
 
-  // Index entry renders title/date + ONE short excerpt + read link (not lead + first paragraph wall of text)
-  assert.match(readingSource, /p34-entry-excerpt/);
-  assert.doesNotMatch(readingSource, /p34-entry-preview/);
+  // Index uses actual persistent article titles (title + date only, no boxed preview excerpt or duplicated '展开全文' CTA)
+  assert.match(readingSource, /p34-entry-date/);
+  assert.match(readingSource, /p34-entry-title/);
+  assert.doesNotMatch(readingSource, /p34-entry-excerpt|p34-entry-preview|展开全文/);
+
+  // No visible masthead '返回原站' button, no boxed voice/next-article cards, no automatic margin score panel
+  const noteRouteAstro = fs.readFileSync(new URL('../src/pages/notes/[slug].astro', import.meta.url), 'utf8');
+  const readingCss = fs.readFileSync(new URL('../public/p34-reading.css', import.meta.url), 'utf8');
+  for (const banned of ['返回原站', 'data-p34-return', 'p34-own-nav-return', 'p34-voice-card', 'p34-next-card', 'p34-next-grid', 'data-p34-breakout-note']) {
+    assert.ok(!readingSource.includes(banned), `public/p34-reading.js must not include ${banned}`);
+    assert.ok(!readingCss.includes(banned), `public/p34-reading.css must not include ${banned}`);
+    assert.ok(!noteRouteAstro.includes(banned), `src/pages/notes/[slug].astro must not include ${banned}`);
+  }
 
   // True Amiya markdown posts stay untouched
   const styleMd = fs.readFileSync(new URL('../src/content/posts/blog-style-change/index.md', import.meta.url), 'utf8');
@@ -145,19 +145,18 @@ test('three substantive own articles share one canonical source between Astro da
   assert.ok(gmtkMd.includes('砍掉了所有的解密'));
 
   // Astro route template is noindex and gated, and excluded from sitemap in astro.config.mjs
-  const noteRouteAstro = fs.readFileSync(new URL('../src/pages/notes/[slug].astro', import.meta.url), 'utf8');
   assert.match(noteRouteAstro, /noindex=\{true\}/);
   assert.match(noteRouteAstro, /paper.*0617/);
   const astroConfig = fs.readFileSync(new URL('../astro.config.mjs', import.meta.url), 'utf8');
   assert.match(astroConfig, /pathname\.startsWith\(["']\/notes\/["']\)/);
 });
 
-test('fullscreen CSS owns #F7F9FC cold-white viewport, hides normal blog chrome, and removes obsolete bookmark layer', () => {
+test('fullscreen CSS owns author-selected pink-purple viewport, hides normal blog chrome, and removes obsolete bookmark layer', () => {
   const readingCss = fs.readFileSync(new URL('../public/p34-reading.css', import.meta.url), 'utf8');
   const readingJs = fs.readFileSync(new URL('../public/p34-reading.js', import.meta.url), 'utf8');
 
-  assert.match(readingCss, /#F7F9FC/i);
-  assert.match(readingCss, /#202B37/i);
+  assert.match(readingCss, /#F3D8FA/i);
+  assert.match(readingCss, /#17131D/i);
   assert.match(readingCss, /\.desk-header[\s\S]*?display:\s*none\s*!important/);
   assert.match(readingCss, /html:not\(\.p34-luminous\)\s*\[data-p34-own-route\]/);
   assert.doesNotMatch(readingJs, /p34-reading-marker|p34-side-observation|BLOG_READING_ANCHORS/);
@@ -263,50 +262,42 @@ test('p34_breakout_v1 consumer reads valid records, ignores legacy keys, and for
   assert.equal(note.linkHref, 'https://sayori.org/?paper=0617');
 });
 
-test('voice copy and inline dialogue respond to encounterType and active own article', () => {
-  assert.match(initialVoiceCopy('/', 'blog-first'), /手记/);
-  assert.doesNotMatch(initialVoiceCopy('/', 'blog-first'), /我把原来的书桌/);
-  assert.match(initialVoiceCopy('/', 'blog-from-home'), /主页/);
-  assert.match(initialVoiceCopy('/', 'blog-return'), /又翻回/);
-  assert.match(initialVoiceCopy('/notes/prism-and-paddle/', 'blog-first'), /挡板|三棱镜/);
-  assert.match(initialVoiceCopy('/notes/empty-corners/', 'blog-from-home'), /小卡片/);
-  assert.match(initialVoiceCopy('/notes/afternoon-rankings/', 'blog-return'), /汽水/);
+test('voice copy and inline dialogue respond to encounterType, active own article, and breakout stats in chat context', () => {
+  for (const kind of ['blog-first', 'blog-from-home', 'blog-return']) assert.ok(initialVoiceCopy('/', kind).length);
+  for (const post of HER_OWN_POSTS) assert.equal(initialVoiceCopy(post.path, 'blog-first'), post.voiceRemark);
 
   const story = createStory();
   const rootIndex = readingDialogueNode('root', story, { pathname: '/', encounterType: 'blog-first' });
   assert.doesNotMatch(rootIndex.text, /我把原来的/);
   assert.ok(rootIndex.choices.some(c => c.id === 'talk-prism'));
   assert.ok(rootIndex.choices.some(c => c.id === 'talk-corners'));
-  assert.ok(rootIndex.choices.some(c => c.id === 'talk-afternoon'));
   assert.ok(rootIndex.choices.some(c => c.id === 'return'));
 
   const prismNode = readingDialogueNode('talk-prism', story, { pathname: '/notes/prism-and-paddle/' });
-  assert.match(prismNode.text, /三棱镜/);
-  assert.match(prismNode.text, /挡板/);
-  assert.match(prismNode.text, /折角/);
+  assert.match(prismNode.text, /按钮/);
+
+  const prismWithStats = readingDialogueNode('talk-prism', story, {
+    pathname: '/notes/prism-and-paddle/',
+    breakout: { v: 1, runs: 3, bestScore: 1840, maxCombo: 12, edition: 'luminous' },
+  });
+  assert.match(prismWithStats.text, /1840/);
+  assert.match(prismWithStats.text, /12/);
 
   const afternoonNode = readingDialogueNode('talk-afternoon', story, { pathname: '/notes/afternoon-rankings/' });
-  assert.ok(afternoonNode.choices.some(c => c.label.includes('暂时第一名：倒汽水的声音')));
+  assert.ok(afternoonNode.choices.some(c => c.id === 'open-afternoon'));
 });
 
-test('active article chat routes other-article recommendations directly to open-post actions', () => {
+test('article dialogue opens stable routes directly without another confirmation menu', () => {
   const story = createStory();
-  const root = readingDialogueNode('root', story, { pathname: '/notes/prism-and-paddle/' });
-
-  const currentTopicChoice = root.choices.find(c => c.label.startsWith('聊聊'));
-  assert.ok(currentTopicChoice);
-  assert.equal(currentTopicChoice.id, 'talk-prism');
-  const currentTarget = readingDialogueNode(currentTopicChoice.id, story, { pathname: '/notes/prism-and-paddle/' });
-  assert.ok(currentTarget.text && !currentTarget.action);
-
-  const directOpenChoices = root.choices.filter(c => c.label.startsWith('去看看'));
-  assert.equal(directOpenChoices.length, 2);
-  for (const c of directOpenChoices) {
-    const actionNode = readingDialogueNode(c.id, story, { pathname: '/notes/prism-and-paddle/' });
-    assert.equal(actionNode.action, 'open-post');
-    assert.ok(actionNode.slug);
-    assert.notEqual(actionNode.slug, 'prism-and-paddle');
+  for (const [id, slug] of [['open-prism','prism-and-paddle'],['open-corners','empty-corners'],['open-afternoon','afternoon-rankings']]) {
+    const node = readingDialogueNode(id, story);
+    assert.equal(node.action, 'open-post');
+    assert.equal(node.slug, slug);
+    assert.equal(getOwnPostBySlug(slug)?.href, node.href);
   }
+  const source = fs.readFileSync(new URL('../public/p34-reading.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /articleViewEl\.innerHTML|stageEl\.replaceChildren/);
+  assert.match(source, /entry\.classList\.toggle\('is-active'/);
 });
 
 test('built static output isolates own article routes from normal sitemap, feeds, and index', () => {
