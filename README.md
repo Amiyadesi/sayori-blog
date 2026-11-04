@@ -31,14 +31,21 @@ preserved in `LICENSE.MIT`.
 
 ## Her Own Blog World (`/?paper=0617`)
 
-她自己的全文博客，与普通博客完全分开。当前候选让整页平面随阅读和交流重新组合，配色尚未由作者定稿。
+异常入口就是她自己的博客：独立的文章目录与阅读空间，不显示普通博客的侧栏、工具或文章列表。只有一个通往她的主页的跨站入口。
 
-- 点标题，原来的标题就地移动成正文标题，文章节点保留；浏览器前进/后退可回到同一篇。
-- 点「写了这些。」的句号可重新排列目录与背景；正文尾部的句号也可以碰。
-- 「说句话」打开对话，回复会改变页面结构；选择读文章时直接展开正文，不留下对话遮挡。普通博客通过对话返回；仅一个「回去玩」跨站入口。
-- 三篇文章共用 `public/p34-own-posts.js` 与真实 Astro `/notes/[slug]` 路由；旧 slug 保留。内容是全页弹球、拉动页面边缘和声音排名。
-- 世界与弹球记录继续读原有共享 Cookie；Twikoo 没有自动发帖。
-- 事件驱动粒子参考 PixelFX，完整 MIT 许可在 `public/third-party/pixelfx-LICENSE.txt`。
+大字交流与正文分开；打开文章时保留 Canvas 和交流节点。浏览器前后退、刷新与 `/notes/[slug]/?paper=0617` 深链接可用。通过「聊两句」请求返回普通博客。Twikoo 及正常文章流程保留，没有自动发布评论。
+
+文章直接写入 `src/content/her-space/*.md`，使用 `title`、`description` 和 `draft` frontmatter。Astro 渲染完整 Markdown，`/her-space.json` 仅提供目录元数据。目前只有一篇标记为未发布的试写；不复用 Amiya 的文章。
+
+共享空间源码在相邻 `sayori-home/public`，从该仓库运行 `node scripts/sync-p34-space.mjs` 同步。博客入口适配为 `paper-blog.js` / `p34-reading.js`，阅读排版在 `p34-space.css`。
+
+```powershell
+node node_modules/astro/bin/astro.mjs dev --host 127.0.0.1 --port 8981
+node node_modules/tsx/dist/cli.mjs --test tests/paper-blog.test.ts
+node node_modules/typescript/bin/tsc --noEmit
+```
+
+字体许可见 `public/assets/p34/OFL.txt`。本轮没有新增正式域名、生产部署或最终剧情。
 
 ---
 

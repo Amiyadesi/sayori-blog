@@ -44,7 +44,7 @@ const ogImageUrl = new URL(siteConfig.generateOgImages && postSlug
             if (!document.querySelector('link[data-p34-reading-style]')) {
               const style = document.createElement('link');
               style.rel = 'stylesheet';
-              style.href = '/p34-reading.css?v=20261104-fold';
+              style.href = '/p34-reading.css?v=20261104-prism';
               style.dataset.p34ReadingStyle = '';
               document.head.append(style);
             }
@@ -87,9 +87,12 @@ const ogImageUrl = new URL(siteConfig.generateOgImages && postSlug
           if (new URLSearchParams(location.search).get("paper") !== "0617") return;
           const current = generation;
           try {
-            const modulePath = "/paper-blog.js?v=20261104-fold";
+            const modulePath = "/paper-blog.js?v=20261104-prism";
             const { mountPaperBlog } = await import(/* @vite-ignore */ modulePath);
-            if (current === generation) dispose = mountPaperBlog();
+            if (current !== generation) return;
+            const mounted = await mountPaperBlog(() => current === generation);
+            if (current === generation) dispose = mounted;
+            else mounted();
           } catch (error) { console.warn("Paper stock unavailable", error); }
         };
         window.__p34ReadingGate = { clearPaper, syncPaper };
@@ -104,7 +107,7 @@ const ogImageUrl = new URL(siteConfig.generateOgImages && postSlug
             if (!event.newDocument.querySelector("link[data-p34-reading-style]")) {
               const style = event.newDocument.createElement("link");
               style.rel = "stylesheet";
-              style.href = "/p34-reading.css?v=20261104-fold";
+              style.href = "/p34-reading.css?v=20261104-prism";
               style.dataset.p34ReadingStyle = "";
               event.newDocument.head.append(style);
             }

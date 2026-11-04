@@ -1,51 +1,22 @@
 ---
-import Layout from "@layouts/Layout.astro";
-import { HER_OWN_POSTS, type OwnPost } from "../../data/p34-own-posts";
-
+import Layout from '@layouts/Layout.astro';
+import { HER_OWN_POSTS, type OwnPost } from '../../data/p34-own-posts';
 interface Props { post: OwnPost; }
 export function getStaticPaths() {
   return HER_OWN_POSTS.map(post => ({ params: { slug: post.slug }, props: { post } }));
 }
 const { post } = Astro.props;
+const { Content } = post;
 ---
-
-<Layout title={`${post.title} · 她写的`} description={post.excerpt} noindex={true}>
+<Layout title={post.title} description={post.excerpt} noindex={true}>
   <script is:inline slot="head">
-    if (new URLSearchParams(location.search).get("paper") !== "0617") location.replace("/");
+    if (new URLSearchParams(location.search).get('paper') !== '0617') location.replace('/');
   </script>
-  <main id="swup-container" tabindex="-1" data-p34-own-route="true" data-p34-route-slug={post.slug}>
-    <div class="p34-own-blog" data-p34-own-root="true" data-p34-view="article" data-pagefind-ignore="all">
-      <div class="p34-reading-architecture" aria-hidden="true">
-        <div class="p34-reading-fold p34-reading-mist"></div>
-        <div class="p34-reading-fold p34-reading-paper"></div>
-        <div class="p34-reading-fold p34-reading-ink"></div>
-        <svg class="p34-writing-trail" viewBox="0 0 1400 1000" preserveAspectRatio="none"><path d="M-40 890 C310 990 270 210 650 330 S1070 600 1440 80"/></svg>
-      </div>
-      <header class="p34-own-masthead">
-        <a href="/?paper=0617" class="p34-wordmark" data-p34-nav="index" aria-label="她写的东西"><svg viewBox="0 0 52 32" aria-hidden="true"><path d="M2 25 19 5 31 25 49 5"/><path d="M30 5h19v19"/></svg></a>
-        <a href="https://sayori.org/?paper=0617" class="p34-own-nav-home" data-p34-home-link>回去玩 ↗</a>
-      </header>
-      <div class="p34-own-layout">
-        <aside class="p34-own-margin" aria-label="她说"><p class="p34-voice-line">{post.voiceRemark}</p></aside>
-        <div class="p34-own-stage">
-          <ol class="p34-editorial-list"><li class="p34-index-item is-active">
-            <article class="p34-index-article" data-p34-article-slug={post.slug}>
-              <time class="p34-entry-date">{post.date}</time>
-              <h1 class="p34-entry-title" tabindex="-1">{post.title}</h1>
-              <div class="p34-entry-body"><div class="p34-body-inner">
-                <p class="p34-article-lead">{post.lead}</p>
-                <div class="p34-article-prose">{post.sections.map(section => (
-                  <section class="p34-prose-section">
-                    {section.heading && <h2>{section.heading}</h2>}
-                    {section.paragraphs.map(paragraph => <p>{paragraph}</p>)}
-                  </section>
-                ))}</div>
-                <a class="p34-back-index" href="/?paper=0617" data-p34-nav="index">← 看别的</a>
-              </div></div>
-            </article>
-          </li></ol>
-        </div>
-      </div>
-    </div>
+  <main id="swup-container" tabindex="-1" data-p34-own-route="true">
+    <article data-p34-native-post={post.slug}>
+      <p>{post.draft ? '未发布的草稿' : '她写的'}</p><h1>{post.title}</h1>
+      <div class="space-native-prose"><Content /></div>
+      <a href="/?paper=0617">回目录</a>
+    </article>
   </main>
 </Layout>
