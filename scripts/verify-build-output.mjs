@@ -1679,11 +1679,20 @@ requireIncludes("llms.txt", llms, [
 	"> Amiya的书桌 is Amiya_desi's personal blog",
 	"## Core Links",
 	"https://blog.sayori.org/posts/astro-mizuki-blog-from-zero/",
-	"https://blog.sayori.org/posts/free-domain-and-web-community/",
 	"## Recent Posts",
 	"- Sitemap: https://blog.sayori.org/sitemap.xml",
 	"Search indexing, real-time AI grounding, AI citation, and model training uses are allowed for public content",
 ]);
+// llms.txt lists only the most recent posts, so do not pin a specific article here:
+// assert that the Recent Posts section still carries a healthy number of post links.
+const llmsPostLinks = new Set(
+	llms.match(/https:\/\/blog\.sayori\.org\/posts\/[^\s)("']+\//g) || [],
+);
+if (llmsPostLinks.size < 20) {
+	fail(`llms.txt lists too few post links: ${llmsPostLinks.size}`);
+} else {
+	pass(`llms.txt lists ${llmsPostLinks.size} post links`);
+}
 requireExcludes("llms.txt", llms, [
 	"/topics/webmaster/",
 	"Model training is not granted",
