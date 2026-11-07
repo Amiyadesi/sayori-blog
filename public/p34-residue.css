@@ -84,7 +84,7 @@ html.p34-spatial:has(#p34-space:is([data-silence=true],[data-reunion=true]))::-w
 .ruin-opening span { position:absolute; inset:0 32%; background:#020202; clip-path:polygon(38% 0,72% 0,66% 22%,50% 39%,85% 54%,55% 67%,48% 88%,16% 100%,31% 76%,28% 60%,52% 47%,26% 31%); transition:scale .25s; }
 .ruin-opening:is(:hover,:focus-visible) span { scale:1.45 1.08; }
 #p34-space .residue-archive :is(button,a):focus-visible,#p34-space .writing-corner:focus-visible { outline:2px solid #e5e5e5; outline-offset:7px; }
-#p34-space .ruin-opening:focus-visible { outline:none; }
+#p34-space .residue-archive .ruin-opening:focus-visible { outline:none; }
 .ruin-opening:focus-visible span { background:#e5e5e5; }
 #p34-space[data-silence=true] .trace-scene { color:#dcdcd5; }
 #p34-space .trace-versions { position:absolute; left:12%; top:14%; display:flex; gap:32px; }
