@@ -25,6 +25,7 @@ import { pluginLanguageBadge } from "./src/plugins/expressive-code/language-badg
 import { AdmonitionComponent } from "./src/plugins/rehype-component-admonition.mjs";
 import { GithubCardComponent } from "./src/plugins/rehype-component-github-card.mjs";
 import { MusicTrackComponent } from "./src/plugins/rehype-component-music-track.mjs";
+import { ProteinCalculatorComponent } from "./src/plugins/rehype-component-protein-calculator.mjs";
 import { rehypeBlogMedia } from "./src/plugins/rehype-blog-media.mjs";
 import { rehypeImageWidth } from "./src/plugins/rehype-image-width.mjs";
 import { rehypeMermaid } from "./src/plugins/rehype-mermaid.mjs";
@@ -238,6 +239,7 @@ export default defineConfig({
 					components: {
 						github: GithubCardComponent,
 						"music-track": MusicTrackComponent,
+						"protein-calculator": ProteinCalculatorComponent,
 						note: (x, y) => AdmonitionComponent(x, y, "note"),
 						tip: (x, y) => AdmonitionComponent(x, y, "tip"),
 						important: (x, y) =>

@@ -519,6 +519,7 @@ const isDeskBlog = process.env.SITE_VARIANT !== "sayori-diary";
 {isDeskBlog && <script>
 	import "../../styles/article-extras.css";
 	import "../../scripts/code-collapse.js";
+	import "../../scripts/protein-calculator";
 	import { initFancybox } from "../../scripts/handlers/fancybox-handler";
 	import { checkKatex, initCustomScrollbar } from "../../scripts/handlers/scroll-handler";
 	const imageRetries = new WeakMap<HTMLImageElement, HTMLButtonElement>();

@@ -948,3 +948,143 @@
 :root.dark .custom-md .sayori-photo-carousel-item figcaption {
   color: rgb(255 255 255 / 0.55);
 }
+
+  /* 蛋白质估算小组件 */
+    .protein-calc {
+      width: min(100%, 34rem);
+      margin: 1.55rem auto;
+      padding: 1.25rem 1.4rem 1.1rem;
+      border: 1px solid color-mix(in srgb, var(--paper-edge) 86%, var(--primary) 8%);
+      border-radius: 1.4rem;
+      background-color: color-mix(in srgb, var(--paper-bg) 96%, white 4%);
+      box-shadow:
+        0 18px 38px rgba(92, 54, 77, 0.08),
+        0 3px 10px rgba(92, 54, 77, 0.06);
+      color: var(--paper-text);
+    }
+  
+    .protein-calc-head {
+      margin-bottom: 0.9rem;
+    }
+  
+    .protein-calc-title {
+      font-size: 1.02rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+  
+    .protein-calc-sub {
+      margin-top: 0.2rem;
+      font-size: 0.8rem;
+      line-height: 1.5;
+      color: var(--paper-muted);
+    }
+  
+    .protein-calc-field {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.6rem;
+      margin: 0;
+    }
+  
+    .protein-calc-field-label {
+      font-size: 0.86rem;
+      color: var(--paper-muted);
+    }
+  
+    .protein-calc-input {
+      width: 7.5rem;
+      padding: 0.45rem 0.65rem;
+      border: 1px solid color-mix(in srgb, var(--paper-edge) 70%, var(--primary) 18%);
+      border-radius: 0.7rem;
+      background: color-mix(in srgb, var(--paper-bg) 92%, white 8%);
+      font: inherit;
+      font-variant-numeric: tabular-nums;
+      color: var(--paper-text);
+    }
+  
+    .protein-calc-input:focus-visible {
+      outline: 2px solid color-mix(in srgb, var(--primary) 55%, transparent);
+      outline-offset: 1px;
+    }
+  
+    .protein-calc-output {
+      margin-top: 1rem;
+      padding-top: 0.9rem;
+      border-top: 1px dashed color-mix(in srgb, var(--paper-edge) 80%, transparent);
+    }
+  
+    .protein-calc-output[hidden] {
+      display: none;
+    }
+  
+    .protein-calc-total {
+      display: flex;
+      align-items: baseline;
+      gap: 0.35rem;
+      margin: 0 0 0.65rem;
+      font-size: 0.86rem;
+      color: var(--paper-muted);
+    }
+  
+    .protein-calc-total-value {
+      font-size: 1.75rem;
+      font-weight: 700;
+      line-height: 1;
+      color: color-mix(in srgb, var(--primary) 72%, var(--paper-text) 28%);
+      font-variant-numeric: tabular-nums;
+    }
+  
+    .protein-calc-foods {
+      display: grid;
+      gap: 0.4rem;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+  
+    .protein-calc-food {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.4rem 0.55rem;
+      border-radius: 0.6rem;
+      background: color-mix(in srgb, var(--primary) 6%, transparent);
+      font-size: 0.86rem;
+      line-height: 1.45;
+      list-style: none;
+    }
+  
+    .protein-calc-food::marker {
+      content: "";
+    }
+  
+    .protein-calc-food-label {
+      color: var(--paper-muted);
+    }
+  
+    .protein-calc-food-value {
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+  
+    .protein-calc-note {
+      margin: 0.85rem 0 0;
+      font-size: 0.76rem;
+      line-height: 1.55;
+      color: var(--paper-muted);
+      opacity: 0.85;
+    }
+  
+    @media (max-width: 640px) {
+      .protein-calc {
+        padding: 1.1rem 1rem 0.95rem;
+      }
+  
+      .protein-calc-input {
+        width: 100%;
+      }
+    }
