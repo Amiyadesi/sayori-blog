@@ -1,8 +1,8 @@
 import { createMotion } from './p34-motion.js?v=20261104-flow';
 import { WORLD_COOKIE_KEY, advanceEncounterState, readWorldCookie, serializeWorldState, createWorldSession } from './p34-living.js?v=20261104-flow';
 import { createLightSpace, INITIAL_LIGHT, readSketches } from './p34-light.js?v=20261104-flow';
-import { FEATURED_WORK } from './p34-space-content.js?v=20261104-flow';
 import { capturePage, playPassage, cancelPassage } from './p34-passage.js?v=20261104-flow';
+import { mountAdventure } from './p34-adventure.js?v=20261107-journey';
 
 export const SKETCH_KEY = 'p34-light-sketches-v1';
 export const ROOMS = ['home', 'works', 'lab', 'blog', 'archive', 'guestbook'];
@@ -23,14 +23,6 @@ export function roomHref(room, base = 'https://sayori.org/') {
   return url.pathname + url.search;
 }
 
-const HEADINGS = {
-  home: ['诶？\n你看得见我。', '我正好，\n缺一个一起玩的人。'],
-  works: ['这个，\n你来试试。', '还没算正式作品。'],
-  lab: ['别光看着。\n拉一下。', '拖动光点，也可以用方向键。'],
-  blog: ['刚写的，\n还没发。', '先放在这里。'],
-  archive: ['先留着。', '你保存过的光，都在这里。'],
-  guestbook: ['想说什么？', '留言暂未开放。可以先写着，不会发送。'],
-};
 const LABELS = { home: '这里', works: '作品', lab: '实验室', blog: '写的东西', archive: '旧稿', guestbook: '留言' };
 const active = new WeakMap();
 const cloneNodes = nodes => nodes.map(p => [...p]);
@@ -44,7 +36,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
       style.addEventListener('load', resolve, { once: true });
       style.addEventListener('error', () => reject(new Error('Space stylesheet failed to load')), { once: true });
       if (ownedStyle) {
-        style.rel = 'stylesheet'; style.href = site === 'blog' ? '/p34-reading.css?v=20261104-flow' : '/p34-luminous.css?v=20261104-flow';
+        style.rel = 'stylesheet'; style.href = site === 'blog' ? '/p34-reading.css?v=20261107-journey' : '/p34-luminous.css?v=20261107-journey';
         style.dataset.p34SpaceStyle = ''; document.head.append(style);
       }
     });
@@ -72,7 +64,6 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
   const visit = advanceEncounterState(readWorldCookie(document.cookie), site);
   cookie(WORLD_COOKIE_KEY, serializeWorldState(visit.state));
   const story = getStory();
-  const first = site === 'home' ? visit.encounterType === 'home-first' : visit.encounterType === 'blog-first';
   setStory({ ...story, met: 1, chapter: story.chapter === 'arrive' ? 'explore' : story.chapter });
 
   const listen = (el, type, fn, options = {}) => el.addEventListener(type, fn, { signal, ...options });
@@ -103,6 +94,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
         <button type="button" data-talk aria-expanded="false" aria-controls="space-replies">聊两句</button>
         <button type="button" data-map aria-expanded="false" aria-controls="space-paths">逛一圈</button>
         <button type="button" data-sound aria-label="开启声音" aria-pressed="false">♪</button>
+        <button type="button" data-return hidden>回到原页</button>
       </div>
       <div id="space-replies" class="space-replies" hidden aria-label="你的回应"></div>
     </section>
@@ -141,21 +133,18 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
   }
 
   if (site === 'home') {
-    addRoom('home', `<button class="space-touch-light" data-touch-light type="button" aria-label="碰一下她正在调的光"><span aria-hidden="true"></span></button><span class="space-light-hint">这里可以碰。</span>`);
-    const work = addRoom('works', `<div class="space-work-caption"><p class="space-small"></p><h2></h2><p data-work-description></p><a class="space-enter" href="${roomHref(FEATURED_WORK.room)}" data-go="${FEATURED_WORK.room}">伸手试试<span aria-hidden="true">↗</span></a></div><button type="button" class="space-work-light" data-go="${FEATURED_WORK.room}" aria-label="进入拉住一束光实验"></button>`);
-    work.querySelector('h2').textContent = FEATURED_WORK.title;
-    work.querySelector('.space-small').textContent = FEATURED_WORK.status;
-    work.querySelector('[data-work-description]').textContent = FEATURED_WORK.description;
+    addRoom('home', `<button class="space-touch-light" data-touch-light type="button" aria-label="碰一下她正在调的光"><span aria-hidden="true"></span></button>`);
+    addRoom('works', '<div class="space-work-caption"></div><button type="button" class="space-work-light" aria-label="玩绕远路"></button>');
     addRoom('lab', `<div class="space-rig" role="group" aria-label="拉住一束光，四个光点可拖动或用方向键移动">${INITIAL_LIGHT.map((_, i) => `<button type="button" class="space-node" data-node="${i}" aria-label="光点 ${i + 1}，方向键移动，Shift 加速"></button>`).join('')}</div><div class="space-lab-actions"><button type="button" data-save>留住这个形状</button><button type="button" data-reset>重新拉</button><p data-save-note aria-live="polite"></p></div>`);
     addRoom('archive', '<div class="space-archive-empty"><p>还没有留下的形状。</p><a data-go="lab" href="' + roomHref('lab') + '">去拉一条光</a></div><ol class="space-history" aria-label="你留下的形状"></ol><div class="space-compare" hidden><button type="button" data-previous>前一条</button><time data-revision-time></time><button type="button" data-next>后一条</button></div>');
     addRoom('guestbook', `<form class="space-guest-form"><label for="space-name">怎么称呼你<input id="space-name" name="name" autocomplete="nickname" maxlength="40"></label><label for="space-message">想留下的话<textarea id="space-message" name="message" maxlength="1000" rows="4"></textarea></label><div class="space-form-end"><span data-count>0 / 1000</span><button type="submit" disabled>尚未开放</button></div></form>`);
   } else {
-    const blog = addRoom('blog', '<div class="space-blog-index"><p class="space-small">未发布的草稿</p><ol class="space-posts"></ol></div><article class="space-article" hidden><a class="space-back-index" href="/?paper=0617" data-index>所有文章</a><header><p class="space-small">试写，未发布</p><h2 tabindex="-1"></h2></header><div class="space-prose"></div><a class="space-article-end" href="/?paper=0617" data-index>回目录</a></article>');
+    const blog = addRoom('blog', '<div class="space-blog-index"><ol class="space-posts"></ol></div><article class="space-article" hidden><a class="space-back-index" href="/?paper=0617" data-index>所有文章</a><header><h2 tabindex="-1"></h2></header><div class="space-prose"></div><a class="space-article-end" href="/?paper=0617" data-index>回目录</a></article>');
     const list = blog.querySelector('ol');
     for (const post of posts) {
-      const li = document.createElement('li'), a = document.createElement('a'), title = document.createElement('span'), excerpt = document.createElement('p');
-      a.href = post.href; a.dataset.post = post.slug; title.textContent = post.title; excerpt.textContent = post.excerpt;
-      a.append(title, excerpt); li.append(a); list.append(li);
+      const li = document.createElement('li'), a = document.createElement('a'), title = document.createElement('span');
+      a.href = post.href; a.dataset.post = post.slug; title.textContent = post.title;
+      a.append(title); li.append(a); list.append(li);
     }
     shell.querySelector('[data-map]').hidden = true;
   }
@@ -185,9 +174,11 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
     }
   }
   function updateNav() {
+    shell.querySelector('[data-return]').hidden = !menu && shell.dataset.silence !== 'true';
     nav.querySelectorAll('a').forEach(link => {
       const dest = link.dataset.roomLink;
-      const visible = site === 'blog' ? dest === 'home' : menu || (room === 'home' && ['works', 'lab', 'blog'].includes(dest));
+      const homeLinks = shell.dataset.silence === 'true' ? ['archive', 'blog'] : ['works', 'lab', 'blog'];
+      const visible = site === 'blog' ? dest === 'home' : menu || (room === 'home' && homeLinks.includes(dest));
       link.dataset.visible = String(visible); link.inert = !visible;
       if (dest === room) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
     });
@@ -209,20 +200,16 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
     }
     if (restoreFocus) replies.firstElementChild.focus({ preventScroll: true });
   }
-  function converse() {
-    if (talking) { closeConversation(); return; }
+  function dialogue(text, items) {
     if (menu) toggleMap(false);
     talking = true; shell.dataset.talking = 'true';
     shell.querySelector('[data-talk]').setAttribute('aria-expanded', 'true');
-    const question = room === 'lab' ? ['这条光还能做什么？', () => {
-      speak('你拉成什么，\n它就是什么。', { note: '满意了就存一下。我也想看看你的。', mood: 'bright' });
-      showReplies([['我再试试。', closeConversation], ['能送我回去吗？', sendBack]]);
-    }] : ['这里都是你做的？', () => {
-      speak('嗯。\n这次先别帮我收拾。', { mood: 'bright', note: '我想看看，别人会把它变成什么样。' });
-      showReplies([['那我去玩了。', closeConversation], ['能送我回去吗？', sendBack]]);
-    }];
-    speak(site === 'blog' ? '你说。\n我听着呢。' : '怎么啦？', { note: '', mood: 'plain' });
-    showReplies([question, ['能送我回原来那边吗？', sendBack], ['没事，我再逛逛。', closeConversation]]);
+    speak(text, { note: '' }); showReplies(items);
+    replies.firstElementChild.focus({ preventScroll: true });
+  }
+  function converse() {
+    if (talking) { closeConversation(); return; }
+    adventure.talk();
   }
   function toggleMap(value = !menu) {
     closeConversation(); menu = value;
@@ -230,15 +217,14 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
       shell.dataset.map = String(menu); content.inert = menu; updateNav();
     }, 12);
     shell.querySelector('[data-map]').setAttribute('aria-expanded', String(menu));
-    speak(menu ? '想往哪边走？' : headingForRoom(), { note: menu ? '' : HEADINGS[room][1] });
+    speak(menu ? '去哪里？' : headingForRoom(), { note: '' });
   }
   function headingForRoom() {
-    if (room === 'home') return first ? HEADINGS.home[0] : '来啦。\n光还给你留着。';
-    return HEADINGS[room][0];
+    return adventure.heading(room);
   }
   function selectRoom(next, { push = false, announce = true } = {}) {
     if (!panels.has(next)) throw new Error(`No ${site} panel: ${next}`);
-    closeConversation(); menu = false; drag = null;
+    adventure.closeScene(); closeConversation(); menu = false; drag = null;
     shell.querySelector('[data-map]').setAttribute('aria-expanded', 'false');
     if (push) history.pushState({ ...history.state, p34Room: next }, '', roomHref(next));
     room = next;
@@ -254,13 +240,14 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
     }, 10);
     light.scene(room); updateRig();
     if (room === 'archive') renderHistory();
-    if (announce) speak(headingForRoom(), { note: HEADINGS[room][1] });
+    adventure.room(room, announce);
     document.title = `${LABELS[room]} · 她的空间`;
     if (push) { window.scrollTo({ top: 0, behavior: 'instant' }); voice.tabIndex = -1; voice.focus({ preventScroll: true }); }
     later(updateRig, 650);
   }
 
   async function openPost(post, push) {
+    if (post && !adventure.canRead(post.slug)) { setStatus('这篇还没有写下。'); post = null; }
     const request = ++articleRequest;
     if (post && !articleCache.has(post.slug)) {
       if (push) setStatus('正在载入文章');
@@ -293,9 +280,10 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
         prose.append(articleCache.get(post.slug));
       }
       document.title = `${post.title} · 她写的`;
-      speak('这篇还在改。', { note: '你先看，不用等我。', animate: push });
+      speak(shell.dataset.silence === 'true' ? '她留下的字。' : '你先看。', { note: '', animate: push });
+      adventure.opened(post.slug);
     } else {
-      document.title = '她写的'; speak(HEADINGS.blog[0], { note: HEADINGS.blog[1], animate: push });
+      document.title = '她写的'; speak(headingForRoom(), { note: '', animate: push });
     }
     if (push) {
       history.pushState({ ...history.state, p34Post: post?.slug || null }, '', post ? post.href : '/?paper=0617');
@@ -340,16 +328,19 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
     try { localStorage.setItem(SKETCH_KEY, JSON.stringify(next)); }
     catch { note.textContent = '浏览器没有允许保存，这次先留在当前页。'; return; }
     sketches = next; revisionIndex = sketches.length - 1;
+    adventure.record('light-saved', nodes);
     note.textContent = '存好了，只留在这台设备。';
-    speak('好，就留这条！', { note: '下次来旧稿里找。', mood: 'bright' });
+    if (shell.dataset.silence !== 'true') speak('好，就留这条！', { note: '', mood: 'bright' });
     const r = shell.querySelector('.space-node').getBoundingClientRect(); light.burst(r.x, r.y, 36);
     motion.tone(4, true);
   }
   function noteDrag() {
+    adventure.record('light-moved');
+    if (shell.dataset.silence === 'true') return;
     if (talking || performance.now() - lastRemark < 4200) return;
     lastRemark = performance.now(); dragCount++;
     const lines = ['对，就是这样！', '哇，\n这个弯是你拉的？', '别松——\n算了，松了也好看。'];
-    speak(lines[(dragCount - 1) % lines.length], { mood: dragCount % 2 ? 'bright' : 'thought', note: '可以继续拉。没有标准答案。' });
+    speak(lines[(dragCount - 1) % lines.length], { mood: dragCount % 2 ? 'bright' : 'thought', note: '' });
     motion.tone(dragCount, true);
   }
 
@@ -357,6 +348,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
     const el = event.target.closest('button, a'); if (!el || !shell.contains(el) || leaving) return;
     cancelPassage(shell);
     if (el.matches('[data-talk]')) converse();
+    else if (el.matches('[data-return]')) void sendBack();
     else if (el.matches('[data-map]')) toggleMap();
     else if (el.matches('[data-sound]')) {
       motion.setSound(!motion.sound); el.setAttribute('aria-pressed', String(motion.sound)); el.setAttribute('aria-label', motion.sound ? '关闭声音' : '开启声音');
@@ -365,15 +357,16 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
       const external = site === 'blog' && next === 'home' || site === 'home' && next === 'blog';
       if (!external && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); selectRoom(next, { push: true }); }
     } else if (el.matches('[data-touch-light]')) {
+      adventure.record('touch');
       light.turn();
       void motion.layout([voicePlace, ...nav.children], () => { shell.dataset.shift = shell.dataset.shift === 'true' ? 'false' : 'true'; }, 16);
       const r = el.getBoundingClientRect(); light.burst(r.x + r.width / 2, r.y + r.height / 2, 42);
       motion.tone(3, true);
       void motion.animate(el, [{ scale: '1' }, { scale: '1.8', offset: .25 }, { scale: '.8', offset: .6 }, { scale: '1' }], { duration: 850 });
-      speak('喂，\n我刚调好的！', { mood: 'bright', note: '……再碰一下也行。' });
+      speak('喂，\n我刚调好的！', { mood: 'bright', note: '' });
     } else if (el.matches('[data-save]')) saveLight();
     else if (el.matches('[data-reset]')) {
-      nodes = cloneNodes(INITIAL_LIGHT); updateNodes(); speak('重新来。\n这次你先。', { note: HEADINGS.lab[1] });
+      nodes = cloneNodes(INITIAL_LIGHT); updateNodes(); if (shell.dataset.silence !== 'true') speak('重新来。\n这次你先。', { note: '' });
     } else if (el.matches('[data-revision]')) showRevision(Number(el.dataset.revision));
     else if (el.matches('[data-previous]')) showRevision(revisionIndex - 1);
     else if (el.matches('[data-next]')) showRevision(revisionIndex + 1);
@@ -386,7 +379,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
     }
   });
   listen(shell, 'pointerdown', event => {
-    const el = event.target.closest('[data-node]'); if (drag || !el || room !== 'lab' || event.button !== 0) return;
+    const el = event.target.closest('.space-node'); if (drag || !el || room !== 'lab' || event.button !== 0) return;
     const rect = shell.querySelector('.space-rig').getBoundingClientRect();
     drag = { index: Number(el.dataset.node), id: event.pointerId, el, rect, moved: false };
     el.setPointerCapture(event.pointerId); el.dataset.dragging = 'true';
@@ -408,7 +401,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
     } else if (!articleOpen && room !== 'blog') light.pointer(event.clientX, event.clientY);
   }, { passive: true });
   listen(shell, 'keydown', event => {
-    const el = event.target.closest('[data-node]');
+    const el = event.target.closest('.space-node');
     const direction = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[event.key];
     if (!el || !direction) return;
     event.preventDefault(); const i = Number(el.dataset.node), step = event.shiftKey ? .05 : .012;
@@ -435,8 +428,8 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
   listen(window, 'p34:send-back', sendBack); listen(window, 'paper:return', sendBack);
 
   async function sendBack() {
-    if (leaving) return; leaving = true; closeConversation();
-    speak('好。\n下次还来找我。', { note: '' });
+    if (leaving) return; leaving = true; adventure.closeScene(); closeConversation();
+    if (shell.dataset.silence !== 'true') speak('好。\n下次还来找我。', { note: '' });
     await playPassage(shell, normalPage, motion, false);
     if (disposed) return;
     const url = new URL(originalURL); url.searchParams.delete('paper'); url.searchParams.delete('room');
@@ -458,9 +451,12 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
   }
   listen(window, 'pagehide', cleanup, { once: true });
   active.set(html, cleanup);
+  const adventure = mountAdventure({ shell, site, motion, speak, dialogue, quiet: closeConversation,
+    go: next => selectRoom(next, { push: true }), getRoom: () => room, getSketches: () => sketches,
+    leave: sendBack, cookie, signal });
   selectRoom(room, { announce: false }); updateNodes();
   if (site === 'blog') fromLocation();
-  else speak(headingForRoom(), { note: HEADINGS[room][1], animate: true, origins: sources });
+  else speak(headingForRoom(), { note: '', animate: true, origins: sources });
   if (storageError && room === 'archive') speak('这里还不能保存。', { note: '浏览器限制了本地存储。实验仍然可以玩。' });
   void playPassage(shell, normalPage, motion, true);
   return cleanup;
