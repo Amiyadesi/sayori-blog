@@ -193,6 +193,19 @@ export function createMotion(signal) {
     oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
   }
 
+  function impact(kind = 'brick', pitch = 0) {
+    if (!sound || document.hidden) return;
+    audio ||= new AudioContext();
+    if (audio.state === 'suspended') void audio.resume();
+    const shape = { brick:[680,160,.075,'triangle'], paddle:[330,110,.09,'sine'], bomb:[150,38,.23,'triangle'], laser:[1700,90,.32,'sawtooth'], boost:[470,1150,.13,'triangle'], wall:[360,240,.04,'sine'] }[kind];
+    const now=audio.currentTime, oscillator=audio.createOscillator(), gain=audio.createGain(), filter=audio.createBiquadFilter();
+    oscillator.type=shape[3];oscillator.frequency.setValueAtTime(shape[0]*(1+pitch*.055),now);oscillator.frequency.exponentialRampToValueAtTime(shape[1],now+shape[2]);
+    filter.type='lowpass';filter.frequency.value=kind==='laser'?2100:3200;
+    gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(kind==='bomb'?.13:.075,now+.004);gain.gain.exponentialRampToValueAtTime(.0001,now+shape[2]);
+    oscillator.connect(filter);filter.connect(gain);gain.connect(audio.destination);oscillator.start(now);oscillator.stop(now+shape[2]+.01);
+    oscillator.onended=()=>{oscillator.disconnect();filter.disconnect();gain.disconnect();};
+  }
+
   function stop() { animations.forEach(a => a.cancel()); }
   media.addEventListener('change', () => { if (reduced()) stop(); }, { signal });
   window.addEventListener('paper:motion', e => { still = e.detail === false; if (reduced()) stop(); }, { signal });
@@ -200,7 +213,7 @@ export function createMotion(signal) {
   signal.addEventListener('abort', () => { stop(); particles.forEach(p => p.remove()); if (audio) void audio.close(); }, { once: true });
 
   return {
-    animate, layout, assemble, liftGlyphs, decode, burst, tone, reduced, cancelText(el) { textJobs.delete(el); },
+    animate, layout, assemble, liftGlyphs, decode, burst, tone, impact, reduced, cancelText(el) { textJobs.delete(el); },
     get sound() { return sound; },
     setSound(value) { sound = value; if (sound) tone(0, true); },
   };

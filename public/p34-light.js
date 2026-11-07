@@ -157,12 +157,14 @@ export function createLightSpace(canvas, { signal, reduced }) {
 
   function drawPresence(t) {
     if (presence < .01) return;
-    ctx.save(); ctx.globalAlpha = presence * .27;
-    const scale = Math.min(w / 1500, h / 900);
+    ctx.save(); ctx.globalAlpha = presence * .53;
+    const scale = Math.min(w / 1350, h / 810);
     ctx.translate(w * (w < 650 ? .59 : .62) + pointer[0] * 7, h * .32 + pointer[1] * 4);
     ctx.scale(scale, scale);
     const profile = new Path2D('M-68-102 C17-126 66-79 62-27 C67-6 84 6 98 16 Q103 23 87 28 L87 39 Q99 46 87 51 Q92 67 72 72 C42 77 41 93 56 117 Q81 144 137 161');
-    ctx.strokeStyle = '#e4cfff'; ctx.lineWidth = .9; ctx.shadowColor = '#c1baff'; ctx.shadowBlur = 10; ctx.stroke(profile);
+    ctx.strokeStyle = '#e4cfff'; ctx.lineWidth = 1.2; ctx.shadowColor = '#c1baff'; ctx.shadowBlur = 13; ctx.stroke(profile);
+    ctx.globalAlpha = presence * .16;
+    ctx.stroke(new Path2D('M-68-102 C-141-42-113 37-153 88 M56 117 C32 173 54 233 15 302 M137 161 C122 200 102 212 86 236'));
     ctx.restore();
     for (let i = 0; i < 3; i++) {
       ribbon(u => {
@@ -197,6 +199,7 @@ export function createLightSpace(canvas, { signal, reduced }) {
     ribbon(u => [w * (1.11 - u * 1.38) - pointer[0] * 12, h * (.11 + .74 * u + .2 * Math.sin(u * TAU + bend * .2)) + pointer[1] * 10], w * .04, 1.9, calm ? .23 : .66);
     if (!calm) ribbon(u => [w * (-.2 + 1.45 * u), h * (.99 - .16 * Math.sin(u * Math.PI))], w * .046, .4, .9);
     drawPresence(t);
+    if (room === 'home') ribbon(u => [w * (.27 + u * .74), h * (.75 - .29 * u + .13 * Math.sin(u * TAU + .3))], w * .019, 1.4, .76);
     ctx.save(); ctx.globalCompositeOperation = 'screen';
     for (let i = 0; i < (w < 650 ? 11 : 23); i++) {
       const x = ((i * 173.19 + 90) % 997) / 997 * w + pointer[0] * (i % 5), y = ((i * 97.13 + 150) % 899) / 899 * h;

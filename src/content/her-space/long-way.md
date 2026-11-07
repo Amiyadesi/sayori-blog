@@ -1,27 +1,38 @@
 ---
-title: 双月亮后面
-description: 一条不在最短路线上的岔路。
+title: 球甩到右边去了
+description: 初稿里留下的一个开口
 draft: false
 ---
 
-纸燕最早只需要往上飞。我测试的时候总在第二个落点发呆，错过时机，一头冲到右边。
+最早那份挡板有点滑
+往右挪着接球，球也跟着往右跑
 
-飞过去那么多次，总不能永远什么都没有吧。我在那里放了两轮月亮。一大一小，挤在一起。现在绕路比原来的路线还显眼，完全是偏心。
+我原来只打算让落点影响角度，试了几回，又舍不得删掉这一截惯性
+停着接、迎上去接、快碰到时猛地横着一抽，打出去不太一样
 
-最早没在这儿加奖励。绕到了，就在那里多待一会儿。后来做完整航图，才放了一片羽毛；初稿还是原样。纸燕围着它们转的时候，看起来好像两轮月亮也在互相追。
+后来试自动瞄准，命中是准了
+不管挡板怎么动，球都盯着砖块走
 
-下面这张是随手描的：左边那条折回去的线，接到正常终点；**从双月亮继续往右上飞，还有一处没画进正式路线。** 我试落点的时候会去那里。那里没有终点，也不用证明自己飞得很好。
+这张图还留着旧的回球方式
+往右带着接，线会越过砖块那边
 
-<div data-route-diagram>
-<svg viewBox="0 0 660 370" role="img" aria-label="路线图：从左下的单月飞往中央的双月；正式路线折向左上，另一条虚线越过右上方的纸边。">
-<path d="M80 300 Q170 230 300 205 Q195 160 130 55" fill="none" stroke="#d3efff" stroke-width="2"/>
-<path data-route-ink d="M310 195 Q410 100 590 70" fill="none" stroke="#e5cfff" stroke-width="2" stroke-dasharray="5 10"/>
-<g fill="#dcf5ff"><path d="M100 280a24 24 0 1 0 0 40a30 30 0 0 1 0-40"/><path d="M147 34a24 24 0 1 0 0 40a30 30 0 0 1 0-40"/></g>
-<g fill="#e0cfff"><path d="M310 178a28 28 0 1 0 0 47a36 36 0 0 1 0-47"/><path d="M349 156a21 21 0 1 0 0 35a27 27 0 0 1 0-35"/></g>
-<path d="m582 61 20 7-14 17" fill="none" stroke="#e5cfff" stroke-width="2"/>
+<div data-return-diagram>
+<svg viewBox="0 0 960 600" role="img" aria-label="初稿的回球草图，移动挡板观察右侧开口">
+<g data-return-bricks fill="#c3edff88"></g>
+<path d="M640 220V480" fill="none" stroke="#d3eaff66" stroke-dasharray="5 9"/>
+<path data-return-ink d="M640 480V125" fill="none" stroke="#d3f6ff" stroke-width="3"/>
+<rect data-return-pad x="576" y="489" width="128" height="12" rx="5" fill="#e5f8ff"/>
+<circle cx="640" cy="480" r="8" fill="white"/>
+<path data-edge d="M928 162h28v246h-28" fill="none" stroke="#ead3ff" stroke-width="3"/>
 </svg>
-<button type="button" role="slider" aria-label="沿虚线描路线，拖动或用方向键" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><svg viewBox="0 0 40 32" aria-hidden="true"><path d="M38 16 2 2 12 16 2 30Z"/></svg></button>
+<label><span>左侧接</span><input type="range" min="-90" max="90" value="0" aria-label="试着向右甩球"><span>右侧接</span></label>
 <a href="https://sayori.org/?paper=0617&amp;room=archive" hidden>带着图回旧稿</a>
 </div>
 
-不要再问我月亮为什么能停纸燕。问就是还没给月亮写拒收功能。
+最早试球的时候，右边没封严
+球能从半空那截出去，后面是我摆没做完的关卡的地方
+
+正式版封上了
+这份试稿没动，自动瞄准那份也到不了那儿
+
+有时不想看满屏的砖，我就从这里进去
