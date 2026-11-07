@@ -1,8 +1,8 @@
-import { createMotion } from './p34-motion.js?v=20261107-juice';
+import { createMotion } from './p34-motion.js?v=20261107-residue';
 import { WORLD_COOKIE_KEY, advanceEncounterState, readWorldCookie, serializeWorldState, createWorldSession } from './p34-living.js?v=20261104-flow';
-import { createLightSpace, INITIAL_LIGHT, readSketches } from './p34-light.js?v=20261107-juice';
+import { createLightSpace, INITIAL_LIGHT, readSketches } from './p34-light.js?v=20261107-residue';
 import { capturePage, playPassage, cancelPassage } from './p34-passage.js?v=20261104-flow';
-import { mountAdventure } from './p34-adventure.js?v=20261107-juice';
+import { mountAdventure } from './p34-adventure.js?v=20261107-residue';
 
 export const SKETCH_KEY = 'p34-light-sketches-v1';
 export const ROOMS = ['home', 'works', 'lab', 'blog', 'archive', 'guestbook'];
@@ -36,7 +36,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
       style.addEventListener('load', resolve, { once: true });
       style.addEventListener('error', () => reject(new Error('Space stylesheet failed to load')), { once: true });
       if (ownedStyle) {
-        style.rel = 'stylesheet'; style.href = site === 'blog' ? '/p34-reading.css?v=20261107-juice' : '/p34-luminous.css?v=20261107-juice';
+        style.rel = 'stylesheet'; style.href = site === 'blog' ? '/p34-reading.css?v=20261107-residue' : '/p34-luminous.css?v=20261107-residue';
         style.dataset.p34SpaceStyle = ''; document.head.append(style);
       }
     });
@@ -174,7 +174,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
     }
   }
   function updateNav() {
-    shell.querySelector('[data-return]').hidden = !menu && shell.dataset.silence !== 'true';
+    shell.querySelector('[data-return]').hidden = site !== 'blog' && !menu && shell.dataset.silence !== 'true';
     nav.querySelectorAll('a').forEach(link => {
       const dest = link.dataset.roomLink;
       const homeLinks = shell.dataset.silence === 'true' ? ['archive', 'blog'] : ['works', 'lab', 'blog'];
@@ -242,7 +242,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
     if (room === 'archive') renderHistory();
     adventure.room(room, announce);
     document.title = `${LABELS[room]} · 她的空间`;
-    if (push) { window.scrollTo({ top: 0, behavior: 'instant' }); voice.tabIndex = -1; voice.focus({ preventScroll: true }); }
+    if (push) { window.scrollTo({ top: 0, behavior: 'instant' }); voice.tabIndex = -1; (shell.dataset.silence==='true'?shell.querySelector('.residue-back:not([hidden]),.residue-remnants:not([hidden]) a'):voice).focus({ preventScroll: true }); }
     later(updateRig, 650);
   }
 
@@ -398,7 +398,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
       nodes[drag.index] = [Math.max(.04, Math.min(.96, (event.clientX - drag.rect.x) / drag.rect.width)), Math.max(.04, Math.min(.96, (event.clientY - drag.rect.y) / drag.rect.height))];
       drag.moved = true;
       placeNode(drag.index, drag.rect); light.shape(nodes, drag.rect);
-    } else if (!articleOpen && room !== 'blog') light.pointer(event.clientX, event.clientY);
+    } else if (!articleOpen && room !== 'blog' && shell.dataset.silence!=='true' && !shell.dataset.experience) light.pointer(event.clientX, event.clientY);
   }, { passive: true });
   listen(shell, 'keydown', event => {
     const el = event.target.closest('.space-node');
@@ -458,6 +458,6 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
   if (site === 'blog') fromLocation();
   else speak(headingForRoom(), { note: '', animate: true, origins: sources });
   if (storageError && room === 'archive') speak('这里暂时存不下来', { note: '浏览器限制了本地存储，实验仍然可以玩' });
-  void playPassage(shell, normalPage, motion, true);
+  if(shell.dataset.silence!=='true'&&shell.dataset.reunion!=='true')void playPassage(shell, normalPage, motion, true);
   return cleanup;
 }

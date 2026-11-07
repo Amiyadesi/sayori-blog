@@ -14,6 +14,7 @@
 .breakout-power[data-ready=true] .breakout-charge-label { visibility:hidden; }
 .breakout-power[data-ready=true] .breakout-energy { box-shadow:0 0 14px #bde9ff77; }
 .breakout-power[data-ready=true] .breakout-energy i { background:var(--breakout-bright); }
+.breakout-power[data-firing=true] .breakout-energy i { transition:none; background:var(--breakout-bright); }
 #p34-space .breakout-power [data-power]:hover { color:white; text-shadow:0 0 12px #d6f1ff; }
 #p34-space .breakout-power [data-power]:active { transform:translateY(2px); }
 #p34-space .breakout-pause { position:absolute; top:max(10px,env(safe-area-inset-top)); right:5%; min-height:44px; font-size:16px; color:var(--space-ink); }

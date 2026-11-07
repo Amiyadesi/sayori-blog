@@ -1,10 +1,10 @@
-import { BreakoutGame } from './p34-breakout-core.js?v=20261107-juice';
-import { STAGES, SAMPLE, WORKSHOP } from './p34-breakout-levels.js?v=20261107-juice';
-import { lightPoint } from './p34-light.js?v=20261107-juice';
+import { BreakoutGame, LASER_DURATION } from './p34-breakout-core.js?v=20261107-residue';
+import { STAGES, SAMPLE, WORKSHOP } from './p34-breakout-levels.js?v=20261107-residue';
+import { lightPoint } from './p34-light.js?v=20261107-residue';
 
 const keys=['launches','returns','misses','clears','hits','perfect'];
 export function playDelta(report, previous) {
-  if(!report||!['ready','stage','launch','return','miss','clear','play','place','found','exit'].includes(report.kind))throw new Error('未知游戏事件');
+  if(!report||!['ready','stage','launch','return','miss','clear','play','place','exit'].includes(report.kind))throw new Error('未知游戏事件');
   if(!Number.isInteger(report.elapsed)||report.elapsed<0||!report.counts)throw new Error('游戏记录格式有误');
   const current={...report.counts,seconds:report.elapsed},delta={};
   for(const key of [...keys,'seconds']){
@@ -38,7 +38,7 @@ export function mountBreakout(shell,{state,edition='draft',mode='campaign',previ
       path=Array.from({length:65},(_,i)=>{const [x,y]=lightPoint(state.lightSketch,i/64);return `${i?'L':'M'}${x*100} ${y*60}`;}).join(' ');label='你们留下的光';
     }else if(state.keepsake==='round'&&state.keptReturn){
       const [offset,angle]=state.keptReturn;
-      path=`M40 4V52L${40+Math.cos(angle)*56} ${52+Math.sin(angle)*56} M${40-(offset+1)*14} 57h28`;label='找到她时的那次回球';
+      path=`M40 4V52L${40+Math.cos(angle)*56} ${52+Math.sin(angle)*56} M${40-(offset+1)*14} 57h28`;label='你们玩过的那次回球';
     }
     if(path)root.insertAdjacentHTML('beforeend',`<svg class="breakout-keepsake" viewBox="-20 -8 130 76" role="img" aria-label="${label}"><path d="${path}" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>`);
   }
@@ -53,7 +53,8 @@ export function mountBreakout(shell,{state,edition='draft',mode='campaign',previ
     workshopX:mode==='workshop'?previous?state.workshop.kept:state.workshop.x:null});
   let totals=Object.fromEntries(keys.map(k=>[k,0])),elapsed=0,previousReport={},lastReport=0;
   let frame=0,last=0,accumulator=0,paused=false,disposed=false,target=null,attract=false,drag=null,hold=0;
-  let particles=[],ripples=[],trail=[],ghosts=[],beam=0,recoil=0,swing=0,shake=0,feedbackUntil=0,wallFlash=null,charged=false;
+  let particles=[],ripples=[],trail=[],ghosts=[],recoil=0,swing=0,shake=0,feedbackUntil=0,wallFlash=null,charged=false;
+  const laserSound=motion.sustain('laser');
   const pressed=new Set(),sprites=new Map(),jolts=new Map();let scale=1,dpr=1,lastUI='';
 
   function report(kind,extra={}) {
@@ -64,21 +65,25 @@ export function mountBreakout(shell,{state,edition='draft',mode='campaign',previ
   function feedback(text,seconds=1.2) { $('.breakout-feedback').textContent=text;feedbackUntil=text?performance.now()+seconds*1000:0; }
   function soundLabel() { $('[data-audio]').textContent=motion.sound?'声音开':'声音关';$('[data-audio]').setAttribute('aria-pressed',String(motion.sound)); }
   function ui() {
-    const energy=Math.floor(game.energy),key=[stage,game.status,game.score,game.lives,energy,game.workshopX].join('/');
+    const energy=Math.floor(game.energy),firing=game.laserTime>0,key=[stage,game.status,game.score,game.lives,energy,game.workshopX,game.laserTime.toFixed(1)].join('/');
     if(key===lastUI)return;lastUI=key;
     root.dataset.status=game.status;
-    const title=mode==='campaign'?`${stage+1} / ${STAGES.length}　${game.level.name}`:mode==='trial'?({draft:'初稿',tuned:'改手感',guided:'自动瞄准'})[edition]:mode==='seeking'?'留下的试稿':'工作间';
+    const title=mode==='campaign'?`${stage+1} / ${STAGES.length}　${game.level.name}`:mode==='trial'?({draft:'初稿',tuned:'改手感',guided:'自动瞄准'})[edition]:'工作间';
     $('[data-stage]').textContent=title;$('[data-lives]').textContent='●'.repeat(game.lives)+'○'.repeat(3-game.lives);
     $('[data-lives]').setAttribute('aria-label',`剩余 ${game.lives} 次`);$('[data-score]').textContent=game.score.toLocaleString();
-    const ready=energy===100&&game.status==='playing',meter=$('.breakout-energy');
-    meter.style.setProperty('--charge',energy/100);meter.setAttribute('aria-valuenow',String(energy));
-    meter.setAttribute('aria-valuetext',ready?'大招就绪':`${energy} / 100`);
-    $('[data-charge]').textContent=`${energy} / 100`;$('[data-power]').hidden=!ready;
+    const ready=energy===100&&game.status==='playing'&&!firing,meter=$('.breakout-energy');
+    const charge=firing?game.laserTime/LASER_DURATION:energy/100;
+    meter.style.setProperty('--charge',charge);meter.setAttribute('aria-valuenow',String(Math.round(charge*100)));
+    meter.setAttribute('aria-label',firing?'激光剩余时长':'大招能量');
+    meter.setAttribute('aria-valuetext',firing?`${game.laserTime.toFixed(1)} 秒`:ready?'大招就绪':`${energy} / 100`);
+    $('.breakout-charge-label span').textContent=firing?'扫射':'大招';
+    $('.breakout-power').dataset.firing=String(firing);
+    $('[data-charge]').textContent=firing?`${game.laserTime.toFixed(1)} s`:`${energy} / 100`;$('[data-power]').hidden=!ready;
     $('[data-power]').textContent=touch?'激光 · 点此释放':'激光　R';$('.breakout-power').dataset.ready=String(ready);
     if(ready&&!charged){feedback('大招好了',1);motion.tone(5,true);}charged=ready;
     start.hidden=game.status!=='ready';
     start.style.top=`${(Math.max(...game.bricks.map(b=>b.y+b.h/2))+game.paddle.y-game.paddle.h/2)/2/game.height*100}%`;
-    start.querySelector('h2').textContent=game.stats.misses?'再来':mode==='campaign'?game.level.name:mode==='workshop'?'挪一下，再打':mode==='seeking'?'右边有一处缺口':'';
+    start.querySelector('h2').textContent=game.stats.misses?'再来':mode==='campaign'?game.level.name:mode==='workshop'?'挪一下，再打':'';
     start.querySelector('p').textContent=game.stats.launches===0?(touch?'拖动挡板 · 点「击打」发球':'移动鼠标 · 点击发球'):touch?'点「击打」发球':'点击发球';
     if(game.status==='ready'&&mode==='workshop'&&!previous)start.querySelector('p').textContent='先挪中间的菱形，再发球';
     const bomb=$('.breakout-bomb-handle');bomb.hidden=mode!=='workshop'||game.status!=='ready'||previous;
@@ -96,6 +101,7 @@ export function mountBreakout(shell,{state,edition='draft',mode='campaign',previ
   }
   function pause(value) {
     paused=value;menu.hidden=!value;root.dataset.paused=String(value);pressed.clear();target=null;attract=false;clearTimeout(hold);drag=null;
+    if(value)laserSound.stop();
     if(value) {
       report('play');soundLabel();const select=$('select');select.replaceChildren();
       for(let i=0;i<=unlocked;i++){const o=document.createElement('option');o.value=i;o.textContent=`${i+1}　${STAGES[i].name}`;o.selected=i===stage;select.append(o);}
@@ -106,7 +112,7 @@ export function mountBreakout(shell,{state,edition='draft',mode='campaign',previ
     elapsed+=game.sessionTime;for(const key of keys)totals[key]+=game.stats[key];
     stage=next;game=new BreakoutGame({...size(),level:mode==='campaign'?STAGES[stage]:mode==='workshop'?WORKSHOP:SAMPLE,edition,mode,
       workshopX:mode==='workshop'?game.workshopX:null});
-    trail=[];particles=[];ripples=[];ghosts=[];jolts.clear();beam=recoil=swing=shake=0;wallFlash=null;feedback('',0);charged=false;target=null;last=0;lastReport=0;accumulator=0;result.hidden=true;pause(false);ui();report('stage');
+    laserSound.stop();trail=[];particles=[];ripples=[];ghosts=[];jolts.clear();recoil=swing=shake=0;wallFlash=null;feedback('',0);charged=false;target=null;last=0;lastReport=0;accumulator=0;result.hidden=true;pause(false);ui();report('stage');
   }
   function primary() {
     if(paused)return;
@@ -123,7 +129,7 @@ export function mountBreakout(shell,{state,edition='draft',mode='campaign',previ
   function events() {
     let tones=0,bombSound=false;
     for(const e of game.events.splice(0)) {
-      if(['launch','return','miss','clear','place','found'].includes(e.kind))report(e.kind,e);
+      if(['launch','return','miss','clear','place'].includes(e.kind))report(e.kind,e);
       if(e.kind==='hit'){
         const angle=Math.atan2(e.vy,e.vx);jolts.set(e.id,{life:.22,dx:Math.cos(angle),dy:Math.sin(angle)});
         kick(e.hp?4.5:6);if(e.hp)burst(e.x,e.y,e.kindOfBrick,5,angle+Math.PI);
@@ -135,10 +141,9 @@ export function mountBreakout(shell,{state,edition='draft',mode='campaign',previ
       if(e.kind==='swing'||e.kind==='launch')swing=.18;
       if(e.kind==='boost'){recoil=.2;feedback(e.perfect?'漂亮':'打到了',.7);kick(e.perfect?10:6);motion.impact('boost',e.perfect?3:0);}
       if(e.kind==='wall'){wallFlash={...e,life:.13};kick(2);if(tones++<3)motion.impact('wall');}
-      if(e.kind==='laser'){beam=.3;recoil=.2;kick(13);motion.impact('laser');feedback('',0);}
+      if(e.kind==='laser'){recoil=.2;kick(13);motion.impact('laser');feedback('',0);}
       if(e.kind==='miss'){trail=[];feedback('',0);motion.tone(0,true);if(game.status==='lost')resultPanel();}
       if(e.kind==='clear'){unlocked=Math.max(unlocked,Math.min(STAGES.length-1,stage+1));motion.tone(5,true);resultPanel();}
-      if(e.kind==='found'){finish();return;}
       if(e.kind==='launch'&&game.level.tip&&mode==='campaign')feedback(game.level.tip,3);
     }
   }
@@ -173,12 +178,6 @@ export function mountBreakout(shell,{state,edition='draft',mode='campaign',previ
       ctx.restore();
     }
     for(const [id,jolt] of jolts){jolt.life-=dt;if(jolt.life<=0)jolts.delete(id);}
-    if(mode==='seeking') {
-      const y1=game.height*.27,y2=game.height*.68;
-      const glow=ctx.createLinearGradient(game.width-65,0,game.width,0);glow.addColorStop(0,'#b5d9ff00');glow.addColorStop(1,'#d3bfff55');
-      ctx.fillStyle=glow;ctx.fillRect(game.width-65,y1,65,y2-y1);
-      ctx.strokeStyle='#e6d7ff';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(game.width-3,y1);ctx.lineTo(game.width-16,y1);ctx.moveTo(game.width-3,y2);ctx.lineTo(game.width-16,y2);ctx.stroke();
-    }
     const b=game.ball,p=game.paddle;
     if(game.status==='playing'&&!paused) {trail.push({x:b.x,y:b.y});if(trail.length>16)trail.shift();}
     for(let i=1;i<trail.length;i++) {
@@ -206,7 +205,11 @@ export function mountBreakout(shell,{state,edition='draft',mode='campaign',previ
     ctx.globalAlpha=1;particles=particles.filter(p=>p.life>0);
     for(const ring of ripples){ring.life-=dt;ring.r+=game.width*.7*dt;ctx.globalAlpha=Math.max(0,ring.life*2);ctx.strokeStyle='#e7d8ff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(ring.x,ring.y,ring.r,0,Math.PI*2);ctx.stroke();}
     ctx.globalAlpha=1;ripples=ripples.filter(r=>r.life>0);
-    if(beam>0){ctx.globalAlpha=beam/.3;ctx.fillStyle='#bddfff40';ctx.fillRect(p.x-32,90,64,p.y-90);ctx.fillStyle='#aadeff88';ctx.fillRect(p.x-15,90,30,p.y-90);ctx.fillStyle='#edfaff';ctx.fillRect(p.x-5,90,10,p.y-90);ctx.globalAlpha=1;beam=Math.max(0,beam-dt);}
+    if(game.laserTime>0){
+      ctx.globalAlpha=Math.min(1,game.laserTime/.18);ctx.fillStyle='#bddfff40';ctx.fillRect(p.x-32,90,64,p.y-90);
+      ctx.fillStyle='#aadeff88';ctx.fillRect(p.x-15,90,30,p.y-90);ctx.fillStyle='#edfaff';ctx.fillRect(p.x-5,90,10,p.y-90);
+      ctx.beginPath();ctx.ellipse(p.x,p.y-7,24,7,0,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+    }
     if(wallFlash){wallFlash.life-=dt;ctx.globalAlpha=Math.max(0,wallFlash.life*5);ctx.strokeStyle='#cff4ff';ctx.lineWidth=3;ctx.beginPath();
       if(wallFlash.wall==='top'){ctx.moveTo(wallFlash.x-50,91);ctx.lineTo(wallFlash.x+50,91);}else{const x=wallFlash.wall==='left'?1:game.width-1;ctx.moveTo(x,wallFlash.y-60);ctx.lineTo(x,wallFlash.y+60);}ctx.stroke();ctx.globalAlpha=1;if(wallFlash.life<=0)wallFlash=null;}
     ctx.restore();recoil=Math.max(0,recoil-dt);swing=Math.max(0,swing-dt);shake=Math.max(0,shake-dt*55);
@@ -226,6 +229,7 @@ export function mountBreakout(shell,{state,edition='draft',mode='campaign',previ
       ui();draw(dt);
       if(feedbackUntil&&now>feedbackUntil){$('.breakout-feedback').textContent='';feedbackUntil=0;}
     }
+    laserSound.update(!paused&&game.laserTime>0,game.paddle.x/game.width*2-1);
     frame=requestAnimationFrame(tick);
   }
   const position=e=>(e.clientX-root.getBoundingClientRect().left)/scale;
@@ -263,7 +267,7 @@ export function mountBreakout(shell,{state,edition='draft',mode='campaign',previ
   listen(document,'visibilitychange',()=>{if(document.hidden)pause(true);});
   listen($('[data-pause]'),'click',()=>pause(true));listen($('[data-resume]'),'click',()=>pause(false));
   listen($('[data-retry]'),'click',()=>reload());listen($('[data-back]'),'click',finish);listen($('[data-finish]'),'click',finish);
-  listen($('[data-next]'),'click',primary);listen($('[data-bump]'),'pointerdown',e=>{e.preventDefault();primary();});listen($('[data-power]'),'click',()=>game.laser());
+  listen($('[data-next]'),'click',primary);listen($('[data-bump]'),'pointerdown',e=>{e.preventDefault();primary();});listen($('[data-power]'),'click',()=>{game.laser();canvas.focus({preventScroll:true});});
   listen($('[data-bump]'),'click',e=>{if(e.detail===0)primary();});
   listen($('[data-audio]'),'click',()=>{motion.setSound(!motion.sound);soundLabel();});
   listen($('select'),'change',e=>reload(Number(e.target.value)));
@@ -274,5 +278,5 @@ export function mountBreakout(shell,{state,edition='draft',mode='campaign',previ
   listen(handle,'keydown',e=>{if(!['ArrowLeft','ArrowRight'].includes(e.key))return;e.preventDefault();game.moveBomb(game.workshopX+(e.key==='ArrowLeft'?-35:35));events();ui();});
   const observer=new ResizeObserver(resize);observer.observe(root);resize();report('ready');soundLabel();canvas.focus({preventScroll:true});
   frame=requestAnimationFrame(tick);
-  return ()=>{disposed=true;controller.abort();observer.disconnect();clearTimeout(hold);cancelAnimationFrame(frame);root.remove();delete shell.dataset.experience;};
+  return ()=>{disposed=true;laserSound.dispose();controller.abort();observer.disconnect();clearTimeout(hold);cancelAnimationFrame(frame);root.remove();delete shell.dataset.experience;};
 }

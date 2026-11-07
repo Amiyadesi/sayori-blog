@@ -206,6 +206,39 @@ export function createMotion(signal) {
     oscillator.onended=()=>{oscillator.disconnect();filter.disconnect();gain.disconnect();};
   }
 
+  function sustain(kind) {
+    let source=null, gain, filter, pan;
+    const stop=()=>{
+      if(!source)return;
+      const old=source, oldGain=gain, oldFilter=filter, oldPan=pan;
+      source=null;oldGain.gain.setTargetAtTime(.0001,audio.currentTime,.025);old.stop(audio.currentTime+.12);
+      old.onended=()=>{old.disconnect();oldGain.disconnect();oldFilter.disconnect();oldPan.disconnect();};
+    };
+    signal.addEventListener('abort',stop,{once:true});
+    return {
+      update(active,position=0){
+        if(!active||!sound||document.hidden){stop();return;}
+        audio ||= new AudioContext();
+        if(audio.state==='suspended')void audio.resume();
+        if(!source){
+          gain=audio.createGain();filter=audio.createBiquadFilter();pan=audio.createStereoPanner();
+          filter.type='lowpass';filter.frequency.value=kind==='laser'?1100:380;
+          if(kind==='laser'){
+            source=audio.createOscillator();source.type='sawtooth';source.frequency.value=96;
+          }else{
+            const buffer=audio.createBuffer(1,audio.sampleRate*2,audio.sampleRate),data=buffer.getChannelData(0);
+            for(let i=0;i<data.length;i++)data[i]=Math.random()*2-1;
+            source=audio.createBufferSource();source.buffer=buffer;source.loop=true;
+          }
+          gain.gain.value=0;source.connect(filter);filter.connect(gain);gain.connect(pan);pan.connect(audio.destination);
+          source.start();gain.gain.setTargetAtTime(kind==='laser'?.038:.028,audio.currentTime,.18);
+        }
+        pan.pan.setTargetAtTime(Math.max(-.7,Math.min(.7,position)),audio.currentTime,.12);
+        filter.frequency.setTargetAtTime(kind==='laser'?1050+Math.abs(position)*420:260+Math.abs(position)*360,audio.currentTime,.18);
+      }, stop, dispose(){stop();signal.removeEventListener('abort',stop);},
+    };
+  }
+
   function stop() { animations.forEach(a => a.cancel()); }
   media.addEventListener('change', () => { if (reduced()) stop(); }, { signal });
   window.addEventListener('paper:motion', e => { still = e.detail === false; if (reduced()) stop(); }, { signal });
@@ -213,7 +246,7 @@ export function createMotion(signal) {
   signal.addEventListener('abort', () => { stop(); particles.forEach(p => p.remove()); if (audio) void audio.close(); }, { once: true });
 
   return {
-    animate, layout, assemble, liftGlyphs, decode, burst, tone, impact, reduced, cancelText(el) { textJobs.delete(el); },
+    animate, layout, assemble, liftGlyphs, decode, burst, tone, impact, sustain, reduced, cancelText(el) { textJobs.delete(el); },
     get sound() { return sound; },
     setSound(value) { sound = value; if (sound) tone(0, true); },
   };

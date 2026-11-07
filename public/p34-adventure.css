@@ -1,3 +1,5 @@
+@import url('/p34-residue.css?v=20261107-residue');
+
 #p34-space .space-under-voice:empty { display:none; }
 #p34-space .space-replies button { font-size:17px; min-height:42px; }
 #p34-space .space-tools button { font-size:15px; }
@@ -18,9 +20,6 @@
 .space-work-experiment:hover { transform:perspective(900px) rotateY(-10deg) rotateZ(3deg) translateY(-6px); }
 #p34-space .journey-archive-launch { position:absolute; left:14%; top:52svh; font:300 clamp(27px,3vw,44px)/1.5 var(--space-serif); min-height:65px; border-bottom:1px solid #c3dcff77; }
 #p34-space .journey-letter-status { font-size:15px; margin-top:20px; }
-#p34-space[data-silence=true] > .space-light { filter:saturate(.25); opacity:.45; }
-#p34-space[data-silence=true] > .space-mist { background:#172644aa; }
-#p34-space[data-silence=true] .space-work-light { opacity:.16; }
 #p34-space[data-experience] { height:100svh; overflow:hidden; }
 #p34-space[data-experience] > :is(.space-voice,.space-paths,.space-content,.space-skip,.journey-save-actions) { display:none; }
 .trace-scene { position:fixed; inset:0; z-index:12; }
@@ -31,14 +30,8 @@
 .trace-slider { width:min(80%,660px); margin:auto; display:flex; gap:24px; align-items:center; font-size:17px; }
 .trace-slider input { width:100%; accent-color:var(--space-cyan); cursor:ew-resize; min-height:44px; }
 .trace-slider span,[data-return-diagram] label span { white-space:nowrap; }
-.trace-answer { display:flex; gap:40px; justify-content:center; }
-#p34-space .trace-answer button { min-height:44px; font-size:18px; border-bottom:1px solid #c4eaff66; }
-.trace-answer [data-answer=draft] { color:#c3f6ff !important; }
-.trace-answer [data-answer=guided] { color:#e2bfff !important; }
 .trace-actions { display:flex; flex-wrap:wrap; align-items:center; gap:32px; }
 #p34-space .trace-actions :is(button,a) { min-height:44px; font-size:17px; border-bottom:1px solid #c4eaff66; display:flex; align-items:center; }
-#p34-space .trace-status { text-align:center; font-size:17px; pointer-events:none; }
-.trace-status:empty { display:none; }
 [data-return-diagram] { margin:30px 0 42px; }
 [data-return-diagram] svg { display:block; width:100%; height:auto; overflow:visible; }
 [data-return-diagram] label { display:flex; gap:18px; align-items:center; font-size:16px; }

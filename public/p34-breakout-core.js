@@ -1,7 +1,9 @@
-import { STAGES, createBricks } from './p34-breakout-levels.js?v=20261107-juice';
+import { STAGES, createBricks } from './p34-breakout-levels.js?v=20261107-residue';
 
 export const clamp = (n,a,b) => Math.max(a,Math.min(b,n));
+export const LASER_DURATION = 3.2;
 const approach = (a,b,d) => a<b?Math.min(a+d,b):Math.max(a-d,b);
+const paddleWidth = (width,edition) => edition==='draft' ? width<800?120:144 : width<800?132:164;
 
 export function sweepBall(x,y,dx,dy,rect,r) {
   const left=rect.x-rect.w/2-r, right=rect.x+rect.w/2+r;
@@ -29,15 +31,15 @@ export class BreakoutGame {
     const health=new Map(this.bricks.map(b=>[b.id,b.hp]));
     this.width=width;this.height=height;this.baseSpeed=width<800?460:595;this.maxSpeed=width<800?850:1150;
     this.bricks=createBricks(this.level,width,height,this.workshopX);for(const b of this.bricks)b.hp=health.get(b.id);
-    this.paddle.w=this.edition==='draft'?width<800?108:128:width<800?118:146;
+    this.paddle.w=paddleWidth(width,this.edition);
     this.paddle.x=clamp(this.paddle.x,this.paddle.w/2,width-this.paddle.w/2);this.paddle.y=height-Math.max(80,height*.12);
     if(this.status==='playing')this.normalize(clamp(Math.hypot(this.ball.vx,this.ball.vy)*sx,this.baseSpeed,this.maxSpeed));
   }
   retry() {
     this.bricks=createBricks(this.level,this.width,this.height,this.workshopX);
-    this.paddle={x:this.width/2,y:this.height-Math.max(80,this.height*.12),w:this.edition==='draft'?this.width<800?108:128:this.width<800?118:146,h:15,vx:0,angle:0,angularVelocity:0};
+    this.paddle={x:this.width/2,y:this.height-Math.max(80,this.height*.12),w:paddleWidth(this.width,this.edition),h:15,vx:0,angle:0,angularVelocity:0};
     this.ball={x:this.paddle.x,y:this.paddle.y-22,r:9,vx:0,vy:0};
-    this.time=0;this.score=0;this.energy=0;this.combo=0;this.bestCombo=0;this.lives=3;this.freeze=0;
+    this.time=0;this.score=0;this.energy=0;this.combo=0;this.bestCombo=0;this.lives=3;this.freeze=0;this.laserTime=0;this.laserPulse=0;
     this.lastBreak=-10;this.lastReturn=-10;this.pending=-10;this.swingCooldown=0;this.dashCooldown=0;this.dashTime=0;
     this.status='ready';this.boosted=false;this.lastOffset=0;this.emit('ready');
   }
@@ -62,9 +64,9 @@ export class BreakoutGame {
     if(this.boosted)return;
     this.boosted=true;
     const speed=Math.min(this.maxSpeed,Math.hypot(this.ball.vx,this.ball.vy)*(perfect?1.32:1.12));
-    this.normalize(speed);this.energy=Math.min(100,this.energy+(perfect?8:3));
+    this.normalize(speed);if(!this.laserTime)this.energy=Math.min(100,this.energy+(perfect?8:3));
     if(perfect)this.stats.perfect++;
-    this.freeze=Math.max(this.freeze,perfect?.085:.045);this.emit('boost',{perfect});
+    if(!this.laserTime)this.freeze=Math.max(this.freeze,perfect?.085:.045);this.emit('boost',{perfect});
   }
   normalize(speed) {
     const b=this.ball,n=Math.hypot(b.vx,b.vy);
@@ -85,31 +87,31 @@ export class BreakoutGame {
     }
     this.lastReturn=this.time;this.lastOffset=offset;this.boosted=false;this.stats.returns++;p.angularVelocity+=offset*1.4;
     if(this.pending>=this.time)this.boost(this.pending-this.time>=.07);
-    this.pending=-10;this.freeze=Math.max(this.freeze,.035);this.emit('return',{offset,x:b.x,y:b.y,vx:b.vx,vy:b.vy});
+    this.pending=-10;if(!this.laserTime)this.freeze=Math.max(this.freeze,.035);this.emit('return',{offset,x:b.x,y:b.y,vx:b.vx,vy:b.vy});
   }
   damage(brick,amount) {
     if(brick.hp<=0)return;
     brick.hp=Math.max(0,brick.hp-amount);this.stats.hits++;this.score+=30;
     this.emit('hit',{id:brick.id,x:brick.x,y:brick.y,hp:brick.hp,kindOfBrick:brick.kind,vx:this.ball.vx,vy:this.ball.vy});
-    this.freeze=Math.max(this.freeze,brick.hp>0?.032:.042);
+    if(!this.laserTime)this.freeze=Math.max(this.freeze,brick.hp>0?.032:.042);
     if(brick.hp>0)return;
     this.combo=this.time-this.lastBreak<2.8?this.combo+1:1;this.lastBreak=this.time;this.bestCombo=Math.max(this.bestCombo,this.combo);
-    this.score+=100+Math.min(15,this.combo-1)*20;this.energy=Math.min(100,this.energy+(brick.kind==='energy'?38:5));
+    this.score+=100+Math.min(15,this.combo-1)*20;
+    if(!this.laserTime)this.energy=Math.min(100,this.energy+(brick.kind==='energy'?38:5));
     this.emit('break',{id:brick.id,x:brick.x,y:brick.y,kindOfBrick:brick.kind,combo:this.combo});
     if(brick.kind==='bomb') {
-      this.freeze=Math.max(this.freeze,.075);this.emit('explode',{x:brick.x,y:brick.y});
+      if(!this.laserTime)this.freeze=Math.max(this.freeze,.075);this.emit('explode',{x:brick.x,y:brick.y});
       const radius=this.width*.13;
       for(const other of this.bricks)if(other.hp>0&&Math.hypot(other.x-brick.x,(other.y-brick.y)*1.1)<radius)this.damage(other,3);
     }
-    if(this.bricks.every(b=>b.hp===0)&&this.mode!=='seeking'&&this.status!=='cleared') {
-      this.status='cleared';this.stats.clears++;this.emit('clear');
+    if(this.bricks.every(b=>b.hp===0)&&this.status!=='cleared') {
+      this.status='cleared';this.laserTime=0;this.stats.clears++;this.emit('clear');
     }
   }
   laser() {
-    if(this.energy<100||this.status!=='playing')return false;
-    this.energy=0;this.emit('laser',{x:this.paddle.x});
-    for(const b of this.bricks)if(b.hp>0&&Math.abs(b.x-this.paddle.x)<=b.w/2+15)this.damage(b,3);
-    this.freeze=Math.max(this.freeze,.075);return true;
+    if(this.energy<100||this.status!=='playing'||this.laserTime>0)return false;
+    this.energy=0;this.laserTime=LASER_DURATION;this.laserPulse=0;this.emit('laser',{x:this.paddle.x});
+    this.freeze=.055;return true;
   }
   moveBomb(x) {
     if(this.workshopX===null||this.status!=='ready')return;
@@ -138,6 +140,15 @@ export class BreakoutGame {
         brick.x=brick.baseX+(m.axis==='x'?shift:0);brick.y=brick.baseY+(m.axis==='y'?shift:0);
       }
     }
+    if(this.laserTime>0){
+      this.laserPulse-=dt;
+      if(this.laserPulse<=0){
+        this.laserPulse+=.1;
+        for(const brick of this.bricks)if(brick.hp>0&&brick.y<p.y&&Math.abs(brick.x-p.x)<=brick.w/2+15)this.damage(brick,1);
+      }
+      this.laserTime=Math.max(0,this.laserTime-dt);
+      if(this.status!=='playing')return;
+    }
     const speed=Math.hypot(b.vx,b.vy);
     if(speed>this.baseSpeed)this.normalize(Math.max(this.baseSpeed,speed-(speed-this.baseSpeed)*.48*dt));
     if(attract&&this.energy>0&&b.vy>0) {
@@ -157,9 +168,6 @@ export class BreakoutGame {
       for(const brick of this.bricks)if(brick.hp>0){const contact=sweepBall(b.x,b.y,dx,dy,brick,b.r);if(contact)choose({...contact,brick});}
       if(!hit){b.x+=dx;b.y+=dy;break;}
       b.x+=dx*hit.t;b.y+=dy*hit.t;left*=1-hit.t;
-      if(hit.wall==='right'&&this.mode==='seeking'&&b.y>this.height*.27&&b.y<this.height*.68&&this.lastOffset>.2) {
-        this.status='found';this.emit('found');break;
-      }
       if(hit.paddle)this.returnBall(clamp((b.x-p.x)/(p.w/2),-1,1));
       else {
         if(hit.brick)this.damage(hit.brick,1);
@@ -171,7 +179,7 @@ export class BreakoutGame {
     }
     if(b.y>this.height+30&&this.status==='playing') {
       this.lives--;this.stats.misses++;this.combo=0;this.status=this.lives>0?'ready':'lost';
-      this.pending=-10;this.emit('miss');b.vx=b.vy=0;
+      this.pending=-10;this.laserTime=0;this.emit('miss');b.vx=b.vy=0;
     }
   }
 }

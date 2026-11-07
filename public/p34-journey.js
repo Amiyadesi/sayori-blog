@@ -74,7 +74,8 @@ export function journeyEvent(state, event, value) {
     case 'light-moved': s.light = Math.max(1, s.light); break;
     case 'light-saved': require(sketchValid(value) && value !== null, 'Invalid light sketch'); s.light = 2; s.lightSketch = value.map(p => p.map(n => Math.round(n * 10000) / 10000)); break;
     case 'play': {
-      require(availableVersions(s).includes(value.edition) && ['campaign', 'trial', 'seeking', 'workshop'].includes(value.mode), 'Unknown game session');
+      require(availableVersions(s).includes(value.edition) && ['campaign', 'trial', 'workshop'].includes(value.mode), 'Unknown game session');
+      require(s.phase !== 'closed', 'Closed works cannot be played');
       require(counters.every(k => integer(value.delta[k])), 'Invalid play counters');
       require(integer(value.stage, STAGE_COUNT - 1), 'Invalid stage');
       for (const k of counters) s.plays[value.edition][k] = Math.min(65535, s.plays[value.edition][k] + value.delta[k]);
@@ -94,10 +95,6 @@ export function journeyEvent(state, event, value) {
           s.campaign.unlocked = Math.max(s.campaign.unlocked, Math.min(STAGE_COUNT - 1, value.stage + 1));
           s.campaign.stage = Math.min(STAGE_COUNT - 1, value.stage + 1);
         }
-      }
-      if (value.mode === 'seeking' && value.kind === 'found') {
-        require(s.phase === 'closed' && s.difference && s.diagram && value.edition === 'draft', 'Missing return evidence');
-        s.phase = 'found';
       }
       if (value.mode === 'workshop' && value.kind === 'place') {
         require(['making', 'after'].includes(s.phase) && Number.isFinite(value.x) && value.x >= 400 && value.x <= 1500, 'Invalid workshop placement');
@@ -120,6 +117,7 @@ export function journeyEvent(state, event, value) {
     case 'opened': require(NOTES.includes(value), 'Unknown note'); if (!s.opened.includes(value)) s.opened.push(value); break;
     case 'difference': require(s.phase === 'closed', 'Not comparing closed works'); s.difference = true; break;
     case 'diagram': require(s.opened.includes('long-way'), 'Read the source note first'); s.diagram = true; break;
+    case 'found': require(s.phase === 'closed' && s.difference && s.diagram, 'Missing page evidence'); s.phase = 'found'; break;
     case 'keepsake':
       require(s.phase === 'found' && (value === 'empty' || value === 'round' && s.plays.draft.returns > 0 || value === 'light' && s.light === 2), 'No such shared memory');
       s.keepsake = value; s.keptReturn = value === 'round' ? s.lastReturn : null; break;
