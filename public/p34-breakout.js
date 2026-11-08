@@ -1,6 +1,6 @@
-import { BreakoutGame, LASER_DURATION } from './p34-breakout-core.js?v=20261107-residue';
-import { STAGES, SAMPLE, WORKSHOP } from './p34-breakout-levels.js?v=20261107-residue';
-import { lightPoint } from './p34-light.js?v=20261107-residue';
+import { BreakoutGame, LASER_DURATION } from './p34-breakout-core.js?v=20261108-revision';
+import { STAGES, SAMPLE, WORKSHOP } from './p34-breakout-levels.js?v=20261108-revision';
+import { lightPoint } from './p34-light.js?v=20261108-revision';
 
 const keys=['launches','returns','misses','clears','hits','perfect'];
 export function playDelta(report, previous) {

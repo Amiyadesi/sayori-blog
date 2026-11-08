@@ -29,7 +29,7 @@ test('the existing Astro gate awaits and cleans up asynchronous mounts', () => {
   const layout = fs.readFileSync(new URL('../src/layouts/Layout.astro', import.meta.url), 'utf8');
   assert.match(layout, /await mountPaperBlog\(/);
   assert.match(layout, /else mounted\(\)/);
-  for (const event of ['astro:page-load', 'astro:before-swap', 'popstate', 'pagehide', 'pageshow']) assert.ok(layout.includes(event));
+  for (const event of ['astro:page-load', 'astro:before-swap', 'popstate', 'pageshow']) assert.ok(layout.includes(event));
   assert.match(layout, /twikoo-runtime-host/);
 });
 

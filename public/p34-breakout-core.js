@@ -1,7 +1,7 @@
-import { STAGES, createBricks } from './p34-breakout-levels.js?v=20261107-residue';
+import { STAGES, createBricks } from './p34-breakout-levels.js?v=20261108-revision';
 
 export const clamp = (n,a,b) => Math.max(a,Math.min(b,n));
-export const LASER_DURATION = 3.2;
+export const LASER_DURATION = 1.8;
 const approach = (a,b,d) => a<b?Math.min(a+d,b):Math.max(a-d,b);
 const paddleWidth = (width,edition) => edition==='draft' ? width<800?120:144 : width<800?132:164;
 

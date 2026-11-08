@@ -1,8 +1,9 @@
-import { createMotion } from './p34-motion.js?v=20261107-residue';
+import { LINES } from './p34-script.js?v=20261108-revision';
+import { createMotion } from './p34-motion.js?v=20261108-revision';
 import { WORLD_COOKIE_KEY, advanceEncounterState, readWorldCookie, serializeWorldState, createWorldSession } from './p34-living.js?v=20261104-flow';
-import { createLightSpace, INITIAL_LIGHT, readSketches } from './p34-light.js?v=20261107-residue';
+import { createLightSpace, INITIAL_LIGHT, readSketches } from './p34-light.js?v=20261108-revision';
 import { capturePage, playPassage, cancelPassage } from './p34-passage.js?v=20261104-flow';
-import { mountAdventure } from './p34-adventure.js?v=20261107-residue';
+import { mountAdventure } from './p34-adventure.js?v=20261108-revision';
 
 export const SKETCH_KEY = 'p34-light-sketches-v1';
 export const ROOMS = ['home', 'works', 'lab', 'blog', 'archive', 'guestbook'];
@@ -36,7 +37,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
       style.addEventListener('load', resolve, { once: true });
       style.addEventListener('error', () => reject(new Error('Space stylesheet failed to load')), { once: true });
       if (ownedStyle) {
-        style.rel = 'stylesheet'; style.href = site === 'blog' ? '/p34-reading.css?v=20261107-residue' : '/p34-luminous.css?v=20261107-residue';
+        style.rel = 'stylesheet'; style.href = site === 'blog' ? '/p34-reading.css?v=20261108-revision' : '/p34-luminous.css?v=20261108-revision';
         style.dataset.p34SpaceStyle = ''; document.head.append(style);
       }
     });
@@ -71,6 +72,8 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
     const id = setTimeout(() => { timers.delete(id); if (!disposed) fn(); }, ms);
     timers.add(id); return id;
   };
+  // Mount and park the original page in one task, before the browser can paint it.
+  html.classList.remove('p34-loading');
   const normalPage = capturePage();
   const sources = normalPage.words.map(word => ({ x: word.x, y: word.y, char: word.text[0] }));
   for (const el of [...document.body.children]) {
@@ -137,7 +140,12 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
     addRoom('works', '<div class="space-work-caption"></div><button type="button" class="space-work-light" aria-label="玩打砖块"></button>');
     addRoom('lab', `<div class="space-rig" role="group" aria-label="拉住一束光，四个光点可拖动或用方向键移动">${INITIAL_LIGHT.map((_, i) => `<button type="button" class="space-node" data-node="${i}" aria-label="光点 ${i + 1}，方向键移动，Shift 加速"></button>`).join('')}</div><div class="space-lab-actions"><button type="button" data-save>留住这个形状</button><button type="button" data-reset>重新拉</button><p data-save-note aria-live="polite"></p></div>`);
     addRoom('archive', '<div class="space-archive-empty"><p>还没有留下的形状。</p><a data-go="lab" href="' + roomHref('lab') + '">去拉一条光</a></div><ol class="space-history" aria-label="你留下的形状"></ol><div class="space-compare" hidden><button type="button" data-previous>前一条</button><time data-revision-time></time><button type="button" data-next>后一条</button></div>');
-    addRoom('guestbook', `<form class="space-guest-form"><label for="space-name">怎么称呼你<input id="space-name" name="name" autocomplete="nickname" maxlength="40"></label><label for="space-message">想留下的话<textarea id="space-message" name="message" maxlength="1000" rows="4"></textarea></label><div class="space-form-end"><span data-count>0 / 1000</span><button type="submit" disabled>尚未开放</button></div></form>`);
+    addRoom('guestbook', `<form class="space-guest-form" aria-describedby="space-letter-privacy">
+      <div class="space-guest-meta"><label for="space-name">怎么称呼你<input id="space-name" name="name" autocomplete="nickname" maxlength="40" required></label><label for="space-mail">邮箱（不公开）<input id="space-mail" name="mail" type="email" autocomplete="email" maxlength="254" required></label></div>
+      <label for="space-message">想留下的话<textarea id="space-message" name="message" maxlength="1000" rows="4" required></textarea></label>
+      <p id="space-letter-privacy">留言公开显示，所有访客都能看到</p><div data-letter-captcha></div>
+      <div class="space-form-end"><span data-count>0 / 1000</span><button type="submit" disabled>公开留言</button></div><p class="journey-letter-status" data-letter-status role="status"></p>
+      </form><section class="space-letter-board" aria-label="大家留下的话"><div class="space-letter-heading"><h2>留下的话</h2><button type="button" data-letter-refresh>刷新留言</button></div><p data-letter-list-status role="status"></p><ol data-letters></ol><button type="button" data-letter-more hidden>更早的留言</button></section>`);
   } else {
     const blog = addRoom('blog', '<div class="space-blog-index"><ol class="space-posts"></ol></div><article class="space-article" hidden><a class="space-back-index" href="/?paper=0617" data-index>所有文章</a><header><h2 tabindex="-1"></h2></header><div class="space-prose"></div><a class="space-article-end" href="/?paper=0617" data-index>回目录</a></article>');
     const list = blog.querySelector('ol');
@@ -217,7 +225,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
       shell.dataset.map = String(menu); content.inert = menu; updateNav();
     }, 12);
     shell.querySelector('[data-map]').setAttribute('aria-expanded', String(menu));
-    speak(menu ? '去哪里？' : headingForRoom(), { note: '' });
+    speak(menu ? LINES.map : headingForRoom(), { note: '' });
   }
   function headingForRoom() {
     return adventure.heading(room);
@@ -280,10 +288,10 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
         prose.append(articleCache.get(post.slug));
       }
       document.title = `${post.title} · 她写的`;
-      speak(shell.dataset.silence === 'true' ? '她写的' : '你先看', { note: '', animate: push });
+      speak(shell.dataset.silence === 'true' ? LINES.closedReading : LINES.reading, { note: '', animate: push });
       adventure.opened(post.slug);
     } else {
-      document.title = '她写的'; speak(headingForRoom(), { note: '', animate: push });
+      document.title = LINES.closedReading; speak(headingForRoom(), { note: '', animate: push });
     }
     if (push) {
       history.pushState({ ...history.state, p34Post: post?.slug || null }, '', post ? post.href : '/?paper=0617');
@@ -330,7 +338,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
     sketches = next; revisionIndex = sketches.length - 1;
     adventure.record('light-saved', nodes);
     note.textContent = '存好了，只留在这台设备。';
-    if (shell.dataset.silence !== 'true') speak('好，就留这条！', { note: '', mood: 'bright' });
+    if (shell.dataset.silence !== 'true') speak(LINES.lightSaved, { note: '', mood: 'bright' });
     const r = shell.querySelector('.space-node').getBoundingClientRect(); light.burst(r.x, r.y, 36);
     motion.tone(4, true);
   }
@@ -339,7 +347,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
     if (shell.dataset.silence === 'true') return;
     if (talking || performance.now() - lastRemark < 4200) return;
     lastRemark = performance.now(); dragCount++;
-    const lines = ['等下，这边别拉太直', '这个弯留着！', '再往左一点？\n嗯，就这儿'];
+    const lines = LINES.lightDrag;
     speak(lines[(dragCount - 1) % lines.length], { mood: dragCount % 2 ? 'bright' : 'thought', note: '' });
     motion.tone(dragCount, true);
   }
@@ -363,10 +371,10 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
       const r = el.getBoundingClientRect(); light.burst(r.x + r.width / 2, r.y + r.height / 2, 42);
       motion.tone(3, true);
       void motion.animate(el, [{ scale: '1' }, { scale: '1.8', offset: .25 }, { scale: '.8', offset: .6 }, { scale: '1' }], { duration: 850 });
-      speak('喂，\n我刚调好的！', { mood: 'bright', note: '' });
+      speak(LINES.touch, { mood: 'bright', note: '' });
     } else if (el.matches('[data-save]')) saveLight();
     else if (el.matches('[data-reset]')) {
-      nodes = cloneNodes(INITIAL_LIGHT); updateNodes(); if (shell.dataset.silence !== 'true') speak('拉回来了\n你再试试', { note: '' });
+      nodes = cloneNodes(INITIAL_LIGHT); updateNodes(); if (shell.dataset.silence !== 'true') speak(LINES.lightReset, { note: '' });
     } else if (el.matches('[data-revision]')) showRevision(Number(el.dataset.revision));
     else if (el.matches('.space-compare [data-previous]')) showRevision(revisionIndex - 1);
     else if (el.matches('.space-compare [data-next]')) showRevision(revisionIndex + 1);
@@ -429,7 +437,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
 
   async function sendBack() {
     if (leaving) return; leaving = true; adventure.closeScene(); closeConversation();
-    if (shell.dataset.silence !== 'true') speak('走啦？\n下次见', { note: '' });
+    if (shell.dataset.silence !== 'true') speak(LINES.leave, { note: '' });
     await playPassage(shell, normalPage, motion, false);
     if (disposed) return;
     const url = new URL(originalURL); url.searchParams.delete('paper'); url.searchParams.delete('room');
@@ -449,7 +457,6 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
     if (ownedStyle) style.remove(); document.title = originalTitle;
     window.scrollTo(0, originalScroll); active.delete(html);
   }
-  listen(window, 'pagehide', cleanup, { once: true });
   active.set(html, cleanup);
   const adventure = mountAdventure({ shell, site, motion, speak, dialogue, quiet: closeConversation,
     go: next => selectRoom(next, { push: true }), getRoom: () => room, getSketches: () => sketches,
@@ -457,7 +464,9 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
   selectRoom(room, { announce: false }); updateNodes();
   if (site === 'blog') fromLocation();
   else speak(headingForRoom(), { note: '', animate: true, origins: sources });
-  if (storageError && room === 'archive') speak('这里暂时存不下来', { note: '浏览器限制了本地存储，实验仍然可以玩' });
-  if(shell.dataset.silence!=='true'&&shell.dataset.reunion!=='true')void playPassage(shell, normalPage, motion, true);
+  if (storageError && room === 'archive') speak(LINES.cannotSave, { note: '浏览器限制了本地存储，实验仍然可以玩' });
+  if(html.dataset.p34FromDesk==='true'&&shell.dataset.silence!=='true'&&shell.dataset.reunion!=='true')void playPassage(shell, normalPage, motion, true);
+  history.replaceState({ ...history.state, p34Space: true }, '', location.href);
+  delete html.dataset.p34FromDesk;
   return cleanup;
 }

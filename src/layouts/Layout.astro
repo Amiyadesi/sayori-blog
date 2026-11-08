@@ -27,6 +27,7 @@ const ogImageUrl = new URL(siteConfig.generateOgImages && postSlug
 <html transition:animate="none" data-pagefind-ignore={noindex ? "all" : undefined} lang={SITE_LOCALE} data-pagefind-filter={"locale:" + SITE_LOCALE}>
 	<head>
 		<meta charset="UTF-8" />
+		<script is:inline src="/p34-entry.js?v=20261108-revision"></script>
         <script is:inline data-astro-rerun>
           if (!window.__p34OwnPopstateGate) {
             window.__p34OwnPopstateGate = true;
@@ -44,7 +45,7 @@ const ogImageUrl = new URL(siteConfig.generateOgImages && postSlug
             if (!document.querySelector('link[data-p34-reading-style]')) {
               const style = document.createElement('link');
               style.rel = 'stylesheet';
-              style.href = '/p34-reading.css?v=20261107-residue';
+              style.href = '/p34-reading.css?v=20261108-revision';
               style.dataset.p34ReadingStyle = '';
               document.head.append(style);
             }
@@ -87,13 +88,16 @@ const ogImageUrl = new URL(siteConfig.generateOgImages && postSlug
           if (new URLSearchParams(location.search).get("paper") !== "0617") return;
           const current = generation;
           try {
-            const modulePath = "/paper-blog.js?v=20261107-residue";
+            const modulePath = "/paper-blog.js?v=20261108-revision";
             const { mountPaperBlog } = await import(/* @vite-ignore */ modulePath);
             if (current !== generation) return;
             const mounted = await mountPaperBlog(() => current === generation);
             if (current === generation) dispose = mounted;
             else mounted();
-          } catch (error) { console.warn("Paper stock unavailable", error); }
+          } catch (error) {
+            console.error("Paper stock unavailable", error);
+            window.dispatchEvent(new Event("p34:entry-error"));
+          }
         };
         window.__p34ReadingGate = { clearPaper, syncPaper };
         document.addEventListener("astro:page-load", () => void syncPaper());
@@ -107,7 +111,7 @@ const ogImageUrl = new URL(siteConfig.generateOgImages && postSlug
             if (!event.newDocument.querySelector("link[data-p34-reading-style]")) {
               const style = event.newDocument.createElement("link");
               style.rel = "stylesheet";
-              style.href = "/p34-reading.css?v=20261107-residue";
+              style.href = "/p34-reading.css?v=20261108-revision";
               style.dataset.p34ReadingStyle = "";
               event.newDocument.head.append(style);
             }
@@ -124,8 +128,9 @@ const ogImageUrl = new URL(siteConfig.generateOgImages && postSlug
           }
           void syncPaper();
         });
-        window.addEventListener("pagehide", clearPaper);
-        window.addEventListener("pageshow", event => { if (event.persisted) void syncPaper(); });
+        window.addEventListener("pageshow", event => {
+          if (event.persisted && !document.querySelector("#p34-space")) void syncPaper();
+        });
       }
     </script>}
 	</body>

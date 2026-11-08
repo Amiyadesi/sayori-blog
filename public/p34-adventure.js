@@ -1,8 +1,10 @@
-import { JOURNEY_COOKIE, PHASES, NOTES, EDITIONS, cookieJourney, readJourney, journeyEvent, trialReady, campaignReady, availableVersions } from './p34-journey.js?v=20261107-residue';
-import { BreakoutGame } from './p34-breakout-core.js?v=20261107-residue';
-import { SAMPLE } from './p34-breakout-levels.js?v=20261107-residue';
-import { lightPoint, INITIAL_LIGHT } from './p34-light.js?v=20261107-residue';
-import { mountResidue, mountArchiveRemnants, mountNoteRemnant } from './p34-residue.js?v=20261107-residue';
+import { LINES, CHOICES } from './p34-script.js?v=20261108-revision';
+import { mountGuestbook } from './p34-guestbook.js?v=20261108-revision';
+import { JOURNEY_COOKIE, PHASES, NOTES, EDITIONS, cookieJourney, readJourney, journeyEvent, trialReady, campaignReady, availableVersions } from './p34-journey.js?v=20261108-revision';
+import { BreakoutGame } from './p34-breakout-core.js?v=20261108-revision';
+import { SAMPLE } from './p34-breakout-levels.js?v=20261108-revision';
+import { lightPoint, INITIAL_LIGHT } from './p34-light.js?v=20261108-revision';
+import { mountResidue, mountArchiveRemnants, mountNoteRemnant } from './p34-residue.js?v=20261108-revision';
 
 export function reboundSketch(offset, edition) {
   const game=new BreakoutGame({width:960,height:600,level:SAMPLE,edition});game.launch();
@@ -14,7 +16,7 @@ export function reboundSketch(offset, edition) {
 
 export function mountAdventure({ shell, site, motion, speak, dialogue, quiet, go, getRoom, getSketches, leave, cookie, signal }) {
   const loaded=cookieJourney(document.cookie);
-  let state=loaded.state,storageError=loaded.error,stopScene=null,stopDiagram=null,sceneRequest=0,smallTalk=0;
+  let state=loaded.state,storageError=loaded.error,stopScene=null,stopDiagram=null,sceneRequest=0,smallTalk=0,guestbook;
   const listen=(el,type,fn,options={})=>el.addEventListener(type,fn,{signal,...options});
   const say=(text,options={})=>speak(text,{note:'',...options});
   const homeURL='https://sayori.org/?paper=0617',blogURL='https://blog.sayori.org/notes/long-way/?paper=0617';
@@ -46,56 +48,56 @@ export function mountAdventure({ shell, site, motion, speak, dialogue, quiet, go
     }
     atmosphere();return state;
   }
-  function lines(texts,done){const next=i=>i===texts.length?done():dialogue(texts[i],[['嗯',()=>next(i+1)]]);next(0);}
+  function lines(texts,done){const next=i=>i===texts.length?done():dialogue(texts[i],[[CHOICES.next,()=>next(i+1)]]);next(0);}
   function freeTime(){
     const n=smallTalk++%3;
-    if(n===0)dialogue('我刚把爆炸声换掉了',[
-      ['原来那个很吵？',()=>dialogue('不是，太像关门了\n炸一次就以为有人走了',[['现在呢？',()=>dialogue('你开声音打一局就知道了',[['去试试',()=>void play('draft',{mode:'campaign'})],['待会儿',quiet]])],['那你接着忙',quiet]])],
-      ['我自己逛逛',quiet],['回原来的网页',leave],
+    if(n===0)dialogue(LINES.chat.sound,[
+      [CHOICES.noisy,()=>dialogue(LINES.chat.door,[[CHOICES.now,()=>dialogue(LINES.chat.trySound,[[CHOICES.tryIt,()=>void play('draft',{mode:'campaign'})],[CHOICES.later,quiet]])],[CHOICES.keepBusy,quiet]])],
+      [CHOICES.explore,quiet],[CHOICES.leave,leave],
     ]);
-    else if(n===1)dialogue('昨天想做水波\n最后一晚上都在调那个弯',[
-      ['就是实验室那条？',()=>dialogue('对\n没做成水波，但这条我也挺喜欢',[['我去拉一下',()=>site==='home'?go('lab'):location.assign(homeURL+'&room=lab')],['先别动它了',quiet]])],['那你忙',quiet],
+    else if(n===1)dialogue(LINES.chat.water,[
+      [CHOICES.thatCurve,()=>dialogue(LINES.chat.curve,[[CHOICES.pullLight,()=>site==='home'?go('lab'):location.assign(homeURL+'&room=lab')],[CHOICES.leaveLight,quiet]])],[CHOICES.youWork,quiet],
     ]);
-    else dialogue('我在听昨天录的雨\n中间有辆车一直倒不出去',[
-      ['你连这个也留着？',()=>dialogue('留着啊\n每次都以为它这次该出去了',[['看看你写的',()=>location.assign('https://blog.sayori.org/notes/rain-folder/?paper=0617')],['我先逛逛',quiet]])],['不打扰了',quiet],
+    else dialogue(LINES.chat.rain,[
+      [CHOICES.keepRain,()=>dialogue(LINES.chat.car,[[CHOICES.read,()=>location.assign('https://blog.sayori.org/notes/rain-folder/?paper=0617')],[CHOICES.wander,quiet]])],[CHOICES.quiet,quiet],
     ]);
   }
   function offer(version){
     const first=version==='draft';
-    dialogue(first?'我做了个打砖块\n试试？':version==='tuned'?'这份宽了一点\n砖还是那一组':'这次会自己瞄准\n你再打几球看看',[
-      ['玩',()=>void play(version,{mode:first&&!campaignReady(state)?'campaign':'trial'})],['你还在忙什么？',freeTime],['我先逛逛',quiet],
+    dialogue(first?LINES.offer.draft:version==='tuned'?LINES.offer.tuned:LINES.offer.guided,[
+      [CHOICES.play,()=>void play(version,{mode:first&&!campaignReady(state)?'campaign':'trial'})],[CHOICES.busy,freeTime],[CHOICES.wander,quiet],
     ]);
   }
-  function oldTrial(){dialogue('我把同一组砖留了三份\n先试一下最早的回球',[['试初稿',()=>void play('draft')],['我先把这关打完',()=>void play('draft',{mode:'campaign'})],['待会儿',quiet]]);}
+  function oldTrial(){dialogue(LINES.oldTrial,[[CHOICES.draft,()=>void play('draft')],[CHOICES.finishStage,()=>void play('draft',{mode:'campaign'})],[CHOICES.later,quiet]]);}
   function feedback(version){
     const first=version==='draft';
-    dialogue(first?(state.trials.draft.misses?'刚才那几球\n挡板过去又滑了一点':'我喜欢横着抽那一下\n但确实不太好停'):'现在好接多了\n你还会想横着抽吗？',[
-      [first?'惯性挺有意思':'会，原来能甩得更开',()=>revise(version,'free')],
-      [first?'容易滑过头':'现在舒服多了',()=>revise(version,'clear')],
-      ['我还没拿准',()=>revise(version,'unsure')],['再打几球',()=>void play(version)],
+    dialogue(first?(state.trials.draft.misses?LINES.feedback.missed:LINES.feedback.caught):LINES.feedback.tuned,[
+      [first?CHOICES.inertia:CHOICES.freeAgain,()=>revise(version,'free')],
+      [first?CHOICES.slippery:CHOICES.comfortable,()=>revise(version,'clear')],
+      [CHOICES.feedbackUnsure,()=>revise(version,'unsure')],[CHOICES.moreBalls,()=>void play(version)],
     ]);
   }
   function revise(version,value){
     record('feedback',{version,value});refreshWorks();
-    if(version==='draft')lines([value==='free'?'那个手感我也舍不得\n不过我还是做了另一份':'嗯，我也总滑过去\n所以改了另一份','挡板宽了一点\n回弹方向改成看接球的位置'],()=>offer('tuned'));
-    else lines(['这两处我想先留着','我还试了个自动瞄准\n一直打不到最后一块，挺烦的'],()=>offer('guided'));
+    if(version==='draft')lines([value==='free'?LINES.revision.keepInertia:LINES.revision.changeInertia,LINES.revision.contact],()=>offer('tuned'));
+    else lines([LINES.revision.keepChanges,LINES.revision.guided],()=>offer('guided'));
   }
-  function decide(){dialogue('我想把三份收成一个版本\n结果改一处，又想改回去',[
-    ['我更喜欢能自己甩球',()=>choose('free')],['自动瞄准也挺好',()=>choose('clear')],['先把三份都留着呢？',()=>choose('both')],['我也还没想清楚',()=>choose('unsure')],
+  function decide(){dialogue(LINES.decide,[
+    [CHOICES.opinionFree,()=>choose('free')],[CHOICES.opinionClear,()=>choose('clear')],[CHOICES.opinionBoth,()=>choose('both')],[CHOICES.opinionUnsure,()=>choose('unsure')],
   ]);}
   function choose(value){record('opinion',value);conflict();}
   function conflict(){
-    const first={free:'我也喜欢那一下\n可昨天还在改它',clear:'是省心了\n可我又想把它关掉',both:'都留着呢\n我已经不想点开了',unsure:'我也是\n昨天还觉得改好了'}[state.opinion];
-    lines([first,'今天又改回去了\n我都不知道昨天在忙什么','先关了吧'],()=>{quiet();closeScene();record('withdraw');go('home');});
+    const first={free:LINES.conflict.free,clear:LINES.conflict.clear,both:LINES.conflict.both,unsure:LINES.conflict.unsure}[state.opinion];
+    lines([first,LINES.conflict.again,LINES.conflict.close],()=>{quiet();closeScene();record('withdraw');go('home');});
   }
   function talk(){
     current();
     if(state.phase==='closed')return true;
     if(state.phase==='found'){reunion();return true;}
     if(state.phase==='making'){desk();return true;}
-    if(state.phase==='after'){dialogue(state.leftLetter?'留言我留着了\n先等我打完这局':'来啦\n我又挪了一点',[['去工作间',desk],['再打几关',()=>void play('draft',{mode:'campaign'})],['聊别的',freeTime],['回原来的网页',leave]]);return true;}
+    if(state.phase==='after'){dialogue(state.leftLetter?LINES.after.letter:LINES.after.visit,[[CHOICES.desk,desk],[CHOICES.moreStages,()=>void play('draft',{mode:'campaign'})],[CHOICES.chat,freeTime],[CHOICES.leave,leave]]);return true;}
     if(state.phase==='choice'){conflict();return true;}
-    if(state.phase==='arrive'){record('hello');lines(['等下，球还没停\n……你能看见啊？','那正好\n我自己打都快打习惯了'],()=>offer('draft'));return true;}
+    if(state.phase==='arrive'){record('hello');lines(LINES.arrival,()=>offer('draft'));return true;}
     const version=state.phase==='guided'?'guided':state.phase==='tuned'?'tuned':'draft';
     if(trialReady(state,version))version==='guided'?decide():feedback(version);
     else if(version==='draft'&&campaignReady(state))oldTrial();else offer(version);
@@ -111,7 +113,7 @@ export function mountAdventure({ shell, site, motion, speak, dialogue, quiet, go
     if(state.phase==='closed')return;
     quiet();closeScene();const request=++sceneRequest;
     try{
-      const {mountBreakout}=await import('./p34-breakout.js?v=20261107-residue');
+      const {mountBreakout}=await import('./p34-breakout.js?v=20261108-revision');
       if(signal.aborted||request!==sceneRequest)return;
       stopScene=mountBreakout(shell,{state,edition,mode,previous,motion,onEvent(value){
         if(current().phase==='closed'){closeScene();room(getRoom());return;}
@@ -142,12 +144,13 @@ export function mountAdventure({ shell, site, motion, speak, dialogue, quiet, go
   }
   function heading(name){
     if(state.phase==='closed')return '';
-    if(name==='home')return state.phase==='after'?'来啦\n我还在改':['found','making'].includes(state.phase)?'我在里面':state.phase==='choice'?'有点乱':state.phase==='guided'?'又改了一份':state.phase==='tuned'?'这次好接一点':state.phase==='arrive'?'诶？\n先别碰——':'回来了？';
-    return {works:'试试这个',lab:'拉一下',archive:'先留着',blog:'写在这里',guestbook:'留点什么？'}[name];
+    if(name==='home')return state.phase==='after'?LINES.home.after:['found','making'].includes(state.phase)?LINES.home.inside:state.phase==='choice'?LINES.home.choice:state.phase==='guided'?LINES.home.guided:state.phase==='tuned'?LINES.home.tuned:state.phase==='arrive'?LINES.home.arrive:LINES.home.shared;
+    return {works:LINES.rooms.works,lab:LINES.rooms.lab,archive:LINES.rooms.archive,blog:LINES.rooms.blog,guestbook:LINES.rooms.guestbook}[name];
   }
   function room(name,announce=true){
     current();atmosphere();
     if(state.phase==='closed'&&site==='home'&&['works','guestbook'].includes(name)){go('home');return;}
+    if(name==='guestbook')void guestbook.open();
     if(!storageError)notice.hidden=true;refreshWorks();filterNotes();if(announce)say(heading(name));
     shell.querySelector('[data-talk]').hidden=state.phase==='closed';
     shell.querySelector('[data-return]').hidden=site!=='blog'&&state.phase!=='closed'&&shell.dataset.map!=='true';
@@ -201,30 +204,30 @@ export function mountAdventure({ shell, site, motion, speak, dialogue, quiet, go
   }
   function reunion(){
     closeScene();atmosphere();shell.querySelector('[data-talk]').hidden=false;
-    lines(['……是你啊','先别开灯'],()=>{
+    lines(LINES.reunion,()=>{
       const items=[];
-      if(state.plays.draft.returns>0&&state.lastReturn)items.push(['聊起之前那次回球',()=>keep('round')]);
-      if(state.light===2&&memorySketch())items.push(['把留下的光拿给她看',()=>keep('light')]);
-      items.push(['先陪她待一会儿',()=>keep('empty')]);dialogue('你坐这儿',items);
+      if(state.plays.draft.returns>0&&state.lastReturn)items.push([CHOICES.memoryRound,()=>keep('round')]);
+      if(state.light===2&&memorySketch())items.push([CHOICES.memoryLight,()=>keep('light')]);
+      items.push([CHOICES.memoryEmpty,()=>keep('empty')]);dialogue(LINES.sit,items);
     });
   }
   function keep(what){
     if(what==='light'&&!state.lightSketch)record('light-saved',memorySketch());
     record('keepsake',what);
-    const text=what==='light'?'这个弯你还留着\n我当时还嫌它歪':what==='round'?'这一下我记得\n我当时只顾着看砖碎没碎':'好\n我先把这些挪开';
-    lines([text,state.opinion==='clear'?'你喜欢自动瞄准，我知道\n但这次我想自己控制':'我还是想试那种横着打的手感','这两堆砖接不上\n你帮我挪一下中间的炸弹？'],()=>{record('make');desk();});
+    const text=what==='light'?LINES.memory.light:what==='round'?LINES.memory.round:LINES.memory.empty;
+    lines([text,state.opinion==='clear'?LINES.memory.likedGuided:LINES.memory.freeReturn,LINES.memory.invite],()=>{record('make');desk();});
   }
   function desk(){void play('tuned',{mode:'workshop'});}
   function workshopReturn(){
     if(state.phase==='after'){
-      dialogue('这份先放这儿\n我还想试试别的位置',[['继续改这份',desk],...(state.workshop.kept!==null?[['打打上一份',()=>void play('tuned',{mode:'workshop',previous:true})]]:[]),['去外面逛逛',()=>room(getRoom())]]);return;
+      dialogue(LINES.workshop.after,[[CHOICES.keepMaking,desk],...(state.workshop.kept!==null?[[CHOICES.previous,()=>void play('tuned',{mode:'workshop',previous:true})]]:[]),[CHOICES.outside,()=>room(getRoom())]]);return;
     }
     if(state.workshop.placed&&(state.workshop.cleared||state.workshop.attempts>=2)){
-      lines([state.workshop.cleared?'炸开了\n不过右边还有点挤':'还是没连上\n右边再往里一点呢','这份先留着\n我另开一份'],()=>{
+      lines([state.workshop.cleared?LINES.workshop.cleared:LINES.workshop.missed,LINES.workshop.save],()=>{
         record('continue');refreshWorks();
-        lines(['别关\n我再挪一下'],desk);
+        lines([LINES.workshop.continue],desk);
       });
-    }else dialogue(state.workshop.placed?'打几球看看\n光摆着我也看不出来':'中间那块还没挪\n先试试靠哪边',[['再试',desk],['先回外面',()=>room(getRoom())]]);
+    }else dialogue(state.workshop.placed?LINES.workshop.placed:LINES.workshop.untouched,[[CHOICES.retry,desk],[CHOICES.backOutside,()=>room(getRoom())]]);
   }
   function canRead(slug){current();if(slug==='landing-notes')return PHASES.indexOf(state.phase)>=3;if(slug==='tomorrow-again')return state.phase==='after';return true;}
   function filterNotes(){if(site==='blog')shell.querySelectorAll('[data-post]').forEach(a=>{a.parentElement.hidden=!canRead(a.dataset.post);});}
@@ -256,14 +259,9 @@ export function mountAdventure({ shell, site, motion, speak, dialogue, quiet, go
     const experiment=document.createElement('a');experiment.className='space-work-experiment';experiment.href='/?paper=0617&room=lab';experiment.dataset.go='lab';experiment.innerHTML='<svg viewBox="0 0 280 180" aria-hidden="true"><path d="M17 123C89 150 63 6 143 81S213 170 266 35" fill="none" stroke="#cbd5ff" stroke-width="3"/><path d="M17 125C89 148 65 15 144 85S210 156 266 35" fill="none" stroke="#a5e8ff" stroke-width="1"/><g fill="#eafaff"><circle cx="17" cy="123" r="3"/><circle cx="86" cy="71" r="3"/><circle cx="190" cy="119" r="3"/><circle cx="266" cy="35" r="3"/></g></svg><span>拉住一束光</span>';panel.append(experiment);
     listen(panel.querySelector('select'),'change',e=>{const v=e.target.value;if(v){e.target.value='';void play(v);}});
     const compareButton=document.createElement('button');compareButton.className='journey-archive-launch';compareButton.type='button';compareButton.dataset.reboundCompare='';compareButton.setAttribute('aria-label','两份回球');compareButton.innerHTML='<svg viewBox="0 0 600 240" aria-hidden="true"><path d="M195 38v155L555 45" fill="none" stroke="currentColor" stroke-width="2"/><path d="M195 193 288 39" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="6 9" opacity=".4"/><path d="M146 202h98" stroke="currentColor" stroke-width="8"/><circle cx="195" cy="193" r="5" fill="currentColor"/></svg><span>两份回球</span>';shell.querySelector('.space-archive').append(compareButton);
-    const form=shell.querySelector('.space-guest-form'),submit=form.querySelector('button');submit.disabled=false;submit.textContent='留在这里';
-    const message=form.querySelector('textarea'),name=form.querySelector('input');
-    const note=document.createElement('p');note.className='journey-letter-status';note.setAttribute('role','status');note.textContent='只留在这台设备';form.append(note);
-    try{const saved=localStorage.getItem('p34-local-letter');if(saved){const item=JSON.parse(saved);if(typeof item.name!=='string'||typeof item.text!=='string'||item.name.length>40||item.text.length>1000)throw new Error('旧留言格式有误');name.value=item.name;message.value=item.text;}}
-    catch(e){note.textContent=e.message;}
-    listen(form,'submit',e=>{e.preventDefault();if(!message.value.trim()){note.textContent='先写一点';message.focus();return;}
-      try{localStorage.setItem('p34-local-letter',JSON.stringify({name:name.value.slice(0,40),text:message.value.slice(0,1000)}));record('letter');note.textContent='留好了';if(state.phase!=='closed')say('好\n就放在这儿');}catch{note.textContent='没能保存，文字还在，可以先复制下来';}
-    });
+    guestbook=mountGuestbook(shell.querySelector('.space-guestbook'),{signal,onSent(){
+      record('letter');if(state.phase!=='closed'&&getRoom()==='guestbook')say(LINES.letterSaved);
+    }});
   }
   const saves=document.createElement('div');saves.className='journey-save-actions';saves.innerHTML='<button type="button" data-export>带走存档</button><button type="button" data-import>读入存档</button><input type="file" accept="application/json,.json" hidden>';shell.append(saves);
   listen(saves.querySelector('[data-export]'),'click',()=>{
