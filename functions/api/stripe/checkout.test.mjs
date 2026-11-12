@@ -69,7 +69,7 @@ describe("stripe checkout endpoint", () => {
 	it("rejects invalid amounts before calling Stripe", async () => {
 		const response = await onRequestPost(
 			context(
-				{ amount: "1.00", currency: "usd" },
+				{ amount: "0.50", currency: "usd" },
 				{ STRIPE_SECRET_KEY: "sk_test_secret" },
 			),
 		);

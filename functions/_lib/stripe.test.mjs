@@ -18,8 +18,8 @@ describe("stripe helpers", () => {
 		assert.equal(parseDonationAmount("10", "cny"), 1000);
 		assert.equal(parseDonationAmount("300", "jpy"), 300);
 		assert.equal(parseDonationAmount("10000.00", "usd"), 1_000_000);
-		assert.equal(parseDonationAmount("14.99", "hkd"), null);
-		assert.equal(parseDonationAmount("1.99", "usd"), null);
+		assert.equal(parseDonationAmount("3.99", "hkd"), null);
+		assert.equal(parseDonationAmount("0.99", "usd"), null);
 		assert.equal(parseDonationAmount("10.001", "usd"), null);
 		assert.equal(parseDonationAmount("300.5", "jpy"), null);
 		assert.equal(parseDonationAmount("1e3"), null);

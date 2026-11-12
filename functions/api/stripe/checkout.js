@@ -1,4 +1,5 @@
 import { assertSameOriginPost } from "../../_lib/post-interactions.js";
+import { checkRateLimit } from "../../_lib/rate-limit.js";
 import { json } from "../../_lib/admin.js";
 import {
 	checkoutSessionForm,
@@ -15,6 +16,23 @@ import {
 export async function onRequestPost({ request, env }) {
 	try {
 		assertSameOriginPost(request);
+
+		const rate = await checkRateLimit(env, request, {
+			table: "stripe_checkout_requests",
+			limit: 5,
+			windowSeconds: 60,
+			secret: env.STRIPE_RATE_LIMIT_SECRET,
+		});
+		if (!rate.allowed) {
+			return json(
+				{ success: false, error: "请求过于频繁，请稍后再试" },
+				{
+					status: 429,
+					headers: { "retry-after": String(rate.retryAfterSeconds) },
+				},
+			);
+		}
+
 		if (!env.STRIPE_SECRET_KEY) {
 			return json(
 				{ success: false, error: "Stripe 支付暂未配置" },
