@@ -1,4 +1,4 @@
-import { mountSpace } from './p34-space.js?v=20261113-3d';
+import { mountSpace } from './p34-space.js?v=20261113-quiet';
 export async function mountReadingWorld(isCurrent = () => true) {
   if (typeof location === 'undefined' || new URLSearchParams(location.search).get('paper') !== '0617') return () => {};
   const response = await fetch('/her-space.json');

@@ -21,9 +21,9 @@ export async function playPassage(shell, page, motion, entering) {
   const rects = anchors.map(el => el.getBoundingClientRect());
   const layer = document.createElement('div');
   layer.className = 'space-passage'; layer.inert = true; layer.setAttribute('aria-hidden', 'true');
-  const veil = document.createElement('div'), sweep = document.createElement('div');
+  const veil = document.createElement('div');
   veil.className = 'space-passage-veil'; veil.style.background = page.color;
-  sweep.className = 'space-passage-sweep'; layer.append(veil, sweep); shell.append(layer);
+  layer.append(veil); shell.append(layer);
   const cancel = () => {
     for (const el of [layer, ...anchors]) el.getAnimations({ subtree: el === layer }).forEach(a => a.cancel());
     layer.remove();
@@ -32,11 +32,7 @@ export async function playPassage(shell, page, motion, entering) {
   passages.set(shell, cancel);
   const jobs = [
     motion.animate(veil, entering ? [{ opacity: 1 }, { opacity: 0 }] : [{ opacity: 0 }, { opacity: 1 }], { duration: entering ? 820 : 760, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'both' }),
-    motion.animate(sweep, [
-      { transform: `translateX(${entering ? '-110' : '170'}vw) rotate(-20deg)`, opacity: 0 },
-      { opacity: .7, offset: .25 },
-      { transform: `translateX(${entering ? '170' : '-110'}vw) rotate(-20deg)`, opacity: 0 },
-    ], { duration: 1100, easing: 'cubic-bezier(.3,0,.2,1)' }),
+
   ];
   page.words.forEach((word, i) => {
     const target = rects[i % rects.length], ghost = document.createElement('span');

@@ -32,7 +32,6 @@ html.p34-spatial {
 .space-light { mix-blend-mode: screen; }
 .space-passage { position: fixed; inset: 0; z-index: 20; pointer-events: none; overflow: clip; }
 .space-passage-veil { position: absolute; inset: 0; }
-.space-passage-sweep { position: absolute; left: -30vw; top: -40vh; width: 55vw; height: 180vh; background: linear-gradient(90deg, transparent, #b4e8ff30 28%, #effbff88 51%, #ddd0ff33 67%, transparent); }
 .space-transit-word { position: absolute; display: block; white-space: pre-wrap; transform-origin: left center; }
 .space-mist { background: radial-gradient(ellipse at 8% 8%, #14264150, transparent 58%), linear-gradient(90deg, #182e4d38, transparent 55%); z-index: -1; }
 .space-voice { position: absolute; z-index: 4; left: 9.5%; top: clamp(88px, 15svh, 190px); width: 52%; pointer-events: none; }

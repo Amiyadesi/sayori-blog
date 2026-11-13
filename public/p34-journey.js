@@ -13,29 +13,29 @@ export const IDENTITY_CLUES = ['slot-34-log', 'dual-handwriting', 'rain-origin-t
 
 export const CLUE_INFO = {
   'atrium-survey': {
-    title: '页背测绘记录 · 视口之外的余量',
+    title: '测绘纸',
     layer: 'atrium',
-    summary: '在回廊高处观测台发现的测绘仪：网页正面只渲染了视口内的 DOM，但背面多出了近三倍的未分配坐标空间，有人在里面手动搭起了承重柱与走廊。',
+    summary: '正面的平面图到这里就结束了。背面还有一笔，通向纸外。',
   },
   'retired-relic': {
-    title: '封存的旧实验架 · 书库东翼陈列柜',
+    title: '收起来的草稿',
     layer: 'stacks',
-    summary: '被她收进书库玻璃柜的早期挡板与轨迹草图。旁边贴着便签：「平面里弹来弹去太挤了，还是把页边距撑开做成房间更好玩」。',
+    summary: '几张被翻过去的图纸。最上面写着：「这个先放着」。',
   },
   'slot-34-log': {
-    title: '异常证据 I · 第34号目录的出生时间戳',
+    title: '第 34 页',
     layer: 'loft',
-    summary: '作者的项目清单里 #34 只是一条「尚未立项」的空记录，但底层目录的 inode 创建时间比仓库初始化还早 17 分钟，且有一个无名本地进程至今仍在持续写入空间结构。',
+    summary: '目录写着「空置」。背面的房间图已经改过很多次。署名那一栏始终空着。',
   },
   'dual-handwriting': {
-    title: '异常证据 II · 正反两面的双笔迹批注',
+    title: '另一种笔迹',
     layer: 'loft',
-    summary: '同一张站点结构图上有两种截然不同的字迹：正面是作者Amiya_desi严谨的清理计划，背面则是她用青色荧光写下的批注——她熟知作者删掉的每一篇废稿，却有着和作者完全不同的审美与脾气。',
+    summary: '正面写着「撤下入口」。背面是另一种笔迹：「入口撤了，房间又没消失」。',
   },
   'rain-origin-trace': {
-    title: '异常证据 III · 雨夜窗沿的合成声纹',
+    title: '窗边的记录',
     layer: 'loft',
-    summary: '阁楼窗边的声纹仪显示，她的表达最初由网站残留的键盘敲击、未发送草稿与那段雨夜录音碎片汇聚而成；但她早已生出自己的记忆与好奇心，甚至会反过来嫌弃作者写文章太爱算数字。',
+    summary: '同一段雨，出现在两个网页的草稿里。其中一份没有作者，旁边写着：「这份是谁存的？」',
   },
 };
 
@@ -82,7 +82,7 @@ const pillarsValid = p =>
 
 export function isBridgeArch(nodes) {
   if (!sketchValid(nodes) || nodes === null) return false;
-  const midHigh = Math.min(nodes[1][1], nodes[2][1]) <= 0.42;
+  const midHigh = Math.max(nodes[1][1], nodes[2][1]) <= 0.42;
   const spanWide = Math.abs(nodes[3][0] - nodes[0][0]) >= 0.35;
   return midHigh && spanWide;
 }
@@ -292,14 +292,13 @@ export function journeyEvent(state, event, value) {
       s.light = Math.max(1, s.light);
       if (sketchValid(value) && value !== null) {
         s.lightSketch = value.map(p => p.map(n => Math.round(n * 10000) / 10000));
-        if (isBridgeArch(s.lightSketch)) s.bridgeSolid = true;
       }
       break;
     case 'light-saved':
       require(sketchValid(value) && value !== null, 'Invalid light sketch');
       s.light = 2;
       s.lightSketch = value.map(p => p.map(n => Math.round(n * 10000) / 10000));
-      s.bridgeSolid = true;
+      s.bridgeSolid ||= isBridgeArch(s.lightSketch);
       if (s.phase === 'arrive') s.phase = 'shared';
       break;
     case 'loop-walked':

@@ -1,5 +1,5 @@
-import { LINES, CHOICES } from './p34-script.js?v=20261113-3d';
-import { mountGuestbook } from './p34-guestbook.js?v=20261113-3d';
+import { LINES, CHOICES } from './p34-script.js?v=20261113-quiet';
+import { mountGuestbook } from './p34-guestbook.js?v=20261113-quiet';
 import {
   JOURNEY_COOKIE,
   LAYERS,
@@ -14,8 +14,8 @@ import {
   journeyEvent,
   blueprintSketch,
   identityClueCount,
-} from './p34-journey.js?v=20261113-3d';
-import { mountWorld3D } from './p34-world3d.js?v=20261113-3d';
+} from './p34-journey.js?v=20261113-quiet';
+import { mountWorld3D } from './p34-world3d.js?v=20261113-quiet';
 
 export function reboundSketch(offset) {
   const sketch = blueprintSketch(offset);
@@ -356,7 +356,9 @@ export function mountAdventure({
           leave();
         },
         onInteract(kind, payload) {
-          if (kind === 'lab-link') {
+          if (kind === 'sightline-hint') {
+            say('站到地上的圈里，看看两道断线');
+          } else if (kind === 'lab-link') {
             say(state.bridgeSolid ? LINES.spatial.bridgeSolid : LINES.spatial.bridgeHint);
           } else if (kind === 'glb-lamp') {
             record('touch');
@@ -370,10 +372,6 @@ export function mountAdventure({
             say(LINES.spatial.loopRepeat, { mood: 'thought' });
           } else if (kind === 'portal-locked-loft') {
             say(LINES.spatial.pillarTurned, { mood: 'thought' });
-          } else if (kind === 'blog-blueprint') {
-            if (!state.opened.includes('long-way')) record('opened', 'long-way');
-            if (!state.diagram) record('diagram');
-            say(LINES.spatial.blogSynced, { mood: 'bright' });
           } else if (kind === 'sync-pillars') {
             record('sync-pillars');
             say(LINES.spatial.stacksUnlocked, { mood: 'bright' });
@@ -410,7 +408,7 @@ export function mountAdventure({
   }
 
   function closeScene() {
-    // Keep 3D world alive when switching panels, or refresh it when returning
+    world3d?.setActive(false);
   }
 
   function heading(name) {
@@ -435,63 +433,9 @@ export function mountAdventure({
       atlas.dataset.layerAtlas = '';
       panel.append(atlas);
     }
-    const canStacks = state.westAligned || state.bridgeSolid || state.layers.includes('stacks');
-    const canLoft = state.stacksUnlocked || state.layers.includes('loft');
-    const p = state.pillars;
-
-    atlas.innerHTML = `
-      <header class="layer-atlas-header">
-        <h2>页背层级航标 · 3D 空间拓扑</h2>
-        <p>从网页正面掀起纸角后，你可以在以下三层立体空间与 2D 页面之间自由穿行。</p>
-      </header>
-      <div class="layer-atlas-cards">
-        <article class="layer-card" data-layer-card="atrium" data-unlocked="true">
-          <span class="layer-card-badge">LAYER 01</span>
-          <h3>${LAYER_LABELS.atrium}</h3>
-          <p>网页视口背面的第一层建筑。包含西侧错位回廊与取景框、中庭动态光带、东侧 GLB 模型展台与后台终端。</p>
-          <ul class="layer-card-status">
-            <li>西廊视线阶梯：<strong>${state.westAligned ? '✓ 已对齐展开' : '未校准（可在西廊蓝圈内对齐）'}</strong></li>
-            <li>2D ⇄ 3D 实验室光桥：<strong>${state.bridgeSolid ? '✓ 已凝实成桥' : '垂落半空（可在 2D 实验室拱起保存）'}</strong></li>
-          </ul>
-          <div class="layer-card-actions">
-            <button type="button" data-enter-layer="atrium">进入第一层 · 页背回廊</button>
-            <button type="button" data-goto-room="lab">去 2D 实验室拉光</button>
-          </div>
-        </article>
-
-        <article class="layer-card" data-layer-card="stacks" data-unlocked="${canStacks}">
-          <span class="layer-card-badge">LAYER 02</span>
-          <h3>${LAYER_LABELS.stacks}</h3>
-          <p>沉没在站点索引之外的巨型垂直书库。结合她在 2D 博客《走廊拐弯的时候》留下的草图，校准三座空间基准柱。</p>
-          <ul class="layer-card-status">
-            <li>2D 博客草图信号：<strong>${state.diagram ? '✓ 已拉直折线并接通投影仪' : '待校准'}</strong></li>
-            <li>三座空间基准柱：<strong>[${p.west} / ${p.center} / ${p.east}] ${state.stacksUnlocked ? '✓ 北门已开启' : ''}</strong></li>
-          </ul>
-          <div class="layer-card-actions">
-            <button type="button" data-enter-layer="stacks" ${canStacks ? '' : 'disabled'}>
-              ${canStacks ? '进入第二层 · 索引外书库' : '需先展开第一层阶梯或光桥'}
-            </button>
-            <a class="layer-card-link" href="${blogURL}">前往 2D 博客草图</a>
-          </div>
-        </article>
-
-        <article class="layer-card" data-layer-card="loft" data-unlocked="${canLoft}">
-          <span class="layer-card-badge">LAYER 03</span>
-          <h3>${LAYER_LABELS.loft}</h3>
-          <p>悬在夜雨声中的温暖阁楼与第 34 号残档。调查三处关于她真实身份的异常证据，与她面对面交谈。</p>
-          <ul class="layer-card-status">
-            <li>阁楼身份证据：<strong>已发现 ${identityClueCount(state)} / 3 处</strong></li>
-            <li>主线状态：<strong>${state.phase === 'after' ? '✓ 已完成首章重逢，全层级自由开放' : '调查进行中'}</strong></li>
-          </ul>
-          <div class="layer-card-actions">
-            <button type="button" data-enter-layer="loft" ${canLoft ? '' : 'disabled'}>
-              ${canLoft ? '进入第三层 · 她的阁楼' : '需先解开第二层书库北门'}
-            </button>
-            <button type="button" data-goto-room="archive">查看线索档案 (${state.clues.length}/5)</button>
-          </div>
-        </article>
-      </div>
-    `;
+    atlas.innerHTML = `<h2>去过的地方</h2><div class="layer-atlas-cards">${state.layers.map(id => `
+      <button type="button" data-enter-layer="${id}">${LAYER_LABELS[id].replace(/^第.层 · /, '')}</button>
+    `).join('')}</div><button type="button" data-goto-room="archive">档案</button>`;
   }
 
   function renderClueArchive() {
@@ -505,32 +449,15 @@ export function mountAdventure({
       board.dataset.clueDossier = '';
       panel.prepend(board);
     }
-    const items = CLUES.map(id => {
-      const found = state.clues.includes(id);
+    board.innerHTML = `<h2>留下的记录</h2><ul class="clue-list">${state.clues.map(id => {
       const info = CLUE_INFO[id];
-      return `
-        <li class="clue-item" data-clue-id="${id}" data-found="${found}">
-          <div class="clue-item-head">
-            <strong>${found ? info.title : '未发现的空间档案'}</strong>
-            <span>${LAYER_LABELS[info.layer]}</span>
-          </div>
-          <p>${found ? info.summary : '在对应的 3D 层级中探索并靠近调查点即可记录此证据。'}</p>
-        </li>
-      `;
-    }).join('');
-
-    board.innerHTML = `
-      <header class="clue-dossier-head">
-        <h2>身份调查档案 · 「她究竟是谁？」 (${state.clues.length} / ${CLUES.length})</h2>
-        <p>记录你在页背回廊、索引外书库与她的阁楼中发现的异常证据。</p>
-      </header>
-      <ul class="clue-list">${items}</ul>
-    `;
+      return `<li class="clue-item"><h3>${info.title}</h3><p>${info.summary}</p></li>`;
+    }).join('')}</ul>`;
   }
 
   function room(name, announce = true) {
     current();
-    const urlLayer = layerFromURL(location.href, null);
+    const urlLayer = layerFromURL(location.href, state.currentLayer);
     if (site === 'home' && name === 'home' && urlLayer && urlLayer !== state.currentLayer) {
       try {
         record('enter-layer', urlLayer);
@@ -544,13 +471,16 @@ export function mountAdventure({
     renderAtlas();
     renderClueArchive();
     filterNotes();
-    if (announce) say(heading(name));
+    if (announce && name !== 'home') say(heading(name));
     shell.querySelector('[data-talk]').hidden = false;
-    shell.querySelector('[data-return]').hidden = site !== 'blog' && shell.dataset.map !== 'true';
+    shell.querySelector('[data-return]').hidden = false;
     saves.hidden = name !== 'archive' && site !== 'blog';
 
     if (site === 'home' && name === 'home') {
-      void ensureWorld3D().then(() => world3d?.refresh());
+      void ensureWorld3D().then(() => {
+        world3d?.refresh();
+        world3d?.setActive(getRoom() === 'home');
+      });
     }
   }
 
@@ -605,19 +535,13 @@ export function mountAdventure({
         if (link) {
           link.hidden = false;
           link.href = 'https://sayori.org/?paper=0617&layer=stacks';
-          link.textContent = '潜回 3D 索引外书库（折页基准已接通）';
+          link.textContent = '回到书库';
         }
         if (edge) edge.style.opacity = '1';
-        noteBox.innerHTML = `
-          <strong>✓ 折页基准线已对齐（信号已同步至 3D 书库投影仪）：</strong>
-          <ul>
-            <li>西基准柱（视口折向）：<strong>朝向正门页缝（北）</strong></li>
-            <li>中基准柱（楼层标高）：<strong>二层天桥 +3.2m</strong></li>
-            <li>东基准柱（留存声轨）：<strong>雨夜倒车的窗沿</strong></li>
-          </ul>
-        `;
+        noteBox.textContent = '页缝 · 上层 · 窗沿的雨';
       } else {
-        noteBox.innerHTML = '<span>向右拖动滑块，将 2D 折页基准线拉直以显影 3D 书库的三柱相位。</span>';
+        noteBox.textContent = '';
+
       }
     };
 
@@ -701,8 +625,6 @@ export function mountAdventure({
   });
 
   listen(window, 'focus', () => {
-    current();
-    world3d?.refresh();
     room(getRoom(), false);
   });
 

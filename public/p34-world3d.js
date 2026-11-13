@@ -1,12 +1,9 @@
-import { lightPoint, INITIAL_LIGHT } from './p34-light.js?v=20261113-3d';
 import {
   LAYERS,
   LAYER_LABELS,
-  PILLAR_OPTIONS,
   TARGET_PILLARS,
   CLUE_INFO,
-  pillarsAligned,
-} from './p34-journey.js?v=20261113-3d';
+} from './p34-journey.js?v=20261113-quiet';
 
 const PLAYER_RADIUS = 0.42;
 const EYE_HEIGHT = 1.65;
@@ -18,7 +15,6 @@ export function getLayerConfig(layer, state = {}) {
     return {
       id: 'atrium',
       title: LAYER_LABELS.atrium,
-      subtitle: '视口背面的折光中庭 · 观察西廊取景框或凝结实验室光桥以登上二层天桥',
       spawn: { x: 0, y: 0, z: 8.8, yaw: 0, pitch: 0 },
       bounds: { minX: -13.2, maxX: 13.2, minZ: -18.2, maxZ: 12.2 },
       surfaces: [
@@ -41,6 +37,7 @@ export function getLayerConfig(layer, state = {}) {
         { id: 'col-se', minX: 3.4, maxX: 4.6, minZ: 3.4, maxZ: 4.6, minY: 0, maxY: 6, enabled: true },
         // West gallery divider wall
         { id: 'west-divider', minX: -7.4, maxX: -6.6, minZ: -6.2, maxZ: -0.5, minY: 0, maxY: 4.5, enabled: true },
+        { id: 'fold-desk', minX: -0.7, maxX: 0.7, minZ: 0.6, maxZ: 1.8, minY: 0, maxY: 1.2, enabled: true },
         // East alcove pedestal table
         { id: 'east-table', minX: 8.6, maxX: 10.2, minZ: -2.8, maxZ: 2.8, minY: 0, maxY: 1.5, enabled: true },
         // North chasm blocker when light bridge is not solid (blocks walking north past Z = -10.4)
@@ -49,65 +46,59 @@ export function getLayerConfig(layer, state = {}) {
       interactables: [
         {
           id: 'viewport-seam',
-          label: '网页视口背面 · 接缝门',
-          prompt: '按 E 或点击：查看视口接缝 / 返回正常网页',
+          label: '接缝',
+          prompt: 'E · 查看',
           x: 0, y: 1.6, z: 11.4,
           kind: 'seam',
         },
         {
           id: 'light-sculpture-rig',
-          label: '中庭立体光带 · 调谐端',
-          prompt: bridgeSolid
-            ? '按 E 或点击：光桥已凝实（可再次打开 2D 实验室改形状）'
-            : '按 E 或点击：打开 2D《拉住一束光》把光拱起搭桥',
+          label: '折页台',
+          prompt: 'E · 打开',
           x: 0, y: 1.4, z: 1.2,
           kind: 'lab-link',
         },
         {
           id: 'west-sightline-frame',
-          label: '西廊视线取景框',
-          prompt: westAligned
-            ? '按 E 或点击：视线已校准，通往二层的折纸阶梯已展开'
-            : '按 E 或点击：校准取景框视线，解开错位循环并展开二层阶梯',
+          label: '取景框',
+          prompt: 'E · 观察',
           x: -6.5, y: 1.5, z: 1.5,
           kind: 'sightline',
         },
         {
           id: 'east-prism-lamp',
-          label: '她的折纸棱镜灯 (GLB 模型)',
-          prompt: '按 E 或点击：拨动折纸棱镜灯，切换回廊折射光色',
+          label: '纸灯',
+          prompt: 'E · 转动',
           x: 8.8, y: 1.4, z: -1.8,
           kind: 'glb-lamp',
         },
         {
           id: 'east-tuning-fork',
-          label: '空间谐振音叉 (GLB 模型)',
-          prompt: '按 E 或点击：敲击空间谐振音叉，聆听页背声场',
+          label: '音叉',
+          prompt: 'E · 轻敲',
           x: 8.8, y: 1.4, z: 1.8,
           kind: 'glb-fork',
         },
         {
           id: 'east-web-terminal',
-          label: '页背终端机 · sayori.org // BACKSTAGE',
-          prompt: '按 E 或点击：操作真实网页终端与跨站博客连接',
+          label: '终端',
+          prompt: 'E · 打开',
           x: 11.2, y: 1.5, z: 0,
           kind: 'terminal',
         },
         {
           id: 'portal-to-stacks',
-          label: '层间折门 → 第二层「索引外书库」',
-          prompt: westAligned || bridgeSolid
-            ? '按 E 或点击：穿过折门，前往「第二层 · 索引外书库」'
-            : '（位于二层天桥：请先在西廊校准视线阶梯，或在实验室拉起光桥）',
-          x: 0, y: 4.6, z: -9.6,
+          label: '书库',
+          prompt: 'E · 穿过',
+          x: 0, y: 4.6, z: -9.6, floorY: 3.2,
           kind: 'portal',
           targetLayer: 'stacks',
         },
         {
           id: 'high-platform-survey',
-          label: '高处观测台 · 页背测绘仪',
-          prompt: '按 E 或点击：读取《页背测绘记录》（穿过 3D 光桥抵达）',
-          x: 0, y: 4.9, z: -16.2,
+          label: '测绘纸',
+          prompt: 'E · 阅读',
+          x: 0, y: 4.9, z: -16.2, floorY: 3.6,
           kind: 'clue',
           clueId: 'atrium-survey',
         },
@@ -117,12 +108,9 @@ export function getLayerConfig(layer, state = {}) {
 
   if (layer === 'stacks') {
     const unlocked = Boolean(state.stacksUnlocked);
-    const p = state.pillars || { west: 'void', center: 'ground', east: 'noise' };
-    const labelFor = (pillar, id) => PILLAR_OPTIONS[pillar].find(o => o.id === id)?.label || id;
     return {
       id: 'stacks',
       title: LAYER_LABELS.stacks,
-      subtitle: '沉没草稿的垂直书库 · 结合她的 2D 博客草图校准三座空间基准柱',
       spawn: { x: 0, y: 0, z: 8.8, yaw: 0, pitch: 0 },
       bounds: { minX: -11.5, maxX: 11.5, minZ: -13.5, maxZ: 11.5 },
       surfaces: [
@@ -130,6 +118,7 @@ export function getLayerConfig(layer, state = {}) {
         { id: 'north-bridge', minX: -2.5, maxX: 2.5, minZ: -13.8, maxZ: -7.2, yStart: 0, yEnd: 0.6, axis: '-z', enabled: unlocked },
       ],
       colliders: [
+        { id: 'sliding-shelf', minX: state.shelfMoved ? -6.8 : -2.8, maxX: state.shelfMoved ? -3.6 : 0.4, minZ: 3.8, maxZ: 4.6, minY: 0, maxY: 4.2, enabled: true },
         { id: 'north-void-guard', minX: -12.0, maxX: 12.0, minZ: -14.0, maxZ: -7.4, minY: 0, maxY: 5.0, enabled: !unlocked },
         { id: 'west-stack-wall', minX: -10.8, maxX: -9.2, minZ: -6.0, maxZ: 6.0, minY: 0, maxY: 8.0, enabled: true },
         { id: 'east-stack-wall', minX: 9.2, maxX: 10.8, minZ: -6.0, maxZ: 6.0, minY: 0, maxY: 8.0, enabled: true },
@@ -137,66 +126,62 @@ export function getLayerConfig(layer, state = {}) {
       interactables: [
         {
           id: 'portal-back-atrium',
-          label: '层间折门 → 返回「第一层 · 页背回廊」',
-          prompt: '按 E 或点击：返回「第一层 · 页背回廊」',
+          label: '回廊',
+          prompt: 'E · 返回',
           x: 0, y: 1.6, z: 10.8,
           kind: 'portal',
           targetLayer: 'atrium',
         },
         {
           id: 'blog-reading-desk',
-          label: '跨站阅览台 · 她的 2D 博客与《走廊拐弯的时候》',
-          prompt: '按 E 或点击：查阅博客草图 / 前往 2D 博客页校准折线',
+          label: '摊开的笔记',
+          prompt: 'E · 阅读',
           x: -7.2, y: 1.4, z: 0.8,
           kind: 'blog-desk',
         },
         {
           id: 'east-relic-cabinet',
-          label: '封存的旧实验陈列柜',
-          prompt: '按 E 或点击：查看她收进玻璃柜的旧弹球架与批注',
+          label: '旧稿',
+          prompt: 'E · 翻看',
           x: 7.2, y: 1.5, z: 0.8,
           kind: 'clue',
           clueId: 'retired-relic',
         },
         {
           id: 'blog-projector',
-          label: '跨站草图投影仪 (2D 博客 ⇄ 3D 书库联动)',
-          prompt: state.diagram
-            ? '按 E 或点击：已接收 2D 博客草图信号！点击一键同步三座基准柱'
-            : '按 E 或点击：查看投影仪状态（可前往 2D 博客拉直草图或手动旋转三柱）',
+          label: '投影仪',
+          prompt: 'E · 投射',
           x: 0, y: 1.3, z: -0.8,
           kind: 'projector',
         },
         {
           id: 'pillar-west',
-          label: `西基准柱 · 视口折向 [${labelFor('west', p.west)}]`,
-          prompt: '按 E 或点击：旋转西基准柱（目标提示见博客草图）',
+          label: '西柱',
+          prompt: 'E · 转动',
           x: -4.2, y: 1.6, z: -4.2,
           kind: 'pillar',
           pillar: 'west',
         },
         {
           id: 'pillar-center',
-          label: `中基准柱 · 楼层标高 [${labelFor('center', p.center)}]`,
-          prompt: '按 E 或点击：升降中基准柱（目标提示见博客草图）',
+          label: '中柱',
+          prompt: 'E · 调整',
           x: 0, y: 1.6, z: -5.2,
           kind: 'pillar',
           pillar: 'center',
         },
         {
           id: 'pillar-east',
-          label: `东基准柱 · 留存声轨 [${labelFor('east', p.east)}]`,
-          prompt: '按 E 或点击：切换东基准柱声轨（目标提示见《雨录进来了》）',
+          label: '东柱',
+          prompt: 'E · 调整',
           x: 4.2, y: 1.6, z: -4.2,
           kind: 'pillar',
           pillar: 'east',
         },
         {
           id: 'portal-to-loft',
-          label: '北面折页门 → 第三层「她的阁楼」',
-          prompt: unlocked
-            ? '按 E 或点击：穿过凝实的索引桥，进入「第三层 · 她的阁楼」'
-            : '（虚线桥尚未凝实：请先将西、中、东三座基准柱对准博客草图记载的相位）',
+          label: '阁楼',
+          prompt: 'E · 穿过',
           x: 0, y: 2.1, z: -11.6,
           kind: 'portal',
           targetLayer: 'loft',
@@ -209,7 +194,6 @@ export function getLayerConfig(layer, state = {}) {
   return {
     id: 'loft',
     title: LAYER_LABELS.loft,
-    subtitle: '悬在雨声与夜色里的私密工作间 · 调查三处异常证据，认识真正的她',
     spawn: { x: 0, y: 0, z: 6.2, yaw: 0, pitch: 0 },
     bounds: { minX: -7.8, maxX: 7.8, minZ: -7.8, maxZ: 7.8 },
     surfaces: [
@@ -221,47 +205,47 @@ export function getLayerConfig(layer, state = {}) {
     interactables: [
       {
         id: 'portal-back-stacks',
-        label: '层间折门 → 返回「第二层 · 索引外书库」',
-        prompt: '按 E 或点击：返回「第二层 · 索引外书库」',
+          label: '书库',
+          prompt: 'E · 返回',
         x: 0, y: 1.6, z: 7.4,
         kind: 'portal',
         targetLayer: 'stacks',
       },
       {
         id: 'her-workbench',
-        label: '她的立体沙盘工作台 · 与她交谈',
-        prompt: '按 E 或点击：观察她的三层世界模型并与她聊聊',
+          label: '工作台',
+          prompt: 'E · 聊聊',
         x: 0, y: 1.4, z: -1.4,
         kind: 'talk-bench',
       },
       {
         id: 'clue-slot-34',
-        label: '异常证据 I · 《第34号目录的构建终端》',
-        prompt: '按 E 或点击：调查 #34 目录早于建站时间的异常进程记录',
+          label: '第 34 页',
+          prompt: 'E · 阅读',
         x: -4.4, y: 1.5, z: -2.2,
         kind: 'clue',
         clueId: 'slot-34-log',
       },
       {
         id: 'clue-dual-handwriting',
-        label: '异常证据 II · 《正反双笔迹批注稿》',
-        prompt: '按 E 或点击：对照站长清理计划与她在页背留下的荧光批注',
+          label: '批注',
+          prompt: 'E · 翻面',
         x: 4.4, y: 1.5, z: -2.2,
         kind: 'clue',
         clueId: 'dual-handwriting',
       },
       {
         id: 'clue-rain-window',
-        label: '异常证据 III · 《雨夜窗沿与合成声纹仪》',
-        prompt: '按 E 或点击：聆听窗外倒车的雨声，分析她的声纹起源',
+          label: '窗边的记录',
+          prompt: 'E · 查看',
         x: 0, y: 1.6, z: -6.8,
         kind: 'clue',
         clueId: 'rain-origin-trace',
       },
       {
         id: 'loft-guestbook-desk',
-        label: '阁楼留言簿 · 公开留言板',
-        prompt: '按 E 或点击：打开公开留言板，给她和其他探索者留句话',
+          label: '留言簿',
+          prompt: 'E · 留言',
         x: 4.2, y: 1.3, z: 3.4,
         kind: 'guestbook-link',
       },
@@ -312,6 +296,7 @@ export function resolvePlayerMovement(pos, nextX, nextZ, config, state = {}) {
   let z = pos.z;
   let y = pos.y || 0;
 
+  const onFloor = (x, z) => surfaces.some(s => s.enabled && Math.min(s.yStart, s.yEnd) <= y + 1.35 && x >= s.minX && x <= s.maxX && z >= s.minZ && z <= s.maxZ);
   const candX = clampX(nextX);
   const candZ = clampZ(nextZ);
 
@@ -332,13 +317,13 @@ export function resolvePlayerMovement(pos, nextX, nextZ, config, state = {}) {
 
   // Try X movement
   const yAtX = computeFloorElevation(candX, z, y, surfaces);
-  if (!hitsCollider(candX, z, yAtX, colliders)) {
+  if (onFloor(candX, z) && !hitsCollider(candX, z, yAtX, colliders)) {
     x = candX;
     y = yAtX;
   }
   // Try Z movement
   const yAtZ = computeFloorElevation(x, candZ, y, surfaces);
-  if (!hitsCollider(x, candZ, yAtZ, colliders)) {
+  if (onFloor(x, candZ) && !hitsCollider(x, candZ, yAtZ, colliders)) {
     z = candZ;
     y = yAtZ;
   }
@@ -347,14 +332,13 @@ export function resolvePlayerMovement(pos, nextX, nextZ, config, state = {}) {
 }
 
 export function checkSightlineAlignment(pos, yaw) {
-  const inCircle = Math.hypot(pos.x - -6.5, pos.z - 1.5) <= 2.6;
-  // Looking generally West/North-West (yaw between 0.25 and 2.35 rad, or normalized)
-  const normYaw = Math.atan2(Math.sin(yaw), Math.cos(yaw));
-  const lookingWest = normYaw >= 0.15 && normYaw <= 2.45;
-  return inCircle && lookingWest;
+  const inCircle = Math.hypot(pos.x + 6.5, pos.z - 1.5) <= 0.95;
+  const targetYaw = Math.atan2(1.7, 1.1);
+  const angle = Math.atan2(Math.sin(yaw - targetYaw), Math.cos(yaw - targetYaw));
+  return inCircle && Math.abs(angle) < 0.12;
 }
 
-export function findInteractiveTarget(pos, yaw, pitch, interactables = [], maxDist = 4.8) {
+export function findInteractiveTarget(pos, yaw, pitch, interactables = [], maxDist = 3.0) {
   const lookX = -Math.sin(yaw) * Math.cos(pitch);
   const lookY = Math.sin(pitch);
   const lookZ = -Math.cos(yaw) * Math.cos(pitch);
@@ -364,6 +348,7 @@ export function findInteractiveTarget(pos, yaw, pitch, interactables = [], maxDi
   let bestScore = Infinity;
 
   for (const item of interactables) {
+    if (item.floorY !== undefined && Math.abs((pos.y || 0) - item.floorY) > 0.9) continue;
     const dx = item.x - pos.x;
     const dy = (item.y ?? 1.4) - eyeY;
     const dz = item.z - pos.z;
@@ -371,7 +356,8 @@ export function findInteractiveTarget(pos, yaw, pitch, interactables = [], maxDi
     if (dist > maxDist) continue;
     const inv = 1 / (dist || 0.001);
     const dot = (dx * lookX + dy * lookY + dz * lookZ) * inv;
-    // Allow close proximity or looking within ~52 deg cone
+    if (item.kind === 'portal' && dot < 0.6) continue;
+    // Close objects remain reachable without precision aiming.
     if (dot < 0.42 && dist > 2.1) continue;
     const score = dist * (1.35 - Math.max(0, dot) * 0.65);
     if (score < bestScore) {
@@ -380,31 +366,6 @@ export function findInteractiveTarget(pos, yaw, pitch, interactables = [], maxDi
     }
   }
   return best;
-}
-
-function makeTextPanelTexture(THREE, { title, lines = [], accent = '#6be6ff', bg = '#0d1b32' }) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 320;
-  const ctx = canvas.getContext('2d');
-  if (ctx) {
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, 512, 320);
-    ctx.strokeStyle = accent;
-    ctx.lineWidth = 4;
-    ctx.strokeRect(10, 10, 492, 300);
-    ctx.fillStyle = accent;
-    ctx.font = 'bold 26px sans-serif';
-    ctx.fillText(title, 28, 54);
-    ctx.fillStyle = '#eaf6ff';
-    ctx.font = '20px sans-serif';
-    lines.forEach((line, i) => {
-      ctx.fillText(line, 28, 104 + i * 36);
-    });
-  }
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.needsUpdate = true;
-  return tex;
 }
 
 export async function mountWorld3D(container, {
@@ -430,21 +391,13 @@ export async function mountWorld3D(container, {
     <div class="world3d-viewport" data-viewport tabindex="0" role="application" aria-label="三维页背探索空间，使用 WASD 移动，鼠标或方向键转动视角，E 或点击交互"></div>
     <div class="world3d-reticle" data-reticle aria-hidden="true"><span></span></div>
     <header class="world3d-hud-top">
-      <div class="world3d-layer-badge">
-        <span class="world3d-layer-kicker">PAGE BACKSTAGE // 3D LAYER</span>
-        <strong data-layer-title></strong>
-        <p data-layer-subtitle></p>
-      </div>
-      <div class="world3d-quick-actions" role="toolbar" aria-label="层级与视角快捷操作">
-        <button type="button" data-lock-btn class="world3d-chip">鼠标视角 (Click)</button>
-        <button type="button" data-inspector-btn class="world3d-chip">空间终端 / 地图</button>
-      </div>
+      <button type="button" data-inspector-btn class="world3d-chip">暂停</button>
     </header>
+    <p class="world3d-help" data-help>WASD 移动 · 拖动环视 · E 互动 · Esc 暂停</p>
     <div class="world3d-prompt" data-prompt hidden aria-live="polite">
       <span class="world3d-prompt-title" data-prompt-title></span>
       <button type="button" class="world3d-prompt-action" data-prompt-btn></button>
     </div>
-    <div class="world3d-compass" data-compass aria-label="当前位置与热点数"></div>
     <div class="world3d-touch-controls" data-touch-controls aria-label="触屏移动与视角控制">
       <div class="world3d-touch-pad" data-touch-move role="group" aria-label="左下虚拟摇杆：拖动移动">
         <button type="button" data-step="forward" aria-label="前进">▲</button>
@@ -476,14 +429,11 @@ export async function mountWorld3D(container, {
 
   const viewport = root.querySelector('[data-viewport]');
   const reticle = root.querySelector('[data-reticle]');
-  const layerTitleEl = root.querySelector('[data-layer-title]');
-  const layerSubtitleEl = root.querySelector('[data-layer-subtitle]');
   const promptBox = root.querySelector('[data-prompt]');
   const promptTitle = root.querySelector('[data-prompt-title]');
   const promptBtn = root.querySelector('[data-prompt-btn]');
-  const compassEl = root.querySelector('[data-compass]');
-  const lockBtn = root.querySelector('[data-lock-btn]');
   const inspectorBtn = root.querySelector('[data-inspector-btn]');
+  const help = root.querySelector('[data-help]');
   const modal = root.querySelector('[data-modal]');
   const modalTitle = root.querySelector('[data-modal-title]');
   const modalBody = root.querySelector('[data-modal-body]');
@@ -494,17 +444,17 @@ export async function mountWorld3D(container, {
   try {
     renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.enabled = false;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.12;
     viewport.append(renderer.domElement);
   } catch (err) {
     webglAvailable = false;
-    console.warn('WebGLRenderer unavailable, enabling spatial DOM fallback view', err);
+    console.error('3D rendering unavailable', err);
     const fallback = document.createElement('div');
     fallback.className = 'world3d-webgl-fallback';
-    fallback.textContent = '当前环境未启用 WebGL 硬件渲染，已为您切换为可交互的空间测绘视图。';
+    fallback.textContent = '无法显示 3D。请开启硬件加速或更换浏览器；也可从「暂停」返回网页。';
     viewport.append(fallback);
   }
 
@@ -548,14 +498,15 @@ export async function mountWorld3D(container, {
   let lastPointer = { x: 0, y: 0 };
   let activeTarget = null;
   let animatedObjects = [];
-  let dynamicLightTube = null;
   let dynamicWestStairsGroup = null;
   let dynamicNorthBridgeGroup = null;
   let dynamicSlidingShelf = null;
-  let pillarMeshes = {};
   let lampLightRef = null;
   let rafId = 0;
+  let active = true;
+  let disposed = false;
   let lastTime = performance.now();
+  let buildId = 0;
 
   function updateSize() {
     const rect = viewport.getBoundingClientRect();
@@ -567,12 +518,18 @@ export async function mountWorld3D(container, {
   }
 
   function clearScene() {
+    buildId++;
+    const freed = new Set();
+    scene.traverse(obj => {
+      const materials = obj.material ? (Array.isArray(obj.material) ? obj.material : [obj.material]) : [];
+      for (const resource of [obj.geometry, ...materials.flatMap(m => [m.map, m])]) {
+        if (resource && !freed.has(resource)) { freed.add(resource); resource.dispose(); }
+      }
+    });
     animatedObjects = [];
-    dynamicLightTube = null;
     dynamicWestStairsGroup = null;
     dynamicNorthBridgeGroup = null;
     dynamicSlidingShelf = null;
-    pillarMeshes = {};
     lampLightRef = null;
     while (scene.children.length > 0) {
       const obj = scene.children[0];
@@ -580,44 +537,10 @@ export async function mountWorld3D(container, {
     }
   }
 
-  function buildLightCurveMesh(nodes) {
-    const pts = [];
-    const safeNodes = Array.isArray(nodes) && nodes.length === 4 ? nodes : INITIAL_LIGHT;
-    const solid = Boolean(state.bridgeSolid);
-    for (let i = 0; i <= 40; i++) {
-      const t = i / 40;
-      const [nx, ny] = lightPoint(safeNodes, t);
-      if (solid) {
-        // Forms an arched walkable light bridge from Mezzanine (Z=-10, Y=3.2) to High Platform (Z=-14.2, Y=3.6)
-        const bx = (nx - 0.5) * 2.2;
-        const bz = -10.0 - t * 4.4;
-        const by = 3.2 + t * 0.4 + Math.sin(t * Math.PI) * Math.max(0.15, (0.55 - ny) * 0.6);
-        pts.push(new THREE.Vector3(bx, by, bz));
-      } else {
-        // Floats across the central courtyard
-        const cx = (nx - 0.5) * 9.0;
-        const cy = 1.2 + (1 - ny) * 3.4;
-        const cz = 2.0 - t * 8.5;
-        pts.push(new THREE.Vector3(cx, cy, cz));
-      }
-    }
-    const curve = new THREE.CatmullRomCurve3(pts);
-    const geom = new THREE.TubeGeometry(curve, 48, solid ? 0.55 : 0.14, 12, false);
-    const mat = new THREE.MeshStandardMaterial({
-      color: solid ? 0x9cf6ff : 0x73dcff,
-      emissive: solid ? 0x2e8ab8 : 0x1b5c85,
-      emissiveIntensity: solid ? 1.15 : 0.8,
-      roughness: 0.2,
-      metalness: 0.1,
-      transparent: true,
-      opacity: solid ? 0.92 : 0.78,
-    });
-    return new THREE.Mesh(geom, mat);
-  }
-
   function populateAtrium() {
-    scene.background = new THREE.Color(0x0f1e38);
-    scene.fog = new THREE.FogExp2(0x0f1e38, 0.025);
+    const version = buildId;
+    scene.background = new THREE.Color(0x697b8c);
+    scene.fog = new THREE.Fog(0x697b8c, 18, 66);
 
     const hemi = new THREE.HemisphereLight(0x9ee4ff, 0x162644, 0.95);
     scene.add(hemi);
@@ -639,19 +562,23 @@ export async function mountWorld3D(container, {
     lampLightRef = eastLight;
 
     // Floor & Grid
-    const floorMat = new THREE.MeshStandardMaterial({ color: 0x162b4d, roughness: 0.35, metalness: 0.15 });
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x536171, roughness: 0.95 });
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(28, 26), floorMat);
     floor.rotation.x = -Math.PI / 2;
     scene.add(floor);
 
-    const grid = new THREE.GridHelper(26, 26, 0x4ba8d8, 0x23436e);
-    grid.position.y = 0.02;
-    scene.add(grid);
 
     // Outer perimeter architectural walls with luminous trim
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0x1e3863, roughness: 0.5, metalness: 0.1 });
-    const trimMat = new THREE.MeshStandardMaterial({ color: 0x8deeff, emissive: 0x2b7ea8, roughness: 0.2 });
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0xa2acb4, roughness: 0.95 });
 
+    // Long, mostly unoccupied bays: openings reveal depth without labels.
+    for (const side of [-1, 1]) {
+      for (const z of [-8, 1, 10]) {
+        const wall = new THREE.Mesh(new THREE.BoxGeometry(0.5, 7.2, 5.4), wallMat);
+        wall.position.set(side * 13.5, 3.6, z);
+        scene.add(wall);
+      }
+    }
     // South wall + Viewport Seam
     const southLeft = new THREE.Mesh(new THREE.BoxGeometry(10, 6.5, 0.5), wallMat);
     southLeft.position.set(-8.5, 3.25, 12.5);
@@ -659,34 +586,17 @@ export async function mountWorld3D(container, {
     southRight.position.set(8.5, 3.25, 12.5);
     scene.add(southLeft, southRight);
 
-    const seamTex = makeTextPanelTexture(THREE, {
-      title: 'sayori.org // VIEWPORT SEAM',
-      lines: [
-        '<!doctype html> <html class="p34-spatial">',
-        '你正站在个人主页视口的背面',
-        '正常访客在正面浏览，而你掀开了纸角 (?paper=0617)',
-        '[E / 点击] 可随时穿回正常网页',
-      ],
-      accent: '#7eeeff',
-      bg: '#13294b',
-    });
-    const seamMesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(5.6, 3.6),
-      new THREE.MeshBasicMaterial({ map: seamTex, side: THREE.DoubleSide })
-    );
-    seamMesh.position.set(0, 2.1, 12.1);
-    seamMesh.rotation.y = Math.PI;
+    const seamMesh = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 4.8), new THREE.MeshBasicMaterial({ color: 0x9aa8b4, side: THREE.DoubleSide }));
+    seamMesh.position.set(0, 2.4, 12.1);
     scene.add(seamMesh);
 
     // Four central chamfered monolith columns
     const colGeom = new THREE.BoxGeometry(1.1, 6.8, 1.1);
-    const colMat = new THREE.MeshStandardMaterial({ color: 0xdbeeff, roughness: 0.3, metalness: 0.1 });
+    const colMat = new THREE.MeshStandardMaterial({ color: 0xb0bac2, roughness: 0.95 });
     for (const [cx, cz] of [[-4, -4], [4, -4], [-4, 4], [4, 4]]) {
       const col = new THREE.Mesh(colGeom, colMat);
       col.position.set(cx, 3.4, cz);
-      const ring = new THREE.Mesh(new THREE.BoxGeometry(1.22, 0.16, 1.22), trimMat);
-      ring.position.set(cx, 2.2, cz);
-      scene.add(col, ring);
+      scene.add(col);
     }
 
     // West Wing: Sightline Aperture Frame & Split Mural
@@ -705,21 +615,14 @@ export async function mountWorld3D(container, {
     apertureFrame.position.set(-8.2, 1.6, 0.4);
     scene.add(apertureFrame);
 
-    const westWallTex = makeTextPanelTexture(THREE, {
-      title: state.westAligned ? '西廊刻度：视线已对齐' : '西廊刻度：空间未闭环',
-      lines: state.westAligned
-        ? ['两截折线已在取景框内重合', '通往二层天桥的阶梯已展开', '沿着北侧阶梯即可登上二层']
-        : ['警告：直接向北走会陷入回廊循环', '解法：退到地面的金色圆圈内', '面向西侧取景框按 [E] 对齐断线'],
-      accent: state.westAligned ? '#7ef7c8' : '#f6c978',
-      bg: '#1b2742',
-    });
-    const westWallBoard = new THREE.Mesh(
-      new THREE.PlaneGeometry(3.8, 2.4),
-      new THREE.MeshBasicMaterial({ map: westWallTex })
-    );
-    westWallBoard.position.set(-12.8, 2.1, 0.4);
-    westWallBoard.rotation.y = Math.PI / 2;
-    scene.add(westWallBoard);
+    // Separate halves coincide only when seen through the frame from the floor mark.
+    const ink = new THREE.LineBasicMaterial({ color: 0x536b81 });
+    for (const [x, z, a, b] of [[-8.2, 0.4, -0.7, 0], [-11.6, -1.8, 0, 2.1]]) {
+      const side = new THREE.Vector3(1.1, 0, -1.7).normalize();
+      const origin = new THREE.Vector3(x, 1.65, z);
+      const points = [origin.clone().addScaledVector(side, a), origin.clone().addScaledVector(side, b)];
+      scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), ink));
+    }
 
     // West Staircase (visible & solid when westAligned)
     dynamicWestStairsGroup = new THREE.Group();
@@ -749,12 +652,13 @@ export async function mountWorld3D(container, {
     scene.add(mezzDeck);
 
     // Portal on Mezzanine to Layer 2 (Stacks)
-    const portalArch = new THREE.Mesh(
-      new THREE.BoxGeometry(2.8, 3.4, 0.35),
-      new THREE.MeshStandardMaterial({ color: 0x8ef2ff, emissive: 0x236e96, roughness: 0.15 })
-    );
-    portalArch.position.set(0, 4.9, -9.8);
-    scene.add(portalArch);
+    const doorMat = new THREE.MeshStandardMaterial({ color: 0x929ca2, roughness: 0.95 });
+    for (const x of [-1.5, 1.5]) {
+      const jamb = new THREE.Mesh(new THREE.BoxGeometry(0.22, 3.4, 0.35), doorMat);
+      jamb.position.set(x, 4.9, -9.8); scene.add(jamb);
+    }
+    const lintel = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.22, 0.35), doorMat);
+    lintel.position.set(0, 6.5, -9.8); scene.add(lintel);
 
     // North High Observation Platform (Y = 3.6m, Z = -16.2)
     const highDeck = new THREE.Mesh(
@@ -769,9 +673,20 @@ export async function mountWorld3D(container, {
     surveyMonolith.position.set(0, 4.35, -16.2);
     scene.add(highDeck, surveyMonolith);
 
-    // Dynamic 3D Light Spline / Bridge
-    dynamicLightTube = buildLightCurveMesh(getLightNodes());
-    scene.add(dynamicLightTube);
+    const foldTable = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.9, 1.2), new THREE.MeshStandardMaterial({ color: 0x74818a, roughness: 1 }));
+    foldTable.position.set(0, 0.45, 1.2);
+    const foldedPaper = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.03, 0.7), new THREE.MeshStandardMaterial({ color: 0xd4d2c6, roughness: 1 }));
+    foldedPaper.position.set(0, 0.96, 1.2);
+    foldedPaper.rotation.z = 0.15;
+    scene.add(foldTable, foldedPaper);
+
+    // Saved sketch produces a usable bridge, not a decorative ribbon.
+    if (state.bridgeSolid) {
+      const bridge = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.12, 4.4), new THREE.MeshStandardMaterial({ color: 0xb9c8d0, roughness: 0.8 }));
+      bridge.position.set(0, 3.34, -12.2);
+      bridge.rotation.x = Math.atan2(0.4, 4.4);
+      scene.add(bridge);
+    }
 
     // East Wing: Pedestals + GLB models + Backstage Webpage Terminal
     const pedGeom = new THREE.CylinderGeometry(0.55, 0.65, 1.0, 16);
@@ -783,44 +698,32 @@ export async function mountWorld3D(container, {
     scene.add(ped1, ped2);
 
     void loadGLB('/assets/p34/models/paper-prism-lamp.glb').then(model => {
-      if (currentLayerId !== 'atrium') return;
+      if (disposed || version !== buildId || currentLayerId !== 'atrium') return;
       model.position.set(8.8, 1.05, -1.8);
       scene.add(model);
       animatedObjects.push(dt => { model.rotation.y += dt * 0.85; });
     });
 
     void loadGLB('/assets/p34/models/spatial-tuning-fork.glb').then(model => {
-      if (currentLayerId !== 'atrium') return;
+      if (disposed || version !== buildId || currentLayerId !== 'atrium') return;
       model.position.set(8.8, 1.05, 1.8);
       scene.add(model);
       animatedObjects.push(dt => { model.rotation.y -= dt * 0.6; });
     });
 
-    const termTex = makeTextPanelTexture(THREE, {
-      title: 'BACKSTAGE TERMINAL // 2D ⇄ 3D',
-      lines: [
-        '> route_status: ?paper=0617 [ACTIVE]',
-        `> west_staircase: ${state.westAligned ? 'ALIGNED (READY)' : 'LOOPING'}`,
-        `> light_bridge: ${state.bridgeSolid ? 'SOLIDIFIED' : 'UNSHAPED'}`,
-        '> [E / 点击] 打开终端面板与她的 2D 博客',
-      ],
-      accent: '#7eeeff',
-      bg: '#0c1c36',
-    });
-    const termScreen = new THREE.Mesh(
-      new THREE.PlaneGeometry(3.4, 2.2),
-      new THREE.MeshBasicMaterial({ map: termTex })
-    );
-    termScreen.position.set(11.6, 1.9, 0);
-    termScreen.rotation.y = -Math.PI / 2;
-    scene.add(termScreen);
+    const terminal = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.7, 2.2), new THREE.MeshStandardMaterial({ color: 0x28323b, roughness: 0.8 }));
+    terminal.position.set(11.4, 1.1, 0);
+    const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.0), new THREE.MeshBasicMaterial({ color: 0x9eabb2 }));
+    screen.rotation.y = -Math.PI / 2;
+    screen.position.set(11.2, 1.5, 0);
+    scene.add(terminal, screen);
   }
 
   function populateStacks() {
-    scene.background = new THREE.Color(0x080c18);
-    scene.fog = new THREE.FogExp2(0x080c18, 0.024);
+    scene.background = new THREE.Color(0x424a53);
+    scene.fog = new THREE.Fog(0x424a53, 18, 60);
 
-    const hemi = new THREE.HemisphereLight(0x7aa2e8, 0x090d1a, 0.8);
+    const hemi = new THREE.HemisphereLight(0xd5d8d4, 0x55565c, 1.5);
     scene.add(hemi);
 
     const amberLeft = new THREE.PointLight(0xf4be68, 2.4, 18);
@@ -834,18 +737,15 @@ export async function mountWorld3D(container, {
     // Catwalk floor
     const floor = new THREE.Mesh(
       new THREE.BoxGeometry(22, 0.3, 19.5),
-      new THREE.MeshStandardMaterial({ color: 0x131b30, roughness: 0.4, metalness: 0.25 })
+      new THREE.MeshStandardMaterial({ color: 0x505359, roughness: 0.95 })
     );
     floor.position.set(0, -0.15, 2.2);
     scene.add(floor);
 
-    const grid = new THREE.GridHelper(24, 24, 0x3b588f, 0x182542);
-    grid.position.y = 0.02;
-    scene.add(grid);
 
     // Towering Archive Monolith Bookshelves (left & right abyssal walls)
-    const stackMat = new THREE.MeshStandardMaterial({ color: 0x18233d, roughness: 0.55 });
-    const spineMat = new THREE.MeshStandardMaterial({ color: 0x72d6ff, emissive: 0x1d4e73, roughness: 0.3 });
+    const stackMat = new THREE.MeshStandardMaterial({ color: 0x666c70, roughness: 0.95 });
+    const spineMat = new THREE.MeshStandardMaterial({ color: 0xaaa99f, roughness: 0.95 });
     for (let i = 0; i < 6; i++) {
       const z = -6.0 + i * 2.8;
       for (const side of [-1, 1]) {
@@ -854,55 +754,48 @@ export async function mountWorld3D(container, {
         const spine = new THREE.Mesh(new THREE.BoxGeometry(1.46, 0.35, 1.5), spineMat);
         spine.position.set(side * 10.0, 2.2 + (i % 3) * 1.4, z);
         scene.add(tower, spine);
+        for (let row = 0; row < 5; row++) {
+          const shelf = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.08, 1.8), stackMat);
+          shelf.position.set(side * 9.4, 1.0 + row * 1.1, z);
+          scene.add(shelf);
+        }
       }
     }
 
     // Girl's interactive sliding shelf
     dynamicSlidingShelf = new THREE.Mesh(
       new THREE.BoxGeometry(3.2, 4.2, 0.8),
-      new THREE.MeshStandardMaterial({ color: 0x263861, emissive: 0x101c36, roughness: 0.4 })
+      new THREE.MeshStandardMaterial({ color: 0x777b7e, roughness: 0.95 })
     );
     dynamicSlidingShelf.position.set(state.shelfMoved ? -5.2 : -1.2, 2.1, 4.2);
     scene.add(dynamicSlidingShelf);
+    if (!state.shelfMoved) {
+      let elapsed = 0;
+      animatedObjects.push(dt => {
+        elapsed += dt;
+        dynamicSlidingShelf.position.x = -1.2 - 4 * Math.min(1, elapsed / 1.6);
+        if (elapsed >= 1.6 && !state.shelfMoved) {
+          onShelfMoved?.();
+          state = getState();
+          config = getLayerConfig(currentLayerId, state);
+        }
+      });
+    }
 
     // West Reading Desk (Blog connection)
-    const blogTex = makeTextPanelTexture(THREE, {
-      title: '她的博客草图 · 跨站阅览席',
-      lines: [
-        '笔记：《走廊拐弯的时候，网页还没有加载完》',
-        '西柱 → 朝向正门页缝（北）',
-        '中柱 → 二层天桥标高 (+3.2m)',
-        '东柱 → 雨夜倒车的窗沿',
-      ],
-      accent: '#f4be68',
-      bg: '#161f36',
-    });
-    const blogBoard = new THREE.Mesh(
-      new THREE.PlaneGeometry(3.8, 2.4),
-      new THREE.MeshBasicMaterial({ map: blogTex })
-    );
-    blogBoard.position.set(-7.6, 2.0, 0.8);
-    blogBoard.rotation.y = Math.PI / 3;
-    scene.add(blogBoard);
+    const paper = new THREE.MeshStandardMaterial({ color: 0xc3bbaa, roughness: 1, side: THREE.DoubleSide });
+    for (const x of [-7.2, 7.2]) {
+      const desk = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.12, 1.3), new THREE.MeshStandardMaterial({ color: 0x514c47, roughness: 0.9 }));
+      desk.position.set(x, 1.1, 0.8);
+      const note = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.9), paper);
+      note.rotation.x = -Math.PI / 2;
+      note.position.set(x, 1.18, 0.8);
+      scene.add(desk, note);
+    }
 
-    // East Relic Cabinet
-    const relicTex = makeTextPanelTexture(THREE, {
-      title: '封存的旧实验 · 挡板与砖块标本',
-      lines: [
-        '「平面里弹来弹去太挤了，我已经收进柜子当摆件啦」',
-        '「现在把网页背面撑开搭成走廊，好玩多了」',
-        '[E / 点击] 记录归档线索',
-      ],
-      accent: '#9ad8ff',
-      bg: '#142038',
-    });
-    const relicBoard = new THREE.Mesh(
-      new THREE.PlaneGeometry(3.6, 2.2),
-      new THREE.MeshBasicMaterial({ map: relicTex })
-    );
-    relicBoard.position.set(7.6, 2.0, 0.8);
-    relicBoard.rotation.y = -Math.PI / 3;
-    scene.add(relicBoard);
+    const projector = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.7, 0.8), new THREE.MeshStandardMaterial({ color: 0x8a8d88, roughness: 0.9 }));
+    projector.position.set(0, 0.8, -0.8);
+    scene.add(projector);
 
     // Three Spatial Index Pillars
     const p = state.pillars || { west: 'void', center: 'ground', east: 'noise' };
@@ -930,7 +823,6 @@ export async function mountWorld3D(container, {
       fin.position.y = 2.6;
       group.add(column, fin);
       scene.add(group);
-      pillarMeshes[spec.key] = { group, column };
     }
 
     // North Bridge & Gate to Layer 3 (Loft)
@@ -959,10 +851,11 @@ export async function mountWorld3D(container, {
   }
 
   function populateLoft() {
-    scene.background = new THREE.Color(0x16192e);
-    scene.fog = new THREE.FogExp2(0x16192e, 0.02);
+    const version = buildId;
+    scene.background = new THREE.Color(0x68615a);
+    scene.fog = new THREE.Fog(0x68615a, 12, 42);
 
-    const hemi = new THREE.HemisphereLight(0xb8c6ff, 0x1d1829, 0.95);
+    const hemi = new THREE.HemisphereLight(0xe2d5c2, 0x696269, 1.45);
     scene.add(hemi);
 
     const warmLamp = new THREE.PointLight(0xf7c679, 2.6, 18);
@@ -973,7 +866,7 @@ export async function mountWorld3D(container, {
 
     const floor = new THREE.Mesh(
       new THREE.BoxGeometry(16, 0.3, 16),
-      new THREE.MeshStandardMaterial({ color: 0x23243d, roughness: 0.45 })
+      new THREE.MeshStandardMaterial({ color: 0x5e5752, roughness: 0.95 })
     );
     floor.position.set(0, -0.15, 0);
     scene.add(floor);
@@ -981,84 +874,47 @@ export async function mountWorld3D(container, {
     // Her Central Workbench + Miniature 3D World Hologram
     const bench = new THREE.Mesh(
       new THREE.BoxGeometry(2.8, 0.95, 1.4),
-      new THREE.MeshStandardMaterial({ color: 0x3b3554, roughness: 0.5 })
+      new THREE.MeshStandardMaterial({ color: 0x867666, roughness: 0.95 })
     );
     bench.position.set(0, 0.48, -1.4);
-    const holo = new THREE.Mesh(
-      new THREE.OctahedronGeometry(0.45, 1),
-      new THREE.MeshStandardMaterial({ color: 0x7eeeff, emissive: 0x287699, wireframe: true })
-    );
-    holo.position.set(0, 1.55, -1.4);
-    scene.add(bench, holo);
-    animatedObjects.push(dt => {
-      holo.rotation.y += dt * 0.7;
-      holo.rotation.x += dt * 0.3;
-    });
+    scene.add(bench);
+    const plaster = new THREE.MeshStandardMaterial({ color: 0xaaa292, roughness: 1 });
+    for (const x of [-8, 8]) {
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(0.3, 5.8, 16), plaster);
+      wall.position.set(x, 2.9, 0); scene.add(wall);
+    }
+    const back = new THREE.Mesh(new THREE.BoxGeometry(16, 5.8, 0.3), plaster);
+    back.position.set(0, 2.9, -8); scene.add(back);
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(16, 0.2, 16), plaster);
+    roof.position.set(0, 5.8, 0); scene.add(roof);
+    const letterDesk = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.9, 1.0), new THREE.MeshStandardMaterial({ color: 0x8a7b6d, roughness: 1 }));
+    letterDesk.position.set(4.2, 0.45, 3.4); scene.add(letterDesk);
 
     void loadGLB('/assets/p34/models/paper-prism-lamp.glb').then(model => {
-      if (currentLayerId !== 'loft') return;
+      if (disposed || version !== buildId || currentLayerId !== 'loft') return;
       model.position.set(0.95, 0.98, -1.4);
       model.scale.setScalar(0.75);
       scene.add(model);
     });
 
-    // Clue 1: Slot #34 Terminal (West)
-    const c1Tex = makeTextPanelTexture(THREE, {
-      title: '异常证据 I · #34 目录构建记录',
-      lines: [
-        'repo: Amiyadesi/project-34 (状态：未公开立项)',
-        '仓库初始化: 2025-10-31 03:57:00',
-        '底层目录出生: 2025-10-31 03:40:12 (早 17 分钟!)',
-        '写入进程: <unnamed-resident> [仍在实时搭建房间]',
-      ],
-      accent: '#7eeeff',
-      bg: '#141e38',
-    });
-    const c1Mesh = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 2.2), new THREE.MeshBasicMaterial({ map: c1Tex }));
-    c1Mesh.position.set(-4.6, 1.8, -2.2);
-    c1Mesh.rotation.y = Math.PI / 4;
-    scene.add(c1Mesh);
-
-    // Clue 2: Dual-Handwriting Draft (East)
-    const c2Tex = makeTextPanelTexture(THREE, {
-      title: '异常证据 II · 正反双笔迹批注稿',
-      lines: [
-        '正面黑字(站长)：「未完成的实验全部从导航撤下」',
-        '背面青字(她)：「你删掉的只是正面入口，背面又没塌」',
-        '「我把剩下的页边距接起来，搭成了回廊和阁楼」',
-        '「反正你也看不见，这几层归我啦」',
-      ],
-      accent: '#d6a8ff',
-      bg: '#1c1a36',
-    });
-    const c2Mesh = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 2.2), new THREE.MeshBasicMaterial({ map: c2Tex }));
-    c2Mesh.position.set(4.6, 1.8, -2.2);
-    c2Mesh.rotation.y = -Math.PI / 4;
-    scene.add(c2Mesh);
-
-    // Clue 3: Rain Window & Origin Trace (North)
-    const c3Tex = makeTextPanelTexture(THREE, {
-      title: '异常证据 III · 雨夜窗沿与合成声纹',
-      lines: [
-        '窗外正在循环《雨录进来了，车也是》的现场环境音',
-        '声纹构成：被删掉的博客草稿 + 键盘残响 + 雨夜录音',
-        '观测结论：她并非作者本人的复制品，而是真正活在',
-        '这些网站背面的独立创作者——她究竟是怎么醒来的？',
-      ],
-      accent: '#f7c679',
-      bg: '#152238',
-    });
-    const c3Mesh = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 2.5), new THREE.MeshBasicMaterial({ map: c3Tex }));
-    c3Mesh.position.set(0, 2.0, -7.2);
-    scene.add(c3Mesh);
+    const paperMat = new THREE.MeshStandardMaterial({ color: 0xc6bfae, roughness: 1 });
+    for (const x of [-4.4, 4.4]) {
+      const sheet = new THREE.Mesh(new THREE.BoxGeometry(1.3, 1.8, 0.06), paperMat);
+      sheet.position.set(x, 1.5, -2.2);
+      sheet.rotation.y = x < 0 ? 0.3 : -0.3;
+      scene.add(sheet);
+    }
+    const windowFrame = new THREE.Mesh(new THREE.BoxGeometry(4.4, 3.5, 0.18), new THREE.MeshStandardMaterial({ color: 0x49464c }));
+    windowFrame.position.set(0, 2.2, -7.2);
+    const night = new THREE.Mesh(new THREE.PlaneGeometry(4.0, 3.1), new THREE.MeshBasicMaterial({ color: 0x627383 }));
+    night.position.set(0, 2.2, -7.09);
+    scene.add(windowFrame, night);
   }
 
   function rebuildLayerScene() {
     clearScene();
     state = getState();
     config = getLayerConfig(currentLayerId, state);
-    layerTitleEl.textContent = config.title;
-    layerSubtitleEl.textContent = config.subtitle;
     if (currentLayerId === 'atrium') populateAtrium();
     else if (currentLayerId === 'stacks') populateStacks();
     else populateLoft();
@@ -1086,11 +942,11 @@ export async function mountWorld3D(container, {
     } else {
       promptBox.hidden = true;
     }
-    const yStr = (player.y || 0).toFixed(1);
-    compassEl.textContent = `${config.title} · 坐标 (${player.x.toFixed(1)}, ${yStr}m, ${player.z.toFixed(1)})`;
   }
 
   function openInspectorModal(title, renderContent) {
+    keys.clear(); draggingLook = false;
+    modal.hidden = false;
     if (document.pointerLockElement) document.exitPointerLock?.();
     modalTitle.textContent = title;
     modalBody.replaceChildren();
@@ -1106,80 +962,31 @@ export async function mountWorld3D(container, {
     return true;
   }
 
-  function openSpatialOverviewModal(customTitle = '页背空间终端 · 层级导航与快速操作') {
+  function openSpatialOverviewModal() {
     state = getState();
-    openInspectorModal(customTitle, body => {
-      const wrap = document.createElement('div');
-      wrap.className = 'world3d-inspector-grid';
-      wrap.innerHTML = `
-        <section class="world3d-inspector-sec">
-          <h3>已发现的 3D 层级</h3>
-          <div class="world3d-layer-list" data-modal-layers></div>
-        </section>
-        <section class="world3d-inspector-sec">
-          <h3>当前层级可交互目标（支持直接触发）</h3>
-          <div class="world3d-hotspot-list" data-modal-hotspots></div>
-        </section>
-        <section class="world3d-inspector-sec">
-          <h3>2D / 3D 跨界面板与出口</h3>
-          <div class="world3d-room-links">
-            <button type="button" data-open-room="lab">2D 实验室《拉住一束光》</button>
-            <button type="button" data-open-room="blog">她的 2D 博客与空间草图</button>
-            <button type="button" data-open-room="archive">线索档案与存档 (${state.clues.length}/5)</button>
-            <button type="button" data-open-room="guestbook">公开留言板</button>
-            <button type="button" data-leave-normal>返回正常网页</button>
-          </div>
-        </section>
-      `;
-      const layerList = wrap.querySelector('[data-modal-layers]');
-      for (const l of LAYERS) {
-        const unlocked =
-          state.layers.includes(l) ||
-          (l === 'stacks' && (state.westAligned || state.bridgeSolid)) ||
-          (l === 'loft' && state.stacksUnlocked);
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.disabled = !unlocked;
-        btn.dataset.switchLayer = l;
-        btn.setAttribute('aria-current', String(l === currentLayerId));
-        btn.textContent = unlocked ? `${LAYER_LABELS[l]}${l === currentLayerId ? '（当前所在）' : ''}` : `${LAYER_LABELS[l]}（未抵达）`;
-        btn.addEventListener('click', () => {
-          closeModal();
-          switchLayer(l);
-        });
-        layerList.append(btn);
-      }
-
-      const hotspotList = wrap.querySelector('[data-modal-hotspots]');
-      for (const item of config.interactables) {
+    openInspectorModal('暂停', body => {
+      const controls = document.createElement('p');
+      controls.textContent = 'WASD 移动 · 拖动或鼠标锁定环视 · E 互动';
+      body.append(controls);
+      const links = document.createElement('div');
+      links.className = 'world3d-room-links';
+      const button = (text, action) => {
         const b = document.createElement('button');
-        b.type = 'button';
-        b.dataset.hotspot = item.id;
-        b.innerHTML = `<strong>${item.label}</strong><span>${item.prompt}</span>`;
-        b.addEventListener('click', () => {
-          closeModal();
-          player.x = item.x + Math.sin(player.yaw) * 1.4;
-          player.z = item.z + Math.cos(player.yaw) * 1.4;
-          player.y = computeFloorElevation(player.x, player.z, item.y || 0, config.surfaces);
-          syncCamera();
-          updateTargetPrompt();
-          triggerInteraction(item);
-        });
-        hotspotList.append(b);
+        b.type = 'button'; b.textContent = text;
+        b.addEventListener('click', () => { closeModal(); action(); });
+        links.append(b);
+      };
+      button('继续', () => viewport.focus({ preventScroll: true }));
+      button(motion.sound ? '关闭声音' : '开启声音', () => motion.setSound(!motion.sound));
+      if (webglAvailable && !matchMedia('(pointer: coarse)').matches) button('锁定鼠标', requestLook);
+      for (const l of state.layers) {
+        if (l !== currentLayerId) button(LAYER_LABELS[l].replace(/^第.层 · /, ''), () => switchLayer(l));
       }
-
-      wrap.querySelectorAll('[data-open-room]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          closeModal();
-          onOpenRoom?.(btn.dataset.openRoom);
-        });
-      });
-      wrap.querySelector('[data-leave-normal]').addEventListener('click', () => {
-        closeModal();
-        onLeaveSite?.();
-      });
-
-      body.append(wrap);
+      for (const [id, name] of [['lab', '折页台'], ['blog', '她的笔记'], ['archive', '档案'], ['guestbook', '留言']]) {
+        button(name, () => onOpenRoom?.(id));
+      }
+      button('返回网页', () => onLeaveSite?.());
+      body.append(links);
     });
   }
 
@@ -1189,21 +996,7 @@ export async function mountWorld3D(container, {
     state = getState();
 
     if (target.kind === 'seam') {
-      openInspectorModal('网页视口背面 · 接缝门', body => {
-        body.innerHTML = `
-          <p>透过这层半透明的 DOM 背面，能看见正常主页 <code>sayori.org</code> 的标题和纸角。</p>
-          <p>你可以继续在 3D 层级世界里探索，也可以随时穿回正常的 2D 网页。</p>
-          <div class="world3d-room-links">
-            <button type="button" data-stay>继续留在 3D 页背世界</button>
-            <button type="button" data-exit-normal>穿回正常网页</button>
-          </div>
-        `;
-        body.querySelector('[data-stay]').addEventListener('click', closeModal);
-        body.querySelector('[data-exit-normal]').addEventListener('click', () => {
-          closeModal();
-          onLeaveSite?.();
-        });
-      });
+      onLeaveSite?.();
       return true;
     }
 
@@ -1214,6 +1007,10 @@ export async function mountWorld3D(container, {
     }
 
     if (target.kind === 'sightline') {
+      if (!checkSightlineAlignment(player, player.yaw)) {
+        onInteract?.('sightline-hint');
+        return false;
+      }
       onSightlineAligned?.();
       state = getState();
       config = getLayerConfig(currentLayerId, state);
@@ -1241,30 +1038,7 @@ export async function mountWorld3D(container, {
     }
 
     if (target.kind === 'blog-desk') {
-      openInspectorModal('跨站阅览席 · 她的 2D 博客与《走廊拐弯的时候》', body => {
-        body.innerHTML = `
-          <p>桌面上摊开着她在 <code>blog.sayori.org/?paper=0617</code> 写的空间草图笔记：</p>
-          <blockquote>
-            「书库北面那扇通往阁楼的门，靠三根空间基准柱锁着相位：<br>
-            1. <strong>西柱（视口折向）</strong>：对准 <strong>朝向正门页缝（北）</strong><br>
-            2. <strong>中柱（楼层标高）</strong>：升至 <strong>二层天桥 +3.2m</strong><br>
-            3. <strong>东柱（留存声轨）</strong>：切到 <strong>雨夜倒车的窗沿</strong>」
-          </blockquote>
-          <div class="world3d-room-links">
-            <button type="button" data-calibrate-here>在此校准 2D 折页草图并投射光束</button>
-            <button type="button" data-go-blog>前往 2D 博客全文阅读</button>
-          </div>
-        `;
-        body.querySelector('[data-calibrate-here]').addEventListener('click', () => {
-          onInteract?.('blog-blueprint', target);
-          closeModal();
-          rebuildLayerScene();
-        });
-        body.querySelector('[data-go-blog]').addEventListener('click', () => {
-          closeModal();
-          onOpenRoom?.('blog');
-        });
-      });
+      onOpenRoom?.('blog');
       return true;
     }
 
@@ -1276,21 +1050,6 @@ export async function mountWorld3D(container, {
         rebuildLayerScene();
       } else {
         onInteract?.('projector-hint', target);
-        openInspectorModal('跨站草图投影仪（待接收 2D 博客折线信号）', body => {
-          body.innerHTML = `
-            <p>这台投影仪连接着她的 2D 博客笔记《走廊拐弯的时候》。</p>
-            <p>你可以去西侧的跨站阅览台或她的 2D 博客把草图折线拉直，也可以直接观察线索手动旋转三根基准柱。</p>
-            <div class="world3d-room-links">
-              <button type="button" data-open-blog>打开她的 2D 博客草图</button>
-              <button type="button" data-close>返回 3D 书库自己调柱子</button>
-            </div>
-          `;
-          body.querySelector('[data-open-blog]').addEventListener('click', () => {
-            closeModal();
-            onOpenRoom?.('blog');
-          });
-          body.querySelector('[data-close]').addEventListener('click', closeModal);
-        });
       }
       return true;
     }
@@ -1325,10 +1084,10 @@ export async function mountWorld3D(container, {
         openInspectorModal(info.title, body => {
           body.innerHTML = `
             <p>${info.summary}</p>
-            <p class="world3d-clue-saved">✓ 已记录至「档案与发现」(${state.clues.length} / 5)</p>
+
             <div class="world3d-room-links">
-              <button type="button" data-keep-exploring>继续探索</button>
-              <button type="button" data-view-archive>查看全部线索档案</button>
+              <button type="button" data-keep-exploring>放回</button>
+              <button type="button" data-view-archive>档案</button>
             </div>
           `;
           body.querySelector('[data-keep-exploring]').addEventListener('click', closeModal);
@@ -1370,15 +1129,12 @@ export async function mountWorld3D(container, {
     state = getState();
     config = getLayerConfig(currentLayerId, state);
     player = { ...config.spawn };
-    if (nextLayer === 'stacks' && !state.shelfMoved) {
-      onShelfMoved?.();
-      state = getState();
-    }
     rebuildLayerScene();
     return true;
   }
 
   function stepMovement(dt) {
+    if (keys.size) help.hidden = true;
     const forward = (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0);
     const strafe = (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0);
     const turn = (keys.has('ArrowLeft') || keys.has('KeyQ') ? 1 : 0) - (keys.has('ArrowRight') || keys.has('KeyR') ? 1 : 0);
@@ -1412,20 +1168,19 @@ export async function mountWorld3D(container, {
           motion?.tone?.(1, false);
         }
       }
-      // Auto sightline check when standing in West Gallery Vantage Circle
-      if (currentLayerId === 'atrium' && !state.westAligned && checkSightlineAlignment(player, player.yaw)) {
-        onSightlineAligned?.();
-        state = getState();
-        config = getLayerConfig(currentLayerId, state);
-        rebuildLayerScene();
-      }
+    }
+    if (currentLayerId === 'atrium' && !state.westAligned && checkSightlineAlignment(player, player.yaw)) {
+      onSightlineAligned?.();
+      state = getState();
+      config = getLayerConfig(currentLayerId, state);
+      rebuildLayerScene();
     }
     syncCamera();
     updateTargetPrompt();
   }
 
   function nudgeMove(dir) {
-    const step = 1.1;
+    const step = 0.45;
     const sin = Math.sin(player.yaw);
     const cos = Math.cos(player.yaw);
     let dx = 0, dz = 0;
@@ -1450,25 +1205,24 @@ export async function mountWorld3D(container, {
   const listen = (el, type, fn, opts) => el.addEventListener(type, fn, { signal, ...opts });
 
   listen(window, 'resize', updateSize);
+  function requestLook() {
+    if (!viewport.requestPointerLock) return;
+    Promise.resolve(viewport.requestPointerLock()).catch(() => {
+      help.hidden = false;
+      help.textContent = '鼠标锁定不可用，可按住画面拖动环视';
+    });
+  }
   listen(document, 'pointerlockchange', () => {
+    const wasLocked = pointerLocked;
     pointerLocked = document.pointerLockElement === viewport;
-    lockBtn.textContent = pointerLocked ? '按 Esc 退出鼠标锁定' : '鼠标视角 (Click)';
     root.dataset.pointerLocked = String(pointerLocked);
-  });
-
-  listen(viewport, 'click', () => {
-    if (!modal.hidden) return;
-    if (activeTarget && !pointerLocked) {
-      triggerInteraction(activeTarget);
-      return;
+    if (wasLocked && !pointerLocked) {
+      keys.clear(); draggingLook = false;
+      if (active && modal.hidden) openSpatialOverviewModal();
     }
-    try { viewport.requestPointerLock?.(); } catch {}
   });
-
-  listen(lockBtn, 'click', () => {
-    if (pointerLocked) document.exitPointerLock?.();
-    else try { viewport.requestPointerLock?.(); } catch {}
-  });
+  listen(viewport, 'click', () => viewport.focus({ preventScroll: true }));
+  listen(viewport, 'dblclick', requestLook);
 
   listen(inspectorBtn, 'click', () => openSpatialOverviewModal());
   listen(modalClose, 'click', closeModal);
@@ -1478,7 +1232,7 @@ export async function mountWorld3D(container, {
   });
 
   listen(viewport, 'pointerdown', e => {
-    if (pointerLocked || e.button !== 0) return;
+    if (!modal.hidden || pointerLocked || e.button !== 0) return;
     draggingLook = true;
     lastPointer = { x: e.clientX, y: e.clientY };
   });
@@ -1501,14 +1255,21 @@ export async function mountWorld3D(container, {
   }, { passive: true });
 
   listen(window, 'keydown', e => {
-    if (e.target.matches?.('input, textarea, select')) return;
+    if (e.defaultPrevented || !active || shellBlocked() || e.target.matches?.('input, textarea, select')) return;
     if (e.code === 'Escape') {
-      if (closeModal()) {
-        e.preventDefault();
-        return;
-      }
+      e.preventDefault();
+      if (!closeModal()) openSpatialOverviewModal();
+      return;
     }
-    if (!modal.hidden) return;
+    if (!modal.hidden) {
+      if (e.code === 'Tab') {
+        const buttons = [...modal.querySelectorAll('button, a[href]')];
+        const first = buttons[0], last = buttons.at(-1);
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+      return;
+    }
     if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight', 'KeyQ', 'KeyR'].includes(e.code)) {
       keys.add(e.code);
       if (e.code.startsWith('Arrow')) e.preventDefault();
@@ -1527,27 +1288,35 @@ export async function mountWorld3D(container, {
     keys.delete(e.code);
   });
 
-  root.querySelectorAll('[data-step]').forEach(btn => {
-    listen(btn, 'click', () => nudgeMove(btn.dataset.step));
-  });
-  root.querySelectorAll('[data-turn]').forEach(btn => {
-    listen(btn, 'click', () => {
-      player.yaw += btn.dataset.turn === 'left' ? 0.38 : -0.38;
-      syncCamera();
-      updateTargetPrompt();
+  root.querySelectorAll('[data-step], [data-turn]').forEach(btn => {
+    const code = btn.dataset.step
+      ? { forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD' }[btn.dataset.step]
+      : btn.dataset.turn === 'left' ? 'ArrowLeft' : 'ArrowRight';
+    listen(btn, 'pointerdown', e => {
+      e.preventDefault(); keys.add(code); btn.setPointerCapture(e.pointerId);
     });
+    for (const event of ['pointerup', 'pointercancel', 'lostpointercapture']) listen(btn, event, () => keys.delete(code));
+    listen(btn, 'click', e => { if (e.detail === 0 && btn.dataset.step) nudgeMove(btn.dataset.step); });
   });
   listen(root.querySelector('[data-touch-interact]'), 'click', () => {
     if (activeTarget) triggerInteraction(activeTarget);
     else openSpatialOverviewModal();
   });
 
+  function shellBlocked() {
+    const shell = root.closest('#p34-space');
+    return shell.dataset.map === 'true' || shell.dataset.talking === 'true';
+  }
+
+  listen(window, 'blur', () => { keys.clear(); draggingLook = false; });
+  listen(document, 'visibilitychange', () => setActive(!document.hidden && root.closest('#p34-space').dataset.room === 'home'));
+
   function animate(now) {
-    if (signal?.aborted) return;
+    if (signal?.aborted || !active || disposed) return;
     const dt = Math.min(0.05, Math.max(0.001, (now - lastTime) / 1000));
     lastTime = now;
-    if (modal.hidden) stepMovement(dt);
-    for (const fn of animatedObjects) fn(dt);
+    if (modal.hidden && !shellBlocked()) stepMovement(dt);
+    if (modal.hidden && !shellBlocked()) for (const fn of animatedObjects) fn(dt);
     if (renderer) renderer.render(scene, camera);
     rafId = requestAnimationFrame(animate);
   }
@@ -1556,7 +1325,16 @@ export async function mountWorld3D(container, {
   rebuildLayerScene();
   rafId = requestAnimationFrame(animate);
 
+  function setActive(value) {
+    active = value && !disposed;
+    keys.clear(); draggingLook = false;
+    cancelAnimationFrame(rafId);
+    if (active) { lastTime = performance.now(); rafId = requestAnimationFrame(animate); }
+    else if (document.pointerLockElement === viewport) document.exitPointerLock?.();
+  }
+
   const api = {
+    setActive,
     getLayer: () => currentLayerId,
     getPlayer: () => ({ ...player }),
     getActiveTarget: () => activeTarget,
@@ -1589,6 +1367,7 @@ export async function mountWorld3D(container, {
       rebuildLayerScene();
     },
     dispose() {
+      disposed = true;
       cancelAnimationFrame(rafId);
       if (document.pointerLockElement === viewport) document.exitPointerLock?.();
       clearScene();
