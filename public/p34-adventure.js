@@ -178,8 +178,8 @@ export function mountAdventure({
   }
 
   function talkInAtrium() {
-    const canStacks = state.westAligned || state.bridgeSolid || state.layers.includes('stacks');
-    const text = canStacks ? LINES.atrium.readyForStacks : LINES.atrium.explore;
+    const canStacks = state.layers.includes('stacks');
+    const text = LINES.atrium.readyForStacks;
     const items = [];
     if (canStacks) {
       items.push([CHOICES.goStacks, () => { quiet(); enterLayer('stacks'); }]);
@@ -327,17 +327,6 @@ export function mountAdventure({
           onRead: slug => openPost(posts.find(p => p.slug === slug), true),
           onClose: () => openPost(null, true),
         } : null,
-        onLoopWalked() {
-          record('loop-walked');
-          say(state.loopCount <= 1 ? LINES.spatial.loopFirst : LINES.spatial.loopRepeat, { mood: 'thought' });
-        },
-        onSightlineAligned() {
-          if (!state.westAligned) {
-            record('align-west');
-            motion?.tone?.(4, true);
-            say(LINES.spatial.westAligned, { mood: 'bright' });
-          }
-        },
         onShelfMoved() {
           if (!state.shelfMoved) {
             record('shelf-moved');
@@ -360,9 +349,7 @@ export function mountAdventure({
           leave();
         },
         onInteract(kind, payload) {
-          if (kind === 'sightline-hint') {
-            say('站到地上的圈里，看看两道断线');
-          } else if (kind === 'lab-link') {
+          if (kind === 'lab-link') {
             say(state.bridgeSolid ? LINES.spatial.bridgeSolid : LINES.spatial.bridgeHint);
           } else if (kind === 'glb-lamp') {
             record('touch');
@@ -372,8 +359,6 @@ export function mountAdventure({
             say(LINES.spatial.forkTouched);
           } else if (kind === 'terminal') {
             say(LINES.spatial.terminalOpen);
-          } else if (kind === 'portal-locked-stacks') {
-            say(LINES.spatial.loopRepeat, { mood: 'thought' });
           } else if (kind === 'portal-locked-loft') {
             say(LINES.spatial.pillarTurned, { mood: 'thought' });
           } else if (kind === 'sync-pillars') {

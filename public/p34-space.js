@@ -110,7 +110,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
       <h1 id="space-voice-line" aria-live="polite" aria-atomic="true"></h1>
       <p class="space-under-voice"></p>
       <div class="space-tools">
-        <button type="button" data-talk aria-expanded="false" aria-controls="space-replies">聊两句</button>
+        <button type="button" data-talk aria-label="聊两句" title="聊两句" aria-expanded="false" aria-controls="space-replies"><span>聊两句</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v10H9l-4 4V5Z"/></svg></button>
         <button type="button" data-map aria-expanded="false" aria-controls="space-paths">菜单</button>
         <button type="button" data-sound aria-label="开启声音" aria-pressed="false">♪</button>
         <button type="button" data-return>回到原页</button>

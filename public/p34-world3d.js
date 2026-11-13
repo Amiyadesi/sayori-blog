@@ -8,6 +8,29 @@ import {
 const PLAYER_RADIUS = 0.42;
 const EYE_HEIGHT = 1.65;
 
+// Architecture and collision use the same dimensions; side rooms are not quest gates.
+const ATRIUM_WALLS = [
+  ...[-1, 1].flatMap(side => [-8, 1, 10].filter(z => side !== 1 || z !== 10).map(z => ({ x: side * 13.5, z, w: .45, d: 5.4, h: 7.2 }))),
+  { x: 13.5, z: 10, w: .45, d: 5.4, h: 2.7 },
+  { x: 13.5, z: 10, w: .45, d: 5.4, h: 2.3, y: 4.9 },
+  { x: 13.5, z: 7.5, w: .45, d: .4, h: 7.2 },
+  { x: 13.5, z: 12.5, w: .45, d: .4, h: 7.2 },
+  { x: -24, z: 5.5, w: .45, d: 29, h: 4.8 },
+  { x: 24, z: 5.5, w: .45, d: 29, h: 4.8 },
+  { x: -18.75, z: -9, w: 10.5, d: .45, h: 4.8 },
+  { x: 18.75, z: -9, w: 10.5, d: .45, h: 4.8 },
+  { x: 0, z: 20, w: 48, d: .45, h: 3.4 },
+  { x: -8.5, z: 12.5, w: 10, d: .45, h: 6.5 },
+  { x: 8.5, z: 12.5, w: 10, d: .45, h: 6.5 },
+  { x: 4.2, z: 5.7, w: 5.4, d: .45, h: 3.4 },
+  { x: 18.2, z: -1, w: .45, d: 10, h: 4.8 },
+  { x: -21, z: 6, w: 6, d: .45, h: 4.8 },
+  { x: -16.75, z: -2, w: 6.5, d: .45, h: 4.8 },
+  { x: -6, z: 15.4, w: .45, d: 3.8, h: 3.4 },
+  { x: 7, z: 17.8, w: .45, d: 4, h: 3.4 },
+  { x: 0, z: -19.2, w: 27, d: .45, h: 8 },
+];
+
 export function getLibraryConfig(posts) {
   const positions = [[-5.6, 5], [5.6, 1], [-5.6, -5], [5.6, -10], [-5.6, -15]];
   return {
@@ -31,26 +54,35 @@ export function getLibraryConfig(posts) {
 
 export function getLayerConfig(layer, state = {}) {
   if (layer === 'atrium') {
-    const westAligned = Boolean(state.westAligned);
     const bridgeSolid = Boolean(state.bridgeSolid);
     return {
       id: 'atrium',
       title: LAYER_LABELS.atrium,
       spawn: { x: 0, y: 0, z: 8.8, yaw: 0, pitch: 0 },
-      bounds: { minX: -13.2, maxX: 13.2, minZ: -18.2, maxZ: 12.2 },
+      bounds: { minX: -24, maxX: 24, minZ: -18.8, maxZ: 20 },
+      walls: ATRIUM_WALLS,
       surfaces: [
         // Main floor
         { id: 'main-floor', minX: -13.5, maxX: 13.5, minZ: -12.5, maxZ: 12.5, yStart: 0, yEnd: 0, axis: 'flat', enabled: true },
+        { id: 'west-rooms', minX: -24, maxX: -13, minZ: -9, maxZ: 20, yStart: 0, yEnd: 0, axis: 'flat', enabled: true },
+        { id: 'east-rooms', minX: 13, maxX: 24, minZ: -9, maxZ: 20, yStart: 0, yEnd: 0, axis: 'flat', enabled: true },
+        { id: 'rear-passage', minX: -24, maxX: 24, minZ: 12, maxZ: 20, yStart: 0, yEnd: 0, axis: 'flat', enabled: true },
+        { id: 'window-stairs', minX: 20, maxX: 22.6, minZ: 14, maxZ: 18, yStart: 0, yEnd: 2.2, axis: '-z', enabled: true },
+        { id: 'window-mezzanine', minX: 18.8, maxX: 23.5, minZ: 8, maxZ: 14, yStart: 2.2, yEnd: 2.2, axis: 'flat', enabled: true },
         // West staircase (Z: -2.0 -> -6.8 rises Y: 0 -> 3.2)
-        { id: 'west-stairs', minX: -11.4, maxX: -7.4, minZ: -6.8, maxZ: -1.8, yStart: 0, yEnd: 3.2, axis: '-z', enabled: westAligned },
+        { id: 'west-stairs', minX: -11.4, maxX: -7.4, minZ: -6.8, maxZ: -1.8, yStart: 0, yEnd: 3.2, axis: '-z', enabled: true },
         // Upper mezzanine balcony (Z: -10.5 -> -6.6 at Y = 3.2)
-        { id: 'mezzanine', minX: -11.4, maxX: 7.5, minZ: -10.6, maxZ: -6.6, yStart: 3.2, yEnd: 3.2, axis: 'flat', enabled: westAligned || bridgeSolid },
+        { id: 'mezzanine', minX: -11.4, maxX: 7.5, minZ: -10.6, maxZ: -6.6, yStart: 3.2, yEnd: 3.2, axis: 'flat', enabled: true },
         // Dynamic 3D Light Bridge (Z: -10.2 -> -14.2 rises Y: 3.2 -> 3.6)
         { id: 'light-bridge', minX: -2.4, maxX: 2.4, minZ: -14.4, maxZ: -10.0, yStart: 3.2, yEnd: 3.6, axis: '-z', enabled: bridgeSolid },
         // High Observation Platform (Z: -18.2 -> -14.0 at Y = 3.6)
         { id: 'high-platform', minX: -4.6, maxX: 4.6, minZ: -18.2, maxZ: -14.0, yStart: 3.6, yEnd: 3.6, axis: 'flat', enabled: bridgeSolid },
       ],
       colliders: [
+        ...ATRIUM_WALLS.map(wall => ({ minX: wall.x - wall.w / 2, maxX: wall.x + wall.w / 2, minZ: wall.z - wall.d / 2, maxZ: wall.z + wall.d / 2, minY: wall.y || 0, maxY: (wall.y || 0) + wall.h, enabled: true })),
+        { id: 'window-rail', minX: 18.8, maxX: 23.5, minZ: 7.9, maxZ: 8.1, minY: 2.2, maxY: 3.1, enabled: true },
+        { id: 'east-window-seat', minX: 22.1, maxX: 23.3, minZ: -7.3, maxZ: -3.7, minY: 0, maxY: .6, enabled: true },
+        { id: 'west-window-seat', minX: -23.45, maxX: -22.35, minZ: 10, maxZ: 14, minY: 0, maxY: .6, enabled: true },
         // Central courtyard pillars
         { id: 'col-nw', minX: -4.6, maxX: -3.4, minZ: -4.6, maxZ: -3.4, minY: 0, maxY: 6, enabled: true },
         { id: 'col-ne', minX: 3.4, maxX: 4.6, minZ: -4.6, maxZ: -3.4, minY: 0, maxY: 6, enabled: true },
@@ -78,13 +110,6 @@ export function getLayerConfig(layer, state = {}) {
           prompt: 'E · 打开',
           x: 0, y: 1.4, z: 1.2,
           kind: 'lab-link',
-        },
-        {
-          id: 'west-sightline-frame',
-          label: '取景框',
-          prompt: 'E · 观察',
-          x: -6.5, y: 1.5, z: 1.5,
-          kind: 'sightline',
         },
         {
           id: 'east-prism-lamp',
@@ -312,7 +337,7 @@ function hitsCollider(x, z, y, colliders, radius = PLAYER_RADIUS) {
   return false;
 }
 
-export function resolvePlayerMovement(pos, nextX, nextZ, config, state = {}) {
+export function resolvePlayerMovement(pos, nextX, nextZ, config) {
   const { bounds, colliders, surfaces } = config;
   const clampX = x => Math.max(bounds.minX + PLAYER_RADIUS, Math.min(bounds.maxX - PLAYER_RADIUS, x));
   const clampZ = z => Math.max(bounds.minZ + PLAYER_RADIUS, Math.min(bounds.maxZ - PLAYER_RADIUS, z));
@@ -324,21 +349,6 @@ export function resolvePlayerMovement(pos, nextX, nextZ, config, state = {}) {
   const onFloor = (x, z) => surfaces.some(s => s.enabled && Math.min(s.yStart, s.yEnd) <= y + 1.35 && x >= s.minX && x <= s.maxX && z >= s.minZ && z <= s.maxZ);
   const candX = clampX(nextX);
   const candZ = clampZ(nextZ);
-
-  // Non-Euclidean loop check in West Gallery of Atrium when westAligned is false!
-  if (
-    config.id === 'atrium' &&
-    !state.westAligned &&
-    candX < -7.4 &&
-    candZ < -5.2
-  ) {
-    return {
-      x: candX,
-      y: 0,
-      z: 4.8,
-      looped: true,
-    };
-  }
 
   // Try X movement
   const yAtX = computeFloorElevation(candX, z, y, surfaces);
@@ -353,14 +363,7 @@ export function resolvePlayerMovement(pos, nextX, nextZ, config, state = {}) {
     y = yAtZ;
   }
 
-  return { x, y, z, looped: false };
-}
-
-export function checkSightlineAlignment(pos, yaw) {
-  const inCircle = Math.hypot(pos.x + 6.5, pos.z - 1.5) <= 0.95;
-  const targetYaw = Math.atan2(1.7, 1.1);
-  const angle = Math.atan2(Math.sin(yaw - targetYaw), Math.cos(yaw - targetYaw));
-  return inCircle && Math.abs(angle) < 0.12;
+  return { x, y, z };
 }
 
 export function crossedDoor(before, after, interactables) {
@@ -407,8 +410,6 @@ export async function mountWorld3D(container, {
   motion,
   onInteract,
   onLayerChange,
-  onLoopWalked,
-  onSightlineAligned,
   onShelfMoved,
   onOpenRoom,
   onLeaveSite,
@@ -426,7 +427,7 @@ export async function mountWorld3D(container, {
     <div class="world3d-viewport" data-viewport tabindex="0" role="application" aria-label="三维页背探索空间，使用 WASD 移动，鼠标或方向键转动视角，E 或点击交互"></div>
     <div class="world3d-reticle" data-reticle aria-hidden="true"><span></span></div>
     <header class="world3d-hud-top">
-      <button type="button" data-inspector-btn class="world3d-chip">暂停</button>
+      <button type="button" data-inspector-btn class="world3d-chip" aria-label="暂停" title="暂停 · Esc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6v12M15 6v12"/></svg></button>
     </header>
     <p class="world3d-help" data-help>WASD 移动 · 拖动环视 · E 互动 · Esc 暂停</p>
     <div class="world3d-prompt" data-prompt hidden aria-live="polite">
@@ -444,17 +445,17 @@ export async function mountWorld3D(container, {
       </div>
       <div class="world3d-touch-pad world3d-touch-look" data-touch-look role="group" aria-label="右下视角控制">
         <div class="world3d-touch-row">
-          <button type="button" data-turn="left" aria-label="向左看">↺ 左看</button>
-          <button type="button" data-turn="right" aria-label="向右看">右看 ↻</button>
+          <button type="button" data-turn="left" aria-label="向左看">↶</button>
+          <button type="button" data-turn="right" aria-label="向右看">↷</button>
         </div>
-        <button type="button" class="world3d-touch-interact" data-touch-interact>交互 (E)</button>
+        <button type="button" class="world3d-touch-interact" data-touch-interact>触碰</button>
       </div>
     </div>
     <aside class="world3d-modal" data-modal hidden role="dialog" aria-modal="true" aria-labelledby="world3d-modal-title">
       <div class="world3d-modal-card">
         <header class="world3d-modal-header">
           <h2 id="world3d-modal-title" data-modal-title></h2>
-          <button type="button" data-modal-close aria-label="关闭窗口">关闭 (Esc)</button>
+          <button type="button" data-modal-close aria-label="关闭窗口">×</button>
         </header>
         <div class="world3d-modal-body" data-modal-body></div>
       </div>
@@ -479,7 +480,7 @@ export async function mountWorld3D(container, {
   try {
     renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.shadowMap.enabled = false;
+    renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.12;
@@ -575,7 +576,6 @@ export async function mountWorld3D(container, {
   let lastPointer = { x: 0, y: 0 };
   let activeTarget = null;
   let animatedObjects = [];
-  let dynamicWestStairsGroup = null;
   let dynamicNorthBridgeGroup = null;
   let dynamicSlidingShelf = null;
   let lampLightRef = null;
@@ -640,13 +640,13 @@ export async function mountWorld3D(container, {
     buildId++;
     const freed = new Set();
     scene.traverse(obj => {
+      obj.shadow?.dispose();
       const materials = obj.material ? (Array.isArray(obj.material) ? obj.material : [obj.material]) : [];
       for (const resource of [obj.geometry, ...materials.flatMap(m => [m.map, m])]) {
         if (resource && !freed.has(resource)) { freed.add(resource); resource.dispose(); }
       }
     });
     animatedObjects = [];
-    dynamicWestStairsGroup = null;
     dynamicNorthBridgeGroup = null;
     dynamicSlidingShelf = null;
     lampLightRef = null;
@@ -658,16 +658,22 @@ export async function mountWorld3D(container, {
 
   function populateAtrium() {
     const version = buildId;
-    scene.background = new THREE.Color(0x697b8c);
-    scene.fog = new THREE.Fog(0x697b8c, 18, 66);
+    scene.background = new THREE.Color(0x595c56);
+    scene.fog = new THREE.Fog(0x595c56, 24, 65);
 
-    const hemi = new THREE.HemisphereLight(0x9ee4ff, 0x162644, 0.95);
+    const hemi = new THREE.HemisphereLight(0xe0e3d8, 0x6d7268, 1.25);
     scene.add(hemi);
-    const dir = new THREE.DirectionalLight(0xe4f7ff, 1.15);
-    dir.position.set(10, 22, 12);
+    const dir = new THREE.DirectionalLight(0xf1ecda, 1.4);
+    dir.position.set(18, 12, 4);
+    dir.castShadow = true;
+    dir.shadow.mapSize.set(2048, 2048);
+    Object.assign(dir.shadow.camera, { left: -24, right: 24, top: 24, bottom: -24, near: .5, far: 65 });
+    dir.shadow.normalBias = .04;
+    dir.shadow.bias = -.0001;
+    dir.shadow.autoUpdate = false; dir.shadow.needsUpdate = true;
     scene.add(dir);
 
-    const centerLight = new THREE.PointLight(0x5ee6ff, 2.2, 22);
+    const centerLight = new THREE.PointLight(0xe6dfc9, 1.3, 22);
     centerLight.position.set(0, 4.2, 0);
     scene.add(centerLight);
 
@@ -680,92 +686,87 @@ export async function mountWorld3D(container, {
     scene.add(eastLight);
     lampLightRef = eastLight;
 
-    // Floor & Grid
-    const floorMat = new THREE.MeshStandardMaterial({ color: 0x536171, roughness: 0.95 });
+    const grain = new Uint8Array(128 * 128 * 4);
+    for (let i = 0; i < grain.length; i += 4) {
+      const shade = 235 + Math.floor(Math.random() * 20);
+      grain[i] = grain[i + 1] = grain[i + 2] = shade; grain[i + 3] = 255;
+    }
+    const texture = new THREE.DataTexture(grain, 128, 128);
+    texture.wrapS = texture.wrapT = THREE.RepeatWrapping; texture.repeat.set(16, 16);
+    texture.magFilter = THREE.LinearFilter; texture.needsUpdate = true;
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x999c91, map: texture, roughness: 1 });
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(28, 26), floorMat);
     floor.rotation.x = -Math.PI / 2;
     scene.add(floor);
 
 
-    // Outer perimeter architectural walls with luminous trim
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0xa2acb4, roughness: 0.95 });
-
-    // Long, mostly unoccupied bays: openings reveal depth without labels.
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0xd0cec0, roughness: 1 });
+    const ceilingMat = new THREE.MeshStandardMaterial({ color: 0xc5c7bc, roughness: 1, emissive: 0x53564c, emissiveIntensity: .2 });
+    const timber = new THREE.MeshStandardMaterial({ color: 0x7c7262, roughness: 1 });
+    const box = (w, h, d, x, y, z, material = wallMat) => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
+      mesh.position.set(x, y, z); mesh.castShadow = true; mesh.receiveShadow = true; scene.add(mesh); return mesh;
+    };
+    for (const wall of config.walls) box(wall.w, wall.h, wall.d, wall.x, (wall.y || 0) + wall.h / 2, wall.z);
+    box(.8, 4.5, 5.7, -7, 2.25, -3.35);
     for (const side of [-1, 1]) {
-      for (const z of [-8, 1, 10]) {
-        const wall = new THREE.Mesh(new THREE.BoxGeometry(0.5, 7.2, 5.4), wallMat);
-        wall.position.set(side * 13.5, 3.6, z);
-        scene.add(wall);
-      }
+      box(10.5, .2, 29, side * 18.75, -.1, 5.5, floorMat);
+      box(10.5, .2, 29, side * 18.75, 4.9, 5.5, ceilingMat);
     }
-    // South wall + Viewport Seam
-    const southLeft = new THREE.Mesh(new THREE.BoxGeometry(10, 6.5, 0.5), wallMat);
-    southLeft.position.set(-8.5, 3.25, 12.5);
-    const southRight = new THREE.Mesh(new THREE.BoxGeometry(10, 6.5, 0.5), wallMat);
-    southRight.position.set(8.5, 3.25, 12.5);
-    scene.add(southLeft, southRight);
+    box(27, .2, 7.5, 0, -.1, 16.25, floorMat);
+    box(48, .2, 7.5, 0, 3.5, 16.25, ceilingMat);
+    box(27, .25, 6.5, 0, 3.5, 9, ceilingMat);
+    box(27, .25, 18, 0, 7.5, -3.5, ceilingMat);
 
-    const seamMesh = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 4.8), new THREE.MeshBasicMaterial({ color: 0x9aa8b4, side: THREE.DoubleSide }));
-    seamMesh.position.set(0, 2.4, 12.1);
+    // Quiet rooms have views and different scales, not more switches to collect.
+    const daylight = new THREE.MeshBasicMaterial({ color: 0xe2e5d9 });
+    const window = box(.05, 2.8, 3.5, 23.74, 2.5, -5.5, daylight); window.castShadow = false;
+    for (const z of [-6.65, -5.5, -4.35]) box(.12, 2.8, .045, 23.65, 2.5, z, timber);
+    box(1.15, .16, 3.6, 22.7, .5, -5.5, timber);
+    box(.15, .5, 3.4, 22.7, .25, -5.5, timber);
+    box(.05, .9, 5.8, -23.74, 2.5, 12, daylight).castShadow = false;
+    box(1.1, .18, 4, -22.9, .5, 12, timber);
+    box(.16, .5, 3.8, -22.9, .25, 12, timber);
+    box(4.7, .18, 6, 21.15, 2.11, 11, floorMat);
+    box(4.7, .12, .12, 21.15, 3.05, 8, timber);
+    for (const x of [18.8, 20.35, 21.9, 23.5]) box(.05, .85, .05, x, 2.63, 8, timber);
+    for (let i = 0; i < 10; i++) box(2.6, .22, .4, 21.3, .11 + i * .22, 17.8 - i * .4, floorMat);
+    for (const z of [8.2, 10, 11.8]) box(.12, 2.2, .06, 13.5, 3.8, z, timber);
+
+    const seamMesh = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 3.2), new THREE.MeshBasicMaterial({ color: 0x66675d, side: THREE.DoubleSide }));
+    seamMesh.position.set(0, 1.6, 12.1);
     scene.add(seamMesh);
 
     // Four central chamfered monolith columns
     const colGeom = new THREE.BoxGeometry(1.1, 6.8, 1.1);
-    const colMat = new THREE.MeshStandardMaterial({ color: 0xb0bac2, roughness: 0.95 });
+    const colMat = wallMat;
     for (const [cx, cz] of [[-4, -4], [4, -4], [-4, 4], [4, 4]]) {
       const col = new THREE.Mesh(colGeom, colMat);
       col.position.set(cx, 3.4, cz);
       scene.add(col);
     }
 
-    // West Wing: Sightline Aperture Frame & Split Mural
-    const vantageRing = new THREE.Mesh(
-      new THREE.RingGeometry(0.95, 1.15, 32),
-      new THREE.MeshBasicMaterial({ color: 0xf6c978, side: THREE.DoubleSide })
-    );
-    vantageRing.rotation.x = -Math.PI / 2;
-    vantageRing.position.set(-6.5, 0.04, 1.5);
-    scene.add(vantageRing);
-
-    const apertureFrame = new THREE.Mesh(
-      new THREE.BoxGeometry(0.18, 2.4, 2.2),
-      new THREE.MeshStandardMaterial({ color: 0xf6c978, emissive: 0x6a4b18, wireframe: true })
-    );
-    apertureFrame.position.set(-8.2, 1.6, 0.4);
-    scene.add(apertureFrame);
-
-    // Separate halves coincide only when seen through the frame from the floor mark.
-    const ink = new THREE.LineBasicMaterial({ color: 0x536b81 });
-    for (const [x, z, a, b] of [[-8.2, 0.4, -0.7, 0], [-11.6, -1.8, 0, 2.1]]) {
-      const side = new THREE.Vector3(1.1, 0, -1.7).normalize();
-      const origin = new THREE.Vector3(x, 1.65, z);
-      const points = [origin.clone().addScaledVector(side, a), origin.clone().addScaledVector(side, b)];
-      scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), ink));
-    }
-
-    // West Staircase (visible & solid when westAligned)
-    dynamicWestStairsGroup = new THREE.Group();
+    // The west stairs are ordinary architecture, not an invisible sightline lock.
+    const westStairs = new THREE.Group();
     const stepCount = 10;
     for (let i = 0; i < stepCount; i++) {
       const t = i / (stepCount - 1);
       const step = new THREE.Mesh(
         new THREE.BoxGeometry(3.4, 0.24, 0.48),
         new THREE.MeshStandardMaterial({
-          color: state.westAligned ? 0xe8f6ff : 0x3b557d,
-          emissive: state.westAligned ? 0x1f5678 : 0x091326,
-          transparent: !state.westAligned,
-          opacity: state.westAligned ? 0.96 : 0.28,
+          color: 0xaaa99a,
+          roughness: 1,
         })
       );
       step.position.set(-9.4, 0.2 + t * 3.0, -2.0 - t * 4.6);
-      dynamicWestStairsGroup.add(step);
+      westStairs.add(step);
     }
-    scene.add(dynamicWestStairsGroup);
+    scene.add(westStairs);
 
     // Upper Mezzanine Balcony (Y = 3.2m, Z = -8.6)
     const mezzDeck = new THREE.Mesh(
       new THREE.BoxGeometry(19.0, 0.3, 3.8),
-      new THREE.MeshStandardMaterial({ color: 0x244370, roughness: 0.3, metalness: 0.2 })
+      new THREE.MeshStandardMaterial({ color: 0x888a7d, roughness: 1 })
     );
     mezzDeck.position.set(-2.0, 3.05, -8.6);
     scene.add(mezzDeck);
@@ -782,12 +783,12 @@ export async function mountWorld3D(container, {
     // North High Observation Platform (Y = 3.6m, Z = -16.2)
     const highDeck = new THREE.Mesh(
       new THREE.BoxGeometry(8.4, 0.35, 4.2),
-      new THREE.MeshStandardMaterial({ color: 0x294a7a, roughness: 0.3 })
+      new THREE.MeshStandardMaterial({ color: 0x888a7d, roughness: 1 })
     );
     highDeck.position.set(0, 3.42, -16.1);
     const surveyMonolith = new THREE.Mesh(
       new THREE.CylinderGeometry(0.45, 0.55, 1.5, 6),
-      new THREE.MeshStandardMaterial({ color: 0xf6c978, emissive: 0x5c3e12, roughness: 0.25 })
+      new THREE.MeshStandardMaterial({ color: 0xb6ac8e, roughness: 1 })
     );
     surveyMonolith.position.set(0, 4.35, -16.2);
     scene.add(highDeck, surveyMonolith);
@@ -836,6 +837,9 @@ export async function mountWorld3D(container, {
     screen.rotation.y = -Math.PI / 2;
     screen.position.set(11.2, 1.5, 0);
     scene.add(terminal, screen);
+    scene.traverse(object => {
+      if (object.isMesh) { object.receiveShadow = object.material.isMeshStandardMaterial && object.material !== ceilingMat; object.castShadow = object.material.isMeshStandardMaterial && !object.material.transparent && object.material !== ceilingMat; }
+    });
   }
 
   function populateStacks() {
@@ -1157,7 +1161,7 @@ export async function mountWorld3D(container, {
       for (const l of library ? [] : state.layers) {
         if (l !== currentLayerId) button(LAYER_LABELS[l].replace(/^第.层 · /, ''), () => switchLayer(l));
       }
-      for (const [id, name] of library ? [['home', '回到书库']] : [['lab', '折页台'], ['blog', '她的笔记'], ['archive', '档案'], ['guestbook', '留言']]) {
+      for (const [id, name] of library ? [['home', '回到书库']] : [['archive', '档案']]) {
         button(name, () => onOpenRoom?.(id));
       }
       button('返回网页', () => onLeaveSite?.());
@@ -1181,18 +1185,6 @@ export async function mountWorld3D(container, {
     if (target.kind === 'lab-link') {
       onInteract?.('lab-link', target);
       onOpenRoom?.('lab');
-      return true;
-    }
-
-    if (target.kind === 'sightline') {
-      if (!checkSightlineAlignment(player, player.yaw)) {
-        onInteract?.('sightline-hint');
-        return false;
-      }
-      onSightlineAligned?.();
-      state = getState();
-      config = getLayerConfig(currentLayerId, state);
-      rebuildLayerScene();
       return true;
     }
 
@@ -1242,10 +1234,6 @@ export async function mountWorld3D(container, {
 
     if (target.kind === 'portal') {
       const dest = target.targetLayer;
-      if (dest === 'stacks' && !state.westAligned && !state.bridgeSolid && !state.layers.includes('stacks')) {
-        onInteract?.('portal-locked-stacks', target);
-        return false;
-      }
       if (dest === 'loft' && !state.stacksUnlocked && !state.layers.includes('loft')) {
         onInteract?.('portal-locked-loft', target);
         return false;
@@ -1294,10 +1282,6 @@ export async function mountWorld3D(container, {
   function switchLayer(nextLayer, { push = true } = {}) {
     if (!LAYERS.includes(nextLayer)) return false;
     state = getState();
-    if (nextLayer === 'stacks' && !state.westAligned && !state.bridgeSolid && !state.layers.includes('stacks')) {
-      onInteract?.('portal-locked-stacks');
-      return false;
-    }
     if (nextLayer === 'loft' && !state.stacksUnlocked && !state.layers.includes('loft')) {
       onInteract?.('portal-locked-loft');
       return false;
@@ -1331,16 +1315,13 @@ export async function mountWorld3D(container, {
       const dx = (-sin * nf + cos * ns) * speed * dt;
       const dz = (-cos * nf - sin * ns) * speed * dt;
       const before = { ...player };
-      const next = resolvePlayerMovement(player, player.x + dx, player.z + dz, config, state);
+      const next = resolvePlayerMovement(player, player.x + dx, player.z + dz, config);
       const moved = Math.hypot(next.x - player.x, next.z - player.z);
       player.x = next.x;
       player.y = next.y;
       player.z = next.z;
       const door = crossedDoor(before, player, config.interactables);
       if (door) { keys.clear(); triggerInteraction(door); return; }
-      if (next.looped) {
-        onLoopWalked?.();
-      }
       if (moved > 0.001) {
         bobPhase += moved * 3.6;
         stepDistance += moved;
@@ -1349,12 +1330,6 @@ export async function mountWorld3D(container, {
           motion?.tone?.(1, false);
         }
       }
-    }
-    if (currentLayerId === 'atrium' && !state.westAligned && checkSightlineAlignment(player, player.yaw)) {
-      onSightlineAligned?.();
-      state = getState();
-      config = getLayerConfig(currentLayerId, state);
-      rebuildLayerScene();
     }
     syncCamera();
     updateTargetPrompt();
@@ -1370,17 +1345,10 @@ export async function mountWorld3D(container, {
     else if (dir === 'left') { dx = -cos * step; dz = sin * step; }
     else if (dir === 'right') { dx = cos * step; dz = -sin * step; }
     const before = { ...player };
-    const next = resolvePlayerMovement(player, player.x + dx, player.z + dz, config, state);
+    const next = resolvePlayerMovement(player, player.x + dx, player.z + dz, config);
     player.x = next.x; player.y = next.y; player.z = next.z;
     const door = crossedDoor(before, player, config.interactables);
     if (door) { triggerInteraction(door); return; }
-    if (next.looped) onLoopWalked?.();
-    if (currentLayerId === 'atrium' && !state.westAligned && checkSightlineAlignment(player, player.yaw)) {
-      onSightlineAligned?.();
-      state = getState();
-      config = getLayerConfig(currentLayerId, state);
-      rebuildLayerScene();
-    }
     syncCamera();
     updateTargetPrompt();
   }
@@ -1548,9 +1516,6 @@ export async function mountWorld3D(container, {
       player.yaw = yaw;
       player.pitch = pitch;
       player.y = computeFloorElevation(player.x, player.z, player.y || 0, config.surfaces);
-      if (currentLayerId === 'atrium' && !state.westAligned && checkSightlineAlignment(player, player.yaw)) {
-        onSightlineAligned?.();
-      }
       syncCamera();
       updateTargetPrompt();
       return { ...player };

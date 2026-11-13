@@ -134,6 +134,7 @@ export function newJourney() {
     touched: false,
     light: 0,
     lightSketch: null,
+    // Retained for old saves; the frame and walk-reset mechanic are retired.
     westAligned: false,
     loopCount: 0,
     bridgeSolid: false,
@@ -301,19 +302,8 @@ export function journeyEvent(state, event, value) {
       s.bridgeSolid ||= isBridgeArch(s.lightSketch);
       if (s.phase === 'arrive') s.phase = 'shared';
       break;
-    case 'loop-walked':
-      s.loopCount = Math.min(9999, (s.loopCount || 0) + 1);
-      if (s.phase === 'arrive') s.phase = 'shared';
-      break;
-    case 'align-west':
-      s.westAligned = true;
-      if (s.phase === 'arrive') s.phase = 'shared';
-      break;
     case 'enter-layer': {
       require(LAYERS.includes(value), `Unknown layer: ${value}`);
-      if (value === 'stacks') {
-        require(s.westAligned || s.bridgeSolid || s.layers.includes('stacks'), '需要先对齐回廊阶梯或凝结光桥才能抵达二层门扉');
-      }
       if (value === 'loft') {
         require(s.stacksUnlocked || s.layers.includes('loft'), '需要先解开书库北门的空间基准柱');
       }

@@ -1,11 +1,8 @@
 // 页面实际读取的台词本。她的句末不加句号
 export const LINES = {
-  arrival: ['等一下，楼梯还没放好', '你从正面过来的？'],
+  arrival: ['等一下', '你从正面过来的？'],
   spatial: {
     atriumEnter: '我去楼上，你慢慢看',
-    loopFirst: '你刚刚是不是来过这里？',
-    loopRepeat: '别急着走，看看地上的圈',
-    westAligned: '对，就是这个角度',
     bridgeHint: '桌上那条折线，试着把中间抬高',
     bridgeSolid: '能过去了',
     surveyFound: '这张还没画完',
@@ -24,7 +21,6 @@ export const LINES = {
     clueRainOrigin: '这份也在这里？',
   },
   atrium: {
-    explore: '西边的楼梯还差一点',
     readyForStacks: '上面通着书库',
   },
   stacks: {

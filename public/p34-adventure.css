@@ -3,6 +3,12 @@
 #p34-space .space-orbit { display: none; }
 #p34-space:not([data-world-error=true]):is([data-site=blog],[data-site=home][data-room=home]) .space-tools :is([data-map], [data-sound], [data-return]) { display: none; }
 #p34-space .space-tools button::after { display: none; }
+#p34-space .space-tools [data-talk] svg { display: none; }
+#p34-space:is([data-site=blog],[data-site=home][data-room=home]) .space-tools [data-talk] span { display: none; }
+#p34-space:is([data-site=blog],[data-site=home][data-room=home]) .space-tools [data-talk] svg { display: block; }
+#p34-space :is(.world3d-chip,.space-tools [data-talk]) svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.3; }
+#p34-space:is([data-site=blog],[data-site=home][data-room=home]) .space-tools [data-talk] { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; opacity: .5; }
+#p34-space .space-tools [data-talk]:is(:hover,:focus-visible,[aria-expanded=true]) { opacity: 1; }
 #p34-space .space-replies button { min-height: 44px; font-size: 16px; }
 #p34-space:is([data-site=blog],[data-site=home][data-room=home]) .space-voice { position: fixed; inset: 0; width: 100%; z-index: 6; pointer-events: none; }
 #p34-space:is([data-site=blog],[data-site=home][data-room=home]) .space-tools { position: absolute; left: 24px; top: 12px; margin: 0; gap: 22px; }
@@ -20,25 +26,31 @@
 .world3d-viewport canvas { display: block; width: 100%; height: 100%; }
 .world3d-webgl-fallback { position: absolute; inset: 0; display: grid; place-items: center; padding: 30px; background: #293540; }
 .world3d-hud-top { position: absolute; right: 24px; top: 12px; z-index: 7; }
-#p34-space .world3d-chip { min-height: 44px; padding: 0 8px; font-size: 14px; color: #edf2f6; text-shadow: 0 1px 6px #1d2938; }
+#p34-space .world3d-chip { display: grid; place-items: center; width: 44px; min-height: 44px; padding: 0; color: #eeede2; opacity: .5; }
+#p34-space .world3d-chip:is(:hover,:focus-visible) { opacity: 1; }
 .world3d-help { position: absolute; left: 50%; bottom: 24px; translate: -50% 0; width: max-content; max-width: 85vw; text-align: center; font-size: 14px; color: #edf2f6; text-shadow: 0 1px 6px #1d2938; pointer-events: none; }
 .world3d-reticle { position: absolute; left: 50%; top: 50%; translate: -50% -50%; width: 4px; height: 4px; border-radius: 50%; background: #e8eef4a0; pointer-events: none; }
 .world3d-reticle[data-active=true] { width: 8px; height: 8px; background: #f2e8c7; }
-.world3d-prompt { position: absolute; left: 50%; bottom: 20svh; translate: -50% 0; z-index: 5; display: flex; gap: 14px; align-items: center; max-width: 90vw; color: #f1f4f6; text-shadow: 0 1px 5px #172331; }
+.world3d-prompt { position: absolute; left: 50%; top: calc(50% + 24px); translate: -50% 0; z-index: 5; display: flex; gap: 14px; align-items: center; max-width: 90vw; color: #eeede2; text-shadow: 0 1px 5px #252721; }
 .world3d-prompt-title { font-size: 15px; }
-#p34-space .world3d-prompt-action { font-size: 15px; min-height: 44px; padding: 0 12px; background: #27333bc7; }
+#p34-space .world3d-prompt-action { font-size: 13px; min-height: 44px; padding: 0 6px; background: none; opacity: .7; }
 .world3d-touch-controls { display: none; position: absolute; left: 18px; right: 18px; bottom: 22px; justify-content: space-between; align-items: flex-end; z-index: 5; }
 .world3d-touch-pad { display: flex; flex-direction: column; align-items: center; gap: 5px; }
 .world3d-touch-row { display: flex; gap: 5px; }
-#p34-space .world3d-touch-pad button { min-width: 48px; min-height: 48px; padding: 0 10px; background: #29353cbf; font-size: 15px; touch-action: none; }
-.world3d-modal { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; background: #17202dbb; }
-.world3d-modal-card { width: min(540px, 92vw); max-height: 82svh; overflow: auto; background: #28333e; padding: 28px; }
+#p34-space .world3d-touch-pad button { min-width: 48px; min-height: 48px; padding: 0 10px; border-radius: 50%; background: #23272028; color: #f1f0e6; font-size: 15px; touch-action: none; }
+.world3d-modal { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; background: #171b1866; backdrop-filter: blur(3px); }
+.world3d-modal-card { width: min(480px, 90vw); max-height: 82svh; overflow: auto; background: #dedfd4; color: #323b33; padding: 32px 36px; color-scheme: light; box-shadow: 0 12px 70px #111a1226; }
 .world3d-modal-header { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 24px; }
-#p34-space .world3d-modal-header h2 { font: 400 23px/1.5 var(--space-serif); }
-#p34-space .world3d-modal-header button { min-height: 44px; padding: 0 10px; }
+#p34-space .world3d-modal-header h2 { font: 400 21px/1.5 var(--space-serif); color: inherit; }
+#p34-space .world3d-modal-header button { min-width: 44px; min-height: 44px; padding: 0; font: 300 26px/1 var(--space-sans); color: inherit; }
+#p34-space .world3d-modal button { color: inherit; }
+#p34-space .world3d-modal :focus-visible { outline-color: #556b57; }
 .world3d-modal-body p { line-height: 1.9; margin-bottom: 20px !important; }
-.world3d-room-links { display: flex; flex-wrap: wrap; gap: 14px 24px; }
+.world3d-room-links { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 28px; }
 #p34-space .world3d-room-links button { min-height: 44px; font-size: 16px; }
+.world3d-room-links button:first-child, .world3d-room-links button:last-child { grid-column: 1 / -1; }
+#p34-space .world3d-room-links button:first-child { font-size: 23px; margin-bottom: 16px; }
+#p34-space .world3d-room-links button:last-child { margin-top: 22px; opacity: .65; }
 .journey-save-actions { display: flex; gap: 24px; position: relative; margin: 20px 8% 40px; }
 #p34-space .journey-save-actions button { min-height: 44px; }
 .journey-notice { position: fixed; bottom: 28px; left: 8%; max-width: 85vw; z-index: 25; padding: 14px !important; background: #28333e !important; }
@@ -98,7 +110,6 @@ html.p34-spatial:has(.world3d-stage) { overflow: hidden; scrollbar-gutter: auto;
   #p34-space:is([data-site=blog],[data-site=home][data-room=home]) .space-tools button { font-size: 13px; letter-spacing: 0; }
   .world3d-hud-top { right: 12px; }
   #p34-space:is([data-site=blog],[data-site=home][data-room=home]) .space-replies { width: 90vw; }
-  .world3d-prompt { bottom: 24svh; }
   .world3d-modal-card { padding: 20px; }
   .layer-atlas, .clue-dossier { padding: 30svh 7% 6svh; }
 }
