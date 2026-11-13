@@ -17,46 +17,26 @@ export function capturePage() {
 export async function playPassage(shell, page, motion, entering) {
   cancelPassage(shell);
   if (motion.reduced() || document.hidden) return;
-  const anchors = [...shell.querySelectorAll('.space-voice, .space-path[data-visible="true"]')];
-  const rects = anchors.map(el => el.getBoundingClientRect());
   const layer = document.createElement('div');
   layer.className = 'space-passage'; layer.inert = true; layer.setAttribute('aria-hidden', 'true');
-  const veil = document.createElement('div');
-  veil.className = 'space-passage-veil'; veil.style.background = page.color;
-  layer.append(veil); shell.append(layer);
+  const wings = [-1, 1].map(side => {
+    const wing = document.createElement('div');
+    wing.className = 'space-passage-wall';
+    Object.assign(wing.style, { background: page.color, left: side < 0 ? '0' : '50%', transformOrigin: side < 0 ? 'left center' : 'right center' });
+    layer.append(wing);
+    return [wing, side];
+  });
+  shell.append(layer);
   const cancel = () => {
-    for (const el of [layer, ...anchors]) el.getAnimations({ subtree: el === layer }).forEach(a => a.cancel());
+    layer.getAnimations({ subtree: true }).forEach(a => a.cancel());
     layer.remove();
     if (passages.get(shell) === cancel) passages.delete(shell);
   };
   passages.set(shell, cancel);
-  const jobs = [
-    motion.animate(veil, entering ? [{ opacity: 1 }, { opacity: 0 }] : [{ opacity: 0 }, { opacity: 1 }], { duration: entering ? 820 : 760, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'both' }),
-
-  ];
-  page.words.forEach((word, i) => {
-    const target = rects[i % rects.length], ghost = document.createElement('span');
-    ghost.className = 'space-transit-word'; ghost.textContent = word.text;
-    Object.assign(ghost.style, { left: `${word.x * innerWidth / page.width}px`, top: `${word.y * innerHeight / page.height}px`, width: `${word.width}px`, font: word.font, color: word.color, letterSpacing: word.spacing });
-    layer.append(ghost);
-    const dx = target.x - word.x * innerWidth / page.width, dy = target.y - word.y * innerHeight / page.height;
-    const frames = [
-      { transform: 'translate3d(0,0,0) rotate(0deg) scale(1)', opacity: 1 },
-      { transform: `translate3d(${dx * .5 + (i % 2 ? -32 : 32)}px,${dy * .5 - 45}px,0) rotate(${i % 2 ? -12 : 10}deg) scale(.8)`, opacity: .65, color: '#ddf2ff', offset: .52 },
-      { transform: `translate3d(${dx}px,${dy}px,0) rotate(0deg) scale(.2)`, opacity: 0 },
-    ];
-    jobs.push(motion.animate(ghost, frames, { duration: entering ? 850 : 650, delay: i * 22, direction: entering ? 'normal' : 'reverse', fill: 'both' }));
-  });
-  anchors.forEach((el, i) => {
-    const from = page.words.length ? page.words[i % page.words.length] : null;
-    const dx = from ? from.x - rects[i].x : innerWidth * .12;
-    const dy = from ? from.y - rects[i].y : innerHeight * .1;
-    jobs.push(motion.animate(el, [
-      { translate: `${dx * .55}px ${dy * .55}px`, scale: '.86', opacity: 0 },
-      { translate: '0px 0px', scale: '1', opacity: 1 },
-    ], { duration: entering ? 1000 : 560, delay: entering ? 130 + i * 45 : i * 24, direction: entering ? 'normal' : 'reverse', fill: entering ? 'backwards' : 'both' }));
-  });
-  await Promise.all(jobs);
-  layer.remove();
-  if (passages.get(shell) === cancel) passages.delete(shell);
+  await Promise.all(wings.map(([wing, side]) => motion.animate(wing, [
+    { transform: 'translateX(0) rotateY(0deg)', filter: 'brightness(1)' },
+    { transform: `translateX(${side * 36}%) rotateY(${side * -14}deg)`, filter: 'brightness(.7)', offset: .45 },
+    { transform: `translateX(${side * 110}%) rotateY(${side * -22}deg)`, filter: 'brightness(.5)' },
+  ], { duration: 1100, direction: entering ? 'normal' : 'reverse', easing: 'cubic-bezier(.45,0,.2,1)', fill: 'both' })));
+  cancel();
 }

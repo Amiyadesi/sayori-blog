@@ -3,10 +3,31 @@ import {
   LAYER_LABELS,
   TARGET_PILLARS,
   CLUE_INFO,
-} from './p34-journey.js?v=20261113-quiet';
+} from './p34-journey.js?v=20261113-library';
 
 const PLAYER_RADIUS = 0.42;
 const EYE_HEIGHT = 1.65;
+
+export function getLibraryConfig(posts) {
+  const positions = [[-5.6, 5], [5.6, 1], [-5.6, -5], [5.6, -10], [-5.6, -15]];
+  return {
+    id: 'library', title: '阅览室',
+    spawn: { x: 0, y: 0, z: 9, yaw: 0, pitch: 0 },
+    bounds: { minX: -10.8, maxX: 10.8, minZ: -19.5, maxZ: 11.5 },
+    surfaces: [{ minX: -11.5, maxX: 11.5, minZ: -20, maxZ: 12, yStart: 0, yEnd: 0, axis: 'flat', enabled: true }],
+    colliders: [
+      ...[-1, 1].flatMap(side => [-14, -4, 6].map(z => ({
+        minX: side * 8.4 - .9, maxX: side * 8.4 + .9, minZ: z - 3, maxZ: z + 3, minY: 0, maxY: 6.8, enabled: true,
+      }))),
+      ...posts.map((post, i) => ({ bookSlug: post.slug, minX: positions[i][0] - .8, maxX: positions[i][0] + .8, minZ: positions[i][1] - .5, maxZ: positions[i][1] + .5, minY: 0, maxY: 1.1, enabled: true })),
+      ...[-1, 1].flatMap(side => [-9, 1].map(z => ({ minX: side * 3.2 - .4, maxX: side * 3.2 + .4, minZ: z - .4, maxZ: z + .4, minY: 0, maxY: 8, enabled: true }))),
+    ],
+    interactables: [
+      { id: 'library-exit', label: '书库', prompt: '走入', kind: 'library-exit', x: 0, y: 1.5, z: 11.2, crossing: { z: 10.7, direction: 1, halfWidth: 1.35 } },
+      ...posts.map((post, i) => ({ id: `book-${post.slug}`, label: post.title, prompt: 'E · 翻开', kind: 'book', slug: post.slug, x: positions[i][0], y: 1.2, z: positions[i][1] })),
+    ],
+  };
+}
 
 export function getLayerConfig(layer, state = {}) {
   if (layer === 'atrium') {
@@ -93,6 +114,7 @@ export function getLayerConfig(layer, state = {}) {
           x: 0, y: 4.6, z: -9.6, floorY: 3.2,
           kind: 'portal',
           targetLayer: 'stacks',
+          crossing: { z: -9.9, direction: -1, halfWidth: 1.3 },
         },
         {
           id: 'high-platform-survey',
@@ -131,6 +153,7 @@ export function getLayerConfig(layer, state = {}) {
           x: 0, y: 1.6, z: 10.8,
           kind: 'portal',
           targetLayer: 'atrium',
+          crossing: { z: 10.3, direction: 1, halfWidth: 1.3 },
         },
         {
           id: 'blog-reading-desk',
@@ -185,6 +208,7 @@ export function getLayerConfig(layer, state = {}) {
           x: 0, y: 2.1, z: -11.6,
           kind: 'portal',
           targetLayer: 'loft',
+          crossing: { z: -11.3, direction: -1, halfWidth: 1.3 },
         },
       ],
     };
@@ -210,6 +234,7 @@ export function getLayerConfig(layer, state = {}) {
         x: 0, y: 1.6, z: 7.4,
         kind: 'portal',
         targetLayer: 'stacks',
+        crossing: { z: 7.0, direction: 1, halfWidth: 1.3 },
       },
       {
         id: 'her-workbench',
@@ -338,6 +363,14 @@ export function checkSightlineAlignment(pos, yaw) {
   return inCircle && Math.abs(angle) < 0.12;
 }
 
+export function crossedDoor(before, after, interactables) {
+  return interactables.find(door => {
+    const threshold = door.crossing;
+    if (!threshold || Math.abs(after.x - door.x) > threshold.halfWidth || Math.abs(after.y - (door.floorY || 0)) > .9) return false;
+    return (before.z - threshold.z) * threshold.direction < 0 && (after.z - threshold.z) * threshold.direction >= 0;
+  });
+}
+
 export function findInteractiveTarget(pos, yaw, pitch, interactables = [], maxDist = 3.0) {
   const lookX = -Math.sin(yaw) * Math.cos(pitch);
   const lookY = Math.sin(pitch);
@@ -379,11 +412,13 @@ export async function mountWorld3D(container, {
   onShelfMoved,
   onOpenRoom,
   onLeaveSite,
+  library = null,
   signal,
 }) {
   const THREE = await import('./third-party/three/three.module.min.js');
   const { GLTFLoader } = await import('./third-party/three/GLTFLoader.js');
-  if (signal?.aborted) return () => {};
+  const css3d = library ? await import('./third-party/three/CSS3DRenderer.js') : null;
+  if (signal?.aborted) return null;
 
   const root = document.createElement('div');
   root.className = 'world3d-stage';
@@ -461,6 +496,48 @@ export async function mountWorld3D(container, {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(68, 16 / 9, 0.1, 90);
   camera.rotation.order = 'YXZ';
+  const pages = new THREE.Scene();
+  const pageRenderer = css3d ? new css3d.CSS3DRenderer() : null;
+  if (pageRenderer) {
+    pageRenderer.domElement.className = 'world3d-pages';
+    root.append(pageRenderer.domElement);
+  }
+  let reading = null, readingObject = null, beforeReading = null;
+  let typography = null, typographyMount = null, conversation = null;
+  const shell = root.closest('#p34-space');
+
+  async function setDialogue(text, buttons = []) {
+    conversation = text ? { text, buttons } : null;
+    if (!conversation) {
+      typography?.show(null, [], viewport.clientWidth, viewport.clientHeight);
+      delete shell.dataset.depthDialogue;
+      return;
+    }
+    if (!renderer) return;
+    const request = conversation;
+    keys.clear(); draggingLook = false;
+    if (document.pointerLockElement === viewport) document.exitPointerLock?.();
+    try {
+      typographyMount ||= import('./p34-typography.js?v=20261113-library').then(m => m.createSpatialDialogue({ signal, reduced: motion.reduced }));
+      typography = await typographyMount;
+      if (disposed) { typography.dispose(); return; }
+      if (conversation !== request) return;
+      typography.show(conversation.text, conversation.buttons, viewport.clientWidth, viewport.clientHeight);
+      shell.dataset.depthDialogue = 'true';
+    } catch (error) {
+      if (signal?.aborted) return;
+      console.error('Spatial dialogue failed to load', error);
+      help.hidden = false; help.dataset.error = 'true'; help.textContent = '立体文字未载入，可继续使用文字选项';
+    }
+  }
+
+  function worldConfig() {
+    if (!library) return getLayerConfig(currentLayerId, state);
+    const room = getLibraryConfig(library.posts);
+    room.interactables = room.interactables.filter(i => i.kind !== 'book' || library.canRead(i.slug));
+    room.colliders = room.colliders.filter(i => !i.bookSlug || library.canRead(i.bookSlug));
+    return room;
+  }
 
   const gltfLoader = new GLTFLoader();
   const loadedModels = new Map();
@@ -484,8 +561,8 @@ export async function mountWorld3D(container, {
   }
 
   let state = getState();
-  let currentLayerId = LAYERS.includes(state.currentLayer) ? state.currentLayer : 'atrium';
-  let config = getLayerConfig(currentLayerId, state);
+  let currentLayerId = library ? 'library' : LAYERS.includes(state.currentLayer) ? state.currentLayer : 'atrium';
+  let config = worldConfig();
   let player = { ...config.spawn };
   let bobPhase = 0;
   let stepDistance = 0;
@@ -515,6 +592,48 @@ export async function mountWorld3D(container, {
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
     if (renderer) renderer.setSize(w, h, false);
+    pageRenderer?.setSize(w, h);
+    typography?.resize(w, h);
+    if (reading) frameReading();
+  }
+
+  function frameReading() {
+    // Keep real DOM type readable on a phone; the room remains visible around the page.
+    const width = Math.min(720, Math.max(340, viewport.clientWidth * .84));
+    const height = Math.min(820, Math.max(420, viewport.clientHeight * .8));
+    const element = readingObject.element;
+    element.style.width = `${width}px`; element.style.height = `${height}px`;
+    const distance = Math.max(height, width / camera.aspect) * .0038 / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))) / .86;
+    camera.position.set(readingObject.position.x, readingObject.position.y, readingObject.position.z + distance);
+    camera.rotation.set(0, 0, 0);
+    pageRenderer.render(pages, camera);
+    renderer?.render(scene, camera);
+  }
+
+  function readBook(post, element) {
+    keys.clear(); draggingLook = false;
+    if (readingObject) pages.remove(readingObject);
+    readingObject = null;
+    reading = post;
+    root.dataset.reading = String(Boolean(post));
+    if (!post) {
+      if (beforeReading) player = beforeReading;
+      beforeReading = null;
+      syncCamera(); updateTargetPrompt();
+      viewport.focus({ preventScroll: true });
+      return;
+    }
+    beforeReading ||= { ...player };
+    modal.hidden = true;
+    if (document.pointerLockElement === viewport) document.exitPointerLock?.();
+    const target = config.interactables.find(i => i.slug === post.slug);
+    readingObject = new css3d.CSS3DObject(element);
+    readingObject.position.set(target.x, 2.35, target.z);
+    readingObject.rotation.set(-.025, -.06, 0);
+    readingObject.scale.setScalar(.0038);
+    pages.add(readingObject);
+    frameReading();
+    element.querySelector('[data-index]').focus({ preventScroll: true });
   }
 
   function clearScene() {
@@ -839,15 +958,61 @@ export async function mountWorld3D(container, {
     dynamicNorthBridgeGroup.position.set(0, 0.1, -10.2);
     scene.add(dynamicNorthBridgeGroup);
 
-    const loftGate = new THREE.Mesh(
-      new THREE.BoxGeometry(3.2, 3.8, 0.4),
-      new THREE.MeshStandardMaterial({
-        color: state.stacksUnlocked ? 0xf6c978 : 0x4c6699,
-        emissive: state.stacksUnlocked ? 0x785016 : 0x162447,
-      })
-    );
-    loftGate.position.set(0, 2.0, -12.2);
-    scene.add(loftGate);
+    const doorStone = new THREE.MeshStandardMaterial({ color: 0x9caaa5, roughness: 1 });
+    for (const z of [-12.2, 10.8]) {
+      for (const x of [-1.7, 1.7]) {
+        const jamb = new THREE.Mesh(new THREE.BoxGeometry(.3, 3.8, .4), doorStone);
+        jamb.position.set(x, 1.9, z); scene.add(jamb);
+      }
+      const lintel = new THREE.Mesh(new THREE.BoxGeometry(3.7, .3, .4), doorStone);
+      lintel.position.set(0, 3.8, z); scene.add(lintel);
+    }
+  }
+
+  function populateLibrary() {
+    scene.background = new THREE.Color(0x777f7c);
+    scene.fog = new THREE.Fog(0x777f7c, 20, 55);
+    scene.add(new THREE.HemisphereLight(0xe4e7df, 0x575b59, 2.1));
+    const daylight = new THREE.DirectionalLight(0xe4e8e0, 1.1);
+    daylight.position.set(9, 10, -8); scene.add(daylight);
+    const plaster = new THREE.MeshStandardMaterial({ color: 0xa5aaa5, roughness: 1 });
+    const timber = new THREE.MeshStandardMaterial({ color: 0x565e58, roughness: 1 });
+    const paper = new THREE.MeshStandardMaterial({ color: 0xc6c3ae, roughness: 1 });
+    const box = (w, h, d, x, y, z, mat) => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+      mesh.position.set(x, y, z); scene.add(mesh); return mesh;
+    };
+    box(23, .25, 32, 0, -.125, -4, new THREE.MeshStandardMaterial({ color: 0x777e77, roughness: 1 }));
+    box(23, .25, 32, 0, 8, -4, plaster);
+    box(23, 8, .4, 0, 4, -20, plaster);
+    for (const side of [-1, 1]) {
+      box(.4, 8, 32, side * 11.5, 4, -4, plaster);
+      box(9.8, 8, .4, side * 6.6, 4, 12, plaster);
+      for (const z of [-14, -4, 6]) {
+        box(1.8, .12, 6, side * 8.4, .1, z, timber);
+        box(.14, 6.8, 6, side * 8.4, 3.4, z, timber);
+        for (const end of [-3, 3]) box(1.8, 6.8, .12, side * 8.4, 3.4, z + end, timber);
+        for (let row = 1; row <= 7; row++) {
+          box(1.8, .09, 6, side * 8.4, row * .85, z, timber);
+          for (let group = 0; group < 4; group++) {
+            box(.6, .48 + (group % 2) * .15, .9, side * 8.4 - side * .35, row * .85 + .3, z - 2.2 + group * 1.45, paper);
+          }
+        }
+      }
+      for (const z of [-9, 1]) {
+        box(.8, 8, .8, side * 3.2, 4, z, plaster);
+        box(6.6, .45, .8, side * 6.5, 7.6, z, plaster);
+      }
+    }
+    const windowMat = new THREE.MeshBasicMaterial({ color: 0xbfcfc9 });
+    box(.05, 3.2, 6, 11.24, 3.8, -9, windowMat);
+    box(3, 4.6, .08, 0, 2.3, 11.8, new THREE.MeshBasicMaterial({ color: 0x454f50 }));
+    for (const target of config.interactables.filter(i => i.kind === 'book')) {
+      box(1.6, .12, 1, target.x, 1.02, target.z, timber);
+      for (const dx of [-.62, .62]) box(.1, 1, .8, target.x + dx, .5, target.z, timber);
+      const cover = box(.65, .07, .85, target.x, 1.14, target.z, paper);
+      cover.rotation.y = -.15;
+    }
   }
 
   function populateLoft() {
@@ -909,16 +1074,24 @@ export async function mountWorld3D(container, {
     const night = new THREE.Mesh(new THREE.PlaneGeometry(4.0, 3.1), new THREE.MeshBasicMaterial({ color: 0x627383 }));
     night.position.set(0, 2.2, -7.09);
     scene.add(windowFrame, night);
+    for (const x of [-1.7, 1.7]) {
+      const jamb = new THREE.Mesh(new THREE.BoxGeometry(.3, 4.0, .4), plaster);
+      jamb.position.set(x, 2, 7.7); scene.add(jamb);
+    }
+    const lintel = new THREE.Mesh(new THREE.BoxGeometry(3.7, .3, .4), plaster);
+    lintel.position.set(0, 4, 7.7); scene.add(lintel);
   }
 
   function rebuildLayerScene() {
     clearScene();
     state = getState();
-    config = getLayerConfig(currentLayerId, state);
-    if (currentLayerId === 'atrium') populateAtrium();
+    config = worldConfig();
+    if (library) populateLibrary();
+    else if (currentLayerId === 'atrium') populateAtrium();
     else if (currentLayerId === 'stacks') populateStacks();
     else populateLoft();
-    syncCamera();
+    if (reading) frameReading();
+    else syncCamera();
     updateTargetPrompt();
   }
 
@@ -933,12 +1106,14 @@ export async function mountWorld3D(container, {
   }
 
   function updateTargetPrompt() {
+    if (reading) { promptBox.hidden = true; activeTarget = null; return; }
     activeTarget = findInteractiveTarget(player, player.yaw, player.pitch, config.interactables);
     reticle.dataset.active = String(Boolean(activeTarget));
     if (activeTarget) {
       promptBox.hidden = false;
       promptTitle.textContent = activeTarget.label;
       promptBtn.textContent = activeTarget.prompt;
+      promptBtn.hidden = Boolean(activeTarget.crossing);
     } else {
       promptBox.hidden = true;
     }
@@ -979,10 +1154,10 @@ export async function mountWorld3D(container, {
       button('继续', () => viewport.focus({ preventScroll: true }));
       button(motion.sound ? '关闭声音' : '开启声音', () => motion.setSound(!motion.sound));
       if (webglAvailable && !matchMedia('(pointer: coarse)').matches) button('锁定鼠标', requestLook);
-      for (const l of state.layers) {
+      for (const l of library ? [] : state.layers) {
         if (l !== currentLayerId) button(LAYER_LABELS[l].replace(/^第.层 · /, ''), () => switchLayer(l));
       }
-      for (const [id, name] of [['lab', '折页台'], ['blog', '她的笔记'], ['archive', '档案'], ['guestbook', '留言']]) {
+      for (const [id, name] of library ? [['home', '回到书库']] : [['lab', '折页台'], ['blog', '她的笔记'], ['archive', '档案'], ['guestbook', '留言']]) {
         button(name, () => onOpenRoom?.(id));
       }
       button('返回网页', () => onLeaveSite?.());
@@ -994,6 +1169,9 @@ export async function mountWorld3D(container, {
     if (!target) return false;
     motion?.tone?.(2, true);
     state = getState();
+
+    if (target.kind === 'book') { library.onRead(target.slug); return true; }
+    if (target.kind === 'library-exit') { onOpenRoom('home'); return true; }
 
     if (target.kind === 'seam') {
       onLeaveSite?.();
@@ -1152,11 +1330,14 @@ export async function mountWorld3D(container, {
       const cos = Math.cos(player.yaw);
       const dx = (-sin * nf + cos * ns) * speed * dt;
       const dz = (-cos * nf - sin * ns) * speed * dt;
+      const before = { ...player };
       const next = resolvePlayerMovement(player, player.x + dx, player.z + dz, config, state);
       const moved = Math.hypot(next.x - player.x, next.z - player.z);
       player.x = next.x;
       player.y = next.y;
       player.z = next.z;
+      const door = crossedDoor(before, player, config.interactables);
+      if (door) { keys.clear(); triggerInteraction(door); return; }
       if (next.looped) {
         onLoopWalked?.();
       }
@@ -1188,8 +1369,11 @@ export async function mountWorld3D(container, {
     else if (dir === 'back') { dx = sin * step; dz = cos * step; }
     else if (dir === 'left') { dx = -cos * step; dz = sin * step; }
     else if (dir === 'right') { dx = cos * step; dz = -sin * step; }
+    const before = { ...player };
     const next = resolvePlayerMovement(player, player.x + dx, player.z + dz, config, state);
     player.x = next.x; player.y = next.y; player.z = next.z;
+    const door = crossedDoor(before, player, config.interactables);
+    if (door) { triggerInteraction(door); return; }
     if (next.looped) onLoopWalked?.();
     if (currentLayerId === 'atrium' && !state.westAligned && checkSightlineAlignment(player, player.yaw)) {
       onSightlineAligned?.();
@@ -1218,7 +1402,7 @@ export async function mountWorld3D(container, {
     root.dataset.pointerLocked = String(pointerLocked);
     if (wasLocked && !pointerLocked) {
       keys.clear(); draggingLook = false;
-      if (active && modal.hidden) openSpatialOverviewModal();
+      if (active && modal.hidden && !reading && !conversation) openSpatialOverviewModal();
     }
   });
   listen(viewport, 'click', () => viewport.focus({ preventScroll: true }));
@@ -1232,7 +1416,7 @@ export async function mountWorld3D(container, {
   });
 
   listen(viewport, 'pointerdown', e => {
-    if (!modal.hidden || pointerLocked || e.button !== 0) return;
+    if (reading || !modal.hidden || pointerLocked || e.button !== 0) return;
     draggingLook = true;
     lastPointer = { x: e.clientX, y: e.clientY };
   });
@@ -1255,6 +1439,16 @@ export async function mountWorld3D(container, {
   }, { passive: true });
 
   listen(window, 'keydown', e => {
+    if (reading && active) {
+      if (e.code === 'Escape') { e.preventDefault(); if (!closeModal()) library.onClose(); }
+      if (e.code === 'Tab') {
+        const controls = [...(modal.hidden ? readingObject.element : modal).querySelectorAll('button, a[href], input, select, textarea')].filter(el => !el.hidden && el.getClientRects().length);
+        const first = controls[0], last = controls.at(-1);
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+      return;
+    }
     if (e.defaultPrevented || !active || shellBlocked() || e.target.matches?.('input, textarea, select')) return;
     if (e.code === 'Escape') {
       e.preventDefault();
@@ -1309,15 +1503,21 @@ export async function mountWorld3D(container, {
   }
 
   listen(window, 'blur', () => { keys.clear(); draggingLook = false; });
-  listen(document, 'visibilitychange', () => setActive(!document.hidden && root.closest('#p34-space').dataset.room === 'home'));
+  listen(document, 'visibilitychange', () => setActive(!document.hidden && root.closest('#p34-space').dataset.room === (library ? 'blog' : 'home')));
 
   function animate(now) {
     if (signal?.aborted || !active || disposed) return;
     const dt = Math.min(0.05, Math.max(0.001, (now - lastTime) / 1000));
     lastTime = now;
-    if (modal.hidden && !shellBlocked()) stepMovement(dt);
-    if (modal.hidden && !shellBlocked()) for (const fn of animatedObjects) fn(dt);
+    if (!reading && modal.hidden && !shellBlocked()) stepMovement(dt);
+    if (!reading && modal.hidden && !shellBlocked()) for (const fn of animatedObjects) fn(dt);
     if (renderer) renderer.render(scene, camera);
+    if (reading) pageRenderer.render(pages, camera);
+    if (renderer && typography) {
+      renderer.clearDepth(); renderer.autoClear = false;
+      typography.render(renderer, dt);
+      renderer.autoClear = true;
+    }
     rafId = requestAnimationFrame(animate);
   }
 
@@ -1335,6 +1535,8 @@ export async function mountWorld3D(container, {
 
   const api = {
     setActive,
+    readBook,
+    setDialogue,
     getLayer: () => currentLayerId,
     getPlayer: () => ({ ...player }),
     getActiveTarget: () => activeTarget,
@@ -1359,7 +1561,7 @@ export async function mountWorld3D(container, {
     },
     refresh() {
       state = getState();
-      if (state.currentLayer && state.currentLayer !== currentLayerId && LAYERS.includes(state.currentLayer)) {
+      if (!library && state.currentLayer && state.currentLayer !== currentLayerId && LAYERS.includes(state.currentLayer)) {
         currentLayerId = state.currentLayer;
         config = getLayerConfig(currentLayerId, state);
         player = { ...config.spawn };
@@ -1371,6 +1573,8 @@ export async function mountWorld3D(container, {
       cancelAnimationFrame(rafId);
       if (document.pointerLockElement === viewport) document.exitPointerLock?.();
       clearScene();
+      if (readingObject) pages.remove(readingObject);
+      typography?.dispose();
       renderer?.dispose?.();
       root.remove();
     },

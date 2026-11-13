@@ -1,6 +1,6 @@
 @font-face {
   font-family: 'P34 Light'; font-weight: 300; font-style: normal; font-display: swap;
-  src: url('/assets/p34/voice-serif.ttf') format('truetype');
+  src: url('/assets/p34/voice-serif.ttf?v=20261113-library') format('truetype');
 }
 html.p34-spatial {
   --space-ink: #eef5ff;
@@ -30,9 +30,8 @@ html.p34-spatial {
 .space-light, .space-scenery, .space-mist { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: -2; }
 .space-scenery { transform: scale(1.03); transition: transform 550ms cubic-bezier(.22,1,.36,1); }
 .space-light { mix-blend-mode: screen; }
-.space-passage { position: fixed; inset: 0; z-index: 20; pointer-events: none; overflow: clip; }
-.space-passage-veil { position: absolute; inset: 0; }
-.space-transit-word { position: absolute; display: block; white-space: pre-wrap; transform-origin: left center; }
+.space-passage { position: fixed; inset: 0; z-index: 30; pointer-events: none; overflow: clip; perspective: 900px; }
+.space-passage-wall { position: absolute; top: 0; width: 50.1%; height: 100%; box-shadow: 0 0 32px #18242080; }
 .space-mist { background: radial-gradient(ellipse at 8% 8%, #14264150, transparent 58%), linear-gradient(90deg, #182e4d38, transparent 55%); z-index: -1; }
 .space-voice { position: absolute; z-index: 4; left: 9.5%; top: clamp(88px, 15svh, 190px); width: 52%; pointer-events: none; }
 #p34-space .space-voice h1 { font: 300 clamp(46px, 5.1vw, 92px)/1.5 var(--space-serif); letter-spacing: .035em; color: #f4f4ff; white-space: pre-wrap; text-wrap: balance; text-shadow: 0 2px 28px #8bbefc30; min-height: 1.5em; max-width: 100%; outline: none; }

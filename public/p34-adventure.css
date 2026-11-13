@@ -1,19 +1,19 @@
 #p34-space .space-under-voice:empty { display: none; }
 #p34-space .space-room:not([data-active=true]) { display: none; }
 #p34-space .space-orbit { display: none; }
-#p34-space[data-site=home][data-room=home] .space-tools :is([data-map], [data-sound], [data-return]) { display: none; }
+#p34-space:not([data-world-error=true]):is([data-site=blog],[data-site=home][data-room=home]) .space-tools :is([data-map], [data-sound], [data-return]) { display: none; }
 #p34-space .space-tools button::after { display: none; }
 #p34-space .space-replies button { min-height: 44px; font-size: 16px; }
-#p34-space[data-site=home][data-room=home] .space-voice { position: fixed; inset: 0; width: 100%; z-index: 6; pointer-events: none; }
-#p34-space[data-site=home][data-room=home] .space-tools { position: absolute; left: 24px; top: 12px; margin: 0; gap: 22px; }
-#p34-space[data-site=home][data-room=home] .space-voice h1 { position: absolute; bottom: 9svh; left: 50%; translate: -50% 0; width: min(480px, 88vw); min-height: 0; font: 400 19px/1.7 var(--space-sans); letter-spacing: 0; text-align: center; text-shadow: 0 1px 8px #14202c; opacity: 0; }
-#p34-space[data-site=home][data-room=home]:is([data-speaking=true],[data-talking=true]) .space-voice h1 { opacity: 1; }
-#p34-space[data-site=home][data-room=home][data-talking=true] .space-voice h1 { bottom: 37svh; }
-#p34-space[data-site=home][data-room=home] .space-replies { position: absolute; left: 50%; bottom: 12svh; translate: -50% 0; margin: 0; padding: 18px 28px; background: #26323beF; }
-#p34-space[data-site=home][data-room=home][data-map=true] .space-content { filter: brightness(.25); }
-#p34-space[data-site=home][data-room=home][data-map=true] .space-voice h1 { opacity: 0; }
-#p34-space[data-site=home][data-room=home][data-map=true] .space-paths { position: fixed; inset: 20svh 20% auto; min-height: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 18px; }
-#p34-space[data-site=home][data-room=home][data-map=true] .space-path { position: static; font: 400 20px/1.7 var(--space-sans); letter-spacing: 0; justify-content: flex-start; }
+#p34-space:is([data-site=blog],[data-site=home][data-room=home]) .space-voice { position: fixed; inset: 0; width: 100%; z-index: 6; pointer-events: none; }
+#p34-space:is([data-site=blog],[data-site=home][data-room=home]) .space-tools { position: absolute; left: 24px; top: 12px; margin: 0; gap: 22px; }
+#p34-space:is([data-site=blog],[data-site=home][data-room=home]) .space-voice h1 { position: absolute; bottom: 9svh; left: 50%; translate: -50% 0; width: min(480px, 88vw); min-height: 0; font: 400 19px/1.7 var(--space-sans); letter-spacing: 0; text-align: center; text-shadow: 0 1px 8px #14202c; opacity: 0; }
+#p34-space:is([data-site=blog],[data-site=home][data-room=home]):is([data-speaking=true],[data-talking=true]) .space-voice h1 { opacity: 1; }
+#p34-space:is([data-site=blog],[data-site=home][data-room=home])[data-talking=true] .space-voice h1 { bottom: 37svh; }
+#p34-space:is([data-site=blog],[data-site=home][data-room=home]) .space-replies { position: absolute; left: 50%; bottom: 12svh; translate: -50% 0; margin: 0; padding: 18px 28px; }
+#p34-space:is([data-site=blog],[data-site=home][data-room=home])[data-map=true] .space-content { filter: brightness(.25); }
+#p34-space:is([data-site=blog],[data-site=home][data-room=home])[data-map=true] .space-voice h1 { opacity: 0; }
+#p34-space:is([data-site=blog],[data-site=home][data-room=home])[data-map=true] .space-paths { position: fixed; inset: 20svh 20% auto; min-height: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 18px; }
+#p34-space:is([data-site=blog],[data-site=home][data-room=home])[data-map=true] .space-path { position: static; font: 400 20px/1.7 var(--space-sans); letter-spacing: 0; justify-content: flex-start; }
 .world3d-host, .world3d-stage { position: relative; width: 100%; height: 100svh; overflow: hidden; }
 .world3d-stage { user-select: none; }
 .world3d-viewport { position: absolute; inset: 0; outline: none; cursor: grab; touch-action: none; }
@@ -54,20 +54,50 @@
 #p34-space[data-room=archive] .space-history::before { display: none; }
 [data-return-diagram] { margin: 32px 0; }
 [data-return-diagram] svg { display: block; width: 100%; height: auto; }
-[data-return-diagram] label { display: flex; gap: 18px; align-items: center; }
+[data-return-diagram] label { display: flex; gap: 18px; align-items: center; white-space: nowrap; }
 [data-return-diagram] input { width: 100%; min-height: 44px; }
 [data-return-diagram] a { display: inline-block; margin-top: 22px; min-height: 44px; }
 [data-edge] { opacity: .2; }
 .blueprint-calibration-note { margin-top: 20px; }
+.world3d-pages { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
+.world3d-stage[data-reading=true] :is(.world3d-reticle,.world3d-prompt,.world3d-touch-controls,.world3d-help) { display: none; }
+.world3d-book { display: flex; flex-direction: column; background: #cdd1c7; color: #303b36; padding: 22px 34px 32px; pointer-events: auto; user-select: text !important; box-shadow: 0 8px 36px #19252155; color-scheme: light; }
+.world3d-book > header { display: flex; justify-content: flex-end; flex: none; }
+#p34-space .world3d-book button { min-height: 44px; padding: 0 8px; font-size: 18px; }
+.world3d-book-scroll { overflow: auto; overscroll-behavior: contain; touch-action: pan-y; padding: 8px 6px 24px; }
+#p34-space .world3d-book h2 { font: 400 26px/1.7 var(--space-serif); margin: 0 0 30px; color: inherit; }
+#p34-space .world3d-book .space-prose { color: inherit; font-size: 20px; line-height: 2; }
+#p34-space .world3d-book .space-prose :is(h2,h3) { color: inherit; }
+#p34-space .world3d-book :focus-visible { outline-color: #43584c; outline-offset: 3px; }
+.world3d-book [data-return-diagram] { margin: 20px 0; }
+.world3d-book [data-return-diagram] svg g { fill: #516b6440; }
+.world3d-book [data-return-diagram] svg path { stroke: #52685c; }
+.world3d-book [data-return-pad] { fill: #52685c; }
+#p34-space[data-site=blog] .journey-save-actions { display: none; }
+#p34-space[data-site=blog]:has(.world3d-modal:not([hidden])) .journey-save-actions { display: flex; position: fixed; bottom: 12px; left: 0; z-index: 21; margin: 0 6%; }
+#p34-space[data-site=blog][data-article=true] .space-voice { visibility: hidden; }
+html.p34-spatial:has(.world3d-stage) { overflow: hidden; scrollbar-gutter: auto; }
+#p34-space[data-depth-dialogue=true] .space-voice h1 { opacity: 0 !important; }
+#p34-space[data-depth-dialogue=true] .space-content { opacity: 1; }
+#p34-space:has(.world3d-stage)[data-talking=true] .space-content { opacity: 1; }
+#p34-space[data-depth-dialogue=true] .space-replies { position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; translate: none; margin: 0; padding: 0; background: none; pointer-events: none; }
+#p34-space[data-depth-dialogue=true] .space-replies button { position: absolute; opacity: 0; pointer-events: auto; }
+#p34-space[data-talking=true] :is(.world3d-reticle,.world3d-prompt,.world3d-help,.world3d-touch-controls) { visibility: hidden; }
+#p34-space .world3d-help[data-error=true] { display: block; visibility: visible; }
+@media (max-width: 600px) {
+  .world3d-book { padding: 12px 18px 20px; }
+  #p34-space .world3d-book h2 { font-size: 23px; margin-bottom: 22px; }
+  #p34-space .world3d-book .space-prose { font-size: 19px; }
+}
 @media (pointer: coarse) {
   .world3d-touch-controls { display: flex; }
   .world3d-help { display: none; }
 }
 @media (max-width: 600px) {
-  #p34-space[data-site=home][data-room=home] .space-tools { left: 18px; gap: 14px; }
-  #p34-space[data-site=home][data-room=home] .space-tools button { font-size: 13px; letter-spacing: 0; }
+  #p34-space:is([data-site=blog],[data-site=home][data-room=home]) .space-tools { left: 18px; gap: 14px; }
+  #p34-space:is([data-site=blog],[data-site=home][data-room=home]) .space-tools button { font-size: 13px; letter-spacing: 0; }
   .world3d-hud-top { right: 12px; }
-  #p34-space[data-site=home][data-room=home] .space-replies { width: 90vw; }
+  #p34-space:is([data-site=blog],[data-site=home][data-room=home]) .space-replies { width: 90vw; }
   .world3d-prompt { bottom: 24svh; }
   .world3d-modal-card { padding: 20px; }
   .layer-atlas, .clue-dossier { padding: 30svh 7% 6svh; }

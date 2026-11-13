@@ -1,5 +1,5 @@
-import { LINES, CHOICES } from './p34-script.js?v=20261113-quiet';
-import { mountGuestbook } from './p34-guestbook.js?v=20261113-quiet';
+import { LINES, CHOICES } from './p34-script.js?v=20261113-library';
+import { mountGuestbook } from './p34-guestbook.js?v=20261113-library';
 import {
   JOURNEY_COOKIE,
   LAYERS,
@@ -14,8 +14,8 @@ import {
   journeyEvent,
   blueprintSketch,
   identityClueCount,
-} from './p34-journey.js?v=20261113-quiet';
-import { mountWorld3D } from './p34-world3d.js?v=20261113-quiet';
+} from './p34-journey.js?v=20261113-library';
+import { mountWorld3D } from './p34-world3d.js?v=20261113-library';
 
 export function reboundSketch(offset) {
   const sketch = blueprintSketch(offset);
@@ -41,6 +41,8 @@ export function layerFromURL(href, fallback = 'atrium') {
 export function mountAdventure({
   shell,
   site,
+  posts,
+  openPost,
   motion,
   speak,
   dialogue,
@@ -57,7 +59,7 @@ export function mountAdventure({
   let state = loaded.state;
   let storageError = loaded.error;
   let world3d = null;
-  let worldMounting = false;
+  let worldMounting = null;
   let stopDiagram = null;
   let smallTalk = 0;
   let guestbook = null;
@@ -307,24 +309,24 @@ export function mountAdventure({
     return true;
   }
 
-  async function ensureWorld3D() {
-    if (site !== 'home' || world3d || worldMounting) return;
-    const homePanel = shell.querySelector('.space-home');
-    if (!homePanel) return;
-    let host = homePanel.querySelector('[data-world3d-host]');
-    if (!host) {
-      host = document.createElement('div');
-      host.className = 'world3d-host';
-      host.dataset.world3dHost = '';
-      homePanel.prepend(host);
-    }
-    worldMounting = true;
+  function ensureWorld3D() {
+    if (world3d) return Promise.resolve(world3d);
+    return worldMounting ||= createWorld3D();
+  }
+
+  async function createWorld3D() {
+    const host = shell.querySelector('[data-world3d-host]');
     try {
       world3d = await mountWorld3D(host, {
         getState: () => current(),
         getLightNodes: () => getLightNodes?.() || state.lightSketch,
         motion,
         signal,
+        library: site === 'blog' ? {
+          posts, canRead,
+          onRead: slug => openPost(posts.find(p => p.slug === slug), true),
+          onClose: () => openPost(null, true),
+        } : null,
         onLoopWalked() {
           record('loop-walked');
           say(state.loopCount <= 1 ? LINES.spatial.loopFirst : LINES.spatial.loopRepeat, { mood: 'thought' });
@@ -346,7 +348,9 @@ export function mountAdventure({
           enterLayer(nextLayer, { push });
         },
         onOpenRoom(roomName) {
-          if (roomName === 'blog') {
+          if (site === 'blog') {
+            location.assign(homeURL + (state.layers.includes('stacks') ? '&layer=stacks' : ''));
+          } else if (roomName === 'blog') {
             location.assign(blogURL);
           } else {
             go(roomName);
@@ -399,11 +403,13 @@ export function mountAdventure({
           }
         },
       });
+      return world3d;
     } catch (e) {
       console.error('3D world failed to initialize', e);
-      error(`三维空间初始化受限：${e.message}`);
-    } finally {
-      worldMounting = false;
+      shell.dataset.worldError = 'true';
+      shell.dataset.article = 'false';
+      error('空间没有载入，可刷新重试或返回原页');
+      throw e;
     }
   }
 
@@ -470,17 +476,16 @@ export function mountAdventure({
     if (!storageError) notice.hidden = true;
     renderAtlas();
     renderClueArchive();
-    filterNotes();
-    if (announce && name !== 'home') say(heading(name));
+    if (announce && name !== 'home' && site !== 'blog') say(heading(name));
     shell.querySelector('[data-talk]').hidden = false;
     shell.querySelector('[data-return]').hidden = false;
     saves.hidden = name !== 'archive' && site !== 'blog';
 
-    if (site === 'home' && name === 'home') {
+    if (site === 'blog' || name === 'home') {
       void ensureWorld3D().then(() => {
         world3d?.refresh();
-        world3d?.setActive(getRoom() === 'home');
-      });
+        world3d?.setActive(getRoom() === (site === 'blog' ? 'blog' : 'home'));
+      }).catch(() => {}); // The visible notice above retains the exit path.
     }
   }
 
@@ -493,14 +498,6 @@ export function mountAdventure({
       return state.layers.includes('loft') || state.phase === 'after';
     }
     return true;
-  }
-
-  function filterNotes() {
-    if (site === 'blog') {
-      shell.querySelectorAll('[data-post]').forEach(a => {
-        a.parentElement.hidden = !canRead(a.dataset.post);
-      });
-    }
   }
 
   function opened(slug) {
@@ -650,5 +647,12 @@ export function mountAdventure({
       return next;
     },
     getWorld3D: () => world3d,
+    presentDialogue(text, buttons) {
+      if (world3d && (site === 'blog' || getRoom() === 'home')) void world3d.setDialogue(text, buttons);
+    },
+    async readBook(post, element) {
+      const world = await ensureWorld3D();
+      if (!signal.aborted) world.readBook(post, element);
+    },
   };
 }

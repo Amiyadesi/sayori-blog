@@ -1,9 +1,9 @@
-import { LINES } from './p34-script.js?v=20261113-quiet';
-import { createMotion } from './p34-motion.js?v=20261113-quiet';
-import { resolveCookieDomain } from './p34-journey.js?v=20261113-quiet';
-import { createLightSpace, INITIAL_LIGHT, readSketches } from './p34-light.js?v=20261113-quiet';
-import { capturePage, playPassage, cancelPassage } from './p34-passage.js?v=20261113-quiet';
-import { mountAdventure } from './p34-adventure.js?v=20261113-quiet';
+import { LINES } from './p34-script.js?v=20261113-library';
+import { createMotion } from './p34-motion.js?v=20261113-library';
+import { resolveCookieDomain } from './p34-journey.js?v=20261113-library';
+import { createLightSpace, INITIAL_LIGHT, readSketches } from './p34-light.js?v=20261113-library';
+import { capturePage, playPassage, cancelPassage } from './p34-passage.js?v=20261113-library';
+import { mountAdventure } from './p34-adventure.js?v=20261113-library';
 
 export const SKETCH_KEY = 'p34-light-sketches-v1';
 export const ROOMS = ['home', 'works', 'lab', 'blog', 'archive', 'guestbook'];
@@ -56,7 +56,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
       style.addEventListener('error', () => reject(new Error('Space stylesheet failed to load')), { once: true });
       if (ownedStyle) {
         style.rel = 'stylesheet';
-        style.href = site === 'blog' ? '/p34-reading.css?v=20261113-quiet' : '/p34-luminous.css?v=20261113-quiet';
+        style.href = site === 'blog' ? '/p34-reading.css?v=20261113-library' : '/p34-luminous.css?v=20261113-library';
         style.dataset.p34SpaceStyle = '';
         document.head.append(style);
       }
@@ -74,7 +74,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
   const normalState = history.state;
   const parked = [], timers = new Set();
   let leaving = false, disposed = false, room = roomFromURL(location.href, site), menu = false, talking = false;
-  let articleOpen = false, articleRequest = 0, articleTransition = null, drag = null, dragCount = 0, lastRemark = -Infinity;
+  let articleOpen = false, articleRequest = 0, drag = null, dragCount = 0, lastRemark = -Infinity;
   let nodes = cloneNodes(INITIAL_LIGHT), sketches = [];
   let revisionIndex = -1;
   const articleCache = new Map();
@@ -135,7 +135,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
     clearTimeout(voiceTimer);
     voiceTimer = later(() => { if (!talking) delete shell.dataset.speaking; }, 5000);
     if (note !== null) under.textContent = note;
-    if (animate && !(site === 'home' && room === 'home')) void motion.assemble(voice, text, origins);
+    if (animate && site !== 'blog' && room !== 'home') void motion.assemble(voice, text, origins);
     else { motion.cancelText(voice); voice.textContent = text; }
   }
   function setStatus(text) { status.textContent = text; }
@@ -166,13 +166,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
       <div class="space-form-end"><span data-count>0 / 1000</span><button type="submit" disabled>公开留言</button></div><p class="journey-letter-status" data-letter-status role="status"></p>
       </form><section class="space-letter-board" aria-label="大家留下的话"><div class="space-letter-heading"><h2>留下的话</h2><button type="button" data-letter-refresh>刷新留言</button></div><p data-letter-list-status role="status"></p><ol data-letters></ol><button type="button" data-letter-more hidden>更早的留言</button></section>`);
   } else {
-    const blog = addRoom('blog', '<div class="space-blog-index"><ol class="space-posts"></ol></div><article class="space-article" hidden><a class="space-back-index" href="/?paper=0617" data-index>所有文章</a><header><h2 tabindex="-1"></h2></header><div class="space-prose"></div><a class="space-article-end" href="/?paper=0617" data-index>回目录</a></article>');
-    const list = blog.querySelector('ol');
-    for (const post of posts) {
-      const li = document.createElement('li'), a = document.createElement('a'), title = document.createElement('span');
-      a.href = post.href; a.dataset.post = post.slug; title.textContent = post.title;
-      a.append(title); li.append(a); list.append(li);
-    }
+    addRoom('blog', '<div class="world3d-host" data-world3d-host></div>');
     shell.querySelector('[data-map]').hidden = true;
   }
 
@@ -204,7 +198,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
     shell.querySelector('[data-return]').hidden = false;
     nav.querySelectorAll('a').forEach(link => {
       const dest = link.dataset.roomLink;
-      const visible = site === 'blog' ? dest === 'home' : menu || (room !== 'home' && dest === 'home');
+      const visible = site === 'blog' ? false : menu || (room !== 'home' && dest === 'home');
       link.dataset.visible = String(visible); link.inert = !visible;
       if (dest === room) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
     });
@@ -216,6 +210,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
     shell.querySelector('[data-talk]').setAttribute('aria-expanded', 'false');
     delete shell.dataset.talking;
     delete shell.dataset.speaking;
+    adventure.presentDialogue(null);
     if (restoreFocus) shell.querySelector('[data-talk]').focus({ preventScroll: true });
   }
   function showReplies(items) {
@@ -233,6 +228,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
     shell.querySelector('[data-talk]').setAttribute('aria-expanded', 'true');
     speak(text, { note: '' }); showReplies(items);
     replies.firstElementChild.focus({ preventScroll: true });
+    adventure.presentDialogue(text, [...replies.children]);
   }
   function converse() {
     if (talking) { closeConversation(); return; }
@@ -297,35 +293,24 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
       }
     }
     if (disposed || leaving || request !== articleRequest) return;
-    const update = () => {
-      if (disposed || leaving || request !== articleRequest) return;
-      closeConversation(); articleOpen = Boolean(post);
-      shell.dataset.article = String(articleOpen);
-      const panel = panels.get('blog'), article = panel.querySelector('article'), index = panel.querySelector('.space-blog-index');
-      index.hidden = articleOpen; article.hidden = !articleOpen;
-      if (post) {
-        article.querySelector('h2').textContent = post.title;
-        const prose = article.querySelector('.space-prose');
-        if (prose.dataset.slug !== post.slug) {
-          prose.replaceChildren(); prose.dataset.slug = post.slug;
-          prose.append(articleCache.get(post.slug));
-        }
-        document.title = `${post.title} · 她写的`;
-        speak(LINES.reading, { note: '', animate: push });
-        adventure.opened(post.slug);
-      } else {
-        document.title = '她写的'; speak(headingForRoom(), { note: '', animate: push });
-      }
-      if (push) {
-        history.pushState({ ...history.state, p34Post: post?.slug || null }, '', post ? post.href : '/?paper=0617');
-        window.scrollTo({ top: 0, behavior: 'instant' });
-        (post ? article.querySelector('h2') : voice).focus({ preventScroll: true });
-      }
-    };
-    if (push && document.startViewTransition && !motion.reduced()) {
-      articleTransition?.skipTransition();
-      articleTransition = document.startViewTransition(update);
-    } else update();
+    closeConversation(); articleOpen = Boolean(post);
+    shell.dataset.article = String(articleOpen);
+    let article = null;
+    if (post) {
+      article = document.createElement('article'); article.className = 'world3d-book';
+      article.setAttribute('role', 'dialog'); article.setAttribute('aria-modal', 'true');
+      article.setAttribute('aria-label', post.title);
+      article.innerHTML = '<header><button type="button" data-index>放回</button></header><div class="world3d-book-scroll"><h2></h2><div class="space-prose"></div></div>';
+      article.querySelector('h2').textContent = post.title;
+      article.querySelector('.space-prose').append(articleCache.get(post.slug).cloneNode(true));
+    }
+    try { await adventure.readBook(post, article); }
+    catch { return; } // Initialization reports a visible retry/exit notice.
+    if (disposed || leaving || request !== articleRequest) return;
+    document.title = post ? `${post.title} · 她写的` : '阅览室 · 她写的';
+    adventure.opened(post?.slug);
+    setStatus(''); under.textContent = '';
+    if (push) history.pushState({ ...history.state, p34Post: post?.slug || null }, '', post ? post.href : '/?paper=0617');
   }
 
   function renderHistory() {
@@ -391,10 +376,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
     } else if (el.matches('[data-revision]')) showRevision(Number(el.dataset.revision));
     else if (el.matches('.space-compare [data-previous]')) showRevision(revisionIndex - 1);
     else if (el.matches('.space-compare [data-next]')) showRevision(revisionIndex + 1);
-    else if (el.matches('[data-post]')) {
-      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      event.preventDefault(); openPost(posts.find(post => post.slug === el.dataset.post), true);
-    } else if (el.matches('[data-index]')) {
+    else if (el.matches('[data-index]')) {
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       event.preventDefault(); openPost(null, true);
     }
@@ -463,7 +445,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
     });
   }
   function cleanup() {
-    if (disposed) return; disposed = true; articleRequest++; articleTransition?.skipTransition(); controller.abort(); timers.forEach(clearTimeout); timers.clear();
+    if (disposed) return; disposed = true; articleRequest++; controller.abort(); timers.forEach(clearTimeout); timers.clear();
     shell.remove(); for (const [el, mark] of parked) mark.replaceWith(el);
     html.classList.remove('p34-spatial', 'p34-luminous', 'p34-world', 'p34-ready');
     delete html.dataset.p34Active; delete html.dataset.p34Site;
@@ -472,7 +454,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
   }
   active.set(html, cleanup);
   const adventure = mountAdventure({
-    shell, site, motion, speak, dialogue, quiet: closeConversation,
+    shell, site, posts, openPost, motion, speak, dialogue, quiet: closeConversation,
     go: next => selectRoom(next, { push: true }), getRoom: () => room, getSketches: () => sketches,
     getLightNodes: () => nodes, leave: sendBack, cookie: writeCookie, signal,
   });
@@ -480,8 +462,8 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
   if (site === 'blog') fromLocation();
   else speak(headingForRoom(), { note: '', animate: true, origins: sources });
   if (storageError && room === 'archive') speak(LINES.cannotSave, { note: '浏览器限制了本地存储，实验仍然可以玩' });
-  if (site === 'home' && room === 'home') delete shell.dataset.speaking;
-  if (html.dataset.p34FromDesk === 'true') void playPassage(shell, normalPage, motion, true);
+  if (site === 'blog' || room === 'home') delete shell.dataset.speaking;
+  void playPassage(shell, normalPage, motion, true);
   history.replaceState({ ...history.state, p34Space: true }, '', location.href);
   delete html.dataset.p34FromDesk;
   return cleanup;
