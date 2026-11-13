@@ -135,7 +135,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
     clearTimeout(voiceTimer);
     voiceTimer = later(() => { if (!talking) delete shell.dataset.speaking; }, 5000);
     if (note !== null) under.textContent = note;
-    if (animate) void motion.assemble(voice, text, origins);
+    if (animate && !(site === 'home' && room === 'home')) void motion.assemble(voice, text, origins);
     else { motion.cancelText(voice); voice.textContent = text; }
   }
   function setStatus(text) { status.textContent = text; }
