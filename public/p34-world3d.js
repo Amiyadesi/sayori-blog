@@ -4,6 +4,8 @@ import {
   TARGET_PILLARS,
   CLUE_INFO,
 } from './p34-journey.js?v=20261113-library';
+import { createBuilding } from './p34-building.js?v=20261113-residents';
+import { addResidents } from './p34-residents.js?v=20261113-residents';
 
 const PLAYER_RADIUS = 0.42;
 const EYE_HEIGHT = 1.65;
@@ -29,6 +31,8 @@ const ATRIUM_WALLS = [
   { x: -6, z: 15.4, w: .45, d: 3.8, h: 3.4 },
   { x: 7, z: 17.8, w: .45, d: 4, h: 3.4 },
   { x: 0, z: -19.2, w: 27, d: .45, h: 8 },
+  ...[-1, 1].map(side => ({ x: side * 3.5, z: -9.55, w: 4, d: .3, h: 4, y: 3.2 })),
+  { x: 0, z: -9.55, w: 3, d: .3, h: 1, y: 6.2 },
 ];
 
 export function getLibraryConfig(posts) {
@@ -579,6 +583,8 @@ export async function mountWorld3D(container, {
   let dynamicNorthBridgeGroup = null;
   let dynamicSlidingShelf = null;
   let lampLightRef = null;
+  let residents = null;
+  let building = null;
   let rafId = 0;
   let active = true;
   let disposed = false;
@@ -639,10 +645,17 @@ export async function mountWorld3D(container, {
   function clearScene() {
     buildId++;
     const freed = new Set();
+    for (const material of building?.materials || []) {
+      for (const resource of [material.map, material.bumpMap, material]) {
+        if (resource && !freed.has(resource)) { freed.add(resource); resource.dispose(); }
+      }
+    }
+    building = null;
     scene.traverse(obj => {
       obj.shadow?.dispose();
+      if (obj.isInstancedMesh) obj.dispose();
       const materials = obj.material ? (Array.isArray(obj.material) ? obj.material : [obj.material]) : [];
-      for (const resource of [obj.geometry, ...materials.flatMap(m => [m.map, m])]) {
+      for (const resource of [obj.geometry, ...materials.flatMap(m => [m.map, m.bumpMap, m])]) {
         if (resource && !freed.has(resource)) { freed.add(resource); resource.dispose(); }
       }
     });
@@ -650,6 +663,7 @@ export async function mountWorld3D(container, {
     dynamicNorthBridgeGroup = null;
     dynamicSlidingShelf = null;
     lampLightRef = null;
+    residents = null;
     while (scene.children.length > 0) {
       const obj = scene.children[0];
       scene.remove(obj);
@@ -658,12 +672,12 @@ export async function mountWorld3D(container, {
 
   function populateAtrium() {
     const version = buildId;
-    scene.background = new THREE.Color(0x595c56);
-    scene.fog = new THREE.Fog(0x595c56, 24, 65);
+    scene.background = new THREE.Color(0x4d574e);
+    scene.fog = new THREE.Fog(0x4d574e, 27, 65);
 
-    const hemi = new THREE.HemisphereLight(0xe0e3d8, 0x6d7268, 1.25);
+    const hemi = new THREE.HemisphereLight(0xe2e5d4, 0x637064, .85);
     scene.add(hemi);
-    const dir = new THREE.DirectionalLight(0xf1ecda, 1.4);
+    const dir = new THREE.DirectionalLight(0xe5e8d3, 1.05);
     dir.position.set(18, 12, 4);
     dir.castShadow = true;
     dir.shadow.mapSize.set(2048, 2048);
@@ -673,42 +687,24 @@ export async function mountWorld3D(container, {
     dir.shadow.autoUpdate = false; dir.shadow.needsUpdate = true;
     scene.add(dir);
 
-    const centerLight = new THREE.PointLight(0xe6dfc9, 1.3, 22);
-    centerLight.position.set(0, 4.2, 0);
+    const centerLight = new THREE.PointLight(0xe1e7cb, 45, 15);
+    centerLight.position.set(0, 6.8, 0);
     scene.add(centerLight);
 
-    const westLight = new THREE.PointLight(0xf5c476, 1.8, 16);
-    westLight.position.set(-9.2, 3.2, 0);
+    const westLight = new THREE.PointLight(0xdce8d1, 28, 13);
+    westLight.position.set(-20, 4.1, -5);
     scene.add(westLight);
 
-    const eastLight = new THREE.PointLight(LAMP_COLORS[lampColorIdx], 2.0, 16);
-    eastLight.position.set(9.2, 3.2, -1.5);
+    const eastLight = new THREE.PointLight(LAMP_COLORS[lampColorIdx], 6, 12);
+    eastLight.position.set(9.2, 2, -1.5);
     scene.add(eastLight);
     lampLightRef = eastLight;
 
-    const grain = new Uint8Array(128 * 128 * 4);
-    for (let i = 0; i < grain.length; i += 4) {
-      const shade = 235 + Math.floor(Math.random() * 20);
-      grain[i] = grain[i + 1] = grain[i + 2] = shade; grain[i + 3] = 255;
-    }
-    const texture = new THREE.DataTexture(grain, 128, 128);
-    texture.wrapS = texture.wrapT = THREE.RepeatWrapping; texture.repeat.set(16, 16);
-    texture.magFilter = THREE.LinearFilter; texture.needsUpdate = true;
-    const floorMat = new THREE.MeshStandardMaterial({ color: 0x999c91, map: texture, roughness: 1 });
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(28, 26), floorMat);
-    floor.rotation.x = -Math.PI / 2;
-    scene.add(floor);
-
-
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0xd0cec0, roughness: 1 });
-    const ceilingMat = new THREE.MeshStandardMaterial({ color: 0xc5c7bc, roughness: 1, emissive: 0x53564c, emissiveIntensity: .2 });
-    const timber = new THREE.MeshStandardMaterial({ color: 0x7c7262, roughness: 1 });
-    const box = (w, h, d, x, y, z, material = wallMat) => {
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
-      mesh.position.set(x, y, z); mesh.castShadow = true; mesh.receiveShadow = true; scene.add(mesh); return mesh;
-    };
-    for (const wall of config.walls) box(wall.w, wall.h, wall.d, wall.x, (wall.y || 0) + wall.h / 2, wall.z);
-    box(.8, 4.5, 5.7, -7, 2.25, -3.35);
+    building = createBuilding(THREE, scene, renderer);
+    const { box, floor: floorMat, ceiling: ceilingMat, wood: timber, metal } = building;
+    box(27, .2, 25, 0, -.1, 0, floorMat);
+    for (const wall of config.walls) building.wall(wall.w, wall.h, wall.d, wall.x, wall.y || 0, wall.z);
+    building.wall(.8, 4.5, 5.7, -7, 0, -3.35);
     for (const side of [-1, 1]) {
       box(10.5, .2, 29, side * 18.75, -.1, 5.5, floorMat);
       box(10.5, .2, 29, side * 18.75, 4.9, 5.5, ceilingMat);
@@ -717,14 +713,23 @@ export async function mountWorld3D(container, {
     box(48, .2, 7.5, 0, 3.5, 16.25, ceilingMat);
     box(27, .25, 6.5, 0, 3.5, 9, ceilingMat);
     box(27, .25, 18, 0, 7.5, -3.5, ceilingMat);
+    for (const [x, y, z] of [[-2, 3.3, 9], [2, 3.3, 9], [-6, 7.3, -1], [6, 7.3, -1], [-9.3, 7.3, -7], [-20.5, 4.7, -5.5], [-16, 4.7, 3.5], [-20.5, 4.7, 11], [21, 4.7, -5.5], [16, 4.7, 5.5], [21, 4.7, 11], [-10, 3.3, 17], [9, 3.3, 16]]) building.fixture(x, y, z, true);
+    for (const [x, y, z] of [[0, 2.9, 9], [20.5, 4.1, -5.5], [-20, 4.1, 11], [9, 2.9, 16]]) {
+      const light = new THREE.PointLight(0xe6e5cb, 22, 11); light.position.set(x, y, z); scene.add(light);
+    }
+    building.vent(-23.72, 3.7, 1, -1); building.vent(23.72, 3.7, 7);
 
     // Quiet rooms have views and different scales, not more switches to collect.
-    const daylight = new THREE.MeshBasicMaterial({ color: 0xe2e5d9 });
+    const daylight = new THREE.MeshBasicMaterial({ color: 0xc4cfc2 });
     const window = box(.05, 2.8, 3.5, 23.74, 2.5, -5.5, daylight); window.castShadow = false;
     for (const z of [-6.65, -5.5, -4.35]) box(.12, 2.8, .045, 23.65, 2.5, z, timber);
+    for (const y of [1.08, 2.35, 3.92]) box(.2, .09, 3.8, 23.6, y, -5.5, metal);
+    box(.35, .12, 3.9, 23.5, 1.04, -5.5, building.plaster);
     box(1.15, .16, 3.6, 22.7, .5, -5.5, timber);
     box(.15, .5, 3.4, 22.7, .25, -5.5, timber);
     box(.05, .9, 5.8, -23.74, 2.5, 12, daylight).castShadow = false;
+    for (const z of [9.1, 10.55, 12, 13.45, 14.9]) box(.1, 1, .05, -23.62, 2.5, z, metal);
+    for (const y of [2.02, 2.98]) box(.2, .08, 5.9, -23.6, y, 12, metal);
     box(1.1, .18, 4, -22.9, .5, 12, timber);
     box(.16, .5, 3.8, -22.9, .25, 12, timber);
     box(4.7, .18, 6, 21.15, 2.11, 11, floorMat);
@@ -738,30 +743,17 @@ export async function mountWorld3D(container, {
     scene.add(seamMesh);
 
     // Four central chamfered monolith columns
-    const colGeom = new THREE.BoxGeometry(1.1, 6.8, 1.1);
-    const colMat = wallMat;
     for (const [cx, cz] of [[-4, -4], [4, -4], [-4, 4], [4, 4]]) {
-      const col = new THREE.Mesh(colGeom, colMat);
-      col.position.set(cx, 3.4, cz);
-      scene.add(col);
+      building.wall(1.1, 7.4, 1.1, cx, 0, cz);
     }
 
     // The west stairs are ordinary architecture, not an invisible sightline lock.
-    const westStairs = new THREE.Group();
     const stepCount = 10;
     for (let i = 0; i < stepCount; i++) {
       const t = i / (stepCount - 1);
-      const step = new THREE.Mesh(
-        new THREE.BoxGeometry(3.4, 0.24, 0.48),
-        new THREE.MeshStandardMaterial({
-          color: 0xaaa99a,
-          roughness: 1,
-        })
-      );
-      step.position.set(-9.4, 0.2 + t * 3.0, -2.0 - t * 4.6);
-      westStairs.add(step);
+      box(3.4, .24, .48, -9.4, .2 + t * 3, -2 - t * 4.6, floorMat);
+      box(3.4, .03, .045, -9.4, .33 + t * 3, -1.78 - t * 4.6, metal);
     }
-    scene.add(westStairs);
 
     // Upper Mezzanine Balcony (Y = 3.2m, Z = -8.6)
     const mezzDeck = new THREE.Mesh(
@@ -771,14 +763,12 @@ export async function mountWorld3D(container, {
     mezzDeck.position.set(-2.0, 3.05, -8.6);
     scene.add(mezzDeck);
 
-    // Portal on Mezzanine to Layer 2 (Stacks)
-    const doorMat = new THREE.MeshStandardMaterial({ color: 0x929ca2, roughness: 0.95 });
+    // The opening belongs to the upper wall, with a deep threshold rather than a freestanding frame.
     for (const x of [-1.5, 1.5]) {
-      const jamb = new THREE.Mesh(new THREE.BoxGeometry(0.22, 3.4, 0.35), doorMat);
-      jamb.position.set(x, 4.9, -9.8); scene.add(jamb);
+      box(.1, 3, .56, x, 4.7, -9.6, metal);
     }
-    const lintel = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.22, 0.35), doorMat);
-    lintel.position.set(0, 6.5, -9.8); scene.add(lintel);
+    box(3.1, .1, .56, 0, 6.2, -9.6, metal);
+    box(2.9, 2.98, .025, 0, 4.7, -10.02, new THREE.MeshBasicMaterial({ color: 0x303b34 }));
 
     // North High Observation Platform (Y = 3.6m, Z = -16.2)
     const highDeck = new THREE.Mesh(
@@ -793,12 +783,13 @@ export async function mountWorld3D(container, {
     surveyMonolith.position.set(0, 4.35, -16.2);
     scene.add(highDeck, surveyMonolith);
 
-    const foldTable = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.9, 1.2), new THREE.MeshStandardMaterial({ color: 0x74818a, roughness: 1 }));
-    foldTable.position.set(0, 0.45, 1.2);
+    box(1.4, .1, 1.2, 0, .9, 1.2, timber);
+    for (const x of [-.57, .57]) for (const z of [.75, 1.65]) box(.055, .85, .055, x, .425, z, metal);
+    box(1.2, .12, .04, 0, .68, 1.65, metal);
     const foldedPaper = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.03, 0.7), new THREE.MeshStandardMaterial({ color: 0xd4d2c6, roughness: 1 }));
     foldedPaper.position.set(0, 0.96, 1.2);
     foldedPaper.rotation.z = 0.15;
-    scene.add(foldTable, foldedPaper);
+    scene.add(foldedPaper);
 
     // Saved sketch produces a usable bridge, not a decorative ribbon.
     if (state.bridgeSolid) {
@@ -837,8 +828,10 @@ export async function mountWorld3D(container, {
     screen.rotation.y = -Math.PI / 2;
     screen.position.set(11.2, 1.5, 0);
     scene.add(terminal, screen);
+    residents = addResidents(THREE, scene, config, () => player, motion.reduced);
+    animatedObjects.push(dt => residents.update(dt));
     scene.traverse(object => {
-      if (object.isMesh) { object.receiveShadow = object.material.isMeshStandardMaterial && object.material !== ceilingMat; object.castShadow = object.material.isMeshStandardMaterial && !object.material.transparent && object.material !== ceilingMat; }
+      if (object.isMesh) { object.receiveShadow = object.material.isMeshStandardMaterial && object.material !== ceilingMat; object.castShadow = !object.userData.noShadow && object.material.isMeshStandardMaterial && !object.material.transparent && object.material !== ceilingMat; }
     });
   }
 
@@ -857,13 +850,13 @@ export async function mountWorld3D(container, {
     projLight.position.set(0, 4.0, -3.5);
     scene.add(amberLeft, amberRight, projLight);
 
-    // Catwalk floor
-    const floor = new THREE.Mesh(
-      new THREE.BoxGeometry(22, 0.3, 19.5),
-      new THREE.MeshStandardMaterial({ color: 0x505359, roughness: 0.95 })
-    );
-    floor.position.set(0, -0.15, 2.2);
-    scene.add(floor);
+    building = createBuilding(THREE, scene, renderer);
+    building.floor.color.setHex(0x6b7777);
+    building.box(22, .3, 19.5, 0, -.15, 2.2, building.floor);
+    for (const x of [-6.5, 6.5]) for (const z of [-4, 4]) {
+      building.box(.025, 4.8, .025, x, 10.4, z, building.metal);
+      building.fixture(x, 8, z, true);
+    }
 
 
     // Towering Archive Monolith Bookshelves (left & right abyssal walls)
@@ -974,20 +967,17 @@ export async function mountWorld3D(container, {
   }
 
   function populateLibrary() {
-    scene.background = new THREE.Color(0x777f7c);
-    scene.fog = new THREE.Fog(0x777f7c, 20, 55);
-    scene.add(new THREE.HemisphereLight(0xe4e7df, 0x575b59, 2.1));
+    scene.background = new THREE.Color(0x65746c);
+    scene.fog = new THREE.Fog(0x65746c, 20, 55);
+    scene.add(new THREE.HemisphereLight(0xe4e7df, 0x575b59, 1.25));
     const daylight = new THREE.DirectionalLight(0xe4e8e0, 1.1);
     daylight.position.set(9, 10, -8); scene.add(daylight);
-    const plaster = new THREE.MeshStandardMaterial({ color: 0xa5aaa5, roughness: 1 });
-    const timber = new THREE.MeshStandardMaterial({ color: 0x565e58, roughness: 1 });
+    building = createBuilding(THREE, scene, renderer);
+    const { box, plaster, wood: timber } = building;
+    timber.color.setHex(0x5d685c);
     const paper = new THREE.MeshStandardMaterial({ color: 0xc6c3ae, roughness: 1 });
-    const box = (w, h, d, x, y, z, mat) => {
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-      mesh.position.set(x, y, z); scene.add(mesh); return mesh;
-    };
-    box(23, .25, 32, 0, -.125, -4, new THREE.MeshStandardMaterial({ color: 0x777e77, roughness: 1 }));
-    box(23, .25, 32, 0, 8, -4, plaster);
+    box(23, .25, 32, 0, -.125, -4, building.floor);
+    box(23, .25, 32, 0, 8, -4, building.ceiling);
     box(23, 8, .4, 0, 4, -20, plaster);
     for (const side of [-1, 1]) {
       box(.4, 8, 32, side * 11.5, 4, -4, plaster);
@@ -998,9 +988,6 @@ export async function mountWorld3D(container, {
         for (const end of [-3, 3]) box(1.8, 6.8, .12, side * 8.4, 3.4, z + end, timber);
         for (let row = 1; row <= 7; row++) {
           box(1.8, .09, 6, side * 8.4, row * .85, z, timber);
-          for (let group = 0; group < 4; group++) {
-            box(.6, .48 + (group % 2) * .15, .9, side * 8.4 - side * .35, row * .85 + .3, z - 2.2 + group * 1.45, paper);
-          }
         }
       }
       for (const z of [-9, 1]) {
@@ -1008,8 +995,25 @@ export async function mountWorld3D(container, {
         box(6.6, .45, .8, side * 6.5, 7.6, z, plaster);
       }
     }
+    const books = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ roughness: 1 }), 6 * 7 * 18);
+    const pose = new THREE.Object3D(), colors = [0x9c9a80, 0x5f7063, 0x908575, 0x6f7975, 0x727063, 0xafad94];
+    let bookIndex = 0;
+    for (const side of [-1, 1]) for (const z of [-14, -4, 6]) for (let row = 1; row <= 7; row++) for (let i = 0; i < 20; i++) {
+      if (i % 7 === 6) continue;
+      const h = .4 + ((i * 7 + row * 3) % 9) * .019;
+      pose.position.set(side * 8.4 - side * .4, row * .85 + .05 + h / 2, z - 2.7 + i * .27);
+      pose.scale.set(.6, h, .13 + (i % 3) * .035); pose.rotation.x = i % 9 === 4 ? .12 : 0; pose.updateMatrix();
+      books.setMatrixAt(bookIndex, pose.matrix); books.setColorAt(bookIndex++, new THREE.Color(colors[(i + row) % colors.length]));
+    }
+    books.count = bookIndex; scene.add(books);
+    for (const z of [-14, -4, 6]) {
+      for (const x of [-4.7, 4.7]) building.fixture(x, 7.75, z, true);
+      const pool = new THREE.PointLight(0xe6e4c9, 28, 12); pool.position.set(0, 7, z); scene.add(pool);
+    }
     const windowMat = new THREE.MeshBasicMaterial({ color: 0xbfcfc9 });
     box(.05, 3.2, 6, 11.24, 3.8, -9, windowMat);
+    for (const z of [-12, -10.5, -9, -7.5, -6]) box(.15, 3.3, .055, 11.15, 3.8, z, building.metal);
+    for (const y of [2.15, 3.8, 5.45]) box(.2, .08, 6.1, 11.12, y, -9, building.metal);
     box(3, 4.6, .08, 0, 2.3, 11.8, new THREE.MeshBasicMaterial({ color: 0x454f50 }));
     for (const target of config.interactables.filter(i => i.kind === 'book')) {
       box(1.6, .12, 1, target.x, 1.02, target.z, timber);
@@ -1507,6 +1511,7 @@ export async function mountWorld3D(container, {
     setDialogue,
     getLayer: () => currentLayerId,
     getPlayer: () => ({ ...player }),
+    getResidents: () => residents?.snapshot() || null,
     getActiveTarget: () => activeTarget,
     getInteractables: () => config.interactables.map(i => ({ ...i })),
     switchLayer: (l, opts) => switchLayer(l, opts),
