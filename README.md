@@ -29,23 +29,25 @@ target R2 bucket; API tokens are never written to the manifest or repository.
 The application remains licensed under Apache-2.0; the bundled MIT notices are
 preserved in `LICENSE.MIT`.
 
-## 📖 Her Own Blog World (`?paper=0617`)
+## Her Own Blog World (`/?paper=0617`)
 
-- **Local Commands**:
-  - Build: `pnpm exec astro build --outDir .codex-tmp/p34-native-build`
-  - Dev server: `pnpm exec astro dev --host 127.0.0.1 --port 8971` (plain `pnpm run dev` serves on Astro's default `4321`)
-- **Abnormal Query (`?paper=0617`)**:
-  - Appending `?paper=0617` parks the normal Amiya masthead, sidebars, footer, and page content into retained fragments and mounts her fullscreen editorial blog (`#F7F9FC` cold white, luminous cyan/clear blue, restrained warm edge, `#202B37` body ink).
-  - Normal pages without `?paper=0617` remain completely untouched.
-- **Her Own Articles (Astro-Generated, Noindex, Isolated from Normal Feeds/Sitemap/Search)**:
-  - Canonical source: `public/p34-own-posts.js` (re-exported for Astro via `src/data/p34-own-posts.ts` and consumed directly by `public/p34-reading.js`).
-  - `/notes/prism-and-paddle/?paper=0617` (《把折光拨偏一点，顺便在底下接球》) — adjusting the prism angle, cyan/blue/gold string tension, and rallying the orb against page titles and cards with five-hit corner repair.
-  - `/notes/empty-corners/?paper=0617` (《左边空着就空着，别往里塞小挂件》) — her opinion on leaving empty page corners alone versus cutting unfinished GMTK puzzle mechanics.
-  - `/notes/afternoon-rankings/?paper=0617` (《暂时第一名：倒汽水的声音》) — short ranking of pouring soda over ice, clean paper/switch clicks, and a stuck four-note phrase.
-- **Breakout Cookie Consumption**:
-  - Read-only shared cookie `p34_breakout_v1` (`v1.<runs>.<bestScore>.<maxCombo>.<edition>`) via `readBreakoutCookie()` (`public/p34-breakout-state.js`).
-  - When `runs > 0`, displays a compact personal note (`[data-p34-breakout-note]`) with the player's lifetime best score and max combo on Home, linking back to `https://sayori.org/?paper=0617`. Omitted when `runs === 0`.
-- **Exit**: Click "返回原站" in the masthead or choose "先回到原来的普通页面" in the inline conversation to remove `?paper=0617` and restore the exact original DOM nodes.
+正式入口为 `https://blog.sayori.org/?paper=0617`。这里是她的独立 3D 阅览室，不改写正常作者文章；只有带 `paper=0617` 的页面才加载空间。
+
+WASD 移动、拖动画面环视、E 翻开桌上的书，在 3D 空间内滚动阅读真实正文、操作草图，再放回书本继续探索。对话用中央逐字立体字，无蓝色蒙层。入场与返回使用建筑式过渡；减少动态设置下直接切换。浏览器前后退、刷新与 `/notes/[slug]/?paper=0617` 深链接可用。暂停菜单可回正常博客；Twikoo 保留，不自动发布评论。
+
+五篇笔记写在 `src/content/her-space/*.md`，使用 `title`、`description` 和 `draft` frontmatter。Astro 渲染完整 Markdown，`/her-space.json` 仅提供目录元数据。草图校准结果用 `.sayori.org` Cookie 传回主页书库，不依赖跨域 LocalStorage。
+
+共享空间源码在相邻 `sayori-home/public`，从该仓库运行 `node scripts/sync-p34-space.mjs` 同步。博客入口适配为 `paper-blog.js` / `p34-reading.js`，阅读样式在 `p34-reading.css` 与 `p34-space.css`。
+
+```powershell
+node node_modules/astro/bin/astro.mjs dev --host 127.0.0.1 --port 8981
+node node_modules/tsx/dist/cli.mjs --test tests/paper-blog.test.ts
+node node_modules/typescript/bin/tsc --noEmit
+```
+
+生产发布沿用 `.github/workflows/deploy.yml` 的最新 `main`、完整多语言构建、Pages Functions 和健康检查；不要用静态预览包覆盖生产，否则会遗漏正常博客服务。先发布 Blog，再发布 Home。实际版本见 `/deployment.json`，可从 Cloudflare Pages 回滚到上一份成功的生产部署。
+
+字体许可见 `public/assets/p34/OFL.txt`。建筑美术暂用程序低模；未测移动真机和 Safari。独立域名、人物身份与后续剧情仍由作者决定。
 
 ---
 

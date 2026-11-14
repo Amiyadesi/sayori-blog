@@ -1,35 +1,10 @@
-import {
-	HER_OWN_POSTS as CANONICAL_OWN_POSTS,
-	getOwnPostByPath,
-	getOwnPostBySlug,
-	isOwnNotePath,
-	normalizeBlogPath,
-} from "../../public/p34-own-posts.js";
-
-export interface OwnPostSection {
-	heading: string | null;
-	paragraphs: string[];
-}
-
-export interface OwnPost {
-	id: string;
-	slug: string;
-	path: string;
-	href: string;
-	date: string;
-	kicker: string;
-	title: string;
-	excerpt: string;
-	lead: string;
-	voiceRemark: string;
-	sections: OwnPostSection[];
-	paragraphs: string[];
-}
-
-export const HER_OWN_POSTS: OwnPost[] = CANONICAL_OWN_POSTS;
-export {
-	normalizeBlogPath,
-	getOwnPostBySlug,
-	getOwnPostByPath,
-	isOwnNotePath,
-};
+import type { MarkdownInstance } from 'astro';
+interface Frontmatter { title: string; description: string; draft: boolean; }
+const entries = import.meta.glob<MarkdownInstance<Frontmatter>>('../content/her-space/*.md', { eager: true });
+export const HER_OWN_POSTS = Object.entries(entries).map(([file, entry]) => {
+  const slug = file.split('/').pop()!.replace(/\.md$/, '');
+  const { title, description, draft } = entry.frontmatter;
+  if (!/^[a-z0-9-]+$/.test(slug) || typeof title !== 'string' || !title.trim() || typeof description !== 'string' || typeof draft !== 'boolean') throw new Error(`Invalid writing metadata: ${file}`);
+  return { title, excerpt: description, draft, slug, path: `/notes/${slug}`, href: `/notes/${slug}/?paper=0617`, Content: entry.Content };
+});
+export type OwnPost = (typeof HER_OWN_POSTS)[number];

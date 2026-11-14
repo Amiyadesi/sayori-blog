@@ -8,6 +8,9 @@ output/
 .cache/blog-media/
 .env
 content/
+!src/content/
+src/content/*
+!src/content/her-space/
 *.log
 
 # Generated from the public content repository by scripts/sync-content.js.
@@ -27,3 +30,5 @@ public/assets/mobile-banner/
 public/assets/music/
 public/assets/profile/
 public/assets/sponsor/
+
+.p34-preview/

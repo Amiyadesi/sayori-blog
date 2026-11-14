@@ -1,88 +1,22 @@
 ---
-import Layout from "@layouts/Layout.astro";
-import { HER_OWN_POSTS, type OwnPost } from "../../data/p34-own-posts";
-
-interface Props {
-	post: OwnPost;
-}
-
+import Layout from '@layouts/Layout.astro';
+import { HER_OWN_POSTS, type OwnPost } from '../../data/p34-own-posts';
+interface Props { post: OwnPost; }
 export function getStaticPaths() {
-	return HER_OWN_POSTS.map((post) => ({
-		params: { slug: post.slug },
-		props: { post },
-	}));
+  return HER_OWN_POSTS.map(post => ({ params: { slug: post.slug }, props: { post } }));
 }
-
 const { post } = Astro.props;
-const others = HER_OWN_POSTS.filter((item) => item.slug !== post.slug);
+const { Content } = post;
 ---
-
-<Layout title={`${post.title} · 北窗偏光`} description={post.excerpt} noindex={true}>
-	<script is:inline slot="head">
-		if (new URLSearchParams(location.search).get("paper") !== "0617") {
-			location.replace("/");
-		}
-	</script>
-	<main id="swup-container" tabindex="-1" data-p34-own-route="true" data-p34-route-slug={post.slug}>
-		<div class="p34-own-blog" data-p34-own-root="true" data-p34-view="article" data-pagefind-ignore="all">
-			<header class="p34-own-masthead">
-				<a href="/?paper=0617" class="p34-wordmark" data-p34-nav="index">
-					<span class="p34-prism-dot" aria-hidden="true"></span>
-					<span class="p34-wordmark-text">北窗偏光</span>
-				</a>
-				<nav class="p34-own-nav" aria-label="站点导航">
-					<a href="/?paper=0617" class="p34-own-nav-link" data-p34-nav="index">手记</a>
-					<a href="https://sayori.org/?paper=0617" class="p34-own-nav-link p34-own-nav-home" data-p34-home-link>去主页那边 ↗</a>
-					<a href="/" class="p34-own-nav-return" data-p34-return>返回原站</a>
-				</nav>
-			</header>
-			<div class="p34-own-layout">
-				<aside class="p34-own-margin" aria-label="此刻的话">
-					<div class="p34-voice-card">
-						<p class="p34-voice-line" data-p34-voice-line>{post.voiceRemark}</p>
-					</div>
-				</aside>
-				<div class="p34-own-stage" data-p34-stage>
-					<article class="p34-full-article" data-p34-article-slug={post.slug}>
-						<div class="p34-article-top">
-							<a href="/?paper=0617" class="p34-back-index" data-p34-nav="index"><span aria-hidden="true">←</span> 返回手记目录</a>
-							<div class="p34-entry-meta">
-								<time>{post.date}</time>
-								<span class="p34-meta-sep" aria-hidden="true">·</span>
-								<span>{post.kicker}</span>
-							</div>
-						</div>
-						<header class="p34-article-header">
-							<h1 class="p34-article-title" tabindex="-1">{post.title}</h1>
-							<p class="p34-article-lead">{post.lead}</p>
-						</header>
-						<div class="p34-article-prose">
-							{post.sections.map((section) => (
-								<section class="p34-prose-section">
-									{section.heading && <h2>{section.heading}</h2>}
-									{section.paragraphs.map((paragraph) => (
-										<p>{paragraph}</p>
-									))}
-								</section>
-							))}
-						</div>
-						<footer class="p34-article-footer">
-							<div class="p34-next-grid" aria-label="继续阅读">
-								{others.map((item) => (
-									<a href={item.href} class="p34-next-card" data-p34-post-link={item.slug}>
-										<span class="p34-next-meta">{item.date} · {item.kicker}</span>
-										<strong class="p34-next-title">{item.title}</strong>
-									</a>
-								))}
-							</div>
-							<div class="p34-footer-links">
-								<a href="/?paper=0617" data-p34-nav="index">← 回到全部手记</a>
-								<a href="https://sayori.org/?paper=0617" data-p34-home-link>去她住的那一面 ↗</a>
-							</div>
-						</footer>
-					</article>
-				</div>
-			</div>
-		</div>
-	</main>
+<Layout title={post.title} description={post.excerpt} noindex={true}>
+  <script is:inline slot="head">
+    if (new URLSearchParams(location.search).get('paper') !== '0617') location.replace('/');
+  </script>
+  <main id="swup-container" tabindex="-1" data-p34-own-route="true">
+    <article data-p34-native-post={post.slug}>
+      <p>{post.draft ? '未发布的草稿' : '她写的'}</p><h1>{post.title}</h1>
+      <div class="space-native-prose"><Content /></div>
+      <a href="/?paper=0617">回目录</a>
+    </article>
+  </main>
 </Layout>
