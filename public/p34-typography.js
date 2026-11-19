@@ -79,7 +79,9 @@ export async function createSpatialDialogue({ signal, reduced }) {
     const titleSize = .23, optionSize = .135;
     const titleAdvance = Math.max(...Array.from(content.text.replaceAll('\n', '')).map(char => (font.data.glyphs[char] || font.data.glyphs['?']).ha)) / font.data.resolution * titleSize;
     const lines = wrapSpatialText(content.text, Math.max(1, Math.floor(worldWidth * .78 / titleAdvance)));
-    const titleTop = .8 + Math.max(0, lines.length - 1) * .16;
+    const titleBottom = (lines.length - 1) * .34;
+    const menuHeight = titleBottom + .8 + Math.max(0, content.buttons.length - 1) * .38;
+    const titleTop = Math.max(.8 + Math.max(0, lines.length - 1) * .16, -worldHeight / 2 + menuHeight + worldHeight * 44 / h);
     lines.forEach((line, i) => { if (line) textMesh(line, titleSize, titleTop - i * .34, 0xe8e8da); });
     const events = new AbortController(); stop = () => events.abort();
     content.buttons.forEach((button, i) => {

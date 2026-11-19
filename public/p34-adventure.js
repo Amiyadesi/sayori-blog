@@ -16,6 +16,7 @@ import {
   identityClueCount,
 } from './p34-journey.js?v=20261113-library';
 import { mountWorld3D } from './p34-world3d.js?v=20261113-library';
+import { isPoolEntry } from './p34-garden.js?v=20261119-garden';
 
 export function reboundSketch(offset) {
   const sketch = blueprintSketch(offset);
@@ -57,6 +58,8 @@ export function mountAdventure({
 }) {
   const loaded = cookieJourney(document.cookie);
   let state = loaded.state;
+  let poolArrival = site === 'home' && isPoolEntry(location.href);
+  if (poolArrival) state.currentLayer = 'atrium';
   let storageError = loaded.error;
   let world3d = null;
   let worldMounting = null;
@@ -97,6 +100,7 @@ export function mountAdventure({
         error(storageError);
       } else {
         state = latest.state;
+        if (poolArrival) state.currentLayer = 'atrium';
       }
     }
     return state;
@@ -185,6 +189,9 @@ export function mountAdventure({
       items.push([CHOICES.goStacks, () => { quiet(); enterLayer('stacks'); }]);
     }
     items.push([CHOICES.openLab, () => { quiet(); go('lab'); }]);
+    for (const [question, answer] of [[CHOICES.askWhere, LINES.atrium.answerPlace], [CHOICES.askSafe, LINES.atrium.answerSafe], [CHOICES.askSelf, LINES.atrium.answerSelf]]) {
+      items.push([question, () => dialogue(answer, [[CHOICES.next, talkInAtrium], [CHOICES.wander, quiet]])]);
+    }
     items.push([CHOICES.busy, freeTime]);
     items.push([CHOICES.wander, quiet]);
     dialogue(text, items);
@@ -279,6 +286,7 @@ export function mountAdventure({
   }
 
   function enterLayer(layerId, { push = true } = {}) {
+    poolArrival = false;
     current();
     if (site !== 'home') {
       location.assign(`${homeURL}&layer=${layerId}`);
@@ -294,6 +302,7 @@ export function mountAdventure({
       const url = new URL(location.href);
       url.searchParams.set('paper', '0617');
       url.searchParams.delete('room');
+      url.searchParams.delete('spot');
       if (layerId === 'atrium') url.searchParams.delete('layer');
       else url.searchParams.set('layer', layerId);
       history.pushState({ ...history.state, p34Space: true, p34Room: 'home', p34Layer: layerId }, '', url.pathname + url.search);
@@ -333,6 +342,9 @@ export function mountAdventure({
             say(LINES.spatial.shelfMoved, { mood: 'bright' });
           }
         },
+        onGardenComment(text) {
+          if (shell.dataset.talking !== 'true') say(text, { mood: 'thought' });
+        },
         onLayerChange(nextLayer, { push = true } = {}) {
           enterLayer(nextLayer, { push });
         },
@@ -348,8 +360,26 @@ export function mountAdventure({
         onLeaveSite() {
           leave();
         },
+        onArrivalReveal() {
+          if (state.phase === 'arrive' && getRoom() === 'home' && shell.dataset.talking !== 'true') {
+            say(LINES.spatial.arrivalReassure, { mood: 'thought' });
+          }
+        },
         onInteract(kind, payload) {
-          if (kind === 'lab-link') {
+          if (kind === 'garden-sky') {
+            record(kind, payload);
+            say(LINES.garden.skies[payload], { mood: 'bright' });
+          } else if (kind === 'garden-chime') {
+            const first = state.garden.chime === null;
+            record(kind, payload);
+            if (first) dialogue(LINES.garden.askChime, [
+              ...CHOICES.chimes.map((label, tone) => [label, () => { record('garden-chime', tone); quiet(); world3d.ringChime(tone); say(LINES.garden.chimes[tone]); }]),
+              [CHOICES.wander, quiet],
+            ]);
+            else say(LINES.garden.chimes[payload]);
+          } else if (kind === 'talk-arrival') {
+            talk();
+          } else if (kind === 'lab-link') {
             say(state.bridgeSolid ? LINES.spatial.bridgeSolid : LINES.spatial.bridgeHint);
           } else if (kind === 'glb-lamp') {
             record('touch');

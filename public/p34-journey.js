@@ -2,10 +2,11 @@ export const JOURNEY_COOKIE = 'p34_journey_v2';
 export const PHASES = ['arrive', 'shared', 'stacks', 'loft', 'after'];
 const LEGACY_PHASES = ['tuned', 'guided', 'choice', 'closed', 'found', 'making'];
 export const LAYERS = ['atrium', 'stacks', 'loft'];
+export const GARDEN_SKIES = ['morning', 'afternoon', 'dusk', 'midnight'];
 export const LAYER_LABELS = {
-  atrium: '第一层 · 页背回廊',
-  stacks: '第二层 · 索引外书库',
-  loft: '第三层 · 她的阁楼',
+  atrium: '第一层 · 阈值中庭',
+  stacks: '第二层 · 垂蔓深渊书库',
+  loft: '第三层 · 雨夜观景阁楼',
 };
 export const NOTES = ['rain-folder', 'long-way', 'landing-notes', 'tomorrow-again', 'pulling-light'];
 export const CLUES = ['atrium-survey', 'retired-relic', 'slot-34-log', 'dual-handwriting', 'rain-origin-trace'];
@@ -145,6 +146,7 @@ export function newJourney() {
     diagram: false,
     clues: [],
     leftLetter: false,
+    garden: { sky: null, chime: null },
   };
 }
 
@@ -234,6 +236,11 @@ export function readJourney(raw) {
       '线索档案有误'
     );
 
+    const garden = s.garden ?? { sky: null, chime: null };
+    require(garden && typeof garden === 'object' && !Array.isArray(garden) &&
+      (garden.sky === null || GARDEN_SKIES.includes(garden.sky)) &&
+      (garden.chime === null || [0, 1, 2].includes(garden.chime)), '庭院偏好有误');
+
     const normalized = {
       v: 2,
       phase: mappedPhase,
@@ -252,6 +259,7 @@ export function readJourney(raw) {
       diagram: Boolean(s.diagram),
       clues: [...clues],
       leftLetter: s.leftLetter,
+      garden: { sky: garden.sky, chime: garden.chime },
     };
 
     require(encodeURIComponent(JSON.stringify(normalized)).length <= 3800, '存档超出浏览器容量');
@@ -282,6 +290,14 @@ export function cookieJourney(cookies = '') {
 export function journeyEvent(state, event, value) {
   const s = structuredClone(state);
   switch (event) {
+    case 'garden-sky':
+      require(GARDEN_SKIES.includes(value), 'Unknown garden sky');
+      s.garden.sky = value;
+      break;
+    case 'garden-chime':
+      require([0, 1, 2].includes(value), 'Unknown chime tone');
+      s.garden.chime = value;
+      break;
     case 'hello':
       if (s.phase === 'arrive') s.phase = 'shared';
       break;

@@ -6,7 +6,7 @@ export function segmentGraphemes(value) {
 
 export function createMotion(signal) {
   const media = matchMedia('(prefers-reduced-motion: reduce)');
-  const animations = new Set(), particles = new Set(), textJobs = new WeakMap();
+  const animations = new Set(), particles = new Set(), textJobs = new WeakMap(), soundListeners = new Set();
   let still = false, sound = false, audio;
   const reduced = () => media.matches || still;
 
@@ -248,6 +248,7 @@ export function createMotion(signal) {
   return {
     animate, layout, assemble, liftGlyphs, decode, burst, tone, impact, sustain, reduced, cancelText(el) { textJobs.delete(el); },
     get sound() { return sound; },
-    setSound(value) { sound = value; if (sound) tone(0, true); },
+    onSound(fn) { soundListeners.add(fn); return () => soundListeners.delete(fn); },
+    setSound(value) { sound = value; if (sound) tone(0, true); for (const fn of soundListeners) fn(sound); },
   };
 }

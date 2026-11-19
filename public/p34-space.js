@@ -435,7 +435,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
     speak(LINES.leave, { note: '' });
     await playPassage(shell, normalPage, motion, false);
     if (disposed) return;
-    const url = new URL(originalURL); url.searchParams.delete('paper'); url.searchParams.delete('room'); url.searchParams.delete('layer');
+    const url = new URL(originalURL); url.searchParams.delete('paper'); url.searchParams.delete('room'); url.searchParams.delete('layer'); url.searchParams.delete('spot');
     const ownNote = site === 'blog' && url.pathname.startsWith('/notes/');
     if (ownNote) { cleanup(); location.assign('/'); return; }
     history.replaceState(normalState, '', url.pathname + url.search + url.hash);
@@ -451,6 +451,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
     delete html.dataset.p34Active; delete html.dataset.p34Site;
     if (ownedStyle) style.remove(); document.title = originalTitle;
     window.scrollTo(0, originalScroll); active.delete(html);
+    window.dispatchEvent(new Event('p34:normal-return'));
   }
   active.set(html, cleanup);
   const adventure = mountAdventure({

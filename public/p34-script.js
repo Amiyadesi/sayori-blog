@@ -1,8 +1,13 @@
 // 页面实际读取的台词本。她的句末不加句号
 export const LINES = {
-  arrival: ['等一下', '你从正面过来的？'],
+  arrival: [
+    '等一下，刚才那副样子太难稳住了',
+    '换回字说话吧\n这里是正面网页背面的夹层，现在归我管',
+    '别慌，墙不会塌，外头那些影子也不会碰你\n想知道什么直接问就好',
+  ],
   spatial: {
     atriumEnter: '我去楼上，你慢慢看',
+    arrivalReassure: '别慌，换回字和你说话——这里是我搭在网页背面的地方，没事的',
     bridgeHint: '桌上那条折线，试着把中间抬高',
     bridgeSolid: '能过去了',
     surveyFound: '这张还没画完',
@@ -20,8 +25,37 @@ export const LINES = {
     clueHandwriting: '背面是我写的',
     clueRainOrigin: '这份也在这里？',
   },
+  garden: {
+    skies: {
+      morning: '清晨借来了，凉一点才好醒脑',
+      afternoon: '四点钟归你了，太阳下班也得等我同意',
+      dusk: '影子拉长了，柱子可没有偷偷长高',
+      midnight: '灯替你留着，里面那一侧也归我管',
+    },
+    chimes: ['先听铜管，你挑的我就留着', '换成玻璃了，这组是不是更像水？', '低一点，我楼上改图时也听得见'],
+    askChime: '你挑一组？我把楼上的小挂件也换成一样的',
+    moved: ['长椅？它一直喜欢这个角度', '只挪了半米，你居然发现了'],
+    blank: '这块先空着，别替我填',
+    daily: {
+      morning: ['把清晨挪进天井了，窗外还没跟上', '水黾比我早起，已经绕完三圈'],
+      afternoon: ['四点的光最好，先扣着不还', '长椅挪半米，看看今天谁先发现'],
+      dusk: ['试着把影子接到另一扇门上，差一点', '书架又挡路了，等你过来我就推开'],
+      midnight: ['夜里别关天井，我还要听风铃', '里面的走廊调成蓝色了，回来时认一下路'],
+    },
+    noteSky: '光色按你挑的留着，小石头也换好了',
+    noteChime: '你选的那组风铃，我在桌上留了一串',
+    noteAfter: '门还开着，后院有几处又被我改过了',
+    specimens: {
+      lamp: '从正面桌上的小钢琴旁借来一盏灯，只缩小，没关掉',
+      folio: '博客的文章在正面照常翻阅，这里只留下一道折痕',
+      blank: '黄铜表面擦得很干净，署名处始终空着',
+    },
+  },
   atrium: {
-    readyForStacks: '上面通着书库',
+    readyForStacks: '上面通着书库，有什么不清楚的随时问我',
+    answerPlace: '你从正面网页的纸角翻过来，会落进我搭在网站后面的几层房间\n平时我就在里面写东西、改机关',
+    answerSafe: '走廊里走动的那些东西不会伤人\n盯着它们看一会儿，它们自己就会停下甚至给你让路',
+    answerSelf: '刚才那样展开太散了，反而不方便交流\n用字的话，你能看清，我也不用一直撑着形体',
   },
   stacks: {
     locked: '我把那三根柱子画在笔记里了',
@@ -59,10 +93,12 @@ export const LINES = {
 };
 
 export const CHOICES = {
+  chimes: ['留铜管', '试玻璃', '低音铜片'],
   next: '嗯', explore3d: '继续看看', openMap: '去过的地方', openLab: '看看折页台',
   openBlog: '看看笔记', openArchive: '看看记录', syncPillars: '投射草图',
   goStacks: '去书库', goLoft: '去阁楼', goAtrium: '回廊',
   askWho: '你是谁？', askAuthor: '站长认识你吗？', busy: '你在忙什么？',
+  askWhere: '这里是哪里？', askSafe: '这里安全吗？', askSelf: '刚才那是你吗？',
   wander: '我先逛逛', explore: '我去看看', leave: '回网页',
   noisy: '原来很响？', now: '现在呢？', keepBusy: '你接着忙',
   thatCurve: '桌上那座桥？', pullLight: '我试试', leaveLight: '先放着',

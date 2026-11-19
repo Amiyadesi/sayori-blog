@@ -3,9 +3,13 @@ import {
   LAYER_LABELS,
   TARGET_PILLARS,
   CLUE_INFO,
+  GARDEN_SKIES,
 } from './p34-journey.js?v=20261113-library';
 import { createBuilding } from './p34-building.js?v=20261113-residents';
 import { addResidents } from './p34-residents.js?v=20261113-residents';
+import { createWorldAudio } from './p34-audio.js?v=20261114-surreal';
+import { SUNDIAL, CHIMES, GARDEN_LIGHT, skyFromHour, entrySpawn, inPool, dailyNote, addAtriumGarden, addStacksGarden, addLoftGarden } from './p34-garden.js?v=20261119-garden';
+import { LINES } from './p34-script.js?v=20261119-garden';
 
 const PLAYER_RADIUS = 0.42;
 const EYE_HEIGHT = 1.65;
@@ -101,6 +105,8 @@ export function getLayerConfig(layer, state = {}) {
         { id: 'chasm-guard', minX: -13.5, maxX: 13.5, minZ: -18.5, maxZ: -10.4, minY: 0, maxY: 5.0, enabled: !bridgeSolid },
       ],
       interactables: [
+        { id: 'garden-sundial', label: '光晷仪', prompt: 'E · 转动', kind: 'garden-sundial', ...SUNDIAL },
+        { id: 'corridor-chimes', label: '铜风铃', prompt: 'E · 轻拨', kind: 'corridor-chimes', ...CHIMES },
         {
           id: 'viewport-seam',
           label: '接缝',
@@ -153,6 +159,13 @@ export function getLayerConfig(layer, state = {}) {
           kind: 'clue',
           clueId: 'atrium-survey',
         },
+        ...(state.phase === 'arrive' ? [{
+          id: 'arrival-echo',
+          label: '她',
+          prompt: 'E · 问问她',
+          x: 0, y: 1.55, z: 5.2,
+          kind: 'talk-arrival',
+        }] : []),
       ],
     };
   }
@@ -175,6 +188,7 @@ export function getLayerConfig(layer, state = {}) {
         { id: 'east-stack-wall', minX: 9.2, maxX: 10.8, minZ: -6.0, maxZ: 6.0, minY: 0, maxY: 8.0, enabled: true },
       ],
       interactables: [
+        ...['lamp', 'folio', 'blank'].map((specimen, i) => ({ id: `specimen-${specimen}`, label: ['桌灯标本', '笔记折页', '第 34 号空白铭牌'][i], prompt: 'E · 近看', kind: 'garden-specimen', specimen, x: [-7.2, -4.6, 7.2][i], y: 1.15, z: 8.3 })),
         {
           id: 'portal-back-atrium',
           label: '回廊',
@@ -256,6 +270,7 @@ export function getLayerConfig(layer, state = {}) {
       { id: 'workbench-col', minX: -1.6, maxX: 1.6, minZ: -2.2, maxZ: -0.6, minY: 0, maxY: 1.6, enabled: true },
     ],
     interactables: [
+      { id: 'loft-daily-note', label: '桌边短笺', prompt: 'E · 翻看', kind: 'loft-daily-note', x: -3.1, y: 1.05, z: 2.3 },
       {
         id: 'portal-back-stacks',
           label: '书库',
@@ -413,8 +428,10 @@ export async function mountWorld3D(container, {
   getLightNodes,
   motion,
   onInteract,
+  onArrivalReveal,
   onLayerChange,
   onShelfMoved,
+  onGardenComment,
   onOpenRoom,
   onLeaveSite,
   library = null,
@@ -440,6 +457,7 @@ export async function mountWorld3D(container, {
     </div>
     <div class="world3d-touch-controls" data-touch-controls aria-label="触屏移动与视角控制">
       <div class="world3d-touch-pad" data-touch-move role="group" aria-label="左下虚拟摇杆：拖动移动">
+        <span class="world3d-touch-stick-nub" data-stick-nub aria-hidden="true"></span>
         <button type="button" data-step="forward" aria-label="前进">▲</button>
         <div class="world3d-touch-row">
           <button type="button" data-step="left" aria-label="左移">◀</button>
@@ -452,7 +470,7 @@ export async function mountWorld3D(container, {
           <button type="button" data-turn="left" aria-label="向左看">↶</button>
           <button type="button" data-turn="right" aria-label="向右看">↷</button>
         </div>
-        <button type="button" class="world3d-touch-interact" data-touch-interact>触碰</button>
+        <button type="button" class="world3d-touch-interact" data-touch-interact data-active="false">环视</button>
       </div>
     </div>
     <aside class="world3d-modal" data-modal hidden role="dialog" aria-modal="true" aria-labelledby="world3d-modal-title">
@@ -477,13 +495,26 @@ export async function mountWorld3D(container, {
   const modal = root.querySelector('[data-modal]');
   const modalTitle = root.querySelector('[data-modal-title]');
   const modalBody = root.querySelector('[data-modal-body]');
+  const modalCard = root.querySelector('.world3d-modal-card');
   const modalClose = root.querySelector('[data-modal-close]');
+  const touchInteractBtn = root.querySelector('[data-touch-interact]');
+  const touchMovePad = root.querySelector('[data-touch-move]');
+  const stickNub = root.querySelector('[data-stick-nub]');
+  const audio = createWorldAudio({ motion, signal });
 
   let renderer = null;
   let webglAvailable = true;
   try {
-    renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    let isSoftwareGL = false;
+    try {
+      const probe = document.createElement('canvas').getContext('webgl');
+      const dbg = probe?.getExtension('WEBGL_debug_renderer_info');
+      const glName = dbg ? probe.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : '';
+      isSoftwareGL = /SwiftShader|llvmpipe|Software/i.test(glName);
+    } catch {}
+    renderer = new THREE.WebGLRenderer({ antialias: !isSoftwareGL, powerPreference: 'high-performance' });
+    // Software rasterizers are fill-rate bound; preserve lighting rather than strip the room's shadows.
+    renderer.setPixelRatio(isSoftwareGL ? .75 : Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -518,9 +549,11 @@ export async function mountWorld3D(container, {
       delete shell.dataset.depthDialogue;
       return;
     }
+    residents?.triggerArrivalDissolve?.(true);
+    if (currentLayerId === 'atrium' && getState().phase !== 'arrive') config.interactables = config.interactables.filter(i => i.kind !== 'talk-arrival');
     if (!renderer) return;
     const request = conversation;
-    keys.clear(); draggingLook = false;
+    keys.clear(); draggingLook = false; lookPointerId = null; resetTouchStick();
     if (document.pointerLockElement === viewport) document.exitPointerLock?.();
     try {
       typographyMount ||= import('./p34-typography.js?v=20261113-library').then(m => m.createSpatialDialogue({ signal, reduced: motion.reduced }));
@@ -529,6 +562,7 @@ export async function mountWorld3D(container, {
       if (conversation !== request) return;
       typography.show(conversation.text, conversation.buttons, viewport.clientWidth, viewport.clientHeight);
       shell.dataset.depthDialogue = 'true';
+      audio.playInteraction('glyph');
     } catch (error) {
       if (signal?.aborted) return;
       console.error('Spatial dialogue failed to load', error);
@@ -568,7 +602,7 @@ export async function mountWorld3D(container, {
   let state = getState();
   let currentLayerId = library ? 'library' : LAYERS.includes(state.currentLayer) ? state.currentLayer : 'atrium';
   let config = worldConfig();
-  let player = { ...config.spawn };
+  let player = !library && currentLayerId === 'atrium' ? entrySpawn(config.spawn, location.href) : { ...config.spawn };
   let bobPhase = 0;
   let stepDistance = 0;
   let lampColorIdx = 0;
@@ -578,6 +612,16 @@ export async function mountWorld3D(container, {
   let pointerLocked = false;
   let draggingLook = false;
   let lastPointer = { x: 0, y: 0 };
+  let lookPointerId = null;
+  let lookMoved = 0;
+  let lookPointerType = 'mouse';
+  const touchStick = { pointerId: null, originX: 0, originY: 0, dx: 0, dy: 0, analog: false, stepCode: null };
+  function resetTouchStick() {
+    if (touchStick.stepCode) keys.delete(touchStick.stepCode);
+    touchStick.pointerId = null; touchStick.dx = 0; touchStick.dy = 0; touchStick.analog = false; touchStick.stepCode = null;
+    if (touchMovePad) delete touchMovePad.dataset.stickActive;
+    if (stickNub) stickNub.style.transform = '';
+  }
   let activeTarget = null;
   let animatedObjects = [];
   let dynamicNorthBridgeGroup = null;
@@ -585,6 +629,9 @@ export async function mountWorld3D(container, {
   let lampLightRef = null;
   let residents = null;
   let building = null;
+  let garden = null, gardenLighting = null, appliedSky = '', appliedChime = null;
+  let preferenceTimer = 0;
+  const gardenEchoes = new Set();
   let rafId = 0;
   let active = true;
   let disposed = false;
@@ -617,7 +664,7 @@ export async function mountWorld3D(container, {
   }
 
   function readBook(post, element) {
-    keys.clear(); draggingLook = false;
+    keys.clear(); draggingLook = false; lookPointerId = null; resetTouchStick();
     if (readingObject) pages.remove(readingObject);
     readingObject = null;
     reading = post;
@@ -644,6 +691,7 @@ export async function mountWorld3D(container, {
 
   function clearScene() {
     buildId++;
+    garden?.dispose?.(); garden = null; gardenLighting = null; appliedSky = ''; appliedChime = null;
     const freed = new Set();
     for (const material of building?.materials || []) {
       for (const resource of [material.map, material.bumpMap, material]) {
@@ -675,27 +723,27 @@ export async function mountWorld3D(container, {
     scene.background = new THREE.Color(0x4d574e);
     scene.fog = new THREE.Fog(0x4d574e, 27, 65);
 
-    const hemi = new THREE.HemisphereLight(0xe2e5d4, 0x637064, .85);
+    const hemi = new THREE.HemisphereLight(0xeff0e8, 0x777b74, 1.35);
     scene.add(hemi);
-    const dir = new THREE.DirectionalLight(0xe5e8d3, 1.05);
+    const dir = new THREE.DirectionalLight(0xf1ece0, 1.15);
     dir.position.set(18, 12, 4);
     dir.castShadow = true;
     dir.shadow.mapSize.set(2048, 2048);
     Object.assign(dir.shadow.camera, { left: -24, right: 24, top: 24, bottom: -24, near: .5, far: 65 });
-    dir.shadow.normalBias = .04;
-    dir.shadow.bias = -.0001;
+    dir.shadow.normalBias = .16;
+    dir.shadow.bias = -.00025;
     dir.shadow.autoUpdate = false; dir.shadow.needsUpdate = true;
     scene.add(dir);
 
-    const centerLight = new THREE.PointLight(0xe1e7cb, 45, 15);
+    const centerLight = new THREE.PointLight(0xf4ebd9, 62, 24);
     centerLight.position.set(0, 6.8, 0);
     scene.add(centerLight);
 
-    const westLight = new THREE.PointLight(0xdce8d1, 28, 13);
-    westLight.position.set(-20, 4.1, -5);
+    const westLight = new THREE.PointLight(0xdce8d1, 28, 17);
+    westLight.position.set(-19.5, 4.1, 1.5);
     scene.add(westLight);
 
-    const eastLight = new THREE.PointLight(LAMP_COLORS[lampColorIdx], 6, 12);
+    const eastLight = new THREE.PointLight(LAMP_COLORS[lampColorIdx], 6, 13);
     eastLight.position.set(9.2, 2, -1.5);
     scene.add(eastLight);
     lampLightRef = eastLight;
@@ -703,7 +751,20 @@ export async function mountWorld3D(container, {
     building = createBuilding(THREE, scene, renderer);
     const { box, floor: floorMat, ceiling: ceilingMat, wood: timber, metal } = building;
     box(27, .2, 25, 0, -.1, 0, floorMat);
-    for (const wall of config.walls) building.wall(wall.w, wall.h, wall.d, wall.x, wall.y || 0, wall.z);
+    for (const wall of config.walls) {
+      if (Math.abs(wall.x) === 24) {
+        const east = wall.x > 0, z = east ? -5.5 : 12, width = east ? 3.8 : 5.9;
+        const bottom = east ? 1.08 : 2.02, top = east ? 3.92 : 2.98;
+        const start = wall.z - wall.d / 2, end = wall.z + wall.d / 2;
+        building.wall(wall.w, wall.h, z - width / 2 - start, wall.x, 0, (start + z - width / 2) / 2);
+        building.wall(wall.w, wall.h, end - z - width / 2, wall.x, 0, (end + z + width / 2) / 2);
+        building.wall(wall.w, bottom, width, wall.x, 0, z);
+        building.wall(wall.w, wall.h - top, width, wall.x, top, z);
+      } else if (wall.z === 20) {
+        for (const x of [-12.8, 12.8]) building.wall(22.4, wall.h, wall.d, x, 0, wall.z);
+        building.wall(3.2, .4, wall.d, 0, 3, wall.z);
+      } else building.wall(wall.w, wall.h, wall.d, wall.x, wall.y || 0, wall.z);
+    }
     building.wall(.8, 4.5, 5.7, -7, 0, -3.35);
     for (const side of [-1, 1]) {
       box(10.5, .2, 29, side * 18.75, -.1, 5.5, floorMat);
@@ -712,22 +773,53 @@ export async function mountWorld3D(container, {
     box(27, .2, 7.5, 0, -.1, 16.25, floorMat);
     box(48, .2, 7.5, 0, 3.5, 16.25, ceilingMat);
     box(27, .25, 6.5, 0, 3.5, 9, ceilingMat);
-    box(27, .25, 18, 0, 7.5, -3.5, ceilingMat);
-    for (const [x, y, z] of [[-2, 3.3, 9], [2, 3.3, 9], [-6, 7.3, -1], [6, 7.3, -1], [-9.3, 7.3, -7], [-20.5, 4.7, -5.5], [-16, 4.7, 3.5], [-20.5, 4.7, 11], [21, 4.7, -5.5], [16, 4.7, 5.5], [21, 4.7, 11], [-10, 3.3, 17], [9, 3.3, 16]]) building.fixture(x, y, z, true);
-    for (const [x, y, z] of [[0, 2.9, 9], [20.5, 4.1, -5.5], [-20, 4.1, 11], [9, 2.9, 16]]) {
-      const light = new THREE.PointLight(0xe6e5cb, 22, 11); light.position.set(x, y, z); scene.add(light);
-    }
+    // A real open light well, not a glowing rectangle pasted on the ceiling.
+    for (const x of [-8.35, 8.35]) box(10.3, .25, 18, x, 7.5, -3.5, ceilingMat);
+    box(6.4, .25, 7.5, 0, 7.5, -8.75, ceilingMat);
+    box(6.4, .25, 4, 0, 7.5, 3.5, ceilingMat);
+    for (const x of [-3.2, 3.2]) box(.18, 1.5, 6.5, x, 8.15, -1.75, building.plaster);
+    for (const z of [-5, 1.5]) box(6.4, 1.5, .18, 0, 8.15, z, building.plaster);
+    const skylight = box(6.4, .06, 6.5, 0, 8.9, -1.75, new THREE.MeshBasicMaterial({ color: 0xe5e5d9 }));
+    gardenLighting = { hemi, dir, centerLight, skylight };
+    for (const [x, y, z] of [[-2, 3.3, 9], [2, 3.3, 9], [-6, 7.3, -1], [6, 7.3, -1], [-9.3, 7.3, -7], [-20.5, 4.7, -5.5], [-16, 4.7, 3.5], [-20.5, 4.7, 11], [21, 4.7, -5.5], [16, 4.7, 5.5], [21, 4.7, 11], [9, 3.3, 16]]) building.fixture(x, y, z, true);
+    const flickerTube = building.fixture(-10, 3.3, 17, true);
+    animatedObjects.push(() => {
+      if (motion?.reduced?.()) return;
+      const t = performance.now() * 0.001;
+      const dip = Math.sin(t * 7.3) * Math.sin(t * 19.1) > 0.72 ? 0.42 : 1.0;
+      flickerTube.material.emissiveIntensity = 1.8 * dip;
+    });
+    const southLight = new THREE.PointLight(0xe6e5cb, 24, 17);
+    southLight.position.set(2.5, 3.0, 12.5);
+    scene.add(southLight);
     building.vent(-23.72, 3.7, 1, -1); building.vent(23.72, 3.7, 7);
 
-    // Quiet rooms have views and different scales, not more switches to collect.
-    const daylight = new THREE.MeshBasicMaterial({ color: 0xc4cfc2 });
-    const window = box(.05, 2.8, 3.5, 23.74, 2.5, -5.5, daylight); window.castShadow = false;
+    // Quiet rooms look out onto impossible liminal courtyards rather than flat white planes.
+    const glassMat = new THREE.MeshStandardMaterial({ color: 0xbac7ba, transparent: true, opacity: .24, roughness: .18, metalness: .1 });
+    const fogCourtMat = new THREE.MeshBasicMaterial({ color: 0x9aa69a });
+    const ghostArchMat = new THREE.MeshBasicMaterial({ color: 0x7a857c });
+    const eastGlass = box(.04, 2.8, 3.5, 23.74, 2.5, -5.5, glassMat); eastGlass.userData.noShadow = true; eastGlass.userData.noReceiveShadow = true;
+    // Impossible East Courtyard diorama beyond glass (X: 24..34)
+    box(.1, 7, 11, 34, 3, -5.5, fogCourtMat).userData.noShadow = true;
+    box(10, .1, 11, 29, 6.5, -5.5, fogCourtMat).userData.noShadow = true;
+    box(10, .1, 11, 29, -.5, -5.5, fogCourtMat).userData.noShadow = true;
+    for (let s = 0; s < 6; s++) box(1.8, .22, .48, 28.5, .4 + s * .42, -3.2 - s * .72, ghostArchMat).userData.noShadow = true;
+    const tiltedFrame = new THREE.Group();
+    tiltedFrame.position.set(30.8, 3.2, -7.2); tiltedFrame.rotation.x = .14;
+    for (const z of [-1.05, 1.05]) box(.22, 3.1, .14, 0, 0, z, ghostArchMat, tiltedFrame);
+    for (const y of [-1.55, 1.55]) box(.22, .14, 2.1, 0, y, 0, ghostArchMat, tiltedFrame);
+    scene.add(tiltedFrame);
+
     for (const z of [-6.65, -5.5, -4.35]) box(.12, 2.8, .045, 23.65, 2.5, z, timber);
     for (const y of [1.08, 2.35, 3.92]) box(.2, .09, 3.8, 23.6, y, -5.5, metal);
     box(.35, .12, 3.9, 23.5, 1.04, -5.5, building.plaster);
     box(1.15, .16, 3.6, 22.7, .5, -5.5, timber);
     box(.15, .5, 3.4, 22.7, .25, -5.5, timber);
-    box(.05, .9, 5.8, -23.74, 2.5, 12, daylight).castShadow = false;
+    box(.04, .9, 5.8, -23.74, 2.5, 12, glassMat).castShadow = false;
+    // Inverted corridor vista beyond West Clerestory (X: -32..-24)
+    box(.1, 5, 9, -32, 2.5, 12, fogCourtMat).castShadow = false;
+    box(7, .12, 6, -28, .2, 12, new THREE.MeshBasicMaterial({ color: 0xc2cbc0 })).castShadow = false;
+    building.deepPortal(-25.1, 0, 12, 2.9, 4.3, Math.PI / 2, 7, 0x68736b);
     for (const z of [9.1, 10.55, 12, 13.45, 14.9]) box(.1, 1, .05, -23.62, 2.5, z, metal);
     for (const y of [2.02, 2.98]) box(.2, .08, 5.9, -23.6, y, 12, metal);
     box(1.1, .18, 4, -22.9, .5, 12, timber);
@@ -738,13 +830,26 @@ export async function mountWorld3D(container, {
     for (let i = 0; i < 10; i++) box(2.6, .22, .4, 21.3, .11 + i * .22, 17.8 - i * .4, floorMat);
     for (const z of [8.2, 10, 11.8]) box(.12, 2.2, .06, 13.5, 3.8, z, timber);
 
-    const seamMesh = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 3.2), new THREE.MeshBasicMaterial({ color: 0x66675d, side: THREE.DoubleSide }));
+    // Inverted chair mounted quietly on the rear ceiling (subtle non-Euclidean cue)
+    const invChair = new THREE.Group();
+    invChair.position.set(-14.5, 3.4, 16.4);
+    invChair.rotation.set(Math.PI, .38, 0);
+    box(.48, .05, .48, 0, .48, 0, timber, invChair);
+    box(.48, .5, .05, 0, .75, -.21, timber, invChair);
+    for (const lx of [-.2, .2]) for (const lz of [-.2, .2]) box(.045, .48, .045, lx, .24, lz, timber, invChair);
+    invChair.traverse(o => { if (o.isMesh) o.userData.noShadow = true; });
+    scene.add(invChair);
+
+    // Recessed page-seam veil + infinite south rear portal
+    const seamMat = new THREE.MeshBasicMaterial({ color: 0x565950, transparent: true, opacity: .62, side: THREE.DoubleSide });
+    const seamMesh = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 3.2), seamMat);
     seamMesh.position.set(0, 1.6, 12.1);
     scene.add(seamMesh);
+    building.deepPortal(0, 0, 19.78, 3.2, 3.0, Math.PI, 4, 0x242a26);
 
     // Four central chamfered monolith columns
     for (const [cx, cz] of [[-4, -4], [4, -4], [-4, 4], [4, 4]]) {
-      building.wall(1.1, 7.4, 1.1, cx, 0, cz);
+      building.column(1.1, 7.4, 1.1, cx, 0, cz);
     }
 
     // The west stairs are ordinary architecture, not an invisible sightline lock.
@@ -763,12 +868,12 @@ export async function mountWorld3D(container, {
     mezzDeck.position.set(-2.0, 3.05, -8.6);
     scene.add(mezzDeck);
 
-    // The opening belongs to the upper wall, with a deep threshold rather than a freestanding frame.
+    // The opening belongs to the upper wall, receding into a non-Euclidean threshold corridor.
     for (const x of [-1.5, 1.5]) {
       box(.1, 3, .56, x, 4.7, -9.6, metal);
     }
     box(3.1, .1, .56, 0, 6.2, -9.6, metal);
-    box(2.9, 2.98, .025, 0, 4.7, -10.02, new THREE.MeshBasicMaterial({ color: 0x303b34 }));
+    building.deepPortal(0, 3.2, -9.68, 2.9, 2.96, 0, 5, 0x1b211f);
 
     // North High Observation Platform (Y = 3.6m, Z = -16.2)
     const highDeck = new THREE.Mesh(
@@ -801,7 +906,7 @@ export async function mountWorld3D(container, {
 
     // East Wing: Pedestals + GLB models + Backstage Webpage Terminal
     const pedGeom = new THREE.CylinderGeometry(0.55, 0.65, 1.0, 16);
-    const pedMat = new THREE.MeshStandardMaterial({ color: 0xcfe4ff, roughness: 0.35 });
+    const pedMat = new THREE.MeshStandardMaterial({ color: 0xc7c8b9, roughness: .82 });
     const ped1 = new THREE.Mesh(pedGeom, pedMat);
     ped1.position.set(8.8, 0.5, -1.8);
     const ped2 = new THREE.Mesh(pedGeom, pedMat);
@@ -828,66 +933,144 @@ export async function mountWorld3D(container, {
     screen.rotation.y = -Math.PI / 2;
     screen.position.set(11.2, 1.5, 0);
     scene.add(terminal, screen);
-    residents = addResidents(THREE, scene, config, () => player, motion.reduced);
+    garden = addAtriumGarden(THREE, scene, renderer, building, { reduced: motion.reduced, getPlayer: () => player, onNotice: () => onGardenComment?.(LINES.garden.moved[0]) });
+    animatedObjects.push(dt => garden.update(dt));
+    residents = addResidents(THREE, scene, config, () => player, motion.reduced, {
+      layerId: 'atrium',
+      showArrival: state.phase === 'arrive',
+      onArrivalReveal,
+      onArrivalDissolve: () => audio.playInteraction('paper'),
+      isDialogueOpen: () => Boolean(conversation),
+      onEntityGlance: () => audio.playInteraction('entity-hide'),
+      onRipple: (x, z, small) => garden.ripple(x, z, small),
+    });
     animatedObjects.push(dt => residents.update(dt));
+    if (state.phase === 'arrive') {
+      void import('./third-party/three/FontLoader.js').then(async ({ FontLoader }) => {
+        const response = await fetch('/assets/p34/dialogue.typeface.json', { signal });
+        if (!response.ok) throw new Error(`Arrival font: HTTP ${response.status}`);
+        const font = new FontLoader().parse(await response.json());
+        if (!disposed && version === buildId) residents.setArrivalFont(font);
+      }).catch(error => { if (!signal?.aborted) console.error('Arrival lettering failed to load', error); });
+    }
     scene.traverse(object => {
-      if (object.isMesh) { object.receiveShadow = object.material.isMeshStandardMaterial && object.material !== ceilingMat; object.castShadow = !object.userData.noShadow && object.material.isMeshStandardMaterial && !object.material.transparent && object.material !== ceilingMat; }
+      if (object.isMesh) {
+        object.receiveShadow = !object.userData.noReceiveShadow && object.material.isMeshStandardMaterial && object.material !== ceilingMat;
+        object.castShadow = !object.userData.noShadow && object.material.isMeshStandardMaterial && !object.material.transparent && object.material !== ceilingMat;
+      }
     });
   }
 
   function populateStacks() {
-    scene.background = new THREE.Color(0x424a53);
-    scene.fog = new THREE.Fog(0x424a53, 18, 60);
+    scene.background = new THREE.Color(0x202b30);
+    scene.fog = new THREE.Fog(0x202b30, 20, 60);
 
-    const hemi = new THREE.HemisphereLight(0xd5d8d4, 0x55565c, 1.5);
+    const hemi = new THREE.HemisphereLight(0xd7dedc, 0x4b5154, 1.35);
     scene.add(hemi);
+    const daylight = new THREE.DirectionalLight(0xd7dedc, .38); daylight.position.set(-10, 12, -8); scene.add(daylight);
+    gardenLighting = { hemi, dir: daylight };
 
-    const amberLeft = new THREE.PointLight(0xf4be68, 2.4, 18);
-    amberLeft.position.set(-7.0, 3.5, 1.0);
-    const amberRight = new THREE.PointLight(0x88d4ff, 2.0, 18);
-    amberRight.position.set(7.0, 3.5, 1.0);
-    const projLight = new THREE.PointLight(state.diagram ? 0x6ef7d4 : 0x6e8cff, 2.5, 22);
-    projLight.position.set(0, 4.0, -3.5);
-    scene.add(amberLeft, amberRight, projLight);
+    const westPool = new THREE.PointLight(0xe5cfa0, 14, 16);
+    westPool.position.set(-7.0, 3.6, 0.8);
+    const eastPool = new THREE.PointLight(0xe5cfa0, 14, 16);
+    eastPool.position.set(7.0, 3.6, 0.8);
+    const projLight = new THREE.PointLight(state.stacksUnlocked ? 0xc2e8d4 : (state.diagram ? 0xe6dca8 : 0x9ab3c4), 16, 20);
+    projLight.position.set(0, 3.8, -3.5);
+    scene.add(westPool, eastPool, projLight);
 
-    building = createBuilding(THREE, scene, renderer);
-    building.floor.color.setHex(0x6b7777);
-    building.box(22, .3, 19.5, 0, -.15, 2.2, building.floor);
-    for (const x of [-6.5, 6.5]) for (const z of [-4, 4]) {
-      building.box(.025, 4.8, .025, x, 10.4, z, building.metal);
-      building.fixture(x, 8, z, true);
+    building = createBuilding(THREE, scene, renderer, { tone: 'stacks' });
+    const { box, floor: floorMat, wood: timber, metal, plaster } = building;
+    box(24, .3, 19.6, 0, -.15, 2.2, floorMat);
+
+    // Enclosing concrete archive walls & high suspended ceiling coffers
+    for (const side of [-1, 1]) {
+      building.wall(.45, 13, 25.5, side * 11.75, 0, -1.0);
     }
+    building.wall(10.1, 7.5, .45, -6.7, 0, 11.6);
+    building.wall(10.1, 7.5, .45, 6.7, 0, 11.6);
+    box(3.8, 3.7, .45, 0, 5.65, 11.6, plaster);
+    box(24, .25, 25.5, 0, 12.8, -1.0, building.ceiling);
+    for (const z of [-9, -3, 3, 9]) box(23.5, .45, .42, 0, 12.2, z, metal);
+    for (const x of [-6.5, 6.5]) for (const z of [-4, 4]) {
+      box(.03, 5.4, .03, x, 10.1, z, metal);
+      building.fixture(x, 7.4, z, true);
+    }
+    building.vent(-11.45, 4.2, 6.5, -1);
+    building.vent(11.45, 4.2, 6.5, 1);
 
+    // Abyssal shaft beyond north ledge (Y < 0 descending into mist)
+    const abyssMat = new THREE.MeshStandardMaterial({ color: 0x2c3336, roughness: 1 });
+    for (const side of [-1, 1]) box(.4, 14, 7.5, side * 11.75, -7, -11.2, abyssMat);
+    box(24, 14, .4, 0, -7, -14.2, abyssMat);
+    for (let depth = 1; depth <= 3; depth++) {
+      box(4.4, .18, 1.4, 0, -depth * 3.2, -10.8, abyssMat);
+    }
+    // Buttresses, remote stacks and a high gallery give the northern void a human scale.
+    box(26, 29, .5, 0, 1, -22, abyssMat);
+    for (const x of [-10.5, -7, -3.5, 3.5, 7, 10.5]) {
+      building.column(.7, 25, 1.1, x, -12, -18.8);
+      box(2.5, .22, 2.5, x, 7, -19.6, metal);
+      for (const y of [7.8, 9.2, 10.6]) {
+        box(2.3, .12, .85, x, y, -20.2, timber);
+        for (let b = 0; b < 6; b++) box(.19, .55 + (b % 3) * .09, .48, x - .9 + b * .35, y + .36, -20.2, metal);
+      }
+    }
+    box(23, .4, 2.2, 0, 6.4, -16.4, metal);
+    box(23, .08, .08, 0, 7.65, -15.35, metal);
+    for (let x = -11; x <= 11; x += 1.1) box(.045, 1, .045, x, 7.1, -15.35, metal);
+    building.deepPortal(0, 6.6, -21.7, 1.6, 3.2, 0, 5, 0x111a1e);
+    box(.045, 2.6, .04, .58, 8, -21.45, new THREE.MeshBasicMaterial({ color: 0x9baea5 }));
 
-    // Towering Archive Monolith Bookshelves (left & right abyssal walls)
-    const stackMat = new THREE.MeshStandardMaterial({ color: 0x666c70, roughness: 0.95 });
-    const spineMat = new THREE.MeshStandardMaterial({ color: 0xaaa99f, roughness: 0.95 });
+    // Towering Archive Bookstacks + Instanced Books ascending into upper mist
+    const spineMat = new THREE.MeshStandardMaterial({ color: 0xa6a394, roughness: .95 });
     for (let i = 0; i < 6; i++) {
       const z = -6.0 + i * 2.8;
       for (const side of [-1, 1]) {
-        const tower = new THREE.Mesh(new THREE.BoxGeometry(1.4, 14.0, 1.8), stackMat);
-        tower.position.set(side * 10.0, 6.0, z);
-        const spine = new THREE.Mesh(new THREE.BoxGeometry(1.46, 0.35, 1.5), spineMat);
-        spine.position.set(side * 10.0, 2.2 + (i % 3) * 1.4, z);
-        scene.add(tower, spine);
-        for (let row = 0; row < 5; row++) {
-          const shelf = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.08, 1.8), stackMat);
-          shelf.position.set(side * 9.4, 1.0 + row * 1.1, z);
-          scene.add(shelf);
+        box(1.5, 12.5, 1.85, side * 10.0, 6.25, z, metal);
+        box(1.56, .28, 1.5, side * 10.0, 2.2 + (i % 3) * 1.4, z, spineMat);
+        for (let row = 0; row < 6; row++) {
+          box(1.9, .08, 1.82, side * 9.4, 1.0 + row * 1.05, z, timber);
         }
       }
     }
+    const stackBooks = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ roughness: .95 }), 2 * 6 * 6 * 7);
+    const bPose = new THREE.Object3D(), bColors = [0x8c8a76, 0x5c6862, 0x7b7163, 0x67706d, 0x999581];
+    let bIdx = 0;
+    for (const side of [-1, 1]) for (let i = 0; i < 6; i++) {
+      const z = -6.0 + i * 2.8;
+      for (let row = 0; row < 6; row++) for (let k = 0; k < 7; k++) {
+        if ((i + k + row) % 5 === 0) continue;
+        const h = .38 + ((k * 5 + row) % 7) * .025;
+        bPose.position.set(side * 9.15, 1.04 + row * 1.05 + h / 2, z - .72 + k * .23);
+        bPose.scale.set(.52, h, .12 + (k % 3) * .03);
+        bPose.rotation.x = (k + row) % 8 === 3 ? .14 : 0;
+        bPose.updateMatrix();
+        stackBooks.setMatrixAt(bIdx, bPose.matrix);
+        stackBooks.setColorAt(bIdx++, new THREE.Color(bColors[(i + k + row) % bColors.length]));
+      }
+    }
+    stackBooks.count = bIdx;
+    scene.add(stackBooks);
 
-    // Girl's interactive sliding shelf
-    dynamicSlidingShelf = new THREE.Mesh(
-      new THREE.BoxGeometry(3.2, 4.2, 0.8),
-      new THREE.MeshStandardMaterial({ color: 0x777b7e, roughness: 0.95 })
-    );
-    dynamicSlidingShelf.position.set(state.shelfMoved ? -5.2 : -1.2, 2.1, 4.2);
+    // Sovereign Girl's sliding bookshelf (full framed rack with books)
+    const shelfGroup = new THREE.Group();
+    shelfGroup.position.set(state.shelfMoved ? -5.2 : -1.2, 0, 4.2);
+    box(3.2, 4.1, .16, 0, 2.05, -.32, metal, shelfGroup);
+    for (const sx of [-1.54, 1.54]) box(.12, 4.1, .8, sx, 2.05, 0, metal, shelfGroup);
+    for (let row = 0; row < 5; row++) {
+      box(3.05, .08, .76, 0, .42 + row * .86, 0, timber, shelfGroup);
+      for (let b = 0; b < 11; b++) {
+        if ((row + b) % 4 === 2) continue;
+        box(.14, .42 + (b % 3) * .07, .55, -1.28 + b * .25, .67 + row * .86, 0, b % 2 ? spineMat : timber, shelfGroup);
+      }
+    }
+    dynamicSlidingShelf = shelfGroup;
     scene.add(dynamicSlidingShelf);
     if (!state.shelfMoved) {
       let elapsed = 0;
+      let playedSlideAudio = false;
       animatedObjects.push(dt => {
+        if (!playedSlideAudio) { playedSlideAudio = true; audio.playInteraction('shelf'); }
         elapsed += dt;
         dynamicSlidingShelf.position.x = -1.2 - 4 * Math.min(1, elapsed / 1.6);
         if (elapsed >= 1.6 && !state.shelfMoved) {
@@ -898,72 +1081,128 @@ export async function mountWorld3D(container, {
       });
     }
 
-    // West Reading Desk (Blog connection)
-    const paper = new THREE.MeshStandardMaterial({ color: 0xc3bbaa, roughness: 1, side: THREE.DoubleSide });
-    for (const x of [-7.2, 7.2]) {
-      const desk = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.12, 1.3), new THREE.MeshStandardMaterial({ color: 0x514c47, roughness: 0.9 }));
-      desk.position.set(x, 1.1, 0.8);
-      const note = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.9), paper);
-      note.rotation.x = -Math.PI / 2;
-      note.position.set(x, 1.18, 0.8);
-      scene.add(desk, note);
+    // West Blog Desk & East Relic Desk with legs, open books, and bound folios
+    building.desk(-7.2, 0, 0.8, 2.0, 1.3, 1.1, timber, metal);
+    building.desk(7.2, 0, 0.8, 2.0, 1.3, 1.1, timber, metal);
+    const paperMat = new THREE.MeshStandardMaterial({ color: 0xcbc6b4, roughness: .95, side: THREE.DoubleSide });
+    const leftPage = box(.34, .03, .48, -7.38, 1.12, 0.8, paperMat); leftPage.rotation.z = .08;
+    const rightPage = box(.34, .03, .48, -7.02, 1.12, 0.8, paperMat); rightPage.rotation.z = -.08;
+    box(.62, .16, .48, 7.2, 1.18, 0.8, paperMat).rotation.y = .18;
+    box(.56, .1, .44, 7.24, 1.31, 0.82, spineMat).rotation.y = -.1;
+
+    // Optical Brass Overhead Projector on pedestal
+    building.desk(0, 0, -0.8, 1.0, 1.0, 0.72, metal, metal);
+    const brassMat = new THREE.MeshStandardMaterial({ color: 0x9d8a5e, roughness: .42, metalness: .62 });
+    box(.56, .25, .64, 0, .88, -.8, brassMat);
+    box(.05, .65, .05, .24, 1.25, -1.03, brassMat);
+    box(.42, .05, .05, .05, 1.58, -1.03, brassMat);
+    const lensGlow = new THREE.MeshStandardMaterial({ color: 0xc1d9d0, emissive: 0x789d8c, emissiveIntensity: .7, roughness: .18, metalness: .2 });
+    box(.42, .018, .45, 0, 1.02, -.8, lensGlow);
+    const optic = new THREE.Mesh(new THREE.TorusGeometry(.13, .024, 10, 40), brassMat);
+    optic.position.set(0, 1.53, -1.03); optic.rotation.x = Math.PI / 2;
+    const lens = new THREE.Mesh(new THREE.CylinderGeometry(.11, .11, .025, 32), lensGlow);
+    lens.position.copy(optic.position);
+    scene.add(optic, lens);
+    const reticleMat = new THREE.MeshBasicMaterial({ color: 0x9bb4a9, transparent: true, opacity: state.diagram ? .48 : .2, depthWrite: false });
+    for (const radius of [.72, .83]) {
+      const ring = new THREE.Mesh(new THREE.RingGeometry(radius, radius + .012, 72), reticleMat);
+      ring.rotation.x = -Math.PI / 2; ring.position.set(0, .012, -3.1); scene.add(ring);
+    }
+    for (const x of [-7.8, 7.8]) {
+      box(.32, .035, .26, x, 1.12, .6, brassMat);
+      box(.035, .6, .035, x, 1.42, .6, brassMat);
+      const shade = new THREE.Mesh(new THREE.SphereGeometry(.24, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), brassMat);
+      shade.position.set(x, 1.73, .6); scene.add(shade);
+      box(.38, .025, .26, x, 1.71, .6, new THREE.MeshBasicMaterial({ color: 0xf1cf8c }));
+      const glow = new THREE.PointLight(0xf6c77b, 3.5, 4.5); glow.position.set(x, 1.58, .6); scene.add(glow);
     }
 
-    const projector = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.7, 0.8), new THREE.MeshStandardMaterial({ color: 0x8a8d88, roughness: 0.9 }));
-    projector.position.set(0, 0.8, -0.8);
-    scene.add(projector);
-
-    // Three Spatial Index Pillars
+    // Three Fluted Stone & Astrolabe Index Pillars
     const p = state.pillars || { west: 'void', center: 'ground', east: 'noise' };
+    const angleFor = (key, val) => {
+      const idx = { west: ['void', 'seam', 'blind'], center: ['ground', 'mezzanine', 'loft'], east: ['noise', 'roof', 'rain'] }[key].indexOf(val);
+      return (Math.max(0, idx) - 1) * 1.05;
+    };
     const pillarSpecs = [
-      { key: 'west', x: -4.2, z: -4.2, match: p.west === TARGET_PILLARS.west },
-      { key: 'center', x: 0, z: -5.2, match: p.center === TARGET_PILLARS.center },
-      { key: 'east', x: 4.2, z: -4.2, match: p.east === TARGET_PILLARS.east },
+      { key: 'west', x: -4.2, z: -4.2, match: p.west === TARGET_PILLARS.west, val: p.west },
+      { key: 'center', x: 0, z: -5.2, match: p.center === TARGET_PILLARS.center, val: p.center },
+      { key: 'east', x: 4.2, z: -4.2, match: p.east === TARGET_PILLARS.east, val: p.east },
     ];
     for (const spec of pillarSpecs) {
       const group = new THREE.Group();
       group.position.set(spec.x, 0, spec.z);
-      const column = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.45, 0.55, 2.8, 8),
-        new THREE.MeshStandardMaterial({
-          color: spec.match ? 0x7ef7d4 : 0x8fb8ff,
-          emissive: spec.match ? 0x1e6b56 : 0x1a2c54,
-          roughness: 0.25,
-        })
-      );
-      column.position.y = 1.4;
-      const fin = new THREE.Mesh(
-        new THREE.BoxGeometry(0.22, 0.8, 1.2),
-        new THREE.MeshStandardMaterial({ color: 0xf4be68, emissive: 0x694712 })
-      );
-      fin.position.y = 2.6;
-      group.add(column, fin);
+      const col = new THREE.Mesh(new THREE.CylinderGeometry(.42, .48, 2.35, 64), plaster);
+      col.position.y = 1.18;
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(.54, .48, .16, 12), metal);
+      cap.position.y = 2.38;
+      const ringMat = new THREE.MeshStandardMaterial({
+        color: spec.match ? 0xcfd6be : 0x9c8b61,
+        emissive: spec.match ? 0x455948 : 0x1e1910,
+        roughness: .4, metalness: .65,
+      });
+      for (let f = 0; f < 24; f++) {
+        const a = f / 24 * Math.PI * 2;
+        box(.013, 2.05, .013, Math.sin(a) * .45, 1.15, Math.cos(a) * .45, metal, group);
+      }
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(.58, .6, .14, 48), metal);
+      base.position.y = .07; group.add(base);
+      const outerRing = new THREE.Mesh(new THREE.TorusGeometry(.56, .022, 10, 64), ringMat);
+      outerRing.position.y = 2.95;
+      outerRing.rotation.y = angleFor(spec.key, spec.val);
+      const innerRing = new THREE.Mesh(new THREE.TorusGeometry(.46, .016, 10, 64), ringMat);
+      innerRing.position.y = 2.95; innerRing.rotation.set(.48, angleFor(spec.key, spec.val) + .72, 0);
+      const needle = new THREE.Mesh(new THREE.ConeGeometry(.055, .82, 4), ringMat);
+      needle.position.y = 2.95;
+      needle.rotation.y = angleFor(spec.key, spec.val);
+      needle.rotation.z = -.55;
+      group.add(col, cap, outerRing, innerRing, needle);
       scene.add(group);
+      const scaleRing = new THREE.Mesh(new THREE.RingGeometry(.72, .735, 72), brassMat);
+      scaleRing.rotation.x = -Math.PI / 2; scaleRing.position.set(spec.x, .012, spec.z); scene.add(scaleRing);
+      for (let tick = 0; tick < 12; tick++) {
+        const a = tick / 12 * Math.PI * 2;
+        const mark = box(.012, .008, tick % 3 ? .07 : .13, spec.x + Math.sin(a) * .81, .015, spec.z + Math.cos(a) * .81, brassMat);
+        mark.rotation.y = a;
+      }
+      const lead = box(.016, .008, Math.hypot(spec.x, spec.z + 7.3), spec.x / 2, .012, (spec.z - 7.3) / 2, brassMat);
+      lead.rotation.y = Math.atan2(-spec.x, -7.3 - spec.z);
     }
 
-    // North Bridge & Gate to Layer 3 (Loft)
-    dynamicNorthBridgeGroup = new THREE.Mesh(
-      new THREE.BoxGeometry(3.6, 0.26, 6.2),
-      new THREE.MeshStandardMaterial({
-        color: state.stacksUnlocked ? 0x8ef7d8 : 0x456296,
-        emissive: state.stacksUnlocked ? 0x1f6b58 : 0x0e1a33,
-        wireframe: !state.stacksUnlocked,
-        transparent: true,
-        opacity: state.stacksUnlocked ? 0.95 : 0.42,
-      })
-    );
-    dynamicNorthBridgeGroup.position.set(0, 0.1, -10.2);
+    // North Frosted-Slate Suspension Bridge & Infinite Threshold Portal to Loft
+    dynamicNorthBridgeGroup = new THREE.Group();
+    const bridgeMat = new THREE.MeshStandardMaterial({
+      color: state.stacksUnlocked ? 0xaab5ad : 0x5c686b,
+      emissive: state.stacksUnlocked ? 0x26332d : 0x111719,
+      roughness: .72, transparent: !state.stacksUnlocked, opacity: state.stacksUnlocked ? .96 : .28,
+    });
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(3.6, .22, 6.2), bridgeMat);
+    slab.position.set(0, .19, -10.4);
+    slab.rotation.x = Math.atan2(.6, 6.6);
+    dynamicNorthBridgeGroup.add(slab);
+    if (state.stacksUnlocked) {
+      for (const side of [-1.72, 1.72]) {
+        for (const z of [-7.6, -10.3, -13.2]) box(.045, .9, .045, side, .45 + (-7.2 - z) / 6.6 * .6, z, metal, dynamicNorthBridgeGroup);
+        const rail = box(.06, .06, 6.2, side, 1.2, -10.4, timber, dynamicNorthBridgeGroup);
+        rail.rotation.x = slab.rotation.x;
+      }
+    }
     scene.add(dynamicNorthBridgeGroup);
 
-    const doorStone = new THREE.MeshStandardMaterial({ color: 0x9caaa5, roughness: 1 });
     for (const z of [-12.2, 10.8]) {
-      for (const x of [-1.7, 1.7]) {
-        const jamb = new THREE.Mesh(new THREE.BoxGeometry(.3, 3.8, .4), doorStone);
-        jamb.position.set(x, 1.9, z); scene.add(jamb);
-      }
-      const lintel = new THREE.Mesh(new THREE.BoxGeometry(3.7, .3, .4), doorStone);
-      lintel.position.set(0, 3.8, z); scene.add(lintel);
+      for (const x of [-1.7, 1.7]) box(.32, 3.8, .42, x, 1.9, z, plaster);
+      box(3.7, .32, .42, 0, 3.8, z, plaster);
     }
+    building.deepPortal(0, .35, -12.35, 3.1, 3.5, 0, 5, 0x23201b);
+    building.deepPortal(0, 0, 10.95, 3.1, 3.5, Math.PI, 4, 0x1b211f);
+
+    garden = addStacksGarden(THREE, scene, building, motion.reduced);
+    animatedObjects.push(dt => garden.update(dt));
+    residents = addResidents(THREE, scene, config, () => player, motion.reduced, {
+      layerId: 'stacks',
+      isDialogueOpen: () => Boolean(conversation),
+      onEntityGlance: () => audio.playInteraction('entity-hide'),
+    });
+    animatedObjects.push(dt => residents.update(dt));
   }
 
   function populateLibrary() {
@@ -1025,43 +1264,114 @@ export async function mountWorld3D(container, {
 
   function populateLoft() {
     const version = buildId;
-    scene.background = new THREE.Color(0x68615a);
-    scene.fog = new THREE.Fog(0x68615a, 12, 42);
+    scene.background = new THREE.Color(0x2a292b);
+    scene.fog = new THREE.Fog(0x2a292b, 10, 34);
 
-    const hemi = new THREE.HemisphereLight(0xe2d5c2, 0x696269, 1.45);
+    const hemi = new THREE.HemisphereLight(0xe6dccb, 0x615950, 1.4);
     scene.add(hemi);
 
-    const warmLamp = new THREE.PointLight(0xf7c679, 2.6, 18);
-    warmLamp.position.set(0, 3.4, -1.2);
-    const windowLight = new THREE.PointLight(0x72dcff, 1.9, 16);
-    windowLight.position.set(0, 3.0, -6.8);
+    const warmLamp = new THREE.PointLight(0xf3cc94, 27, 15);
+    warmLamp.position.set(0.3, 3.1, -1.4);
+    const windowLight = new THREE.PointLight(0x88b8cc, 10, 14);
+    windowLight.position.set(0, 2.8, -6.2);
     scene.add(warmLamp, windowLight);
 
-    const floor = new THREE.Mesh(
-      new THREE.BoxGeometry(16, 0.3, 16),
-      new THREE.MeshStandardMaterial({ color: 0x5e5752, roughness: 0.95 })
-    );
-    floor.position.set(0, -0.15, 0);
-    scene.add(floor);
-
-    // Her Central Workbench + Miniature 3D World Hologram
-    const bench = new THREE.Mesh(
-      new THREE.BoxGeometry(2.8, 0.95, 1.4),
-      new THREE.MeshStandardMaterial({ color: 0x867666, roughness: 0.95 })
-    );
-    bench.position.set(0, 0.48, -1.4);
-    scene.add(bench);
-    const plaster = new THREE.MeshStandardMaterial({ color: 0xaaa292, roughness: 1 });
-    for (const x of [-8, 8]) {
-      const wall = new THREE.Mesh(new THREE.BoxGeometry(0.3, 5.8, 16), plaster);
-      wall.position.set(x, 2.9, 0); scene.add(wall);
+    building = createBuilding(THREE, scene, renderer, { tone: 'loft' });
+    const { box, floor: floorMat, wood: timber, metal, plaster } = building;
+    box(16.4, .3, 16.4, 0, -.15, 0, floorMat);
+    const brass = new THREE.MeshStandardMaterial({ color: 0xa58a58, roughness: .48, metalness: .55 });
+    const linen = new THREE.MeshStandardMaterial({ color: 0xaaa48e, roughness: 1 });
+    const rugCanvas = document.createElement('canvas'); rugCanvas.width = rugCanvas.height = 512;
+    const rugCtx = rugCanvas.getContext('2d');
+    rugCtx.fillStyle = '#858674'; rugCtx.fillRect(0, 0, 512, 512);
+    for (let y = 0; y < 512; y += 4) {
+      rugCtx.strokeStyle = y % 8 ? '#92917f' : '#767968'; rugCtx.lineWidth = 1;
+      rugCtx.beginPath(); rugCtx.moveTo(0, y); rugCtx.lineTo(512, y); rugCtx.stroke();
     }
-    const back = new THREE.Mesh(new THREE.BoxGeometry(16, 5.8, 0.3), plaster);
-    back.position.set(0, 2.9, -8); scene.add(back);
-    const roof = new THREE.Mesh(new THREE.BoxGeometry(16, 0.2, 16), plaster);
-    roof.position.set(0, 5.8, 0); scene.add(roof);
-    const letterDesk = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.9, 1.0), new THREE.MeshStandardMaterial({ color: 0x8a7b6d, roughness: 1 }));
-    letterDesk.position.set(4.2, 0.45, 3.4); scene.add(letterDesk);
+    rugCtx.strokeStyle = '#626b60'; rugCtx.lineWidth = 6; rugCtx.strokeRect(16, 16, 480, 480);
+    const rugMap = new THREE.CanvasTexture(rugCanvas); rugMap.colorSpace = THREE.SRGBColorSpace;
+    const rug = new THREE.Mesh(new THREE.PlaneGeometry(5.4, 4.1), new THREE.MeshStandardMaterial({ map: rugMap, roughness: 1 }));
+    rug.rotation.x = -Math.PI / 2; rug.position.set(0, .018, -1); scene.add(rug);
+    // Low furnishings stay against the walls, outside the bench, easels and arrival route.
+    box(1.15, .18, 3.1, -7.1, .18, 1.1, timber);
+    box(1.12, .3, 3, -7.1, .42, 1.1, linen);
+    box(.24, .65, 3, -7.56, .65, 1.1, linen);
+    for (const z of [-.3, 2.5]) box(1.12, .38, .18, -7.1, .61, z, linen);
+    const pillow = box(.5, .13, .55, -7.1, .65, .2, linen); pillow.rotation.y = .2;
+    box(.4, .05, .4, -6.9, .04, -1.25, brass);
+    box(.035, 2.2, .035, -6.9, 1.1, -1.25, brass);
+    const readingShade = new THREE.Mesh(new THREE.ConeGeometry(.32, .35, 40, 1, true), linen);
+    readingShade.position.set(-6.9, 2.23, -1.25); scene.add(readingShade);
+    const readingLight = new THREE.PointLight(0xf4d3a1, 7, 5.5); readingLight.position.set(-6.9, 2.06, -1.25); scene.add(readingLight);
+    for (const x of [-5.3, 5.3]) {
+      box(3.1, .75, .08, x, .42, -7.65, timber);
+      for (const sx of [-1.5, 1.5]) box(.08, .8, .56, x + sx, .42, -7.4, timber);
+      for (const y of [.08, .44, .82]) box(3.1, .06, .56, x, y, -7.4, timber);
+      for (let b = 0; b < 12; b++) box(.11 + b % 3 * .025, .24, .35, x - 1.3 + b * .23, .58, -7.4, b % 3 ? linen : building.paint);
+    }
+    const archiveBox = new THREE.MeshStandardMaterial({ color: 0x9a8c71, roughness: 1 });
+    for (let i = 0; i < 3; i++) {
+      const x = 7.2 - (i % 2) * .75, y = i === 2 ? .79 : .27;
+      box(.7, .5, .65, x, y, -5.7, archiveBox);
+      box(.74, .05, .69, x, y + .25, -5.7, linen);
+      box(.17, .035, .015, x, y + .08, -5.36, metal);
+    }
+    box(.028, 2.1, .028, 0, 4.5, -1.4, brass);
+    const pendant = new THREE.Mesh(new THREE.ConeGeometry(.55, .3, 48, 1, true), brass);
+    pendant.position.set(0, 3.35, -1.4); scene.add(pendant);
+    const pendantGlow = new THREE.Mesh(new THREE.CircleGeometry(.49, 48), new THREE.MeshBasicMaterial({ color: 0xf5dfb4, side: THREE.DoubleSide }));
+    pendantGlow.rotation.x = Math.PI / 2; pendantGlow.position.set(0, 3.23, -1.4); scene.add(pendantGlow);
+
+    // Plastered walls with wainscoting & exposed timber attic rafters
+    building.wall(.35, 5.8, 16.4, -8.0, 0, 0);
+    building.wall(.35, 5.8, 16.4, 8.0, 0, 0);
+    building.wall(5.8, 5.8, .35, -5.1, 0, -8.0);
+    building.wall(5.8, 5.8, .35, 5.1, 0, -8.0);
+    box(4.6, 1.9, .35, 0, 4.85, -8.0, plaster);
+    box(4.6, 1.1, .35, 0, .55, -8.0, building.paint);
+    building.wall(6.4, 5.8, .35, -4.8, 0, 8.0);
+    building.wall(6.4, 5.8, .35, 4.8, 0, 8.0);
+    box(3.4, 1.8, .35, 0, 4.9, 8.0, plaster);
+    box(16.4, .25, 16.4, 0, 5.8, 0, building.ceiling);
+    for (const z of [-6, -2, 2, 6]) box(15.8, .28, .22, 0, 5.56, z, timber);
+
+    // Her Draftsman Workbench + Floating Sovereign Architectural Maquette
+    building.desk(0, 0, -1.4, 2.8, 1.4, 0.96, timber, metal);
+    building.desk(4.2, 0, 3.4, 1.5, 1.0, 0.9, timber, metal);
+    const paperMat = new THREE.MeshStandardMaterial({ color: 0xcfc9b8, roughness: .95, side: THREE.DoubleSide });
+    for (const [sx, sz, rot] of [[-.82, -1.3, .22], [-.55, -1.65, -.14], [.45, -1.15, .38]]) {
+      const slip = box(.38, .015, .28, sx, .97, sz, paperMat);
+      slip.rotation.y = rot;
+    }
+
+    // Living miniature maquette of the threshold rooms (visualizes her dominion)
+    const maquette = new THREE.Group();
+    maquette.position.set(0, 1.24, -1.4);
+    const wireMat = new THREE.MeshStandardMaterial({ color: 0xd9d2be, emissive: 0x3b3526, roughness: .5 });
+    const brassMat = new THREE.MeshStandardMaterial({ color: 0xb19763, roughness: .35, metalness: .65 });
+    const mqBase = new THREE.Mesh(new THREE.CylinderGeometry(.38, .42, .05, 16), metal);
+    mqBase.position.y = -.22;
+    const mqRing = new THREE.Mesh(new THREE.TorusGeometry(.32, .012, 8, 28), brassMat);
+    mqRing.rotation.x = Math.PI / 2;
+    maquette.add(mqBase, mqRing);
+    for (const [px, pz] of [[-.11, -.11], [.11, -.11], [-.11, .11], [.11, .11]]) {
+      const tinyCol = new THREE.Mesh(new THREE.BoxGeometry(.045, .22, .045), wireMat);
+      tinyCol.position.set(px, 0, pz);
+      maquette.add(tinyCol);
+    }
+    const tinyBridge = new THREE.Mesh(new THREE.BoxGeometry(.08, .018, .22), brassMat);
+    tinyBridge.position.set(0, .06, -.16);
+    maquette.add(tinyBridge);
+    scene.add(maquette);
+    animatedObjects.push(dt => {
+      if (!motion?.reduced?.()) {
+        const t = performance.now() * 0.001;
+        maquette.rotation.y += dt * (conversation ? .65 : .22);
+        maquette.position.y = 1.24 + Math.sin(t * 1.4) * .025;
+        mqRing.rotation.z += dt * .4;
+        warmLamp.intensity += ((conversation ? 31 : 27) - warmLamp.intensity) * Math.min(1, dt * 2);
+      }
+    });
 
     void loadGLB('/assets/p34/models/paper-prism-lamp.glb').then(model => {
       if (disposed || version !== buildId || currentLayerId !== 'loft') return;
@@ -1070,24 +1380,123 @@ export async function mountWorld3D(container, {
       scene.add(model);
     });
 
-    const paperMat = new THREE.MeshStandardMaterial({ color: 0xc6bfae, roughness: 1 });
+    // Drafting easels / lecterns holding layered parchment clues
     for (const x of [-4.4, 4.4]) {
-      const sheet = new THREE.Mesh(new THREE.BoxGeometry(1.3, 1.8, 0.06), paperMat);
-      sheet.position.set(x, 1.5, -2.2);
-      sheet.rotation.y = x < 0 ? 0.3 : -0.3;
-      scene.add(sheet);
+      const easel = new THREE.Group();
+      easel.position.set(x, 0, -2.2);
+      easel.rotation.y = x < 0 ? 0.34 : -0.34;
+      box(.07, 1.85, .07, -.42, .92, -.12, timber, easel).rotation.x = -.15;
+      box(.07, 1.85, .07, .42, .92, -.12, timber, easel).rotation.x = -.15;
+      box(1.15, .06, .16, 0, 1.0, .06, timber, easel);
+      const sketchCanvas = document.createElement('canvas'); sketchCanvas.width = 768; sketchCanvas.height = 1024;
+      const c = sketchCanvas.getContext('2d');
+      c.fillStyle = '#ded8c4'; c.fillRect(0, 0, 768, 1024);
+      c.strokeStyle = '#b5af9e'; c.lineWidth = 1;
+      for (let i = 88; i < 960; i += 48) { c.beginPath(); c.moveTo(64, i); c.lineTo(704, i); c.stroke(); }
+      c.strokeStyle = '#4d574f'; c.lineWidth = 3; c.lineJoin = 'round';
+      const points = x < 0 ? [[112, 650], [244, 650], [322, 330], [438, 330], [516, 650], [650, 650]] : [[120, 670], [260, 500], [256, 300], [500, 300], [502, 500], [650, 670]];
+      for (const offset of [0, 9]) {
+        c.beginPath(); points.forEach(([px, py], i) => i ? c.lineTo(px + offset, py - offset) : c.moveTo(px + offset, py - offset)); c.stroke();
+      }
+      c.lineWidth = 2; c.strokeRect(126, 734, 204, 136); c.strokeRect(440, 735, 204, 136);
+      c.beginPath(); c.moveTo(330, 802); c.lineTo(440, 802); c.lineTo(420, 790); c.moveTo(440, 802); c.lineTo(420, 814); c.stroke();
+      c.fillStyle = '#545b51'; c.font = 'italic 46px serif'; c.fillText(x < 0 ? '34 /' : 'a / b', 86, 152);
+      c.strokeStyle = '#a35947'; c.lineWidth = 4;
+      c.beginPath(); c.ellipse(386, 342, 150, 80, -.1, 0, Math.PI * 2); c.stroke();
+      c.beginPath(); c.moveTo(540, 250); c.quadraticCurveTo(625, 212, 650, 295); c.lineTo(640, 280); c.moveTo(650, 295); c.lineTo(658, 276); c.stroke();
+      c.beginPath(); c.moveTo(86, 914); c.lineTo(280, 900); c.moveTo(620, 860); c.lineTo(659, 891); c.lineTo(684, 831); c.stroke();
+      c.font = 'italic 25px serif'; c.fillStyle = '#8d4c40'; c.fillText(x < 0 ? 'h + ?' : 'not the same hand', 460, 220);
+      const sketchMap = new THREE.CanvasTexture(sketchCanvas); sketchMap.colorSpace = THREE.SRGBColorSpace;
+      sketchMap.anisotropy = Math.min(4, renderer?.capabilities.getMaxAnisotropy() || 1);
+      const sketchMat = new THREE.MeshStandardMaterial({ map: sketchMap, roughness: 1 });
+      const sheet = box(.92, 1.18, .025, 0, 1.56, .04, paperMat, easel);
+      sheet.rotation.x = -.14;
+      const drawing = new THREE.Mesh(new THREE.PlaneGeometry(.92, 1.18), sketchMat);
+      drawing.position.set(0, 1.56, .056); drawing.rotation.x = -.14; easel.add(drawing);
+      const backSheet = box(.88, 1.12, .02, .06, 1.54, .01, building.plaster, easel);
+      backSheet.rotation.set(-.14, 0, -.05);
+      scene.add(easel);
+      if (x < 0) {
+        const spare = new THREE.Group(); spare.position.set(-7.55, .75, -3.8); spare.rotation.set(-.1, 1.3, 0);
+        box(1.1, 1.4, .06, 0, 0, 0, timber, spare);
+        const spareDrawing = new THREE.Mesh(new THREE.PlaneGeometry(.98, 1.28), sketchMat); spareDrawing.position.z = .035;
+        spare.add(spareDrawing); scene.add(spare);
+      }
     }
-    const windowFrame = new THREE.Mesh(new THREE.BoxGeometry(4.4, 3.5, 0.18), new THREE.MeshStandardMaterial({ color: 0x49464c }));
-    windowFrame.position.set(0, 2.2, -7.2);
-    const night = new THREE.Mesh(new THREE.PlaneGeometry(4.0, 3.1), new THREE.MeshBasicMaterial({ color: 0x627383 }));
-    night.position.set(0, 2.2, -7.09);
-    scene.add(windowFrame, night);
-    for (const x of [-1.7, 1.7]) {
-      const jamb = new THREE.Mesh(new THREE.BoxGeometry(.3, 4.0, .4), plaster);
-      jamb.position.set(x, 2, 7.7); scene.add(jamb);
+
+    // Real Rainy Night Window + Forever-Reversing Car in Distant Fog
+    for (const fx of [-2.15, 0, 2.15]) box(.12, 3.3, .22, fx, 2.25, -7.85, timber);
+    for (const fy of [1.05, 2.25, 3.85]) box(4.45, .1, .22, 0, fy, -7.85, timber);
+    const rainCanvas = document.createElement('canvas'); rainCanvas.width = rainCanvas.height = 1024;
+    const rc = rainCanvas.getContext('2d');
+    for (let i = 0; i < 650; i++) {
+      const rx = (i * 173.31) % 1024, ry = (i * 293.77) % 1024, rlen = 4 + (i % 19);
+      rc.strokeStyle = `rgba(182,212,226,${.05 + (i % 5) * .025})`; rc.lineWidth = .45 + (i % 3) * .15;
+      rc.beginPath(); rc.moveTo(rx, ry); rc.lineTo(rx - .7, ry + rlen); rc.stroke();
     }
-    const lintel = new THREE.Mesh(new THREE.BoxGeometry(3.7, .3, .4), plaster);
-    lintel.position.set(0, 4, 7.7); scene.add(lintel);
+    const rainTex = new THREE.CanvasTexture(rainCanvas);
+    rainTex.colorSpace = THREE.SRGBColorSpace;
+    rainTex.wrapS = rainTex.wrapT = THREE.RepeatWrapping;
+    const glassPane = new THREE.Mesh(
+      new THREE.PlaneGeometry(4.2, 2.75),
+      new THREE.MeshBasicMaterial({ map: rainTex, transparent: true, opacity: .65, depthWrite: false })
+    );
+    glassPane.position.set(0, 2.42, -7.82);
+    scene.add(glassPane);
+    const mistCanvas = document.createElement('canvas'); mistCanvas.width = mistCanvas.height = 512;
+    const mc = mistCanvas.getContext('2d'), mist = mc.createRadialGradient(256, 240, 80, 256, 256, 340);
+    mist.addColorStop(0, 'rgba(102,127,140,.01)'); mist.addColorStop(.65, 'rgba(84,105,115,.035)'); mist.addColorStop(1, 'rgba(76,96,106,.2)');
+    mc.fillStyle = mist; mc.fillRect(0, 0, 512, 512);
+    const mistMap = new THREE.CanvasTexture(mistCanvas); mistMap.colorSpace = THREE.SRGBColorSpace;
+    const mistPane = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 2.75), new THREE.MeshBasicMaterial({ map: mistMap, transparent: true, depthWrite: false }));
+    mistPane.position.set(0, 2.42, -7.81); scene.add(mistPane);
+
+    // Exterior rainy night abyss (-8.2..-20.6) with twin faint taillights reversing endlessly
+    const nightMat = new THREE.MeshBasicMaterial({ color: 0x182026 });
+    box(.1, 8, 12.4, -6, 2.5, -14.4, nightMat).castShadow = false;
+    box(.1, 8, 12.4, 6, 2.5, -14.4, nightMat).castShadow = false;
+    box(12, 8, .1, 0, 2.5, -20.5, nightMat).castShadow = false;
+    box(12, .1, 12.4, 0, -.5, -14.4, new THREE.MeshBasicMaterial({ color: 0x1e2529 })).castShadow = false;
+    box(.055, 3.8, .055, -2.3, 1.4, -15.8, metal);
+    box(.65, .055, .055, -2, 3.3, -15.8, metal);
+    box(.33, .07, .24, -1.8, 3.28, -15.8, new THREE.MeshBasicMaterial({ color: 0xe0b57a }));
+    const reflectionCanvas = document.createElement('canvas'); reflectionCanvas.width = 128; reflectionCanvas.height = 512;
+    const refl = reflectionCanvas.getContext('2d'), glow = refl.createRadialGradient(64, 256, 5, 64, 256, 240);
+    glow.addColorStop(0, 'rgba(222,169,92,.23)'); glow.addColorStop(1, 'rgba(222,169,92,0)');
+    refl.fillStyle = glow; refl.fillRect(0, 0, 128, 512);
+    const reflection = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 7), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(reflectionCanvas), transparent: true, depthWrite: false }));
+    reflection.rotation.x = -Math.PI / 2; reflection.position.set(-1.8, -.44, -14); scene.add(reflection);
+    const carTailGroup = new THREE.Group();
+    const tailMat = new THREE.MeshBasicMaterial({ color: 0xd9564e, transparent: true, opacity: .75 });
+    for (const tx of [-.45, .45]) {
+      const lamp = new THREE.Mesh(new THREE.SphereGeometry(.09, 8, 8), tailMat);
+      lamp.position.x = tx;
+      carTailGroup.add(lamp);
+    }
+    carTailGroup.position.set(-.6, 1.35, -12.8);
+    scene.add(carTailGroup);
+    let rainPhase = 0;
+    animatedObjects.push(dt => {
+      if (motion?.reduced?.()) return;
+      rainPhase += dt;
+      rainTex.offset.y += dt * .07;
+      // Car slowly reverses farther into mist, stalls, and starts again
+      const cycle = (rainPhase % 12) / 12;
+      carTailGroup.position.z = -11.5 - cycle * 5.8;
+      tailMat.opacity = cycle > .8 ? (1 - cycle) * 3.5 : .7;
+    });
+
+    // Return doorway vestibule to Stacks
+    for (const x of [-1.7, 1.7]) box(.3, 4.0, .4, x, 2, 7.7, plaster);
+    box(3.7, .3, .4, 0, 4, 7.7, plaster);
+    building.deepPortal(0, 0, 7.75, 3.1, 3.5, Math.PI, 4, 0x1e2423);
+
+    garden = addLoftGarden(THREE, scene, building);
+    residents = addResidents(THREE, scene, config, () => player, motion.reduced, {
+      layerId: 'loft',
+      isDialogueOpen: () => Boolean(conversation),
+    });
+    animatedObjects.push(dt => residents.update(dt));
   }
 
   function rebuildLayerScene() {
@@ -1098,23 +1507,58 @@ export async function mountWorld3D(container, {
     else if (currentLayerId === 'atrium') populateAtrium();
     else if (currentLayerId === 'stacks') populateStacks();
     else populateLoft();
+    audio.setLayer(library ? 'library' : currentLayerId);
+    applyGardenPreferences();
     if (reading) frameReading();
     else syncCamera();
     updateTargetPrompt();
   }
 
+  function applyGardenPreferences() {
+    if (library) return;
+    const sky = state.garden.sky || skyFromHour(new Date().getHours());
+    const tone = state.garden.chime ?? 0;
+    if (appliedSky !== sky) {
+      appliedSky = sky;
+      const mood = GARDEN_LIGHT[sky];
+      if (gardenLighting) {
+        const { hemi, dir, centerLight, skylight } = gardenLighting;
+        hemi.color.setHex(mood.sky); hemi.groundColor.setHex(mood.ground);
+        hemi.intensity = mood.hemi * (currentLayerId === 'stacks' ? .95 : 1);
+        dir.color.setHex(mood.sun); dir.position.set(...mood.position);
+        dir.intensity = mood.direct * (currentLayerId === 'stacks' ? .3 : 1);
+        if (dir.castShadow) dir.shadow.needsUpdate = true;
+        scene.fog.color.setHex(mood.fog);
+        if (currentLayerId === 'stacks') scene.fog.color.multiplyScalar(.3);
+        else { scene.fog.near = sky === 'midnight' ? 20 : 27; scene.fog.far = sky === 'midnight' ? 48 : 65; }
+        scene.background.copy(scene.fog.color);
+        if (centerLight) { centerLight.color.setHex(mood.glow); centerLight.intensity = mood.pool; skylight.material.color.setHex(mood.glow); }
+      }
+      garden?.setSky?.(sky); audio.setGardenSky(sky);
+    }
+    if (appliedChime !== tone) { appliedChime = tone; garden?.setChime?.(tone); }
+  }
+
+  function flashGardenEcho(reason) {
+    if (gardenEchoes.has(reason) || motion.reduced()) return;
+    if (residents.flashSovereign()) gardenEchoes.add(reason);
+  }
+
   function syncCamera() {
-    const bob =
-      !motion?.reduced?.() && (keys.has('KeyW') || keys.has('KeyS') || keys.has('KeyA') || keys.has('KeyD'))
-        ? Math.sin(bobPhase) * 0.045
-        : 0;
+    const moving = keys.has('KeyW') || keys.has('KeyS') || keys.has('KeyA') || keys.has('KeyD') || (touchStick.analog && Math.hypot(touchStick.dx, touchStick.dy) > .12);
+    const bob = !motion?.reduced?.() && moving ? Math.sin(bobPhase) * 0.045 : 0;
     camera.position.set(player.x, (player.y || 0) + EYE_HEIGHT + bob, player.z);
     camera.rotation.y = player.yaw;
     camera.rotation.x = player.pitch;
   }
 
   function updateTargetPrompt() {
-    if (reading) { promptBox.hidden = true; activeTarget = null; return; }
+    if (reading) {
+      promptBox.hidden = true;
+      activeTarget = null;
+      if (touchInteractBtn) { touchInteractBtn.dataset.active = 'false'; touchInteractBtn.textContent = '环视'; }
+      return;
+    }
     activeTarget = findInteractiveTarget(player, player.yaw, player.pitch, config.interactables);
     reticle.dataset.active = String(Boolean(activeTarget));
     if (activeTarget) {
@@ -1122,15 +1566,26 @@ export async function mountWorld3D(container, {
       promptTitle.textContent = activeTarget.label;
       promptBtn.textContent = activeTarget.prompt;
       promptBtn.hidden = Boolean(activeTarget.crossing);
+      if (touchInteractBtn) {
+        touchInteractBtn.dataset.active = activeTarget.crossing ? 'false' : 'true';
+        touchInteractBtn.textContent = activeTarget.label;
+      }
     } else {
       promptBox.hidden = true;
+      if (touchInteractBtn) {
+        touchInteractBtn.dataset.active = 'false';
+        touchInteractBtn.textContent = '环视';
+      }
     }
   }
 
-  function openInspectorModal(title, renderContent) {
-    keys.clear(); draggingLook = false;
+  function openInspectorModal(title, renderContent, kind = '') {
+    keys.clear(); draggingLook = false; lookPointerId = null;
+    resetTouchStick();
     modal.hidden = false;
     if (document.pointerLockElement) document.exitPointerLock?.();
+    if (kind) modalCard.dataset.modalKind = kind;
+    else delete modalCard.dataset.modalKind;
     modalTitle.textContent = title;
     modalBody.replaceChildren();
     renderContent(modalBody);
@@ -1175,18 +1630,56 @@ export async function mountWorld3D(container, {
 
   function triggerInteraction(target = activeTarget) {
     if (!target) return false;
-    motion?.tone?.(2, true);
     state = getState();
 
-    if (target.kind === 'book') { library.onRead(target.slug); return true; }
-    if (target.kind === 'library-exit') { onOpenRoom('home'); return true; }
+    if (target.kind === 'garden-sundial') {
+      const sky = GARDEN_SKIES[(GARDEN_SKIES.indexOf(appliedSky) + 1) % GARDEN_SKIES.length];
+      onInteract?.('garden-sky', sky); state = getState(); applyGardenPreferences();
+      audio.playInteraction('pillar');
+      if (sky === 'midnight') flashGardenEcho('midnight');
+      return true;
+    }
+    if (target.kind === 'corridor-chimes') {
+      const tone = ((state.garden.chime ?? -1) + 1) % 3;
+      garden.pluck(); audio.playInteraction('chime', tone);
+      onInteract?.('garden-chime', tone); state = getState(); applyGardenPreferences();
+      return true;
+    }
+    if (target.kind === 'garden-specimen' || target.kind === 'loft-daily-note') {
+      audio.playInteraction('paper');
+      if (target.specimen === 'blank') { flashGardenEcho('blank'); onGardenComment?.(LINES.garden.blank); }
+      const note = target.kind === 'loft-daily-note' ? dailyNote(state) : null;
+      openInspectorModal(target.label, body => {
+        const sheet = document.createElement('div'); sheet.className = 'world3d-clue-sheet';
+        const label = document.createElement('span'); label.className = 'world3d-clue-side-label';
+        label.textContent = note ? { morning: '清晨', afternoon: '午后', dusk: '傍晚', midnight: '深夜' }[note.sky] : { lamp: 'sayori.org · 桌边', folio: 'blog.sayori.org · 折页', blank: '第 34 号 · 署名处' }[target.specimen];
+        sheet.append(label);
+        for (const text of note ? note.lines : [LINES.garden.specimens[target.specimen]]) { const p = document.createElement('p'); p.textContent = text; sheet.append(p); }
+        const actions = document.createElement('div'); actions.className = 'world3d-modal-actions';
+        const back = document.createElement('button'); back.type = 'button'; back.textContent = '放回'; back.addEventListener('click', closeModal); actions.append(back);
+        body.append(sheet, actions);
+      }, 'clue');
+      return true;
+    }
+
+    if (target.kind === 'talk-arrival') {
+      residents.triggerArrivalDissolve(true);
+      onInteract?.('talk-arrival', target);
+      updateTargetPrompt();
+      return true;
+    }
+
+    if (target.kind === 'book') { audio.playInteraction('book'); library.onRead(target.slug); return true; }
+    if (target.kind === 'library-exit') { audio.playInteraction('portal'); onOpenRoom('home'); return true; }
 
     if (target.kind === 'seam') {
+      audio.playInteraction('portal');
       onLeaveSite?.();
       return true;
     }
 
     if (target.kind === 'lab-link') {
+      audio.playInteraction('paper');
       onInteract?.('lab-link', target);
       onOpenRoom?.('lab');
       return true;
@@ -1195,42 +1688,72 @@ export async function mountWorld3D(container, {
     if (target.kind === 'glb-lamp') {
       lampColorIdx = (lampColorIdx + 1) % LAMP_COLORS.length;
       if (lampLightRef) lampLightRef.color.setHex(LAMP_COLORS[lampColorIdx]);
+      audio.playInteraction('lamp');
       onInteract?.('glb-lamp', target);
       return true;
     }
 
     if (target.kind === 'glb-fork') {
-      motion?.tone?.(5, true);
+      audio.playInteraction('fork');
       onInteract?.('glb-fork', target);
       return true;
     }
 
     if (target.kind === 'terminal') {
+      audio.playInteraction('terminal');
       onInteract?.('terminal', target);
-      openSpatialOverviewModal('sayori.org // BACKSTAGE SHELL 终端');
+      openInspectorModal('sayori.org // BACKSTAGE SHELL', body => {
+        const logs = [
+          `> layer: ${LAYER_LABELS[currentLayerId] || currentLayerId}`,
+          `> discovered: ${state.layers.length} 层 · clues: ${state.clues.length} 份`,
+          `> north_bridge: ${state.bridgeSolid ? 'solidified' : 'suspended (folded-sketch pending)'}`,
+          '> owner_sig: [unclaimed / resident-sovereign]',
+          '> note: 折页台与博客笔记里的草图仍在互相指向',
+        ];
+        const pre = document.createElement('div');
+        pre.className = 'world3d-terminal-log';
+        pre.innerHTML = logs.map(line => `<code>${line}</code>`).join('');
+        const links = document.createElement('div');
+        links.className = 'world3d-modal-actions';
+        const mk = (label, fn) => {
+          const b = document.createElement('button');
+          b.type = 'button'; b.textContent = label;
+          b.addEventListener('click', () => { closeModal(); fn(); });
+          links.append(b);
+        };
+        mk('去折页台', () => onOpenRoom?.('lab'));
+        mk('去笔记', () => onOpenRoom?.('blog'));
+        mk('离开终端', () => viewport.focus({ preventScroll: true }));
+        body.append(pre, links);
+      }, 'terminal');
       return true;
     }
 
     if (target.kind === 'blog-desk') {
+      audio.playInteraction('paper');
       onOpenRoom?.('blog');
       return true;
     }
 
     if (target.kind === 'projector') {
       if (state.diagram) {
+        audio.playInteraction('unlock');
         onInteract?.('sync-pillars', target);
         state = getState();
         config = getLayerConfig(currentLayerId, state);
         rebuildLayerScene();
       } else {
+        audio.playInteraction('terminal');
         onInteract?.('projector-hint', target);
       }
       return true;
     }
 
     if (target.kind === 'pillar') {
+      const wasUnlocked = state.stacksUnlocked;
       onInteract?.('rotate-pillar', { pillar: target.pillar });
       state = getState();
+      audio.playInteraction(!wasUnlocked && state.stacksUnlocked ? 'unlock' : 'pillar');
       config = getLayerConfig(currentLayerId, state);
       rebuildLayerScene();
       return true;
@@ -1239,43 +1762,63 @@ export async function mountWorld3D(container, {
     if (target.kind === 'portal') {
       const dest = target.targetLayer;
       if (dest === 'loft' && !state.stacksUnlocked && !state.layers.includes('loft')) {
+        audio.playInteraction('pillar');
         onInteract?.('portal-locked-loft', target);
         return false;
       }
+      audio.playInteraction('portal');
       switchLayer(dest);
       return true;
     }
 
     if (target.kind === 'clue') {
       const info = CLUE_INFO[target.clueId];
+      audio.playInteraction('clue');
       onInteract?.('clue', target.clueId);
       state = getState();
       if (info) {
+        const CLUE_BACKS = {
+          'atrium-survey': '背面压着一道折痕：「西侧走过阶梯，东窗外不是原来的院子。」',
+          'slot-34-log': '背面边缘有铅笔修改的刻度：房间标高一直在被挪动，但第 34 栏永远留白。',
+          'dual-handwriting': '背面另一种稍快、稍斜的笔迹：「入口撤了，房间又没消失。——是我留着的。」',
+          'rain-origin-trace': '录音底噪里混着倒车提示音，和博客《雨夹》里的窗沿完全重合。',
+        };
+        const backText = CLUE_BACKS[target.clueId];
         openInspectorModal(info.title, body => {
-          body.innerHTML = `
-            <p>${info.summary}</p>
-
-            <div class="world3d-room-links">
-              <button type="button" data-keep-exploring>放回</button>
-              <button type="button" data-view-archive>档案</button>
-            </div>
-          `;
-          body.querySelector('[data-keep-exploring]').addEventListener('click', closeModal);
-          body.querySelector('[data-view-archive]').addEventListener('click', () => {
+          let flipped = false;
+          const sheet = document.createElement('div');
+          sheet.className = 'world3d-clue-sheet';
+          const renderSide = () => {
+            sheet.innerHTML = `<span class="world3d-clue-side-label">${flipped ? '背面 · 附注' : '正面 · 残页'}</span><p>${flipped && backText ? backText : info.summary}</p>`;
+          };
+          renderSide();
+          const links = document.createElement('div');
+          links.className = 'world3d-modal-actions';
+          links.innerHTML = `<button type="button" data-keep-exploring>放回</button>${backText ? '<button type="button" data-flip-clue>翻面</button>' : ''}<button type="button" data-view-archive>档案</button>`;
+          links.querySelector('[data-keep-exploring]').addEventListener('click', closeModal);
+          links.querySelector('[data-flip-clue]')?.addEventListener('click', () => {
+            flipped = !flipped;
+            audio.playInteraction('flip');
+            renderSide();
+          });
+          links.querySelector('[data-view-archive]').addEventListener('click', () => {
             closeModal();
             onOpenRoom?.('archive');
           });
-        });
+          body.append(sheet, links);
+        }, 'clue');
       }
       return true;
     }
 
     if (target.kind === 'talk-bench') {
+      audio.playInteraction('glyph');
       onInteract?.('talk-bench', target);
       return true;
     }
 
     if (target.kind === 'guestbook-link') {
+      audio.playInteraction('paper');
       onOpenRoom?.('guestbook');
       return true;
     }
@@ -1299,21 +1842,34 @@ export async function mountWorld3D(container, {
     return true;
   }
 
-  function stepMovement(dt) {
-    if (keys.size) help.hidden = true;
-    const forward = (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0);
-    const strafe = (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0);
+  function stepSurfaceKind(x, z, y) {
+    if (currentLayerId === 'atrium' && inPool(x, z, y)) return 'water';
+    if ((currentLayerId === 'atrium' && z < -10.0 && y > 3.1) || (currentLayerId === 'stacks' && z < -7.4)) return 'bridge';
+    if (library || currentLayerId === 'loft' || (currentLayerId === 'atrium' && x > 18 && y > 1.8)) return 'wood';
+    return 'tile';
+  }
+
+  function stepMovement(dt, turnDt = dt) {
+    if (keys.size || touchStick.analog) help.hidden = true;
+    let forward = (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0);
+    let strafe = (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0);
+    if (touchStick.analog) {
+      forward += -touchStick.dy;
+      strafe += touchStick.dx;
+    }
     const turn = (keys.has('ArrowLeft') || keys.has('KeyQ') ? 1 : 0) - (keys.has('ArrowRight') || keys.has('KeyR') ? 1 : 0);
 
     if (turn !== 0) {
-      player.yaw += turn * dt * 1.9;
+      player.yaw += turn * turnDt * 1.12;
     }
 
-    if (forward !== 0 || strafe !== 0) {
-      const len = Math.hypot(forward, strafe) || 1;
-      const nf = forward / len;
-      const ns = strafe / len;
-      const speed = keys.has('ShiftLeft') || keys.has('ShiftRight') ? 6.8 : 4.6;
+    const mag = Math.hypot(forward, strafe);
+    if (mag > 0.08) {
+      const clampMag = Math.min(1, mag);
+      const nf = forward / mag;
+      const ns = strafe / mag;
+      const sprinting = keys.has('ShiftLeft') || keys.has('ShiftRight') || (touchStick.analog && mag > 0.85);
+      const speed = (sprinting ? 6.8 : 4.9) * (touchStick.analog ? clampMag : 1);
       const sin = Math.sin(player.yaw);
       const cos = Math.cos(player.yaw);
       const dx = (-sin * nf + cos * ns) * speed * dt;
@@ -1325,18 +1881,20 @@ export async function mountWorld3D(container, {
       player.y = next.y;
       player.z = next.z;
       const door = crossedDoor(before, player, config.interactables);
-      if (door) { keys.clear(); triggerInteraction(door); return; }
+      if (door) { keys.clear(); resetTouchStick(); triggerInteraction(door); return true; }
       if (moved > 0.001) {
         bobPhase += moved * 3.6;
         stepDistance += moved;
-        if (stepDistance >= 2.2) {
+        if (stepDistance >= 2.05) {
           stepDistance = 0;
-          motion?.tone?.(1, false);
+          audio.playFootstep(stepSurfaceKind(player.x, player.z, player.y), sprinting);
+          if (currentLayerId === 'atrium') garden.ripple(player.x, player.z);
         }
       }
     }
     syncCamera();
     updateTargetPrompt();
+    return false;
   }
 
   function nudgeMove(dir) {
@@ -1382,26 +1940,42 @@ export async function mountWorld3D(container, {
 
   listen(inspectorBtn, 'click', () => openSpatialOverviewModal());
   listen(modalClose, 'click', closeModal);
-  listen(promptBtn, 'click', e => {
+  listen(promptBox, 'click', e => {
     e.stopPropagation();
-    triggerInteraction(activeTarget);
+    if (activeTarget && !activeTarget.crossing) triggerInteraction(activeTarget);
   });
 
   listen(viewport, 'pointerdown', e => {
-    if (reading || !modal.hidden || pointerLocked || e.button !== 0) return;
+    if (reading || !modal.hidden || pointerLocked || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    if (lookPointerId !== null) return;
+    lookPointerId = e.pointerId;
+    lookPointerType = e.pointerType || 'mouse';
+    lookMoved = 0;
     draggingLook = true;
     lastPointer = { x: e.clientX, y: e.clientY };
   });
-  listen(window, 'pointerup', () => { draggingLook = false; });
+  listen(window, 'pointerup', e => {
+    if (e.pointerId === lookPointerId) {
+      if (lookPointerType === 'touch' && lookMoved < 8 && activeTarget && !activeTarget.crossing && !shellBlocked() && modal.hidden && !reading) {
+        triggerInteraction(activeTarget);
+      }
+      draggingLook = false;
+      lookPointerId = null;
+    }
+  });
+  listen(window, 'pointercancel', e => {
+    if (e.pointerId === lookPointerId) { draggingLook = false; lookPointerId = null; }
+  });
   listen(window, 'pointermove', e => {
     if (pointerLocked) {
       player.yaw -= (e.movementX || 0) * 0.0024;
       player.pitch = Math.max(-1.35, Math.min(1.35, player.pitch - (e.movementY || 0) * 0.0022));
       syncCamera();
       updateTargetPrompt();
-    } else if (draggingLook) {
+    } else if (draggingLook && e.pointerId === lookPointerId) {
       const dx = e.clientX - lastPointer.x;
       const dy = e.clientY - lastPointer.y;
+      lookMoved += Math.hypot(dx, dy);
       lastPointer = { x: e.clientX, y: e.clientY };
       player.yaw -= dx * 0.0045;
       player.pitch = Math.max(-1.35, Math.min(1.35, player.pitch - dy * 0.004));
@@ -1454,19 +2028,55 @@ export async function mountWorld3D(container, {
     keys.delete(e.code);
   });
 
-  root.querySelectorAll('[data-step], [data-turn]').forEach(btn => {
-    const code = btn.dataset.step
-      ? { forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD' }[btn.dataset.step]
-      : btn.dataset.turn === 'left' ? 'ArrowLeft' : 'ArrowRight';
+  if (touchMovePad) {
+    listen(touchMovePad, 'pointerdown', e => {
+      if (touchStick.pointerId !== null) return;
+      e.preventDefault();
+      const stepBtn = e.target.closest?.('[data-step]');
+      const stepCode = stepBtn ? { forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD' }[stepBtn.dataset.step] : null;
+      touchStick.pointerId = e.pointerId;
+      touchStick.originX = e.clientX;
+      touchStick.originY = e.clientY;
+      touchStick.dx = 0; touchStick.dy = 0; touchStick.analog = false;
+      touchStick.stepCode = stepCode;
+      if (stepCode) keys.add(stepCode);
+      touchMovePad.setPointerCapture?.(e.pointerId);
+    });
+    listen(touchMovePad, 'pointermove', e => {
+      if (e.pointerId !== touchStick.pointerId) return;
+      const rawX = e.clientX - touchStick.originX;
+      const rawY = e.clientY - touchStick.originY;
+      const dist = Math.hypot(rawX, rawY);
+      if (dist > 8) {
+        if (touchStick.stepCode) { keys.delete(touchStick.stepCode); touchStick.stepCode = null; }
+        touchStick.analog = true;
+        touchMovePad.dataset.stickActive = 'true';
+        const maxR = 42;
+        const clamped = Math.min(maxR, dist);
+        const angle = Math.atan2(rawY, rawX);
+        touchStick.dx = (Math.cos(angle) * clamped) / maxR;
+        touchStick.dy = (Math.sin(angle) * clamped) / maxR;
+        if (stickNub) stickNub.style.transform = `translate3d(${(Math.cos(angle) * clamped).toFixed(1)}px, ${(Math.sin(angle) * clamped).toFixed(1)}px, 0)`;
+      }
+    });
+    for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+      listen(touchMovePad, ev, e => { if (e.pointerId === touchStick.pointerId) resetTouchStick(); });
+    }
+  }
+
+  root.querySelectorAll('[data-step]').forEach(btn => {
+    listen(btn, 'click', e => { if (e.detail === 0) nudgeMove(btn.dataset.step); });
+  });
+  root.querySelectorAll('[data-turn]').forEach(btn => {
+    const code = btn.dataset.turn === 'left' ? 'ArrowLeft' : 'ArrowRight';
     listen(btn, 'pointerdown', e => {
-      e.preventDefault(); keys.add(code); btn.setPointerCapture(e.pointerId);
+      e.preventDefault(); keys.add(code);
+      btn.setPointerCapture?.(e.pointerId);
     });
     for (const event of ['pointerup', 'pointercancel', 'lostpointercapture']) listen(btn, event, () => keys.delete(code));
-    listen(btn, 'click', e => { if (e.detail === 0 && btn.dataset.step) nudgeMove(btn.dataset.step); });
   });
-  listen(root.querySelector('[data-touch-interact]'), 'click', () => {
-    if (activeTarget) triggerInteraction(activeTarget);
-    else openSpatialOverviewModal();
+  listen(touchInteractBtn, 'click', () => {
+    if (activeTarget && !activeTarget.crossing) triggerInteraction(activeTarget);
   });
 
   function shellBlocked() {
@@ -1474,20 +2084,31 @@ export async function mountWorld3D(container, {
     return shell.dataset.map === 'true' || shell.dataset.talking === 'true';
   }
 
-  listen(window, 'blur', () => { keys.clear(); draggingLook = false; });
+  listen(window, 'blur', () => { keys.clear(); draggingLook = false; lookPointerId = null; resetTouchStick(); });
   listen(document, 'visibilitychange', () => setActive(!document.hidden && root.closest('#p34-space').dataset.room === (library ? 'blog' : 'home')));
 
   function animate(now) {
     if (signal?.aborted || !active || disposed) return;
-    const dt = Math.min(0.05, Math.max(0.001, (now - lastTime) / 1000));
+    const rawDt = Math.min(0.072, Math.max(0.001, (now - lastTime) / 1000));
     lastTime = now;
-    if (!reading && modal.hidden && !shellBlocked()) stepMovement(dt);
-    if (!reading && modal.hidden && !shellBlocked()) for (const fn of animatedObjects) fn(dt);
+    preferenceTimer += rawDt;
+    if (preferenceTimer > 1) { preferenceTimer = 0; state = getState(); applyGardenPreferences(); }
+    residents?.updateEcho();
+    if (!reading && modal.hidden && !shellBlocked()) {
+      const steps = rawDt > 0.045 ? 2 : 1;
+      const subDt = rawDt / steps;
+      const turnStep = Math.min(0.048, rawDt) / steps;
+      for (let i = 0; i < steps; i++) {
+        if (stepMovement(subDt, turnStep)) break;
+        for (const fn of animatedObjects) fn(subDt);
+      }
+      audio.updateSpatial(player, library ? 'library' : currentLayerId, residents?.snapshot(), rawDt);
+    }
     if (renderer) renderer.render(scene, camera);
     if (reading) pageRenderer.render(pages, camera);
     if (renderer && typography) {
       renderer.clearDepth(); renderer.autoClear = false;
-      typography.render(renderer, dt);
+      typography.render(renderer, rawDt);
       renderer.autoClear = true;
     }
     rafId = requestAnimationFrame(animate);
@@ -1499,7 +2120,7 @@ export async function mountWorld3D(container, {
 
   function setActive(value) {
     active = value && !disposed;
-    keys.clear(); draggingLook = false;
+    keys.clear(); draggingLook = false; lookPointerId = null; resetTouchStick();
     cancelAnimationFrame(rafId);
     if (active) { lastTime = performance.now(); rafId = requestAnimationFrame(animate); }
     else if (document.pointerLockElement === viewport) document.exitPointerLock?.();
@@ -1512,6 +2133,8 @@ export async function mountWorld3D(container, {
     getLayer: () => currentLayerId,
     getPlayer: () => ({ ...player }),
     getResidents: () => residents?.snapshot() || null,
+    getGarden: () => ({ sky: appliedSky, chime: appliedChime, ...(garden?.snapshot?.() || {}) }),
+    ringChime(tone) { garden.pluck(); audio.playInteraction('chime', tone); state = getState(); applyGardenPreferences(); },
     getActiveTarget: () => activeTarget,
     getInteractables: () => config.interactables.map(i => ({ ...i })),
     switchLayer: (l, opts) => switchLayer(l, opts),
