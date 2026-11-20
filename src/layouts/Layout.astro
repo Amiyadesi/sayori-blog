@@ -3,7 +3,8 @@ import CopyFeedback from "@components/misc/CopyFeedback.astro";
 import { ClientRouter } from "astro:transitions";
 import OptionalFeatures from "@components/features/settings/OptionalFeatures.astro";
 import { siteConfig } from "@/config";
-import { SITE_LOCALE, type HreflangMap } from "@utils/site-locale";
+import { isExtraLocale, SITE_LOCALE, type HreflangMap } from "@utils/site-locale";
+import { readingCopy } from "@i18n/reading-editions";
 import "../styles/variables.styl";
 import "../styles/main.css";
 import AnalyticsScripts from "./partials/AnalyticsScripts.astro";
@@ -17,7 +18,9 @@ interface Props {
 }
 const { title, description, setOGTypeArticle, postSlug, coverImage, ogImageAlt,
 	publishedTime, modifiedTime, tags, noindex, alternateUrls } = Astro.props;
-const pageTitle = title ? title + " - " + siteConfig.title : siteConfig.title +
+
+const blogTitle = isExtraLocale ? readingCopy.siteTitle : siteConfig.title;
+const pageTitle = title ? (title === blogTitle ? blogTitle : `${title} - ${blogTitle}`) : blogTitle +
 	(SITE_LOCALE === "en" ? " | Notes & Projects" : "｜笔记与项目");
 const ogImageUrl = new URL(siteConfig.generateOgImages && postSlug
 	? "/og/" + postSlug + ".png"

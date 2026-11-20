@@ -18,7 +18,8 @@ import {
 import { initPostIdMap } from "../utils/permalink-utils";
 import { getPostPublicDescription } from "../utils/post-card-content";
 import { getPostUrl, url } from "../utils/url-utils";
-import { currentLocalePath, isEnglishSite } from "../utils/site-locale";
+import { currentLocalePath, isEnglishSite, isExtraLocale, SITE_LOCALE } from "../utils/site-locale";
+import { readingCopy } from "../i18n/reading-editions";
 
 const isSayoriDiarySite = process.env.SITE_VARIANT === "sayori-diary";
 
@@ -60,15 +61,15 @@ const diaryCopy = isEnglishSite
 		};
 const activeCopy = isSayoriDiarySite ? diaryCopy : homeCopy;
 const pageDescription = isHomeFirstPage
-	? activeCopy.description
+	? isExtraLocale ? readingCopy.siteDescription : activeCopy.description
 	: `${siteConfig.title} - ${siteConfig.subtitle}`;
 const pageTitle = isHomeFirstPage
-	? undefined
+	? isExtraLocale ? readingCopy.siteTitle : undefined
 	: isEnglishSite
 		? `Page ${page.currentPage}`
 		: `第 ${page.currentPage} 页`;
 const pageUrl = new URL(currentLocalePath(Astro.url.pathname), siteConfig.siteURL).toString();
-const siteLanguage = siteConfig.lang.replace("_", "-");
+const siteLanguage = SITE_LOCALE;
 const siteUrl = new URL(siteConfig.siteURL).href;
 const personId = `${siteUrl}#person`;
 const organizationId = `${siteUrl}#organization`;
@@ -122,8 +123,8 @@ const jsonLd: Array<Record<string, unknown>> = [
 	/>
 	{isHomeFirstPage && <DeskIntro />}
 	<div class="latest-heading">
-		<h2>{isEnglishSite ? "Latest posts" : "最新文章"}</h2>
-		<a href={url("/archive/")}>{isEnglishSite ? "All posts →" : "全部归档 →"}</a>
+		<h2>{isExtraLocale ? readingCopy.archive : isEnglishSite ? "Latest posts" : "最新文章"}</h2>
+		<a href={url("/archive/")}>{isExtraLocale ? "→" : isEnglishSite ? "All posts →" : "全部归档 →"}</a>
 	</div>
 	<PostPage page={page} />
 	<Pagination class="mx-auto mt-8" page={page} />

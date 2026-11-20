@@ -3,8 +3,7 @@ import ArchivePanel from "@components/features/archive/ArchivePanel.svelte";
 import CategoryBar from "@components/features/posts/CategoryBar.astro";
 import SiteStats from "@components/widgets/site-stats/SiteStats.astro";
 import Tags from "@components/widgets/tags/Tags.astro";
-import I18nKey from "@i18n/i18nKey";
-import { i18n } from "@i18n/translation";
+import { readingCopy } from "@i18n/reading-editions";
 import MainGridLayout from "@layouts/MainGridLayout.astro";
 import {
 	getCategoryList,
@@ -43,7 +42,7 @@ const tags = (await getTagList({ minCount: 2, sortBy: "count" })).map(
 const categories = (await getCategoryList()).map((category) => category.name);
 ---
 
-<MainGridLayout title={i18n(I18nKey.archive)}>
+<MainGridLayout title={readingCopy.archive}>
 	{showCategoryBar && <CategoryBar />}
 	<!-- 引入右侧边栏布局管理器 -->
 

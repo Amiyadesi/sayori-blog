@@ -29,6 +29,27 @@ target R2 bucket; API tokens are never written to the manifest or repository.
 The application remains licensed under Apache-2.0; the bundled MIT notices are
 preserved in `LICENSE.MIT`.
 
+## Reading editions
+
+Simplified Chinese is the source edition. Traditional Chinese and English keep
+their existing URLs. Japanese, French, Korean, Spanish, German and Brazilian
+Portuguese have their own reading index, archive, essays and privacy page. Their
+archives list completed translations only. Each article links to the available
+editions and the Simplified Chinese original.
+
+Translations live beside their source in `sayori-articles` (for example,
+`article.ja.md`). Generate a batch from published content with the configured
+translation runner, then review and verify it before pushing:
+
+```bash
+TRANSLATE_RUNNER=pi TRANSLATE_LOCALE=ja TRANSLATE_CONCURRENCY=1 TRANSLATE_MATCH=hello-sayori pnpm translate-content
+```
+
+`TRANSLATE_MATCH` limits the batch by source path; existing translations are
+skipped. Pi uses its configured Vertex route. Builds never call a translation
+provider. The announcement and privacy page let readers turn optional analytics
+on or off; dismissing the notice does not enable tracking.
+
 ## Her Own Blog World (`/?paper=0617`)
 
 正式入口为 `https://blog.sayori.org/?paper=0617`。这里是她的独立 3D 阅览室，不改写正常作者文章；只有带 `paper=0617` 的页面才加载空间。

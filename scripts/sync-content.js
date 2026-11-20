@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { loadEnv } from "./load-env.js";
+import { extraLocales, getBuildLocale, localizedFileSuffix } from "../src/utils/blog-locales.mjs";
 
 const scriptFile = fileURLToPath(import.meta.url);
 const blogRoot = path.resolve(path.dirname(scriptFile), "..");
@@ -16,10 +17,9 @@ const articlesRoot = configuredContentDir
 	: path.join(localReposRoot, "sayori-articles");
 const repoRoot = articlesRoot;
 const contentPathspec = ".";
-const SITE_LANG = String(process.env.SITE_LANG || "zh_CN").toLowerCase();
-const IS_ENGLISH_BUILD = SITE_LANG.startsWith("en");
-const IS_TRADITIONAL_BUILD = SITE_LANG === "zh_tw" || SITE_LANG === "zh-hant";
-const SITE_BASE = String(process.env.SITE_BASE || (IS_ENGLISH_BUILD ? "/en/" : IS_TRADITIONAL_BUILD ? "/zh-hant/" : "/"))
+const locale = getBuildLocale(process.env.SITE_LANG);
+const extraLocale = extraLocales.some(({ id }) => id === locale.id);
+const SITE_BASE = String(process.env.SITE_BASE || `/${locale.base}/`)
 	.trim()
 	.replace(/\/+$/, "");
 const BLOG_MEDIA_BASE_URL = String(process.env.BLOG_MEDIA_BASE_URL || "")
@@ -205,6 +205,7 @@ function validateRequiredJsonFile(filePath) {
 
 function syncPosts(srcDir, destDir, segments) {
 	for (const entry of fs.readdirSync(srcDir, { withFileTypes: true })) {
+		if (extraLocale && segments.length === 0 && entry.name === "sayori-diary") continue;
 		const sourcePath = path.join(srcDir, entry.name);
 
 		if (entry.isDirectory()) {
@@ -323,35 +324,32 @@ function syncEssays(srcDir, destDir) {
 }
 
 function stripLocaleSuffix(filename) {
-	return String(filename).replace(/\.(?:en|zh-hant)(?=\.(?:md|mdx|json)$)/i, "");
+	return String(filename).replace(localizedFileSuffix, "");
 }
 
 function stripLocaleStem(value) {
-	return String(value).replace(/\.(?:en|zh-hant)$/i, "");
+	return stripLocaleSuffix(`${value}.md`).slice(0, -3);
 }
 
-function shouldSyncLocalizedFile(_filePath, filename, parentDir) {
-	const isEnglishVariant = /\.en\.(?:md|mdx)$/i.test(filename);
-	const isTraditionalVariant = /\.zh-hant\.(?:md|mdx)$/i.test(filename);
-	if (IS_ENGLISH_BUILD) {
-		if (isEnglishVariant) return true;
-		if (isTraditionalVariant) return false;
-		const variantPath = path.join(parentDir, filename.replace(/\.(md|mdx)$/i, ".en.$1"));
-		return !fs.existsSync(variantPath);
-	}
-	if (IS_TRADITIONAL_BUILD) {
-		if (isTraditionalVariant) return true;
-		if (isEnglishVariant) return false;
-		const variantPath = path.join(parentDir, filename.replace(/\.(md|mdx)$/i, ".zh-hant.$1"));
-		return !fs.existsSync(variantPath);
-	}
-	return !isEnglishVariant && !isTraditionalVariant;
+function shouldSyncLocalizedFile(_filePath, filename, parentDir, supportingContent = false) {
+	const variant = filename.match(localizedFileSuffix)?.[1]?.toLowerCase();
+	const suffix = extraLocale && supportingContent ? "en" : locale.base;
+	if (variant) return variant === suffix;
+	if (extraLocale && !supportingContent) return false;
+	return !suffix || !fs.existsSync(path.join(parentDir, filename.replace(/\.(md|mdx)$/i, `.${suffix}.$1`)));
 }
 
 // ─── Markdown transformation ──────────────────────────────────────────────────
 
 function transformMarkdown(content, sourcePath, slug) {
-	const { frontmatter, body } = splitFrontmatter(content);
+	let { frontmatter, body } = splitFrontmatter(content);
+	if (frontmatter && !/^translationKey:\s*\S/m.test(frontmatter)) {
+		const original = stripLocaleSuffix(sourcePath);
+		if (extraLocales.some(({ base }) => fs.existsSync(original.replace(/\.(mdx?)$/i, `.${base}.$1`)))) {
+			const key = path.relative(articlesRoot, original).replaceAll("\\", "/").replace(/\.(mdx?)$/i, "");
+			frontmatter = frontmatter.replace(/\r?\n---(\r?\n?)$/, `\ntranslationKey: ${JSON.stringify(key)}\n---$1`);
+		}
+	}
 	const transformed = transformMarkdownBody(body, sourcePath, slug);
 	const metadata = frontmatter.replace(/^image:[ \t]*([^\r\n]+)$/m, (line, value) => {
 		const cover = resolveBlogMediaAsset(parseFrontmatterValue(value.trim()));
@@ -1222,7 +1220,7 @@ function syncLocalizedDirectory(src, dest) {
 			continue;
 		}
 		if (/\.(md|mdx)$/i.test(entry.name)) {
-			if (!shouldSyncLocalizedFile(sourcePath, entry.name, path.dirname(sourcePath))) {
+			if (!shouldSyncLocalizedFile(sourcePath, entry.name, path.dirname(sourcePath), true)) {
 				continue;
 			}
 			const original = fs.readFileSync(sourcePath, "utf8");
@@ -1399,7 +1397,7 @@ function syncFriendsData() {
 				continue;
 			}
 			const filename = path.basename(filePath);
-			if (!shouldSyncLocalizedFile(filePath, filename, path.dirname(filePath))) {
+			if (!shouldSyncLocalizedFile(filePath, filename, path.dirname(filePath), true)) {
 				continue;
 			}
 
@@ -1513,7 +1511,7 @@ function syncAnimeData() {
 					continue;
 				}
 				const sourcePath = path.join(dir, entry.name);
-				if (!shouldSyncLocalizedFile(sourcePath, entry.name, dir)) {
+				if (!shouldSyncLocalizedFile(sourcePath, entry.name, dir, true)) {
 					continue;
 				}
 				const content = fs.readFileSync(sourcePath, "utf8");
@@ -2046,10 +2044,14 @@ function readJson(filename, fallback) {
 }
 
 function resolveLocalizedSource(directory, filename) {
-	const suffix = IS_ENGLISH_BUILD ? "en" : IS_TRADITIONAL_BUILD ? "zh-hant" : "";
+	const suffix = locale.base;
 	if (suffix) {
 		const localized = path.join(directory, filename.replace(/\.(json|md|mdx)$/i, `.${suffix}.$1`));
 		if (fs.existsSync(localized)) return localized;
+	}
+	if (extraLocale) {
+		const english = path.join(directory, filename.replace(/\.(json|md|mdx)$/i, ".en.$1"));
+		if (fs.existsSync(english)) return english;
 	}
 	return path.join(directory, filename);
 }

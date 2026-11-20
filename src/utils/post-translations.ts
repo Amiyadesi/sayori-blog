@@ -1,21 +1,12 @@
 import type { CollectionEntry } from "astro:content";
 
 import type { SiteLocale } from "./site-locale";
+import { getBuildLocale } from "./blog-locales.mjs";
 
 type TranslationPost = Pick<CollectionEntry<"posts">, "id" | "data">;
 
 export function getPostLocale(value?: string | null): SiteLocale {
-	const normalized = String(value || "").trim().toLowerCase().replaceAll("_", "-");
-	if (normalized === "en" || normalized.startsWith("en-")) return "en";
-	if (
-		normalized === "zh-hant" ||
-		normalized === "zh-tw" ||
-		normalized === "zh-hk" ||
-		normalized.startsWith("zh-hant-")
-	) {
-		return "zh-Hant";
-	}
-	return "zh-CN";
+	return getBuildLocale(value?.trim()).id;
 }
 
 /**

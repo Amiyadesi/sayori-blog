@@ -19,14 +19,7 @@ const isolatedEnv = {
 try {
 	const blogRoot = path.join(tmpRoot, "sayori-blog");
 	const contentRoot = path.join(tmpRoot, "sayori-articles");
-	const scriptPath = path.join(blogRoot, "scripts", "sync-content.js");
-	fs.mkdirSync(path.dirname(scriptPath), { recursive: true });
-	fs.copyFileSync(path.join(scriptsRoot, "sync-content.js"), scriptPath);
-	fs.copyFileSync(
-		path.join(scriptsRoot, "load-env.js"),
-		path.join(blogRoot, "scripts", "load-env.js"),
-	);
-	write(path.join(blogRoot, "package.json"), '{"type":"module"}\n');
+	const scriptPath = installSyncScript(blogRoot);
 
 	for (const directory of ["posts", "essays", "spec", "assets", "friends", "anime"]) {
 		fs.mkdirSync(path.join(contentRoot, directory), { recursive: true });
@@ -122,6 +115,7 @@ function installSyncScript(blogRoot) {
 		path.join(blogRoot, "scripts", "load-env.js"),
 	);
 	write(path.join(blogRoot, "package.json"), '{"type":"module"}\n');
+	write(path.join(blogRoot, "src", "utils", "blog-locales.mjs"), fs.readFileSync(new URL("../src/utils/blog-locales.mjs", import.meta.url)));
 	return scriptPath;
 }
 

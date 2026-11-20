@@ -3,14 +3,20 @@ import { navBarConfig } from "../../../config";
 import { LinkPresets } from "../../../constants/link-presets";
 import type { LinkPreset, NavBarLink } from "../../../types/config";
 import { url } from "../../../utils/url-utils";
-import { SITE_LOCALE, isEnglishSite, isTraditionalSite } from "../../../utils/site-locale";
+import { SITE_LOCALE, isEnglishSite, isExtraLocale } from "../../../utils/site-locale";
+import { readingCopy } from "../../../i18n/reading-editions";
 import LanguageSwitch from "../../control/LanguageSwitch.astro";
 import ThemeToggle from "../../control/ThemeToggle.astro";
+import AnnouncementEntry from "./AnnouncementEntry.astro";
 import Search from "./Search.astro";
 
 const resolveLink = (item: NavBarLink | LinkPreset): NavBarLink =>
 	typeof item === "number" ? LinkPresets[item] : item;
-const links = navBarConfig.links.map(resolveLink);
+const links: NavBarLink[] = isExtraLocale ? [
+	{ name: readingCopy.home, url: "/" },
+	{ name: readingCopy.archive, url: "/archive/" },
+	{ name: readingCopy.essays, url: "/essays/" },
+] : navBarConfig.links.map(resolveLink);
 ---
 <header id="page-top" class="desk-header" tabindex="-1" data-pagefind-ignore>
 	<nav id="navbar" class="desk-nav" aria-label={isEnglishSite ? "Primary navigation" : "主导航"}>
@@ -34,7 +40,8 @@ const links = navBarConfig.links.map(resolveLink);
 		</div>
 		</div>
 		<Search locale={SITE_LOCALE} />
-		<button type="button" class="desk-menu-toggle" aria-expanded="false" aria-controls="desk-navigation-panel">{isEnglishSite ? "Menu" : isTraditionalSite ? "選單" : "菜单"}</button>
+		<AnnouncementEntry />
+		<button type="button" class="desk-menu-toggle" aria-expanded="false" aria-controls="desk-navigation-panel">{readingCopy.menu}</button>
 	</nav>
 </header>
 <script>

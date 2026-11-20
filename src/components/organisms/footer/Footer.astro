@@ -1,7 +1,8 @@
 ---
 import { profileConfig } from "../../../config";
 import { url } from "../../../utils/url-utils";
-import { isEnglishSite } from "../../../utils/site-locale";
+import { isEnglishSite, isExtraLocale } from "../../../utils/site-locale";
+import { readingCopy } from "../../../i18n/reading-editions";
 const currentYear = new Date().getFullYear();
 const registrationLinks = [
 	{
@@ -65,11 +66,11 @@ const blogNetworkLinks = [
 	<div class="desk-footer-row">
 		<span>© {currentYear} {profileConfig.name}</span>
 		<nav class="desk-footer-links" aria-label={isEnglishSite ? "Footer" : "页脚"}>
-			<a href={url("/rss/")}>RSS</a>
-			<a href={url("/atom/")}>Atom</a>
-			<a href={url("/about/")}>{isEnglishSite ? "About" : "关于"}</a>
-			<a href={url("/privacy/")}>{isEnglishSite ? "Privacy" : "隐私说明"}</a>
-			<a href={url("/settings/")}>{isEnglishSite ? "Settings" : "设置"}</a>
+			<a href={url(isExtraLocale ? "/rss.xml" : "/rss/")}>RSS</a>
+			<a href={url(isExtraLocale ? "/atom.xml" : "/atom/")}>Atom</a>
+			{!isExtraLocale && <a href={url("/about/")}>{isEnglishSite ? "About" : "关于"}</a>}
+			<a href={url("/privacy/")}>{readingCopy.privacy}</a>
+			{!isExtraLocale && <a href={url("/settings/")}>{isEnglishSite ? "Settings" : "设置"}</a>}
 		</nav>
 	</div>
 	<div class="desk-footer-links">

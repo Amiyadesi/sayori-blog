@@ -1,13 +1,12 @@
 ---
 import { SITE_LOCALE, localizedPath, stripLocalePrefix } from "@utils/site-locale";
+import { coreLocales, blogLocales, localizedReadingRoutes } from "@utils/blog-locales.mjs";
 
 const currentPath = stripLocalePrefix(Astro.url.pathname);
 const isAdmin = /^\/admin(?:\/|$)/.test(currentPath);
-const locales = [
-	["zh-CN", "简体中文"],
-	["zh-Hant", "繁體中文"],
-	["en", "English"],
-] as const;
+const isDiary = process.env.SITE_VARIANT === "sayori-diary";
+const locales = isDiary ? coreLocales : blogLocales;
+const { article = false } = Astro.props as { article?: boolean };
 ---
 
 {
@@ -15,11 +14,12 @@ const locales = [
 		<select
 			class="transition link text-[var(--primary)] font-medium bg-transparent border-0 cursor-pointer"
 			data-language-switch
+			data-article-switch={article ? "true" : undefined}
 			aria-label="Language"
 		>
-			{locales.map(([locale, label]) => (
-				<option value={localizedPath(currentPath, locale)} data-locale={locale} selected={locale === SITE_LOCALE}>
-					{label}
+			{locales.map(({ id, name, hreflang }, index) => (
+				<option value={localizedPath(index < coreLocales.length || localizedReadingRoutes.includes(currentPath) || currentPath.startsWith("/posts/") ? currentPath : "/", id)} data-locale={id} data-hreflang={hreflang} lang={id} selected={id === SITE_LOCALE}>
+					{name}
 				</option>
 			))}
 		</select>
@@ -37,14 +37,14 @@ const locales = [
 			if (!(select instanceof HTMLSelectElement) || !select.matches("[data-language-switch]")) return;
 			const option = select.selectedOptions[0];
 			const locale = option?.dataset.locale || "en";
-			try {
-				localStorage.setItem("sayori-locale", locale);
-				localStorage.setItem("sayori:ui-language", locale);
-			} catch {
-				// Private browsing may block storage; navigation still works.
+			if (["zh-CN", "zh-Hant", "en"].includes(locale)) {
+				try {
+					localStorage.setItem("sayori-locale", locale);
+					localStorage.setItem("sayori:ui-language", locale);
+				} catch { /* Navigation still works without storage. */ }
+				document.cookie = `sayori_locale=${encodeURIComponent(locale)}; Domain=.sayori.org; Path=/; Max-Age=31536000; SameSite=Lax; Secure`;
+				document.cookie = "sayori_locale_auto=; Domain=.sayori.org; Path=/; Max-Age=0; SameSite=Lax; Secure";
 			}
-			document.cookie = `sayori_locale=${encodeURIComponent(locale)}; Domain=.sayori.org; Path=/; Max-Age=31536000; SameSite=Lax; Secure`;
-			document.cookie = "sayori_locale_auto=; Domain=.sayori.org; Path=/; Max-Age=0; SameSite=Lax; Secure";
 			void navigate(`${select.value}${window.location.search}${window.location.hash}`);
 		});
 	}

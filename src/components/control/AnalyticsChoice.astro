@@ -1,0 +1,39 @@
+---
+import { readingCopy } from "../../i18n/reading-editions";
+---
+
+<div class="space-y-2 rounded-lg border border-[var(--line-divider)] p-3" data-analytics-choice hidden>
+	<p class="font-semibold">{readingCopy.analytics}</p>
+	<p class="text-sm" role="status"><span data-analytics-on hidden>{readingCopy.enabled}</span><span data-analytics-off>{readingCopy.disabled}</span></p>
+	<div class="flex flex-wrap gap-2">
+		<button class="btn-regular rounded-lg px-3 py-2 text-sm" type="button" data-analytics-preference="allow">{readingCopy.allow}</button>
+		<button class="btn-regular rounded-lg px-3 py-2 text-sm" type="button" data-analytics-preference="off">{readingCopy.turnOff}</button>
+	</div>
+</div>
+
+<script>
+	import { analyticsPreference, setAnalyticsPreference } from "../../scripts/privacy-preferences";
+
+	function updateControls() {
+		const allowed = analyticsPreference();
+		for (const box of document.querySelectorAll<HTMLElement>("[data-analytics-choice]")) {
+			box.hidden = false;
+			box.querySelector("[data-analytics-on]")?.toggleAttribute("hidden", !allowed);
+			box.querySelector("[data-analytics-off]")?.toggleAttribute("hidden", allowed);
+			for (const button of box.querySelectorAll<HTMLButtonElement>("button[data-analytics-preference]")) {
+				button.setAttribute("aria-pressed", String((button.dataset.analyticsPreference === "allow") === allowed));
+			}
+		}
+	}
+
+	document.addEventListener("click", (event) => {
+		if (!(event.target instanceof Element)) return;
+		const button = event.target.closest<HTMLButtonElement>("button[data-analytics-preference]");
+		if (!button) return;
+		setAnalyticsPreference(button.dataset.analyticsPreference === "allow");
+		updateControls();
+	});
+	document.addEventListener("astro:page-load", updateControls);
+	document.addEventListener("sayori:analytics-consent", updateControls);
+	updateControls();
+</script>

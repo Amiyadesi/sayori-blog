@@ -2,10 +2,14 @@
 import { PageHeader } from "@components/features/page-header";
 import MainGridLayout from "@layouts/MainGridLayout.astro";
 
-import { isEnglishSite, isTraditionalSite } from "../utils/site-locale";
+import AnalyticsChoice from "@components/control/AnalyticsChoice.astro";
+import { readingCopy } from "../i18n/reading-editions";
+import { privacyDetails } from "../i18n/privacy-details";
+import { isEnglishSite, isTraditionalSite, SITE_LOCALE } from "../utils/site-locale";
 
 export const prerender = true;
 
+const localizedDetails = privacyDetails[SITE_LOCALE];
 const copy: {
 	title: string;
 	description: string;
@@ -15,18 +19,27 @@ const copy: {
 	providers: string;
 	ipinfo: string;
 	google: string;
-} = isEnglishSite
+} = localizedDetails ? {
+	title: readingCopy.privacy,
+	description: readingCopy.privacySummary,
+	updated: "2026-11-20",
+	intro: readingCopy.privacySummary,
+	sections: [{ title: readingCopy.analytics, paragraphs: [localizedDetails.network, localizedDetails.analytics, localizedDetails.comments] }],
+	providers: "Cloudflare · IPinfo · Google",
+	ipinfo: "IPinfo Lite API",
+	google: "Google Privacy Policy",
+} : isEnglishSite
 	? {
 			title: "Privacy notice",
 			description:
 				"How this blog handles visits, IP geolocation, and comments.",
-			updated: "Last updated: 2026-09-25",
+			updated: "Last updated: 2026-11-20",
 			intro: "This notice applies to blog.sayori.org. The site processes basic network information to serve pages, operate visit statistics, and maintain its services.",
 			sections: [
 				{
 					title: "Visits and IP geolocation",
 					paragraphs: [
-						"When you view a page, the site sends a page-view event; periodic heartbeats update online status while the page is visible. Cloudflare Pages receives the connection IP to serve the request, and the page-view handler reads it for approximate network statistics.",
+						"If you opt into analytics, the site sends page-view events and periodically updates online status while the page is visible. Cloudflare Pages receives the connection IP to serve the request, and the page-view handler reads it for approximate network statistics.",
 						"When no valid cached result exists, the server may query configured IP lookup services in this order: DKLY, IPinfo Lite (if its server-side token is configured), then IP.SB (if enabled). A lookup provider receives the visitor IP as the address being queried. IPinfo Lite returns country, continent, and ASN information, but no city or VPN/proxy detection; Cloudflare metadata may provide an approximate region or city.",
 						"The analytics database stores keyed HMAC digests of IP and browser-generated visitor/session IDs, not the raw IP. It also stores the page path without query parameters, title, time, and available location/network summaries. Cached lookup results are considered valid for 24 hours. Visit and session records use a 90-day cleanup cutoff; cleanup is opportunistic and may run later. The GitHub-OAuth-protected admin view shows summaries, not raw IP addresses. Geolocation is approximate and can be affected by VPNs, proxies, and shared networks.",
 					],
@@ -34,8 +47,8 @@ const copy: {
 				{
 					title: "Browser storage and analytics",
 					paragraphs: [
-						"A random visitor ID is kept in localStorage and a session ID in sessionStorage to group repeat visits and page views. You can delete them in your browser’s site-data settings; this does not prevent Cloudflare or a configured lookup provider from receiving the IP needed to handle a visit.",
-						"The site uses self-hosted Umami at stats.sayori.org and Google Tag Manager / Google Analytics. These analytics scripts load after your first interaction or 10 seconds after page load, whichever comes first. These services may process request and browser data under their own policies.",
+						"If you opt in, a random visitor ID is kept in localStorage and a session ID in sessionStorage to group repeat visits and page views. You can delete them in your browser’s site-data settings; Cloudflare still needs the connection IP to serve the page. Optional IP lookups only run with analytics enabled.",
+						"The site uses self-hosted Umami at stats.sayori.org and Google Tag Manager / Google Analytics. These scripts only load after you opt in. You can turn analytics off below at any time. These services may process request and browser data under their own policies.",
 					],
 				},
 				{
@@ -54,13 +67,13 @@ const copy: {
 		? {
 				title: "隱私說明",
 				description: "本博客如何處理訪問記錄、IP 地理資訊與留言。",
-				updated: "更新日期：2026-09-25",
+				updated: "更新日期：2026-11-20",
 				intro: "本說明適用於 blog.sayori.org。網站會處理提供頁面、運行訪問統計與維護服務所需的基本網路資訊。",
 				sections: [
 					{
 						title: "訪問統計與 IP 地理資訊",
 						paragraphs: [
-							"瀏覽頁面時，網站會傳送頁面瀏覽事件；頁面可見期間的心跳用於更新在線狀態。Cloudflare Pages 會接收連線 IP 以提供頁面，頁面瀏覽處理器會讀取該 IP 用於粗略網路統計。",
+							"允許統計後，網站才會傳送頁面瀏覽事件，並在頁面可見時定期更新在線狀態。Cloudflare Pages 會接收連線 IP 以提供頁面，頁面瀏覽處理器會讀取該 IP 用於粗略網路統計。",
 							"沒有有效快取時，後端可能依序查詢已設定的 DKLY、已設定伺服器端 Token 時的 IPinfo Lite，以及啟用時的 IP.SB。查詢服務會收到作為查詢目標的訪客 IP。IPinfo Lite 提供國家、大洲與 ASN，不提供城市或 VPN／代理偵測；Cloudflare 資料可能補充粗略地區或城市。",
 							"統計資料庫保存 IP 與瀏覽器訪客／工作階段識別碼的 HMAC 摘要，不保存原始 IP；另保存不含查詢參數的頁面路徑、標題、時間和可取得的地區／網路摘要。IP 快取 24 小時後過期，訪問與工作階段記錄以約 90 天為清理目標，實際清理可能稍晚。GitHub OAuth 保護的後台只展示摘要。IP 定位可能受 VPN、代理或共用網路影響。",
 						],
@@ -68,8 +81,8 @@ const copy: {
 					{
 						title: "瀏覽器儲存與統計服務",
 						paragraphs: [
-							"網站在 localStorage 保存隨機訪客識別碼，並在 sessionStorage 保存工作階段識別碼，用於彙總回訪與頁面瀏覽。你可在瀏覽器網站資料設定中刪除；這不會阻止 Cloudflare 或已設定的查詢服務收到處理訪問所需的 IP。",
-							"本站使用 stats.sayori.org 的自託管 Umami，以及 Google Tag Manager／Google Analytics。這些統計腳本會在首次互動後，或頁面載入 10 秒後載入，以先發生者為準；各服務可能依其政策處理請求與瀏覽器資料。",
+							"允許統計後，網站才會在 localStorage 保存隨機訪客識別碼，並在 sessionStorage 保存工作階段識別碼，用於彙總回訪與頁面瀏覽。你可在瀏覽器網站資料設定中刪除；Cloudflare 仍須取得連線 IP 才能提供頁面；選用的 IP 查詢只在開啟統計後執行。",
+							"本站使用 stats.sayori.org 的自託管 Umami，以及 Google Tag Manager／Google Analytics。只有在你允許統計後才會載入這些指令碼。你可隨時在下方關閉統計；各服務可能依其政策處理請求與瀏覽器資料。",
 						],
 					},
 					{
@@ -87,13 +100,13 @@ const copy: {
 		: {
 				title: "隐私说明",
 				description: "本博客如何处理访问记录、IP 地理信息与评论。",
-				updated: "更新日期：2026-09-25",
+				updated: "更新日期：2026-11-20",
 				intro: "本说明适用于 blog.sayori.org。网站会处理提供页面、运行访问统计和维护服务所需的基本网络信息。",
 				sections: [
 					{
 						title: "访问统计与 IP 地理信息",
 						paragraphs: [
-							"浏览页面时，网站会发送页面浏览事件；页面可见期间的心跳用于更新在线状态。Cloudflare Pages 会接收连接 IP 以提供页面，页面浏览处理器会读取该 IP 用于粗略网络统计。",
+							"只有允许统计后，网站才会发送页面浏览事件，并在页面可见时定期更新在线状态。Cloudflare Pages 会接收连接 IP 以提供页面，页面浏览处理器会读取该 IP 用于粗略网络统计。",
 							"没有有效缓存时，后端可能依次查询已配置的 DKLY、已配置服务端 Token 时的 IPinfo Lite，以及启用时的 IP.SB。查询服务会收到作为查询目标的访客 IP。IPinfo Lite 提供国家、大洲和 ASN，不提供城市或 VPN／代理检测；Cloudflare 数据可能补充粗略地区或城市。",
 							"统计数据库保存 IP 和浏览器访客／会话标识的 HMAC 摘要，不保存原始 IP；另保存不含查询参数的页面路径、标题、时间和可获得的地区／网络摘要。IP 缓存 24 小时后过期，访问和会话记录以约 90 天为清理目标，实际清理可能稍晚。GitHub OAuth 保护的后台只展示摘要。IP 定位可能受 VPN、代理或共享网络影响。",
 						],
@@ -101,8 +114,8 @@ const copy: {
 					{
 						title: "浏览器存储与统计服务",
 						paragraphs: [
-							"网站在 localStorage 保存随机访客标识，并在 sessionStorage 保存会话标识，用于汇总回访和页面浏览。你可以在浏览器的网站数据设置中删除；这不会阻止 Cloudflare 或已配置的查询服务收到处理访问所需的 IP。",
-							"本站使用 stats.sayori.org 的自托管 Umami，以及 Google Tag Manager／Google Analytics。这些统计脚本会在首次交互后，或页面加载 10 秒后加载，以先发生者为准；各服务可能按其政策处理请求和浏览器数据。",
+							"允许统计后，网站才会在 localStorage 保存随机访客标识，并在 sessionStorage 保存会话标识，用于汇总回访和页面浏览。你可以在浏览器的网站数据设置中删除；Cloudflare 仍需要连接 IP 才能提供页面；可选的 IP 查询仅在开启统计时执行。",
+							"本站使用 stats.sayori.org 的自托管 Umami，以及 Google Tag Manager／Google Analytics。仅在你允许统计后才加载这些脚本。你可以随时在下方关闭统计；各服务可能按其政策处理请求和浏览器数据。",
 						],
 					},
 					{
@@ -125,6 +138,8 @@ const copy: {
 	>
 		<PageHeader title={copy.title} subtitle={copy.intro} />
 		<p class="mt-2 text-sm text-[var(--text-50)]">{copy.updated}</p>
+		{!localizedDetails && <p class="my-4 text-sm">{readingCopy.privacySummary}</p>}
+		<div class="mt-4"><AnalyticsChoice /></div>
 
 		<div class="mt-6 space-y-7 text-sm leading-7 text-[var(--text-70)]">
 			{

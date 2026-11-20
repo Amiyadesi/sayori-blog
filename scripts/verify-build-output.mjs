@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { parse } from "node-html-parser";
+import { blogLocales, extraLocales } from "../src/utils/blog-locales.mjs";
 
 const distDir = path.resolve("dist");
 const sourcePostsDir = path.resolve("src/content/posts");
@@ -1622,8 +1623,9 @@ const redirectSources = new Set(readTextIfExists(path.join(distDir, "_redirects"
 	.split(/\r?\n/).map((line) => line.trim().split(/\s+/))
 	.filter(([, , status]) => /^30[1278]$/.test(status)).map(([source]) => source));
 const postTranslations = new Map();
-for (const sitemapName of ["sitemap-0.xml", "zh-hant/sitemap-0.xml", "en/sitemap-0.xml"]) {
-	for (const [, location] of (files.get(sitemapName) || "").matchAll(/<loc>([^<]+)<\/loc>/g)) {
+for (const { base, hreflang, id } of blogLocales) {
+	const sitemapName = base ? `${base}/sitemap-0.xml` : "sitemap-0.xml";
+	for (const [, location] of readDistFile(sitemapName).matchAll(/<loc>([^<]+)<\/loc>/g)) {
 		const pathname = new URL(location).pathname;
 		if (redirectSources.has(pathname)) fail(`${sitemapName} submits a redirect: ${pathname}`);
 		const html = readTextIfExists(path.join(distDir, decodeURIComponent(pathname), "index.html"));
@@ -1639,11 +1641,12 @@ for (const sitemapName of ["sitemap-0.xml", "zh-hant/sitemap-0.xml", "en/sitemap
 			fail(`${sitemapName} submits a noncanonical page: ${pathname}`);
 		}
 		const article = page.querySelector("#post-container");
+		if (page.querySelector("html")?.getAttribute("lang") !== id) fail(`Incorrect document language: ${pathname}`);
 		if (article) {
 			const key = article.getAttribute("data-translation-key");
 			if (key === undefined) fail(`Article is missing translation metadata: ${pathname}`);
 			const group = postTranslations.get(key || location) || [];
-			group.push({ page, location, locale: sitemapName.startsWith("en/") ? "en" : sitemapName.startsWith("zh-hant/") ? "zh-Hant" : "zh-Hans" });
+			group.push({ page, location, locale: hreflang });
 			postTranslations.set(key || location, group);
 		}
 	}
@@ -1662,6 +1665,12 @@ for (const group of postTranslations.values()) {
 	}
 }
 
+for (const { base, hreflang } of extraLocales) {
+	for (const route of ["admin", "api", "project-34", "p34-record", "notes", "posts/sayori-diary"]) {
+		if (fs.existsSync(path.join(distDir, base, route))) fail(`Unexpected cloned /${base}/${route}`);
+	}
+	if (!readDistFile(`${base}/privacy/index.html`).includes("data-analytics-choice")) fail(`Missing consent controls in ${hreflang}`);
+}
 const rss = files.get("rss.xml") || "";
 requireIncludes("rss.xml", rss, [
 	"<rss",

@@ -1,7 +1,12 @@
 ---
 import type { SiteLocale } from "@utils/site-locale";
+import { isExtraLocale } from "@utils/site-locale";
+import { readingCopy } from "../../../i18n/reading-editions";
 const { locale } = Astro.props as { locale: SiteLocale };
-const labels = locale === "en" ? {
+const labels = isExtraLocale ? {
+	search: readingCopy.search, title: readingCopy.search, close: readingCopy.close, placeholder: `${readingCopy.search}…`,
+	busy: "…", retry: readingCopy.search, empty: "—",
+} : locale === "en" ? {
 	search: "Search", title: "Search the notebook", close: "Close", placeholder: "Title or keyword…",
 	busy: "Searching…", retry: "Search unavailable. Retry", empty: "No matching posts.",
 } : locale === "zh-Hant" ? {

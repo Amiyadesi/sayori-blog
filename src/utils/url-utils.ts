@@ -4,6 +4,7 @@ import type { CollectionEntry } from "astro:content";
 
 import { permalinkConfig } from "../config";
 import { generatePermalinkSlug } from "./permalink-utils";
+import { isExtraLocale } from "./site-locale";
 
 /**
  * 移除文件扩展名（.md, .mdx, .markdown）
@@ -99,5 +100,6 @@ export function getFileDirFromPath(filePath: string): string {
 }
 
 export function url(path: string) {
+	if (isExtraLocale && /^\/?(?:assets|images|favicon|fonts|data|third-party)\//.test(path)) return joinUrl("", path);
 	return joinUrl("", import.meta.env.BASE_URL, path);
 }

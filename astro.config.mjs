@@ -1,3 +1,4 @@
+import { localePrefix } from "./src/utils/blog-locales.mjs";
 import { readFileSync } from "node:fs";
 import sitemap from "@astrojs/sitemap";
 import mdx from "@astrojs/mdx";
@@ -156,7 +157,7 @@ export default defineConfig({
 		sitemap({
 			filter: (page) => {
 				const pathname = new URL(page).pathname.replace(
-					/^\/(?:en|zh-hant)(?=\/|$)/,
+					localePrefix,
 					"",
 				);
 				if (isSayoriDiarySite) {
@@ -190,7 +191,7 @@ export default defineConfig({
 			},
 			serialize: (item) => {
 				const pathname = new URL(item.url).pathname.replace(
-					/^\/(?:en|zh-hant)(?=\/|$)/,
+					localePrefix,
 					"",
 				);
 				// Do not claim every page changed on every build. A fake lastmod

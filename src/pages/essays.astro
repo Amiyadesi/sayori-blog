@@ -10,10 +10,11 @@ import { removeFileExtension } from "@utils/url-utils";
 import { render } from "astro:content";
 
 import { profileConfig } from "../config";
-import { isEnglishSite } from "../utils/site-locale";
+import { isEnglishSite, isExtraLocale, isTraditionalSite } from "../utils/site-locale";
+import { readingCopy } from "../i18n/reading-editions";
 
-const title = isEnglishSite ? "Essays" : "随笔";
-const description = isEnglishSite
+const title = readingCopy.essays;
+const description = isExtraLocale ? readingCopy.coverage : isEnglishSite
 	? "Short records that do not need their own long-form post, arranged from newest to oldest. Open a title to read the full text."
 	: "一些暂时不必单独展开的短记录，按发布时间从新到旧放在这里。点开标题即可展开正文。";
 
@@ -63,6 +64,7 @@ const essays = await Promise.all(
 	>
 		<div class="card-base paper-note paper-note-lined paper-tape z-10 px-5 sm:px-9 py-6 relative w-full" style="padding-top: 1.75rem;">
 			<PageHeader title={title} subtitle={description} />
+			{(isExtraLocale || isEnglishSite || isTraditionalSite) && <p class="mb-4 text-sm">{readingCopy.translation}</p>}
 
 			{
 				essays.length > 0 ? (
@@ -108,6 +110,7 @@ const essays = await Promise.all(
 									</summary>
 
 									<div class="essay-body">
+										{(isExtraLocale || isEnglishSite || isTraditionalSite) && <a class="link text-sm text-[var(--primary)]" href={`/essays/#${encodeURIComponent(essay.anchorId)}`} hreflang="zh-Hans">{readingCopy.original}</a>}
 										<PostMeta
 											className="essay-meta"
 											published={essay.post.data.published}

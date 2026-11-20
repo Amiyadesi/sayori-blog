@@ -6,6 +6,7 @@
  * 提取自 Layout.astro 以实现更好的代码组织
  */
 
+import { blogLocales, coreLocales, localizedReadingRoutes, localePrefix } from "../../utils/blog-locales.mjs";
 import { profileConfig, siteConfig } from "@/config";
 
 import {
@@ -18,6 +19,7 @@ import type { Favicon } from "../../types/config";
 import {
 	currentLocalePath,
 	isEnglishSite,
+	isExtraLocale,
 	isTraditionalSite,
 	localizedPath,
 	SITE_LOCALE,
@@ -69,19 +71,20 @@ const isSayoriDiaryPath =
 	Astro.url.pathname === "/zh-hant/" ||
 	Astro.url.pathname === "/en/" ||
 	/^\/(?:(?:en|zh-hant)\/)?posts\/sayori-diary\//.test(Astro.url.pathname);
-const isPrivateAdminPage = /^\/(?:(?:en|zh-hant)\/)?admin\//.test(Astro.url.pathname);
+const isPrivateAdminPage = /^\/admin\//.test(stripLocalePrefix(Astro.url.pathname));
 const isIndexUtilityPage = /^\/(?:(?:en|zh-hant)\/)?(?:rss|atom)\/$/.test(
 	Astro.url.pathname,
 );
-const isArchivePagination = /^\/(?:(?:en|zh-hant)\/)?\d+\/$/.test(Astro.url.pathname);
-const ogLocale = isEnglishSite ? "en_US" : isTraditionalSite ? "zh_TW" : "zh_CN";
+const isArchivePagination = /^\/\d+\/$/.test(stripLocalePrefix(Astro.url.pathname));
+const localeTag = new Intl.Locale(SITE_LOCALE).maximize();
+const ogLocale = `${localeTag.language}_${localeTag.region}`;
 const imageAlt = ogImageAlt || `${title} - ${siteConfig.title}`;
 const publishedIso = toIsoDate(publishedTime);
 const modifiedIso = toIsoDate(modifiedTime);
 const rssUrl = new URL(url("rss.xml"), siteConfig.siteURL).href;
 const atomUrl = new URL(url("atom.xml"), siteConfig.siteURL).href;
-const sitemapUrl = new URL(url("sitemap.xml"), siteConfig.siteURL).href;
-const llmsUrl = new URL(url("llms.txt"), siteConfig.siteURL).href;
+const sitemapUrl = new URL(url(isExtraLocale ? "sitemap-0.xml" : "sitemap.xml"), siteConfig.siteURL).href;
+const llmsUrl = new URL(isExtraLocale ? "/llms.txt" : url("llms.txt"), siteConfig.siteURL).href;
 const siteUrl = new URL(
 	localizedPath("/", SITE_LOCALE),
 	siteConfig.siteURL,
@@ -124,25 +127,16 @@ const chineseUrl = new URL(
 	localizedPath(localePath, "zh-CN"),
 	siteConfig.siteURL,
 ).href;
-const traditionalUrl = new URL(
-	localizedPath(localePath, "zh-Hant"),
-	siteConfig.siteURL,
-).href;
-const englishUrl = new URL(localizedPath(localePath, "en"), siteConfig.siteURL)
-	.href;
 const hreflangEntries = alternateUrls
 	? Object.entries(alternateUrls).flatMap(([locale, href]) =>
-			["zh-Hans", "zh-Hant", "en"].includes(locale) &&
+			blogLocales.some(({ hreflang }) => hreflang === locale) &&
 			typeof href === "string" &&
 			href.length > 0
 				? [[locale, new URL(href, siteConfig.siteURL).href] as const]
 				: [],
 		)
-	: [
-			["zh-Hans", chineseUrl],
-			["zh-Hant", traditionalUrl],
-			["en", englishUrl],
-		] as const;
+	: (isSayoriDiarySite || !localizedReadingRoutes.includes(localePath) ? coreLocales : blogLocales)
+		.map(({ id, hreflang }) => [hreflang, new URL(localizedPath(localePath, id), siteConfig.siteURL).href] as const);
 const xDefaultUrl = alternateUrls
 	? new URL(
 			alternateUrls["zh-Hans"] ||
@@ -370,7 +364,7 @@ function toIsoDate(value?: Date | string) {
 	type="application/ld+json"
 	set:html={JSON.stringify(siteJsonLd)}
 />
-<script is:inline>
+<script is:inline define:vars={{ localePrefixSource: localePrefix.source }}>
 	(() => {
 		const normalize = (value) => {
 			const input = String(value || "").toLowerCase();
@@ -386,7 +380,7 @@ function toIsoDate(value?: Date | string) {
 			document.cookie = `sayori_locale=${encodeURIComponent(locale)}; Domain=.sayori.org; Path=/; Max-Age=31536000; SameSite=Lax; Secure`;
 			document.cookie = "sayori_locale_auto=; Domain=.sayori.org; Path=/; Max-Age=0; SameSite=Lax; Secure";
 		};
-		const strip = (path) => path.replace(/^\/(?:en|zh-hant)(?=\/|$)/, "") || "/";
+		const strip = (path) => path.replace(new RegExp(localePrefixSource), "") || "/";
 		const localized = (path, locale) => {
 			const base = strip(path);
 			if (locale === "en") return base === "/" ? "/en/" : `/en${base}`;
@@ -422,10 +416,6 @@ function toIsoDate(value?: Date | string) {
 		/>
 	))
 }
-
-<!-- Preconnect to analytics origins so the idle-deferred scripts warm faster -->
-<link rel="preconnect" href="https://www.googletagmanager.com" crossorigin />
-<link rel="dns-prefetch" href="https://stats.sayori.org" />
 
 <!-- 字体通过构建脚本压缩到 /assets/font/ 目录，此处不再预加载以避免 404 -->
 <!-- 字体在构建时通过 scripts/compress-fonts.js 处理并复制到 dist/ -->

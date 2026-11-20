@@ -2,26 +2,26 @@
 import { Icon } from "astro-icon/components";
 
 import { announcementConfig } from "../../../config";
-import I18nKey from "../../../i18n/i18nKey";
-import { i18n } from "../../../i18n/translation";
-import { isEnglishSite } from "../../../utils/site-locale";
+import { isExtraLocale } from "../../../utils/site-locale";
+import { readingCopy } from "../../../i18n/reading-editions";
+import { url } from "../../../utils/url-utils";
+import AnalyticsChoice from "../../control/AnalyticsChoice.astro";
 
 const config = announcementConfig;
-const announcementId = config.id || "default";
-const announcementTitle = config.title || i18n(I18nKey.announcement);
-const announcementContent = config.content;
+const announcementId = `${config.id || "default"}:reading-privacy-v1`;
+const announcementTitle = readingCopy.notice;
+const announcementContent = isExtraLocale ? "" : config.content;
 const announcementParagraphs = announcementContent
 	.split(/\n{2,}/)
 	.filter(Boolean);
-const updatedLabel = config.updated
-	? `${isEnglishSite ? "Updated " : "更新于 "}${config.updated}`
-	: "";
-const closeLabel = isEnglishSite ? "Close announcement" : "关闭公告";
-const confirmLabel = isEnglishSite ? "Got it" : "确认";
-const reminderLabel = isEnglishSite
-	? "You can reopen this notice from the announcement button."
-	: "這則公告可隨時從導覽列的公告按鈕查看。";
-const links = (config.links || []).filter((link) => link.enable !== false);
+const updatedLabel = "2026-11-20";
+const closeLabel = readingCopy.close;
+const confirmLabel = readingCopy.gotIt;
+const reminderLabel = readingCopy.changeChoice;
+const links = [
+	{ text: readingCopy.privacy, url: url("/privacy/"), external: false },
+	...(isExtraLocale ? [] : (config.links || []).filter((link) => link.enable !== false)),
+];
 ---
 
 <button
@@ -80,6 +80,9 @@ const links = (config.links || []).filter((link) => link.enable !== false);
 		</header>
 
 		<div id="announcement-modal-content" class="announcement-dialog-content">
+			<p>{readingCopy.privacySummary}</p>
+			<p>{readingCopy.translation}</p>
+			<AnalyticsChoice />
 			{
 				announcementParagraphs.map((paragraph) => (
 					<p>{paragraph}</p>
@@ -115,12 +118,12 @@ const links = (config.links || []).filter((link) => link.enable !== false);
 </div>
 
 <style is:inline>
-	#navbar .navbar-actions #announcement-entry {
-		width: 44px !important;
-		height: 44px !important;
-		min-width: 44px !important;
-		min-height: 44px !important;
-		flex: 0 0 44px !important;
+	#announcement-entry {
+		position: relative;
+		justify-content: center;
+		inline-size: 44px;
+		block-size: 44px;
+		flex: 0 0 44px;
 	}
 
 	.announcement-unread-dot {
@@ -269,7 +272,7 @@ const links = (config.links || []).filter((link) => link.enable !== false);
 	}
 </style>
 
-<script is:inline define:vars={{ announcementId, isEnglishSite }}>
+<script is:inline define:vars={{ announcementId }}>
 	(() => {
 		const STORAGE_KEY = "sayori-announcement-read-id";
 		const MODAL_ID = "announcement-modal";
@@ -317,18 +320,6 @@ const links = (config.links || []).filter((link) => link.enable !== false);
 		function updateUnreadState() {
 			const unread = !isRead();
 			document.getElementById(DOT_ID)?.toggleAttribute("hidden", !unread);
-			document
-				.getElementById(ENTRY_ID)
-				?.setAttribute(
-					"aria-label",
-					unread
-						? isEnglishSite
-							? "Announcement, new content"
-							: "公告，有新内容"
-						: isEnglishSite
-							? "Announcement"
-							: "公告",
-				);
 			document.dispatchEvent(
 				new CustomEvent(STATE_EVENT, {
 					detail: { id: announcementId, unread },
@@ -355,21 +346,23 @@ const links = (config.links || []).filter((link) => link.enable !== false);
 				writeStoredId(announcementId);
 			}
 			if (modal) {
+				const wasOpen = !modal.hidden;
 				modal.hidden = true;
 				modal.setAttribute("aria-hidden", "true");
+				if (wasOpen) document.getElementById(ENTRY_ID)?.focus();
 			}
 			updateUnreadState();
 		}
 
 		function bindAnnouncementControls() {
 			const entry = document.getElementById(ENTRY_ID);
-			if (entry?.dataset.bound !== "true") {
+			if (entry && entry.dataset.bound !== "true") {
 				entry.dataset.bound = "true";
 				entry.addEventListener("click", openAnnouncementModal);
 			}
 
 			const modal = ensureModalRoot();
-			if (modal?.dataset.bound !== "true") {
+			if (modal && modal.dataset.bound !== "true") {
 				modal.dataset.bound = "true";
 				modal.addEventListener("click", (event) => {
 					const target = event.target;
@@ -394,12 +387,13 @@ const links = (config.links || []).filter((link) => link.enable !== false);
 		}
 
 		document.addEventListener("keydown", (event) => {
-			if (event.key === "Escape" && !getModal()?.hidden) {
+			if (event.key === "Escape" && getModal()?.hidden === false) {
 				closeAnnouncementModal({ markRead: true });
 			}
 		});
 
 		document.addEventListener("mizuki:page:loaded", bindAnnouncementControls);
+		document.addEventListener("astro:page-load", bindAnnouncementControls);
 		document.addEventListener("DOMContentLoaded", maybeAutoOpen, { once: true });
 		if (document.readyState !== "loading") {
 			maybeAutoOpen();

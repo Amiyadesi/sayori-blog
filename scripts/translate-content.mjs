@@ -3,6 +3,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import * as OpenCC from "opencc-js";
+import { extraLocales, localizedFileSuffix } from "../src/utils/blog-locales.mjs";
 
 const blogRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const articlesRoot = path.resolve(
@@ -13,7 +14,9 @@ const gemini = process.platform === "win32"
 	? path.join(process.env.APPDATA || "", "npm", "node_modules", "@google", "gemini-cli", "bundle", "gemini.js")
 	: "gemini";
 const concurrency = Math.max(1, Number(process.env.TRANSLATE_CONCURRENCY || 2));
-const model = String(process.env.TRANSLATE_MODEL || "gemini-2.5-pro");
+const usePi = process.env.TRANSLATE_RUNNER === "pi";
+const model = String(process.env.TRANSLATE_MODEL || (usePi ? "gemini-4-argon" : "gemini-2.5-pro"));
+const pi = path.join(process.env.APPDATA || "", "npm", "node_modules", "@earendil-works", "pi-coding-agent", "dist", "bundle", "cli.js");
 const localEnv = loadDotEnv(
 	path.join(process.env.USERPROFILE || process.env.HOME || "", ".gemini", ".env"),
 );
@@ -29,16 +32,22 @@ const allowStructureDrift = process.env.TRANSLATE_ALLOW_STRUCTURE_DRIFT === "1";
 const force = process.env.TRANSLATE_FORCE === "1";
 const metadataOnly = process.env.TRANSLATE_METADATA_ONLY === "1";
 const traditional = OpenCC.Converter({ from: "cn", to: "tw" });
+const selected = String(process.env.TRANSLATE_LOCALE || "").toLowerCase();
+const extraLocale = extraLocales.find(({ base }) => base === selected);
+if (selected && !extraLocale) throw new Error(`Unknown TRANSLATE_LOCALE: ${selected}`);
+const targetLocale = extraLocale?.id || "en";
+const targetName = extraLocale?.name || "English";
 const matches = String(process.env.TRANSLATE_MATCH || "")
 	.split(",")
 	.map((value) => value.trim().replaceAll("\\", "/"))
 	.filter(Boolean);
 
-const roots = ["posts", "essays", "friends", "anime", "spec", "site"];
+const roots = extraLocale ? ["posts", "essays"] : ["posts", "essays", "friends", "anime", "spec", "site"];
 const allFiles = roots
 	.flatMap((root) => [...walk(path.join(articlesRoot, root))])
 	.filter((file) => /\.(md|mdx)$/i.test(file))
-	.filter((file) => !/\.(?:en|zh-hant)\.(md|mdx)$/i.test(file))
+	.filter((file) => !localizedFileSuffix.test(file))
+	.filter((file) => !extraLocale || !relative(file).startsWith("posts/sayori-diary/"))
 	.filter((file) => includeReadmes || !/(^|[\\/])(README|templates)([\\/]|\.)/i.test(file))
 	.filter((file) => !matches.length || matches.some((match) => relative(file).includes(match)));
 const limit = Number(process.env.TRANSLATE_LIMIT || 0);
@@ -54,8 +63,10 @@ async function worker() {
 		const index = nextIndex++;
 		if (index >= files.length) return;
 		const sourcePath = files[index];
-		const targetPath = sourcePath.replace(/\.(md|mdx)$/i, ".en.$1");
+		const targetPath = sourcePath.replace(/\.(md|mdx)$/i, `.${extraLocale?.base || "en"}.$1`);
 		const source = fs.readFileSync(sourcePath, "utf8");
+		if (extraLocale && /^(?:draft|private|unlisted|encrypted):\s*true\b/im.test(getFrontmatter(source)?.raw || "")) continue;
+		if (!extraLocale) {
 		const protectedSource = protectSource(source);
 		let traditionalText = restoreProtected(traditional(protectedSource.text), protectedSource.values);
 		const frontmatter = getFrontmatter(traditionalText);
@@ -66,9 +77,11 @@ async function worker() {
 		}
 		const traditionalPath = sourcePath.replace(/\.(md|mdx)$/i, ".zh-hant.$1");
 		if (!metadataOnly || fs.existsSync(traditionalPath)) fs.writeFileSync(traditionalPath, traditionalText);
+		}
 		if (!force && fs.existsSync(targetPath)) {
+			if (extraLocale && !metadataOnly) continue;
 			const existing = fs.readFileSync(targetPath, "utf8");
-			const normalized = normalizeEnglishMetadata(source, existing, relative(sourcePath));
+			const normalized = normalizeTranslationMetadata(source, existing, relative(sourcePath));
 			if (existing !== normalized) fs.writeFileSync(targetPath, normalized);
 			console.log(`[translate-content] skip existing ${relative(targetPath)}`);
 			continue;
@@ -77,7 +90,7 @@ async function worker() {
 
 		try {
 			const translated = await translate(source, relative(sourcePath));
-			const normalized = normalizeEnglishMetadata(source, translated, relative(sourcePath));
+			const normalized = normalizeTranslationMetadata(source, translated, relative(sourcePath));
 			try {
 				validateTranslation(source, normalized, sourcePath);
 			} catch (error) {
@@ -112,6 +125,7 @@ async function translate(source, sourceName) {
 }
 
 async function translateWhole(source, sourceName) {
+	if (usePi) return translateViaCli(source, sourceName);
 	if (apiKey && apiEndpoint) {
 		return translateViaApi(source, sourceName);
 	}
@@ -261,10 +275,11 @@ function translateViaCli(source, sourceName) {
 	const protectedSource = protectSource(source);
 	const prompt = buildPrompt(protectedSource.text, sourceName);
 	return new Promise((resolve, reject) => {
-		const command = process.platform === "win32" ? process.execPath : gemini;
-		const args = process.platform === "win32"
-			? [gemini, "-m", model, "-p", prompt, "--output-format", "text"]
-			: ["-m", model, "-p", prompt, "--output-format", "text"];
+		const windows = process.platform === "win32";
+		const command = windows ? process.execPath : usePi ? "pi" : gemini;
+		const args = usePi
+			? [...(windows ? [pi] : []), "--provider", "vertex", "--model", model, "--no-tools", "--no-session", "--thinking", "off", "-p", prompt]
+			: [...(windows ? [gemini] : []), "-m", model, "-p", prompt, "--output-format", "text"];
 		const child = spawn(command, args, {
 			cwd: blogRoot,
 			windowsHide: true,
@@ -302,9 +317,9 @@ Source file: ${sourceName}
 Return only the complete translated Markdown. Do not add a commentary, a summary, or Markdown fences around the result.
 
 Translation rules:
-- Translate human-facing Chinese prose into natural, idiomatic English while keeping the author's candid, compact, slightly self-mocking personal voice. Do not turn it into marketing copy or formal documentation.
+- Translate human-facing Chinese prose into natural, idiomatic ${targetName} (${targetLocale}) while keeping the author's candid, compact, slightly self-mocking personal voice. Do not turn it into marketing copy or formal documentation.
 - Translate frontmatter title, description, category, tags, alt text, captions, and other human text. Keep dates, booleans, numbers, IDs, model names, product names, usernames, domains, URLs, file paths, image paths, and code identifiers unchanged.
-- Preserve the frontmatter keys and ordering as much as possible. Add 'lang: en' and 'translationKey: ${sourceName.replace(/\.(md|mdx)$/i, "")}' if they are absent. Keep draft/published state exactly as the source.
+- Preserve the frontmatter keys and ordering as much as possible. Add 'lang: ${targetLocale}' and 'translationKey: ${sourceName.replace(/\.(md|mdx)$/i, "")}' if they are absent. Keep draft/published state exactly as the source.
 - If the source has no frontmatter, do not invent, add, or wrap the result in frontmatter.
 - Preserve every code fence, code block, inline-code span, Markdown heading, list, table, image, link destination, Obsidian embed, wiki-link target, directive name, and HTML attribute. Translate visible link text and wiki-link aliases only.
 - For every source heading line beginning with one to six ASCII '#', emit exactly one heading at the same level. Never turn a heading into a paragraph, and never add a new heading.
@@ -318,7 +333,7 @@ ${source}
 ---END SOURCE---`;
 }
 
-function normalizeEnglishMetadata(source, translated, sourceName) {
+function normalizeTranslationMetadata(source, translated, sourceName) {
 	const sourceFrontmatter = getFrontmatter(source);
 	const targetFrontmatter = getFrontmatter(translated);
 	if (!sourceFrontmatter) {
@@ -329,13 +344,18 @@ function normalizeEnglishMetadata(source, translated, sourceName) {
 	const lines = targetFrontmatter.raw.split(/\r?\n/);
 	const sourceLines = sourceFrontmatter.raw.split(/\r?\n/);
 	const setLine = (key, value) => {
-		const index = lines.findIndex((line) => new RegExp(`^${key}:`).test(line));
+		const field = new RegExp(`^${key}:`);
+		const index = lines.findIndex((line) => field.test(line));
 		const next = `${key}: ${value}`;
-		if (index >= 0) lines[index] = next;
+		if (index >= 0) {
+			lines[index] = next;
+			for (let i = lines.length - 1; i > index; i--) if (field.test(lines[i])) lines.splice(i, 1);
+		}
 		else lines.push(next);
 	};
-	setLine("lang", "en");
-	setLine("translationKey", sourceName.replace(/\.(md|mdx)$/i, ""));
+	setLine("lang", targetLocale);
+	const originalKey = sourceLines.find((line) => /^translationKey:\s*\S/.test(line));
+	setLine("translationKey", originalKey ? originalKey.slice(15).trim() : JSON.stringify(sourceName.replace(/\.(md|mdx)$/i, "")));
 	for (const key of ["draft", "private", "unlisted", "published", "created", "updated", "lastEdited", "majorUpdated", "updateCount", "encrypted", "image", "alias", "permalink"]) {
 		const original = sourceLines.find((line) => new RegExp(`^${key}:`).test(line));
 		if (original) setLine(key, original.slice(key.length + 1).trim());
@@ -430,8 +450,8 @@ function validateTranslation(source, translated, sourcePath) {
 		for (const key of sourceFrontmatter.keys) {
 			if (!targetFrontmatter.keys.has(key)) throw new Error(`frontmatter key lost: ${key}`);
 		}
-		if (!/^lang:\s*en\s*$/mi.test(targetFrontmatter.raw)) {
-			throw new Error("missing lang: en");
+		if (!targetFrontmatter.raw.split(/\r?\n/).includes(`lang: ${targetLocale}`)) {
+			throw new Error(`missing lang: ${targetLocale}`);
 		}
 	} else if (targetFrontmatter) {
 		throw new Error("frontmatter was added to a plain Markdown source");
@@ -458,9 +478,6 @@ function validateTranslation(source, translated, sourcePath) {
 	const blockIds = (text) => [...text.matchAll(/(?:^[ \t]*|[ \t]+)\^([A-Za-z0-9_-]+)[ \t]*(?=\r?$)/gm)].map((match) => match[1]);
 	if (JSON.stringify(blockIds(sourceBody)) !== JSON.stringify(blockIds(targetBody))) {
 		throw new Error("Obsidian block IDs changed");
-	}
-	if (sourcePath.toLowerCase().includes("\\site\\") && sourceFrontmatter && !targetFrontmatter.raw.includes("lang: en")) {
-		throw new Error("site translation missing language");
 	}
 }
 

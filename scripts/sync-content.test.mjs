@@ -26,6 +26,7 @@ try {
 	fs.cpSync(scriptPath, path.join(fixtureBlog, "scripts", "sync-content.js"));
 	fs.cpSync(path.join(path.dirname(scriptPath), "load-env.js"), path.join(fixtureBlog, "scripts", "load-env.js"));
 	write(path.join(fixtureBlog, "package.json"), '{"type":"module"}\n');
+	write(path.join(fixtureBlog, "src", "utils", "blog-locales.mjs"), fs.readFileSync(new URL("../src/utils/blog-locales.mjs", import.meta.url)));
 	for (const status of ["watching", "completed", "planned"]) {
 		fs.mkdirSync(path.join(fixtureArticles, "anime", status), { recursive: true });
 	}
@@ -655,6 +656,14 @@ try {
 		const decimalTarget = read(path.join(fixtureBlog, "src", "content", "posts", "from-90-to-66.7", "index.md"));
 		assert.ok(decimalTarget.includes("(/images/posts/from-90-to-66-7/decimal.png)"));
 	}
+	write(path.join(fixtureArticles, "posts", "hello", "hello.ja.md"), "---\ntitle: こんにちは\nlang: ja\ntranslationKey: posts/hello/hello\n---\n翻訳された本文。\n");
+	const ja = spawnSync(process.execPath, [path.join(fixtureBlog, "scripts", "sync-content.js")], {
+		cwd: fixtureRoot, encoding: "utf8",
+		env: { ...isolatedEnv, CONTENT_DIR: fixtureArticles, SITE_LANG: "ja", SITE_BASE: "/ja/" },
+	});
+	assert.equal(ja.status, 0, ja.stderr || ja.stdout);
+	assert.match(read(path.join(fixtureBlog, "src/content/posts/hello/index.md")), /翻訳された本文/);
+	assert.equal(fs.existsSync(path.join(fixtureBlog, "src/content/posts/from-90-to-66.7/index.md")), false);
 } finally {
 	fs.rmSync(tmpRoot, { recursive: true, force: true });
 }

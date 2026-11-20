@@ -22,6 +22,7 @@ import {
 import { resolveLocalImage } from "@utils/local-image";
 import { getPostPublicDescription } from "@utils/post-card-content";
 import { getPostTranslationEntries } from "@utils/post-translations";
+import { readingCopy } from "../../i18n/reading-editions";
 import { buildPostPaths } from "@utils/post-url";
 import {
 	getFileDirFromPath,
@@ -37,12 +38,12 @@ import Image from "../../components/atoms/Image/Image.astro";
 import Encryptor from "../../components/features/auth/Encryptor.astro";
 import { profileConfig, siteConfig } from "../../config";
 import { formatDateToYYYYMMDD } from "../../utils/date-utils";
+import { blogLocales } from "../../utils/blog-locales.mjs";
 import {
 	currentLocalePath,
 	localizedPath,
-	type HreflangLocale,
+	SITE_LOCALE,
 	type HreflangMap,
-	type SiteLocale,
 } from "../../utils/site-locale";
 
 interface Props {
@@ -66,11 +67,7 @@ export async function getStaticPaths() {
 		post.data.encrypted !== true &&
 		!post.id.startsWith("sayori-diary/"),
 	);
-	const hreflangByLocale: Record<SiteLocale, HreflangLocale> = {
-		"zh-CN": "zh-Hans",
-		"zh-Hant": "zh-Hant",
-		en: "en",
-	};
+	const hreflangByLocale = new Map(blogLocales.map(({ id, hreflang }) => [id, hreflang]));
 
 	return paths.map((path) => {
 		const variants = getPostTranslationEntries(
@@ -79,7 +76,7 @@ export async function getStaticPaths() {
 		);
 		const alternateUrls = Object.fromEntries(
 			[...variants.entries()].map(([locale, variant]) => [
-				hreflangByLocale[locale],
+				hreflangByLocale.get(locale),
 				localizedPath(getPostUrl(variant), locale),
 			]),
 		);
@@ -188,6 +185,7 @@ const blogId = `${siteUrl}#blog`;
 const interactionPath = currentLocalePath(Astro.url.pathname);
 const commentPath = `/posts/${removeFileExtension(entry.id)}`;
 const isSayoriDiarySite = process.env.SITE_VARIANT === "sayori-diary";
+const translatedPost = SITE_LOCALE === "zh-Hant" || (SITE_LOCALE !== "zh-CN" && !!entry.data.lang && !/^zh[-_](?:CN|Hans)$/i.test(entry.data.lang));
 const jsonLdImage = new URL(
 	ogCoverUrl ||
 		(isSayoriDiarySite
@@ -299,7 +297,7 @@ const jsonLd = {
 						/>
 					</div>
 				</div>
-				<LanguageSwitch />
+				<LanguageSwitch article />
 			</div>
 
 			<h1 id="post-title" data-pagefind-body data-pagefind-weight="10" data-pagefind-meta="title" class="mb-5">{entry.data.title}</h1>
@@ -334,6 +332,11 @@ const jsonLd = {
 					)
 				}
 			</div>
+
+			{translatedPost && !isEncrypted && <aside class="mb-5 rounded-lg border border-[var(--line-divider)] p-3 text-sm text-[var(--text-70)]" data-translation-notice>
+				<p>{readingCopy.translation}</p>
+				<a class="link text-[var(--primary)]" href={localizedPath(getPostUrl(entry), "zh-CN")} hreflang="zh-Hans">{readingCopy.original}</a>
+			</aside>}
 
 			<!-- always show cover as long as it has one -->
 

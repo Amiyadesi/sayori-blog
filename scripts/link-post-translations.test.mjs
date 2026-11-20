@@ -14,7 +14,7 @@ function fixture(t, pages) {
 		fs.mkdirSync(path.dirname(file), { recursive: true });
 		fs.writeFileSync(file, `<!doctype html><html><head><link rel="canonical" href="https://blog.sayori.org${page.route}"><meta name="robots" content="${page.noindex ? "noindex" : "index"}"><link rel="alternate" hreflang="en" href="https://blog.sayori.org/old/"><link rel="alternate" type="application/rss+xml" href="/rss.xml"><script>const value = "<b>&";</script><!-- keep --></head><body><article id="post-container" data-translation-key="${page.key}"><pre>  keep\n spacing &amp; entities</pre></article></body></html>`);
 	}
-	for (const base of ["", "zh-hant", "en"]) {
+	for (const base of new Set(["", "zh-hant", "en", ...pages.map((page) => page.base)])) {
 		fs.mkdirSync(path.join(dist, base), { recursive: true });
 		const submitted = pages.filter((page) => page.base === base && !page.excluded);
 		fs.writeFileSync(path.join(dist, base, "sitemap-0.xml"), `<urlset>${submitted.map((page) => `<url><loc>https://blog.sayori.org${page.route}</loc></url>`).join("")}</urlset>`);
@@ -81,4 +81,20 @@ test("duplicate locale keys and private sitemap entries fail the build", (t) => 
 	assert.throws(() => linkPostTranslations(duplicate), /Duplicate zh-Hans translation/);
 	const privatePage = fixture(t, [{ base: "", route: "/posts/private/", key: "private", noindex: true }]);
 	assert.throws(() => linkPostTranslations(privatePage), /Nonindexable translation/);
+});
+
+test("article switches link only published versions and use the actual locale alias", (t) => {
+	const pages = [
+		{ base: "", route: "/posts/article/", key: "shared" },
+		{ base: "ja", route: "/ja/posts/yomimono/", key: "shared" },
+	];
+	const dist = fixture(t, pages);
+	const file = path.join(dist, pages[0].route, "index.html");
+	const select = `<select data-language-switch data-article-switch="true"><option data-hreflang="ja" value="/ja/wrong/">日本語</option><option data-hreflang="fr" value="/fr/missing/">Français</option></select>`;
+	fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace("</body>", `${select}</body>`));
+	linkPostTranslations(dist);
+	const output = parse(fs.readFileSync(file, "utf8"));
+	assert.equal(output.querySelector("option[data-hreflang=ja]").getAttribute("value"), pages[1].route);
+	assert.equal(output.querySelector("option[data-hreflang=fr]"), null);
+	assert.equal(alternates(dist, pages[0].route).ja, `https://blog.sayori.org${pages[1].route}`);
 });
