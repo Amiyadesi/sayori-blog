@@ -7,5 +7,10 @@ export async function onRequest(context) {
   url.hash = '';
   return new Response(null, {status:302,headers:{Location:url.href,'Cache-Control':'no-store'}});
  }
- return context.next();
+ const response = await context.next();
+ if (!response.headers.get('Content-Type')?.startsWith('text/html')) return response;
+ // Keep domain-level Cloudflare HTML transforms from injecting a tracker before consent.
+ const html = new Response(response.body, response);
+ html.headers.append('Cache-Control', 'no-transform');
+ return html;
 }

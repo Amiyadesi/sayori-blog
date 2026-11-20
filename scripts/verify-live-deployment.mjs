@@ -1,5 +1,7 @@
 import path from "node:path";
 import process from "node:process";
+import { get } from "node:https";
+import { text } from "node:stream/consumers";
 import { fileURLToPath } from "node:url";
 
 const DEFAULT_ATTEMPTS = 12;
@@ -9,7 +11,7 @@ export async function verifyBlogDeployment(
 	baseUrl,
 	expected,
 	{
-		fetchImpl = fetch,
+		fetchImpl = liveFetch,
 		attempts = DEFAULT_ATTEMPTS,
 		delayMs = DEFAULT_DELAY_MS,
 	} = {},
@@ -27,6 +29,20 @@ export async function verifyBlogDeployment(
 	throw lastError;
 }
 
+function liveFetch(url, init) {
+	if (url.pathname !== "/") return fetch(url, init);
+	// Cloudflare can suppress beacon injection for fetch/XHR even when navigation still loads it.
+	return new Promise((resolve, reject) => {
+		get(url, { signal: AbortSignal.timeout(15_000) }, async (response) => {
+			try {
+				resolve(new Response(await text(response), { status: response.statusCode }));
+			} catch (error) {
+				reject(error);
+			}
+		}).on("error", reject);
+	});
+}
+
 async function verifyOnce(baseUrl, expected, fetchImpl) {
 	const root = new URL(baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`);
 	const manifestResponse = await requireOk(fetchImpl, new URL("deployment.json", root));
@@ -39,7 +55,7 @@ async function verifyOnce(baseUrl, expected, fetchImpl) {
 
 	const home = await requireOk(fetchImpl, root);
 	if ((await home.text()).includes("static.cloudflareinsights.com/beacon.min.js")) {
-		throw new Error("Disable automatic Web Analytics on the sayori-blog Pages project; it bypasses consent");
+		throw new Error("Disable automatic Web Analytics for blog.sayori.org; it bypasses consent");
 	}
 
 	const pagefind = await requireOk(fetchImpl, new URL("pagefind/pagefind.js", root));
