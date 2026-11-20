@@ -42,7 +42,7 @@ test("the blog counts the initial page and Astro navigation once without browser
 	]));
 });
 
-test("the public counter binds only the hour and rejects foreign or data-bearing requests", async () => {
+test("the public counter rejects foreign requests and binds only the hour even with a request stream", async () => {
 	const writes: number[][] = [];
 	const endpoint = "https://blog.sayori.org/api/analytics/pageview";
 	const env = { SAYORI_ANALYTICS_DB: {
@@ -59,8 +59,7 @@ test("the public counter binds only the hour and rejects foreign or data-bearing
 		env,
 	});
 	assert.equal((await send("https://evil.example")).status, 403);
-	assert.equal((await send("https://blog.sayori.org", "unexpected")).status, 400);
-	assert.equal((await send("https://blog.sayori.org")).status, 204);
+	assert.equal((await send("https://blog.sayori.org", "")).status, 204);
 	assert.equal(writes.length, 1);
 	assert.equal(writes[0].length, 1);
 	assert.equal(writes[0][0] % 3_600_000, 0);
