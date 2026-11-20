@@ -353,7 +353,11 @@ function shouldSyncLocalizedFile(_filePath, filename, parentDir) {
 function transformMarkdown(content, sourcePath, slug) {
 	const { frontmatter, body } = splitFrontmatter(content);
 	const transformed = transformMarkdownBody(body, sourcePath, slug);
-	return `${frontmatter}${transformed}`;
+	const metadata = frontmatter.replace(/^image:[ \t]*([^\r\n]+)$/m, (line, value) => {
+		const cover = resolveBlogMediaAsset(parseFrontmatterValue(value.trim()));
+		return cover ? "image: " + JSON.stringify(cover.primaryUrl) : line;
+	});
+	return `${metadata}${transformed}`;
 }
 
 function transformMarkdownBody(content, sourcePath, slug) {

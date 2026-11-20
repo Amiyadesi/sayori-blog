@@ -130,6 +130,7 @@ try {
 	write(path.join(fixtureArticles, "posts", "space-images", "space-images.md"), [
 		"---",
 		"title: Space Images",
+		'image: "/images/posts/space-images/Pasted%20image%2020260601203747.png"',
 		"published: 2026-05-29",
 		"description: Test",
 		"tags: [test]",
@@ -525,6 +526,8 @@ try {
 	const mediaHash = "a".repeat(64);
 	const secondMediaHash = "b".repeat(64);
 	const sharedMediaHash = "c".repeat(64);
+	assert.ok(read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md"))
+		.includes('image: "/images/posts/space-images/Pasted%20image%2020260601203747.png"'));
 	const mediaManifestPath = path.join(fixtureBlog, ".cache", "blog-media", "manifest.json");
 	write(
 		mediaManifestPath,
@@ -617,6 +620,7 @@ try {
 		false,
 	);
 	const remoteMarkdown = read(path.join(fixtureBlog, "src", "content", "posts", "space-images", "index.md"));
+	assert.ok(remoteMarkdown.includes('image: "https://img.sayori.org/blog/v1/' + mediaHash + '/1280.webp"'));
 	assert.match(
 		remoteMarkdown,
 		new RegExp(`!\\[Pasted image 20260601203747\\.png\\]\\(https://img\\.sayori\\.org/blog/v1/${mediaHash}/1280\\.webp\\)`),
