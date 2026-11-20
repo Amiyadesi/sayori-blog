@@ -9,7 +9,7 @@ export async function onRequest(context) {
  }
  const response = await context.next();
  if (!response.headers.get('Content-Type')?.startsWith('text/html')) return response;
- // Keep domain-level Cloudflare HTML transforms from injecting a tracker before consent.
+ // Keep domain-level Cloudflare HTML transforms from injecting a second tracker.
  const html = new Response(response.body, response);
  html.headers.append('Cache-Control', 'no-transform');
  return html;

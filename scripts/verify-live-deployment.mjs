@@ -54,8 +54,12 @@ async function verifyOnce(baseUrl, expected, fetchImpl) {
 	}
 
 	const home = await requireOk(fetchImpl, root);
-	if ((await home.text()).includes("static.cloudflareinsights.com/beacon.min.js")) {
-		throw new Error("Disable automatic Web Analytics for blog.sayori.org; it bypasses consent");
+	const html = await home.text();
+	if (/static\.cloudflareinsights\.com\/beacon|googletagmanager\.com|stats\.sayori\.org\/script\.js/.test(html)) {
+		throw new Error("Disable automatic Web Analytics and other third-party analytics scripts on blog.sayori.org");
+	}
+	if (!html.includes('name="sayori-pageview"') || html.includes("data-analytics-choice")) {
+		throw new Error("Blog must render the default page-view counter without an analytics switch");
 	}
 
 	const pagefind = await requireOk(fetchImpl, new URL("pagefind/pagefind.js", root));
@@ -110,5 +114,5 @@ if (isMain) {
 		builtAt: required("DEPLOYMENT_BUILT_AT"),
 		workflowRun: required("DEPLOYMENT_WORKFLOW_RUN"),
 	});
-	console.log("[deployment-smoke] Blog manifest, analytics consent, Pagefind, RSS, D1, and CORS passed");
+	console.log("[deployment-smoke] Blog manifest, page-view counter, Pagefind, RSS, D1, and CORS passed");
 }

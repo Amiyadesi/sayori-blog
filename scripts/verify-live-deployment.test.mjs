@@ -9,6 +9,7 @@ const expected = {
 	builtAt: "2026-07-16T04:05:06.000Z",
 	workflowRun: "https://github.com/Amiyadesi/sayori-blog/actions/runs/123",
 };
+const homepage = '<html><meta name="sayori-pageview" content="/api/analytics/pageview"></html>';
 
 test("verifies all public deployment surfaces", async () => {
 	const requested = [];
@@ -21,7 +22,7 @@ test("verifies all public deployment surfaces", async () => {
 				case "/deployment.json":
 					return Response.json(expected);
 				case "/":
-					return new Response("<html></html>");
+					return new Response(homepage);
 				case "/pagefind/pagefind.js":
 					return new Response("x".repeat(101));
 				case "/rss.xml":
@@ -59,7 +60,7 @@ test("retries while the custom domain still serves an older manifest", async () 
 					codeSha: manifestRequests === 1 ? "stale" : expected.codeSha,
 				});
 			}
-			if (url.pathname === "/") return new Response("<html></html>");
+			if (url.pathname === "/") return new Response(homepage);
 			if (url.pathname === "/pagefind/pagefind.js") return new Response("x".repeat(101));
 			if (url.pathname === "/rss.xml") return new Response("<rss></rss>");
 			return Response.json(

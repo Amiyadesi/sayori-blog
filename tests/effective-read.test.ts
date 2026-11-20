@@ -72,17 +72,11 @@ describe("effective read qualification", () => {
 		);
 	});
 
-	it("wires tracking into both post routes and the analytics layout", () => {
+	it("marks public content on both post routes", () => {
 		const slugPage = read("src/pages/posts/[...slug].astro");
 		const permalinkPage = read("src/pages/[...permalink].astro");
-		const analytics = read("src/layouts/partials/AnalyticsScripts.astro");
-		const tracker = read("src/scripts/effective-read-tracker.ts");
 
 		assert.match(slugPage, /data-effective-read/);
 		assert.match(permalinkPage, /data-effective-read/);
-		assert.match(analytics, /startEffectiveReadTracking/);
-		assert.match(tracker, /visibilitychange/);
-		assert.match(tracker, /astro:page-load/);
-		assert.match(tracker, /effective_read/);
 	});
 });

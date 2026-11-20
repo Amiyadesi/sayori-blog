@@ -503,66 +503,9 @@ function requireAnyHref(name, html, expectedPath) {
 }
 
 function verifyAnalyticsScripts(html) {
-	requireIncludes("index.html", html, ["/api/analytics/event"]);
-
-	const root = parse(html);
-	const googleAnalyticsScripts = root
-		.querySelectorAll("script")
-		.filter((script) => {
-			const body = script.innerHTML;
-			return (
-				body.includes("googleAnalyticsEnable") ||
-				body.includes("googleAnalyticsId")
-			);
-		});
-
-	for (const script of googleAnalyticsScripts) {
-		const body = script.innerHTML;
-		const hasEnableBinding =
-			!body.includes("googleAnalyticsEnable") ||
-			/\b(?:const|let|var)\s+googleAnalyticsEnable\b/.test(body);
-		const hasIdBinding =
-			!body.includes("googleAnalyticsId") ||
-			/\b(?:const|let|var)\s+googleAnalyticsId\b/.test(body);
-		if (hasEnableBinding && hasIdBinding) {
-			pass(
-				"index.html analytics script has local Google Analytics bindings",
-			);
-		} else {
-			fail(
-				"index.html analytics script references an undefined Google Analytics binding",
-			);
-		}
-	}
-
-	const umamiScripts = root.querySelectorAll("script").filter((script) => {
-		const src = script.getAttribute("src") || "";
-		return (
-			src.includes("stats.sayori.org") ||
-			script.hasAttribute("data-website-id")
-		);
-	});
-
-	if (umamiScripts.length === 0) {
-		pass(
-			"index.html has no Umami script until a real websiteId is configured",
-		);
-		return;
-	}
-
-	for (const script of umamiScripts) {
-		const websiteId = script.getAttribute("data-website-id") || "";
-		if (
-			/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-				websiteId,
-			)
-		) {
-			pass("index.html Umami script has a valid websiteId");
-		} else {
-			fail(
-				"index.html Umami script is present without a valid websiteId",
-			);
-		}
+	requireIncludes("index.html", html, ['name="sayori-pageview"', "/api/analytics/pageview"]);
+	if (/googletagmanager\.com|stats\.sayori\.org\/script\.js|static\.cloudflareinsights\.com\/beacon/.test(html)) {
+		fail("index.html loads a third-party analytics script");
 	}
 }
 
@@ -1669,7 +1612,7 @@ for (const { base, hreflang } of extraLocales) {
 	for (const route of ["admin", "api", "project-34", "p34-record", "notes", "posts/sayori-diary"]) {
 		if (fs.existsSync(path.join(distDir, base, route))) fail(`Unexpected cloned /${base}/${route}`);
 	}
-	if (!readDistFile(`${base}/privacy/index.html`).includes("data-analytics-choice")) fail(`Missing consent controls in ${hreflang}`);
+	if (readDistFile(`${base}/privacy/index.html`).includes("data-analytics-choice")) fail(`Unexpected analytics switch in ${hreflang}`);
 }
 const rss = files.get("rss.xml") || "";
 requireIncludes("rss.xml", rss, [

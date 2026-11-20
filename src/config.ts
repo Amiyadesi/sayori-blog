@@ -307,18 +307,6 @@ const baseSiteConfig: SiteConfig = {
 		duration: 6000, // 动画时长 6s
 	},
 
-	thirdPartyAnalytics: {
-		enable: !IS_SAYORI_DIARY, // 是否启用第三方统计脚本
-		clarityId: "", // Clarity 项目 ID
-		googleAnalyticsId: "G-JCZEYGZX7Z",
-		umami: {
-			enable: !IS_SAYORI_DIARY,
-			src: "https://stats.sayori.org/script.js",
-			websiteId: "75b35688-bffd-47f1-ad79-a1bf92269977",
-			hostUrl: "https://stats.sayori.org",
-			domains: "blog.sayori.org",
-		},
-	},
 };
 
 export const siteConfig: SiteConfig = {
@@ -797,5 +785,3 @@ export const widgetConfigs = {
 	relatedPosts: relatedPostsConfig,
 	randomPosts: randomPostsConfig,
 } as const;
-
-// Umami tracker is rendered from AnalyticsScripts.astro when a real websiteId is configured.

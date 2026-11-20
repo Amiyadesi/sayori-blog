@@ -5,10 +5,9 @@ import { announcementConfig } from "../../../config";
 import { isExtraLocale } from "../../../utils/site-locale";
 import { readingCopy } from "../../../i18n/reading-editions";
 import { url } from "../../../utils/url-utils";
-import AnalyticsChoice from "../../control/AnalyticsChoice.astro";
 
 const config = announcementConfig;
-const announcementId = `${config.id || "default"}:reading-privacy-v1`;
+const announcementId = `${config.id || "default"}:reading-privacy-v2`;
 const announcementTitle = readingCopy.notice;
 const announcementContent = isExtraLocale ? "" : config.content;
 const announcementParagraphs = announcementContent
@@ -17,7 +16,6 @@ const announcementParagraphs = announcementContent
 const updatedLabel = "2026-11-20";
 const closeLabel = readingCopy.close;
 const confirmLabel = readingCopy.gotIt;
-const reminderLabel = readingCopy.changeChoice;
 const links = [
 	{ text: readingCopy.privacy, url: url("/privacy/"), external: false },
 	...(isExtraLocale ? [] : (config.links || []).filter((link) => link.enable !== false)),
@@ -82,7 +80,6 @@ const links = [
 		<div id="announcement-modal-content" class="announcement-dialog-content">
 			<p>{readingCopy.privacySummary}</p>
 			<p>{readingCopy.translation}</p>
-			<AnalyticsChoice />
 			{
 				announcementParagraphs.map((paragraph) => (
 					<p>{paragraph}</p>
@@ -112,7 +109,6 @@ const links = [
 			>
 				{confirmLabel}
 			</button>
-			<p>{reminderLabel}</p>
 		</footer>
 	</section>
 </div>
@@ -227,14 +223,6 @@ const links = [
 		}
 	}
 
-	.announcement-dialog-footer p {
-		flex-basis: 100%;
-		margin: 0;
-		font-size: 0.8rem;
-		line-height: 1.6;
-		color: rgba(0, 0, 0, 0.48);
-	}
-
 	.dark .announcement-unread-dot {
 		box-shadow: 0 0 0 2px var(--float-panel-bg);
 	}
@@ -248,8 +236,7 @@ const links = [
 		border-bottom-color: rgba(255, 255, 255, 0.08);
 	}
 
-	.dark .announcement-dialog-header p,
-	.dark .announcement-dialog-footer p {
+	.dark .announcement-dialog-header p {
 		color: rgba(255, 255, 255, 0.52);
 	}
 

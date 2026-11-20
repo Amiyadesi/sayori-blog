@@ -1,24 +1,69 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import path from "node:path";
 import test from "node:test";
+import { runInNewContext } from "node:vm";
 import { onRequest } from "../functions/_middleware.js";
+import { onRequestPost } from "../functions/api/analytics/pageview.js";
 
 const source = fs.readFileSync(
-	path.join(process.cwd(), "src/layouts/partials/AnalyticsScripts.astro"),
+	"src/layouts/partials/AnalyticsScripts.astro",
 	"utf8",
 );
 
-test("analytics heartbeat is bounded and initialized once", () => {
-	assert.match(source, /const heartbeatMs = 60000;/);
-	assert.match(source, /dataset\.sayoriAnalyticsTracker/);
+test("the blog counts the initial page and Astro navigation once without browser identifiers", () => {
+	const fetches: [string, RequestInit][] = [];
+	const location = { hostname: "blog.sayori.org", pathname: "/" };
+	let enabled = true;
+	let pageLoad = () => {};
+	runInNewContext(
+		source.split("<script>")[1].split("</script>")[0]
+			.replace(": string | undefined", "").replace("<HTMLMetaElement>", ""),
+		{
+			location,
+			document: {
+				querySelector: () => enabled ? { content: "/api/analytics/pageview" } : null,
+				addEventListener: (name: string, handler: () => void) => {
+					assert.equal(name, "astro:page-load");
+					pageLoad = handler;
+				},
+			},
+			fetch: async (url: string, options: RequestInit) => { fetches.push([url, { ...options }]); },
+		},
+	);
+	pageLoad();
+	location.pathname = "/fr/";
+	pageLoad();
+	enabled = false;
+	location.pathname = "/admin/";
+	pageLoad();
+	assert.deepEqual(fetches, Array.from({ length: 2 }, () => [
+		"/api/analytics/pageview",
+		{ method: "POST", keepalive: true, credentials: "omit", referrerPolicy: "no-referrer" },
+	]));
 });
 
-test("both trackers require an explicitly allowed analytics preference", () => {
-	assert.match(source, /if \(localStorage\.getItem\(analyticsPreferenceKey\) === "allow"\) loadAnalytics\(\)/);
-	assert.match(source, /if \(localStorage\.getItem\(analyticsPreferenceKey\) === "allow"\) startCollector\(\)/);
-	assert.equal((source.match(/if \(event\.detail === true\)/g) || []).length, 2);
-	assert.doesNotMatch(source, /onInteraction|10000/);
+test("the public counter binds only the hour and rejects foreign or data-bearing requests", async () => {
+	const writes: number[][] = [];
+	const endpoint = "https://blog.sayori.org/api/analytics/pageview";
+	const env = { SAYORI_ANALYTICS_DB: {
+		prepare: (sql: string) => {
+			assert.match(sql, /INSERT INTO blog_pageviews/);
+			assert.match(sql, /ON CONFLICT\(hour_start\) DO UPDATE SET pageviews = pageviews \+ 1/);
+			return { bind: (...params: number[]) => ({ run: async () => writes.push(params) }) };
+		},
+	} };
+	const send = (origin: string, body?: string) => onRequestPost({
+		request: new Request(endpoint, {
+			method: "POST", body, headers: { Origin: origin, "CF-Connecting-IP": "203.0.113.10" },
+		}),
+		env,
+	});
+	assert.equal((await send("https://evil.example")).status, 403);
+	assert.equal((await send("https://blog.sayori.org", "unexpected")).status, 400);
+	assert.equal((await send("https://blog.sayori.org")).status, 204);
+	assert.equal(writes.length, 1);
+	assert.equal(writes[0].length, 1);
+	assert.equal(writes[0][0] % 3_600_000, 0);
 });
 
 test("HTML opts out of proxy transforms without changing static asset caching", async () => {

@@ -259,7 +259,7 @@ export const prerender = true;
 						<p class="admin-kicker">Analytics</p>
 						<h2>访问统计</h2>
 						<p id="analytics-status" class="admin-note">
-							正在读取 D1 访问明细...
+							正在读取访问统计...
 						</p>
 					</div>
 					<div class="analytics-controls">
@@ -802,7 +802,7 @@ export const prerender = true;
 		renderTopPages(data.topPages || []);
 		renderGeo(data);
 		renderRecent(data.recentEvents || []);
-		setAnalyticsStatus("统计已更新。", "ok");
+		setAnalyticsStatus("博客新增访问仅计入总浏览量（按小时汇总）。分页面、访客、会话和地区只显示旧记录及导航站数据。", "ok");
 	}
 
 	function renderCommentMetrics(data) {
@@ -917,7 +917,7 @@ export const prerender = true;
 	}
 
 	async function loadAnalytics() {
-		setAnalyticsStatus("正在读取 D1 访问明细...");
+		setAnalyticsStatus("正在读取访问统计...");
 		try {
 			const params = new URLSearchParams({
 				site: el.analyticsSite.value,

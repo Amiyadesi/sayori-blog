@@ -45,10 +45,14 @@ translation runner, then review and verify it before pushing:
 TRANSLATE_RUNNER=pi TRANSLATE_LOCALE=ja TRANSLATE_CONCURRENCY=1 TRANSLATE_MATCH=hello-sayori pnpm translate-content
 ```
 
-`TRANSLATE_MATCH` limits the batch by source path; existing translations are
-skipped. Pi uses its configured Vertex route. Builds never call a translation
-provider. The announcement and privacy page let readers turn optional analytics
-on or off; dismissing the notice does not enable tracking.
+`TRANSLATE_MATCH` limits the batch by source path. For the six additional
+editions, `TRANSLATE_LIMIT` selects that many missing translations, shortest
+first. Pi uses its configured Vertex route and stops the batch on a rate limit;
+rerunning it skips completed files. Builds never call a translation provider.
+
+The announcement and privacy page disclose the default visit counter. The
+blog writes one global page-view total per hour to D1. It does not send a path
+or visitor identifier, use cookies, or load a third-party analytics script.
 
 ## Her Own Blog World (`/?paper=0617`)
 

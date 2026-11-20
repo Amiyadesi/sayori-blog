@@ -98,6 +98,15 @@ describe("analytics hashing", () => {
 });
 
 describe("D1 event recording", () => {
+	it("rejects retired blog events before opening the database", async () => {
+		const request = new Request("https://blog.sayori.org/api/analytics/event", {
+			method: "POST",
+			headers: { origin: "https://blog.sayori.org" },
+			body: JSON.stringify({ event: "pageview", site: "blog" }),
+		});
+		await assert.rejects(recordAnalyticsEvent({ request, env: {} }), (error) => error.status === 410);
+	});
+
 	it("binds valid statements and never stores the raw client IP", async () => {
 		const rawIp = "203.0.113.10";
 		const captured = [];
@@ -131,11 +140,11 @@ describe("D1 event recording", () => {
 				headers: {
 					"content-type": "application/json",
 					"cf-connecting-ip": rawIp,
-					origin: "https://blog.sayori.org",
+					origin: "https://sayori.org",
 				},
 				body: JSON.stringify({
 					event: "pageview",
-					site: "blog",
+					site: "home",
 					visitorId: "visitor-1234567890",
 					sessionId: "session-1234567890",
 					path: "/posts/hello/",
@@ -198,11 +207,11 @@ describe("D1 event recording", () => {
 				headers: {
 					"content-type": "application/json",
 					"cf-connecting-ip": rawIp,
-					origin: "https://blog.sayori.org",
+					origin: "https://sayori.org",
 				},
 				body: JSON.stringify({
 					event: "heartbeat",
-					site: "blog",
+					site: "home",
 					visitorId: "visitor-1234567890",
 					sessionId: "session-1234567890",
 					path: "/posts/hello/",
@@ -566,6 +575,7 @@ describe("admin analytics location fields", () => {
 	it("returns domestic and foreign province/city breakdowns", async () => {
 		const responses = [
 			{ pageviews: 2, heartbeats: 0, visitors: 1, sessions: 1 },
+			{ pageviews: 5 },
 			{ online: 1 },
 			{ results: [{ site: "blog", events: 2, pageviews: 2, visitors: 1 }] },
 			{ results: [] },
@@ -644,6 +654,9 @@ describe("admin analytics location fields", () => {
 			{ site: "all", range: "1d" },
 		);
 
+		assert.equal(data.summary.pageviews, 7);
+		assert.equal(data.summary.visitors, 1);
+		assert.deepEqual(data.summary.bySite, [{ site: "blog", events: 7, pageviews: 7, visitors: 1 }]);
 		assert.equal(data.online[0].locationScope, "domestic");
 		assert.equal(data.online[0].region, "广东省");
 		assert.equal(data.geoBreakdown.countries[0].locationScope, "domestic");

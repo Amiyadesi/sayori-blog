@@ -49,17 +49,20 @@ const allFiles = roots
 	.filter((file) => !localizedFileSuffix.test(file))
 	.filter((file) => !extraLocale || !relative(file).startsWith("posts/sayori-diary/"))
 	.filter((file) => includeReadmes || !/(^|[\\/])(README|templates)([\\/]|\.)/i.test(file))
-	.filter((file) => !matches.length || matches.some((match) => relative(file).includes(match)));
+	.filter((file) => !matches.length || matches.some((match) => relative(file).includes(match)))
+	.filter((file) => !extraLocale || force || metadataOnly || !fs.existsSync(file.replace(/\.(md|mdx)$/i, `.${extraLocale.base}.$1`)));
+if (extraLocale) allFiles.sort((a, b) => fs.statSync(a).size - fs.statSync(b).size);
 const limit = Number(process.env.TRANSLATE_LIMIT || 0);
 const files = limit > 0 ? allFiles.slice(0, limit) : allFiles;
 
 const failures = [];
 let nextIndex = 0;
+let rateLimited = false;
 
 console.log(`[translate-content] ${files.length} source files, concurrency ${concurrency}`);
 
 async function worker() {
-	while (true) {
+	while (!rateLimited) {
 		const index = nextIndex++;
 		if (index >= files.length) return;
 		const sourcePath = files[index];
@@ -103,6 +106,7 @@ async function worker() {
 			const message = error instanceof Error ? error.message : String(error);
 			failures.push(`${relative(sourcePath)}: ${message}`);
 			console.error(`[translate-content] failed ${relative(sourcePath)}: ${message}`);
+			if (usePi && isRateLimited(error)) rateLimited = true;
 		}
 	}
 }
@@ -165,10 +169,15 @@ async function translateSegmentChunk(chunk, sourceName, sectionNumber) {
 			return translated;
 		} catch (error) {
 			lastError = error;
+			if (usePi && isRateLimited(error)) break;
 			if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
 		}
 	}
 	throw lastError;
+}
+
+function isRateLimited(error) {
+	return /Too Many Requests|RESOURCE_EXHAUSTED/i.test(String(error));
 }
 
 function looksUntranslated(source, translated) {

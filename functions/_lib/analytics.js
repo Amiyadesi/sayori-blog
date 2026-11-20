@@ -753,11 +753,15 @@ function ipInfoBindValues(info) {
 
 export async function recordAnalyticsEvent(context) {
 	const { env, request } = context;
-	requireAnalyticsEnv(env);
 	assertAllowedOrigin(request);
 
 	const payload = await request.json().catch(() => ({}));
 	const event = sanitizeAnalyticsPayload(payload, request);
+	const source = new URL(request.headers.get("origin") || request.headers.get("referer"));
+	if (event.site !== "home" || expectedSiteFromUrl(source) === "blog") {
+		throw corsJson(request, { success: false, error: "legacy blog tracking retired" }, { status: 410 });
+	}
+	requireAnalyticsEnv(env);
 	const now = Date.now();
 	const sessionHash = await hashValue(
 		env.ANALYTICS_HASH_SECRET,
@@ -976,6 +980,11 @@ export async function getAdminAnalytics(env, options = {}) {
 		.bind(start, ...eventSite.params)
 		.first();
 
+	const aggregateBlog = site === "home" ? null : await db
+		.prepare("SELECT SUM(pageviews) AS pageviews FROM blog_pageviews WHERE hour_start >= ?")
+		.bind(Math.floor(start / 3_600_000) * 3_600_000)
+		.first();
+
 	const onlineSummary = await db
 		.prepare(
 			`SELECT COUNT(*) AS online
@@ -1098,21 +1107,32 @@ export async function getAdminAnalytics(env, options = {}) {
 		.bind(start, ...eventSite.params)
 		.first();
 
+	const blogPageviews = numberField(aggregateBlog, "pageviews");
+	const siteTotals = (bySite.results || []).map((row) => ({
+		site: row.site,
+		events: numberField(row, "events"),
+		pageviews: numberField(row, "pageviews"),
+		visitors: numberField(row, "visitors"),
+	}));
+	if (blogPageviews) {
+		const blog = siteTotals.find((row) => row.site === "blog");
+		if (blog) {
+			blog.events += blogPageviews;
+			blog.pageviews += blogPageviews;
+		} else siteTotals.push({ site: "blog", events: blogPageviews, pageviews: blogPageviews, visitors: 0 });
+		siteTotals.sort((a, b) => b.pageviews - a.pageviews);
+	}
+
 	return {
 		success: true,
 		query: { site, range, generatedAt: now },
 		summary: {
-			pageviews: numberField(summary, "pageviews"),
+			pageviews: numberField(summary, "pageviews") + blogPageviews,
 			heartbeats: numberField(summary, "heartbeats"),
 			visitors: numberField(summary, "visitors"),
 			sessions: numberField(summary, "sessions"),
 			online: numberField(onlineSummary, "online"),
-			bySite: (bySite.results || []).map((row) => ({
-				site: row.site,
-				events: numberField(row, "events"),
-				pageviews: numberField(row, "pageviews"),
-				visitors: numberField(row, "visitors"),
-			})),
+			bySite: siteTotals,
 		},
 		online: (online.results || []).map((row) => ({
 			site: row.site,
