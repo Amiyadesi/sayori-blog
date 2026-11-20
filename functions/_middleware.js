@@ -7,10 +7,5 @@ export async function onRequest(context) {
   url.hash = '';
   return new Response(null, {status:302,headers:{Location:url.href,'Cache-Control':'no-store'}});
  }
- const response = await context.next();
- if (!response.headers.get('Content-Type')?.startsWith('text/html')) return response;
- // Pages' injected Web Analytics beacon otherwise bypasses the consent controls.
- const html = new Response(response.body, response);
- html.headers.append('Cache-Control', 'no-transform');
- return html;
+ return context.next();
 }

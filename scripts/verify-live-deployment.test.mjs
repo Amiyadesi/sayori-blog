@@ -20,6 +20,8 @@ test("verifies all public deployment surfaces", async () => {
 			switch (url.pathname) {
 				case "/deployment.json":
 					return Response.json(expected);
+				case "/":
+					return new Response("<html></html>");
 				case "/pagefind/pagefind.js":
 					return new Response("x".repeat(101));
 				case "/rss.xml":
@@ -37,6 +39,7 @@ test("verifies all public deployment surfaces", async () => {
 
 	assert.deepEqual(requested, [
 		["/deployment.json", ""],
+		["/", ""],
 		["/pagefind/pagefind.js", ""],
 		["/rss.xml", ""],
 		["/api/healthz", "https://sayori.org"],
@@ -56,6 +59,7 @@ test("retries while the custom domain still serves an older manifest", async () 
 					codeSha: manifestRequests === 1 ? "stale" : expected.codeSha,
 				});
 			}
+			if (url.pathname === "/") return new Response("<html></html>");
 			if (url.pathname === "/pagefind/pagefind.js") return new Response("x".repeat(101));
 			if (url.pathname === "/rss.xml") return new Response("<rss></rss>");
 			return Response.json(
@@ -66,4 +70,13 @@ test("retries while the custom domain still serves an older manifest", async () 
 	});
 
 	assert.equal(manifestRequests, 2);
+});
+
+test("rejects the Pages beacon even if the correct version was deployed", async () => {
+	await assert.rejects(verifyBlogDeployment("https://blog.sayori.org", expected, {
+		attempts: 1,
+		fetchImpl: async (url) => url.pathname === "/deployment.json"
+			? Response.json(expected)
+			: new Response('<script src="https://static.cloudflareinsights.com/beacon.min.js"></script>'),
+	}), /Disable automatic Web Analytics/);
 });

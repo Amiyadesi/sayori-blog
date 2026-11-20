@@ -37,6 +37,11 @@ async function verifyOnce(baseUrl, expected, fetchImpl) {
 		}
 	}
 
+	const home = await requireOk(fetchImpl, root);
+	if ((await home.text()).includes("static.cloudflareinsights.com/beacon.min.js")) {
+		throw new Error("Disable automatic Web Analytics on the sayori-blog Pages project; it bypasses consent");
+	}
+
 	const pagefind = await requireOk(fetchImpl, new URL("pagefind/pagefind.js", root));
 	if ((await pagefind.text()).length < 100) {
 		throw new Error("Pagefind asset is unexpectedly small");
@@ -89,5 +94,5 @@ if (isMain) {
 		builtAt: required("DEPLOYMENT_BUILT_AT"),
 		workflowRun: required("DEPLOYMENT_WORKFLOW_RUN"),
 	});
-	console.log("[deployment-smoke] Blog manifest, Pagefind, RSS, D1, and CORS passed");
+	console.log("[deployment-smoke] Blog manifest, analytics consent, Pagefind, RSS, D1, and CORS passed");
 }
