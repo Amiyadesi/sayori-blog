@@ -393,7 +393,7 @@ const links = [
 		});
 
 		document.addEventListener("mizuki:page:loaded", bindAnnouncementControls);
-		document.addEventListener("astro:page-load", bindAnnouncementControls);
+		document.addEventListener("astro:after-swap", bindAnnouncementControls);
 		document.addEventListener("DOMContentLoaded", maybeAutoOpen, { once: true });
 		if (document.readyState !== "loading") {
 			maybeAutoOpen();
