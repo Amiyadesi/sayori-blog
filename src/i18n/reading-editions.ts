@@ -34,3 +34,15 @@ const copies = {
 const [notice, privacy, privacySummary, translation, original, analytics, home, archive, essays, search, menu, siteTitle, siteDescription, gotIt, close, coverage] = copies[SITE_LOCALE];
 
 export const readingCopy = { notice, privacy, privacySummary, translation, original, analytics, home, archive, essays, search, menu, siteTitle, siteDescription, gotIt, close, coverage };
+
+export const [readingShortcuts, returnHome, backToTop] = {
+	"zh-CN": ["阅读快捷入口", "返回首页", "回到顶部"],
+	"zh-Hant": ["閱讀捷徑", "返回首頁", "回到頂部"],
+	en: ["Reading shortcuts", "Home", "Back to top"],
+	ja: ["記事内のショートカット", "ホームに戻る", "ページの先頭へ"],
+	fr: ["Raccourcis de lecture", "Retour à l’accueil", "Haut de page"],
+	ko: ["읽기 바로가기", "홈으로", "맨 위로"],
+	es: ["Atajos de lectura", "Volver al inicio", "Volver arriba"],
+	de: ["Lese-Navigation", "Zur Startseite", "Nach oben"],
+	"pt-BR": ["Atalhos de leitura", "Voltar ao início", "Voltar ao topo"],
+}[SITE_LOCALE];

@@ -1,4 +1,4 @@
-import { localePrefix } from "./src/utils/blog-locales.mjs";
+import { getBuildLocale, localePrefix } from "./src/utils/blog-locales.mjs";
 import { readFileSync } from "node:fs";
 import sitemap from "@astrojs/sitemap";
 import mdx from "@astrojs/mdx";
@@ -49,6 +49,19 @@ const disabledFeaturePathPrefixes = Object.entries(featurePagePaths)
 	.filter(([feature]) => siteConfig.featurePages[feature] === false)
 	.flatMap(([, paths]) => paths);
 const isSayoriDiarySite = process.env.SITE_VARIANT === "sayori-diary";
+const footnoteCopy = {
+	"zh-CN": ["脚注", "返回脚注引用"],
+	"zh-Hant": ["註腳", "返回註腳引用"],
+	en: ["Footnotes", "Back to footnote reference"],
+	ja: ["脚注", "本文の参照箇所に戻る"],
+	fr: ["Notes de bas de page", "Retour à l’appel de note"],
+	ko: ["각주", "본문의 각주 참조로 돌아가기"],
+	es: ["Notas al pie", "Volver a la referencia de la nota"],
+	de: ["Fußnoten", "Zurück zum Fußnotenverweis"],
+	"pt-BR": ["Notas de rodapé", "Voltar à referência da nota"],
+};
+const readingLocale = getBuildLocale(process.env.SITE_LANG).id;
+const [footnoteLabel, footnoteBackLabel] = footnoteCopy[readingLocale];
 const redirectSources = new Set(
 	readFileSync(new URL("./public/_redirects", import.meta.url), "utf8")
 		.split(/\r?\n/)
@@ -212,6 +225,7 @@ export default defineConfig({
 		mdx(),
 	],
 	markdown: {
+		remarkRehype: isSayoriDiarySite || readingLocale === "en" ? undefined : { footnoteLabel, footnoteBackLabel },
 		remarkPlugins: [
 			[remarkMath, { singleDollarTextMath: false }],
 			remarkContent,

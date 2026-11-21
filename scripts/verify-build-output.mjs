@@ -1586,6 +1586,9 @@ for (const { base, hreflang, id } of blogLocales) {
 		const article = page.querySelector("#post-container");
 		if (page.querySelector("html")?.getAttribute("lang") !== id) fail(`Incorrect document language: ${pathname}`);
 		if (article) {
+			if (page.querySelector("#reading-toc[open], #reading-related[open]")) {
+				fail(`Reading controls must not cover the article before viewport setup: ${pathname}`);
+			}
 			const key = article.getAttribute("data-translation-key");
 			if (key === undefined) fail(`Article is missing translation metadata: ${pathname}`);
 			const group = postTranslations.get(key || location) || [];
