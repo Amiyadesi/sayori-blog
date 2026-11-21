@@ -1046,8 +1046,8 @@ function verifyArticleLandmarks() {
 			const related = root.querySelector(".reading-related");
 			const relatedLinks = related?.querySelectorAll("a[href]") || [];
 			const relatedLabel = { "zh-CN": "相关文章", "zh-Hant": "相關文章", en: "Related Posts" }[lang];
-			if (relatedLinks.length > 0 && related.querySelector("details[open]") && related.querySelector("nav")?.getAttribute("aria-label") === relatedLabel) {
-				pass(`dist/${relativePath} renders an expanded, localized related-article rail`);
+			if (relatedLinks.length > 0 && related.querySelector("details > summary")?.text === relatedLabel && related.querySelector("nav")?.getAttribute("aria-label") === relatedLabel) {
+				pass(`dist/${relativePath} renders a localized, expandable related-article rail`);
 			} else {
 				fail(`dist/${relativePath} missing localized related-article rail`);
 			}
