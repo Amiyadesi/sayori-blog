@@ -106,7 +106,7 @@ async function worker() {
 			const message = error instanceof Error ? error.message : String(error);
 			failures.push(`${relative(sourcePath)}: ${message}`);
 			console.error(`[translate-content] failed ${relative(sourcePath)}: ${message}`);
-			if (usePi && isRateLimited(error)) rateLimited = true;
+			if (isRateLimited(error)) rateLimited = true;
 		}
 	}
 }
@@ -169,7 +169,7 @@ async function translateSegmentChunk(chunk, sourceName, sectionNumber) {
 			return translated;
 		} catch (error) {
 			lastError = error;
-			if (usePi && isRateLimited(error)) break;
+			if (isRateLimited(error)) break;
 			if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
 		}
 	}
@@ -177,7 +177,7 @@ async function translateSegmentChunk(chunk, sourceName, sectionNumber) {
 }
 
 function isRateLimited(error) {
-	return /Too Many Requests|RESOURCE_EXHAUSTED/i.test(String(error));
+	return /Too Many Requests|RESOURCE_EXHAUSTED|translation API 429:/i.test(String(error));
 }
 
 function looksUntranslated(source, translated) {
@@ -236,7 +236,7 @@ async function translateViaApi(source, sourceName) {
 		const controller = new AbortController();
 		const timer = setTimeout(() => controller.abort(), timeoutMs);
 		try {
-			const request = fetch(apiEndpoint, {
+			const response = await fetch(apiEndpoint, {
 				method: "POST",
 				headers: {
 					authorization: `Bearer ${apiKey}`,
@@ -253,10 +253,6 @@ async function translateViaApi(source, sourceName) {
 				}),
 				signal: controller.signal,
 			});
-			const response = await Promise.race([
-				request,
-				new Promise((_, reject) => setTimeout(() => reject(new Error(`translation API timed out after ${timeoutMs}ms`)), timeoutMs)),
-			]);
 			if (!response.ok) {
 				throw new Error(`translation API ${response.status}: ${(await response.text()).slice(0, 500)}`);
 			}
@@ -272,6 +268,7 @@ async function translateViaApi(source, sourceName) {
 			lastError = error?.name === "AbortError"
 				? new Error(`translation API timed out after ${timeoutMs}ms`)
 				: error;
+			if (isRateLimited(error)) break;
 			if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, attempt * 1500));
 		} finally {
 			clearTimeout(timer);
@@ -365,7 +362,7 @@ function normalizeTranslationMetadata(source, translated, sourceName) {
 	setLine("lang", targetLocale);
 	const originalKey = sourceLines.find((line) => /^translationKey:\s*\S/.test(line));
 	setLine("translationKey", originalKey ? originalKey.slice(15).trim() : JSON.stringify(sourceName.replace(/\.(md|mdx)$/i, "")));
-	for (const key of ["draft", "private", "unlisted", "published", "created", "updated", "lastEdited", "majorUpdated", "updateCount", "encrypted", "image", "alias", "permalink"]) {
+	for (const key of ["draft", "private", "unlisted", "published", "created", "updated", "lastEdited", "majorUpdated", "updateCount", "encrypted", "image", "alias", "permalink", "author"]) {
 		const original = sourceLines.find((line) => new RegExp(`^${key}:`).test(line));
 		if (original) setLine(key, original.slice(key.length + 1).trim());
 	}
@@ -416,11 +413,8 @@ function protectSource(source, options = {}) {
 }
 
 function restoreProtected(value, values) {
-	let output = String(value);
-	for (const [token, original] of values) {
-		output = output.replaceAll(token, original);
-	}
-	return output;
+	const originals = new Map(values);
+	return String(value).replace(/__PRESERVE_[A-Z]+_\d+(?:_\d+)?__/g, (token) => originals.get(token) ?? token);
 }
 
 function normalizeEndpoint(value) {
