@@ -329,6 +329,8 @@ const jsonLd = {
 						<div class="mt-4" />
 						<Image
 							id="post-cover"
+							loading="eager"
+							fetchpriority="high"
 							src={entry.data.image}
 							basePath={getFileDirFromPath(entry.filePath || "")}
 							class="mb-8 rounded-xl banner-container onload-animation"
