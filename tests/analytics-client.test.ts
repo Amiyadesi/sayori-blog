@@ -81,3 +81,55 @@ test("HTML opts out of proxy transforms without changing static asset caching", 
 		assert.equal(await result.text(), "body");
 	}
 });
+
+test("HTML is gzipped for readers that accept it, since no-transform turns off proxy compression", async () => {
+	const page = "<!doctype html><title>Sayori</title>" + "<p>书桌上的一页手记。</p>".repeat(200);
+	const serve = (request: Request, init: ResponseInit = {}, length = new TextEncoder().encode(page).length) => onRequest({
+		request,
+		next: async () => new Response(request.method === "HEAD" ? null : page, {
+			...init,
+			headers: {
+				"Content-Type": "text/html; charset=utf-8",
+				"Content-Length": String(length),
+				ETag: '"abc"',
+			},
+		}),
+	});
+	const url = "https://blog.sayori.org/";
+	const edge = (clientAcceptEncoding: string) => Object.assign(
+		new Request(url, { headers: { "Accept-Encoding": "br, gzip" } }),
+		{ cf: { clientAcceptEncoding } },
+	);
+
+	for (const request of [
+		new Request(url, { headers: { "Accept-Encoding": "gzip, deflate, br" } }),
+		edge("gzip, deflate, br, zstd"),
+	]) {
+		const result = await serve(request);
+		assert.equal(result.headers.get("content-encoding"), "gzip");
+		assert.equal(result.headers.get("content-length"), null);
+		assert.equal(result.headers.get("vary"), "Accept-Encoding");
+		assert.equal(result.headers.get("etag"), 'W/"abc"');
+		assert.equal(result.headers.get("cache-control"), "no-transform");
+		const compressed = new Uint8Array(await result.arrayBuffer());
+		assert.ok(compressed.length < page.length / 4);
+		const restored = new Blob([compressed]).stream().pipeThrough(new DecompressionStream("gzip"));
+		assert.equal(await new Response(restored).text(), page);
+	}
+
+	for (const [request, init, length] of [
+		[new Request(url)],
+		[new Request(url, { headers: { "Accept-Encoding": "br, gzip;q=0" } })],
+		[edge("")],
+		[edge("identity")],
+		[new Request(url, { method: "HEAD", headers: { "Accept-Encoding": "gzip" } })],
+		[new Request(url, { headers: { "Accept-Encoding": "gzip" } }), { status: 404 }],
+		[new Request(url, { headers: { "Accept-Encoding": "gzip" } }), {}, 400_001],
+	] as [Request, ResponseInit?, number?][]) {
+		const result = await serve(request, init, length);
+		assert.equal(result.headers.get("content-encoding"), null);
+		assert.equal(result.headers.get("etag"), '"abc"');
+		assert.equal(result.headers.get("vary"), "Accept-Encoding");
+		if (request.method !== "HEAD") assert.equal(await result.text(), page);
+	}
+});
