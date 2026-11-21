@@ -41,6 +41,7 @@ import { formatDateToYYYYMMDD } from "../../utils/date-utils";
 import { blogLocales } from "../../utils/blog-locales.mjs";
 import {
 	currentLocalePath,
+	isExtraLocale,
 	localizedPath,
 	SITE_LOCALE,
 	type HreflangMap,
@@ -57,7 +58,7 @@ export async function getStaticPaths() {
 			? isSayoriDiaryPost(post)
 			: true,
 	);
-	const paths = buildPostPaths(blogEntries);
+	const paths = buildPostPaths(blogEntries, isExtraLocale);
 
 	if (process.env.SITE_VARIANT === "sayori-diary") {
 		return paths;

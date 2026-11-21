@@ -11,7 +11,7 @@ function normalizePostAlias(alias: string): string {
 		: normalized;
 }
 
-export function buildPostPaths(blogEntries: CollectionEntry<"posts">[]) {
+export function buildPostPaths(blogEntries: CollectionEntry<"posts">[], canonicalOnly = false) {
 	initPostIdMap(blogEntries);
 
 	return blogEntries
@@ -26,19 +26,12 @@ export function buildPostPaths(blogEntries: CollectionEntry<"posts">[]) {
 				return [{ params: { slug: defaultSlug }, props: { entry } }];
 			}
 
-			const paths: {
-				params: { slug: string };
-				props: { entry: CollectionEntry<"posts"> };
-			}[] = [{ params: { slug: defaultSlug }, props: { entry } }];
-
-			if (entry.data.alias) {
-				const alias = normalizePostAlias(entry.data.alias);
-				if (alias && alias !== defaultSlug) {
-					paths.push({ params: { slug: alias }, props: { entry } });
-				}
-			}
-
-			return paths;
+			const alias = entry.data.alias ? normalizePostAlias(entry.data.alias) : "";
+			const canonical = { params: { slug: alias || defaultSlug }, props: { entry } };
+			// The new reading editions have no published pre-alias routes to preserve.
+			return canonicalOnly || !alias || alias === defaultSlug
+				? [canonical]
+				: [{ params: { slug: defaultSlug }, props: { entry } }, canonical];
 		})
 		.flat();
 }
