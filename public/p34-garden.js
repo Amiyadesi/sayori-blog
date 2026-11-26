@@ -1,14 +1,14 @@
 import { Reflector } from './third-party/three/Reflector.js';
-import { LINES } from './p34-script.js?v=20261119-garden';
+import { LINES } from './p34-script.js?v=20261126-playable';
 
 export const POOL = { minX: -2.9, maxX: 2.9, minZ: -5.4, maxZ: -.7 };
 export const SUNDIAL = { x: 2.05, y: 1.12, z: -2.25 };
 export const CHIMES = { x: -22.1, y: 2.25, z: 11.8 };
 export const GARDEN_LIGHT = {
-  morning: { sun: 0xd7e9ed, sky: 0xdce7e7, ground: 0x747f79, fog: 0x718b91, glow: 0xe4f1f0, water: 0x899d9d, position: [-16, 10, -8], hemi: 1.5, direct: 1.45, pool: 42 },
-  afternoon: { sun: 0xffdfac, sky: 0xf1e8d4, ground: 0x848276, fog: 0x9b9984, glow: 0xffe9be, water: 0xa8a994, position: [15, 13, 3], hemi: 1.45, direct: 1.6, pool: 52 },
-  dusk: { sun: 0xf6b975, sky: 0xc4b7ac, ground: 0x706b6a, fog: 0x7d706e, glow: 0xf5cca0, water: 0x96908d, position: [-20, 6, 6], hemi: 1.12, direct: 1.8, pool: 36 },
-  midnight: { sun: 0x92bada, sky: 0x9db6cd, ground: 0x46556b, fog: 0x26394e, glow: 0xa4c8e3, water: 0x667f97, position: [8, 15, -12], hemi: 1.02, direct: 1.32, pool: 28 },
+  morning: { sun: 0xffede1, sky: 0xcdeef4, ground: 0x9baeb8, fog: 0x8baec1, glow: 0xd8fff9, water: 0x72c4bc, position: [-16, 10, -8], hemi: 1.58, direct: 1.7, pool: 58 },
+  afternoon: { sun: 0xffdfae, sky: 0xffede0, ground: 0xa893aa, fog: 0xcfafbf, glow: 0xffe8b7, water: 0x73bdb5, position: [15, 13, 3], hemi: 1.60, direct: 2.15, pool: 58 },
+  dusk: { sun: 0xff917c, sky: 0x9aa8ed, ground: 0x6b7bc7, fog: 0x726ba7, glow: 0xffac9a, water: 0x657db9, position: [-20, 6, 8], hemi: 1.6, direct: 2.0, pool: 54 },
+  midnight: { sun: 0x87adff, sky: 0x9faeec, ground: 0x535e9a, fog: 0x313865, glow: 0xaedfff, water: 0x405b98, position: [8, 15, -12], hemi: 1.29, direct: .94, pool: 38 },
 };
 
 export function skyFromHour(hour) {
@@ -59,10 +59,11 @@ function sundial(THREE, building, x, y, z, scale = 1) {
   const group = new THREE.Group();
   group.position.set(x, y, z); group.scale.setScalar(scale);
   const brass = new THREE.MeshStandardMaterial({ color: 0xb69a60, metalness: .5, roughness: .32 });
-  const stone = building.box(.62, .8, .62, 0, .4, 0, building.plaster, group);
+  group.userData.solidId="sundial";
+  const stone = building.lathe([[0, 0], [.42, 0], [.42, .065], [.32, .14], [.24, .38], [.23, .61], [.35, .77], [.38, .81], [0, .81]], 0, 0, 0, building.plaster, group);
   stone.castShadow = true;
   const plate = new THREE.Mesh(new THREE.CylinderGeometry(.52, .52, .055, 64), brass);
-  plate.position.y = .84; group.add(plate);
+  plate.position.y = .84; group.add(building.solid(plate));
   for (const radius of [.39, .48]) {
     const ring = new THREE.Mesh(new THREE.TorusGeometry(radius, .008, 5, 64), building.metal);
     ring.rotation.x = Math.PI / 2; ring.position.y = .873; group.add(ring);
@@ -100,44 +101,94 @@ function chime(THREE, building, x, y, z, scale = 1) {
   return { group, brass, glass, pipes };
 }
 
-export function addAtriumGarden(THREE, scene, renderer, building, { reduced, getPlayer, onNotice }) {
+// Sample a small footprint around the projected ray; subpixel reflected edges do not sparkle at grazing angles.
+export function poolMirror(THREE, width, depth, software, tint) {
+  const original = Reflector.ReflectorShader;
+  const w = software ? 288 : 960, h = software ? 180 : 640;
+  const shader = {
+    ...original,
+    uniforms: { ...original.uniforms, clock: { value: 0 }, texel: { value: new THREE.Vector2(1/w, 1/h) } },
+    vertexShader: original.vertexShader.replace('void main()', 'varying vec2 waterPoint; varying vec2 bank; void main()')
+      .replace('vUv =', 'waterPoint = position.xy; bank = uv; vUv ='),
+    fragmentShader: original.fragmentShader.replace('void main()', 'uniform float clock; uniform vec2 texel; varying vec2 waterPoint; varying vec2 bank; void main()')
+      .replace('vec4 base = texture2DProj( tDiffuse, vUv );', `vec2 p = vUv.xy / vUv.w;
+        vec2 waves = vec2(sin(waterPoint.x * 1.18 + waterPoint.y * .48 + clock * .64),
+                          cos(waterPoint.y * .92 - waterPoint.x * .32 + clock * .41));
+        p += waves * vec2(.0014, .0009);
+        vec2 blur = texel * 1.55;
+        vec3 mirror = texture2D(tDiffuse, p).rgb * .36
+                    + .16 * (texture2D(tDiffuse, p + blur).rgb + texture2D(tDiffuse, p - blur).rgb
+                          + texture2D(tDiffuse, p + vec2(blur.x,-blur.y)).rgb + texture2D(tDiffuse,p - vec2(blur.x,-blur.y)).rgb);`)
+      .replace('gl_FragColor = vec4( blendOverlay( base.rgb, color ), 1.0 );', `vec2 rim = min(bank, 1.0 - bank);
+        float deep = smoothstep(.0, .16, min(rim.x, rim.y));
+        vec3 body = color * mix(.84, .53, deep) * (1.0 + .025 * (waves.x + waves.y));
+        float fresnel = smoothstep(2.0, 28.0, vUv.w);
+        gl_FragColor = vec4(mix(body, mirror * vec3(.82,.96,1.), .28 + .42 * fresnel), 1.0);`) };
+  const water = new Reflector(new THREE.PlaneGeometry(width, depth), { shader, color: tint,
+    textureWidth: w, textureHeight: h, multisample: software ? 0 : 2, clipBias: .006 });
+  water.rotation.x = -Math.PI / 2;
+  water.userData.noShadow = water.userData.noReceiveShadow = true;
+  const reflect = water.onBeforeRender;
+  const last = new THREE.Vector3(Infinity,Infinity,Infinity), gaze = new THREE.Quaternion();
+  let reflectedAt = -Infinity;
+  water.userData.invalidateReflection = () => { reflectedAt = -Infinity; };
+  water.onBeforeRender = function (renderer, scene, camera) {
+    const now = performance.now(), dist2 = last.distanceToSquared(camera.position);
+    if (software && Number.isFinite(reflectedAt)) {
+      // The static world stays projected by the capture matrix while its surface ripples at display rate.
+      const angle = gaze.angleTo(camera.quaternion);
+      if (dist2 < 1.3 && angle < .13 && now - reflectedAt < 1550) return;
+      if (now - reflectedAt < 300 && dist2 < 9 && angle < .38) return;
+    } else if (now - reflectedAt < 32 && dist2 < .04 && gaze.angleTo(camera.quaternion) < .035) return;
+    reflectedAt = now; last.copy(camera.position); gaze.copy(camera.quaternion);
+    reflect.call(this, renderer, scene, camera);
+  };
+  return water;
+}
+
+export function addAtriumGarden(THREE, scene, renderer, building, { reduced, software, getPlayer, onNotice, onShift }) {
   const { box, plaster, metal, wood } = building;
   const width = POOL.maxX - POOL.minX, depth = POOL.maxZ - POOL.minZ;
   const centerZ = (POOL.minZ + POOL.maxZ) / 2;
-  const shader = { ...Reflector.ReflectorShader, uniforms: THREE.UniformsUtils.clone(Reflector.ReflectorShader.uniforms),
-    fragmentShader: Reflector.ReflectorShader.fragmentShader.replace('blendOverlay( base.rgb, color )', 'mix( color * 0.52, blendOverlay( base.rgb, color ), 0.48 )') };
-  const water = new Reflector(new THREE.PlaneGeometry(width, depth), { shader, color: 0xa8a994, textureWidth: 384, textureHeight: 384, multisample: 0, clipBias: .003 });
-  water.rotation.x = -Math.PI / 2; water.position.set(0, .014, centerZ);
-  water.userData.noShadow = water.userData.noReceiveShadow = true;
-  const reflect = water.onBeforeRender; let reflectedAt = -Infinity;
-  water.onBeforeRender = function (...args) {
-    if (performance.now() - reflectedAt < 160) return;
-    reflectedAt = performance.now(); reflect.apply(this, args);
-  };
-  scene.add(water);
-  for (const x of [POOL.minX - .04, POOL.maxX + .04]) box(.08, .026, depth + .16, x, .013, centerZ, plaster);
-  for (const z of [POOL.minZ - .04, POOL.maxZ + .04]) box(width, .026, .08, 0, .013, z, plaster);
-  const moss = new THREE.MeshStandardMaterial({ color: 0x697666, roughness: 1 });
-  for (let i = 0; i < 5; i++) box(.012, .002, .08 + i % 2 * .11, -2.91, .028, -4.9 + i * .23, moss);
+  const water = poolMirror(THREE, width, depth, software, 0x77bcb1);
+  water.position.set(0, .032, centerZ); scene.add(water);
+  for (const [offset, w, height, mat] of [[.135, .25, .052, building.paint], [.055, .105, .075, building.edge]]) {
+    for (const x of [POOL.minX - offset, POOL.maxX + offset])
+      building.slab(w, height, depth + offset * 2 + w, x, height / 3, centerZ, mat);
+    for (const z of [POOL.minZ - offset, POOL.maxZ + offset])
+      building.slab(width + offset * 2 - w, height, w, 0, height / 3, z, mat);
+  }
   const dial = sundial(THREE, building, SUNDIAL.x, 0, SUNDIAL.z); scene.add(dial.group);
   const bells = chime(THREE, building, CHIMES.x, 3.15, CHIMES.z); scene.add(bells.group);
   box(.012, .6, .012, CHIMES.x, 4.5, CHIMES.z, metal);
-  const bench = new THREE.Group(); bench.position.set(-18, 0, 11);
-  box(2.25, .1, .52, 0, .52, 0, wood, bench);
-  for (const x of [-.85, .85]) box(.07, .5, .45, x, .25, 0, metal, bench);
-  for (const z of [-.17, .17]) box(2.2, .016, .008, 0, .58, z, metal, bench);
+  const bench = new THREE.Group(); bench.userData.movingSolid=true; bench.position.set(-18, 0, 11);
+  building.slab(2.25, .12, .58, 0, .48, 0, wood, bench);
+  for (const x of [-.78, .78]) building.slab(.27, .46, .43, x, .23, 0, plaster, bench);
   scene.add(bench);
   const prop = { x: -18, z: 11, variant: 0, phase: 'unseen', seenAt: null };
+  const grit=new Float32Array(12*3);
+  for(let i=0;i<12;i++){grit[i*3]=(i%2?-.78:.78)+Math.sin(i*7)*.16;grit[i*3+1]=.04+(i%4)*.025;grit[i*3+2]=Math.cos(i*3)*.21;}
+  const dustGeometry=new THREE.BufferGeometry();dustGeometry.setAttribute('position',new THREE.BufferAttribute(grit,3));
+  const dust=new THREE.Points(dustGeometry,new THREE.PointsMaterial({color:0xc5a890,size:.041,transparent:true,depthWrite:false}));
+  dust.position.set(prop.x,0,prop.z);scene.add(dust);dust.visible=false;
+  let shift=1,from=0;
   let noticed = false, elapsed = 0, swing = 0, rippleIndex = 0;
-  const ripples = Array.from({ length: 18 }, () => {
-    const mesh = new THREE.Mesh(new THREE.RingGeometry(.98, 1, 56), new THREE.MeshBasicMaterial({ color: 0xd4e4dc, transparent: true, opacity: 0, depthWrite: false }));
+  const rippleGeometry = new THREE.PlaneGeometry(2,2);
+  const ripples = Array.from({ length: 12 }, () => {
+    const mesh = new THREE.Mesh(rippleGeometry,new THREE.ShaderMaterial({
+      uniforms:{fade:{value:0}}, transparent:true, depthWrite:false,
+      vertexShader:'varying vec2 rippleUV;void main(){rippleUV=uv-.5;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+      fragmentShader:`varying vec2 rippleUV;uniform float fade;void main(){float r=length(rippleUV)*2.;float aa=max(.045,fwidth(r)*1.6);float a=1.-smoothstep(.0,aa,abs(r-.84));gl_FragColor=vec4(.62,.78,.70,a*fade);
+      #include <tonemapping_fragment>
+      #include <colorspace_fragment>
+      }` }));
     mesh.rotation.x = -Math.PI / 2; mesh.visible = false; scene.add(mesh);
     return { mesh, age: 2 };
   });
   return {
     setSky(sky) {
       const mood = GARDEN_LIGHT[sky];
-      water.material.uniforms.color.value.setHex(mood.water); reflectedAt = -Infinity;
+      water.material.uniforms.color.value.setHex(mood.water); water.userData.invalidateReflection();
       dial.needle.rotation.y = Object.keys(GARDEN_LIGHT).indexOf(sky) * Math.PI / 2;
     },
     setChime(tone) { bells.brass.color.setHex([0xb29a68, 0xa1b7b5, 0x8b7754][tone]); },
@@ -145,16 +196,24 @@ export function addAtriumGarden(THREE, scene, renderer, building, { reduced, get
     ripple(x, z, small = false) {
       if (reduced() || !inPool(x, z)) return;
       const ring = ripples[rippleIndex++ % ripples.length];
-      ring.age = 0; ring.small = small; ring.mesh.position.set(x, .025, z); ring.mesh.visible = true;
+      ring.age = 0; ring.small = small; ring.mesh.position.set(x, .044, z); ring.mesh.visible = true;
     },
     update(dt) {
       elapsed += dt;
       if (!reduced()) {
+        water.material.uniforms.clock.value = elapsed;
         swing = Math.max(0, swing - dt * .045);
         bells.pipes.rotation.z = Math.sin(elapsed * 5.3) * (swing + .008);
         bells.pipes.rotation.x = Math.cos(elapsed * 4.1) * (swing * .4 + .006);
         const change = stepUnseenProp(prop, getPlayer());
-        if (change === 'shift') { bench.position.x = prop.x + prop.variant * .5; bench.rotation.y = prop.variant * .33; }
+        if (change === 'shift') {shift=0;from=1-prop.variant;onShift();}
+        if (shift<1){
+          shift=Math.min(1,shift+dt/1.05);
+          const amount=from+(prop.variant-from)*shift*shift*(3-2*shift);
+          bench.position.x=prop.x+amount*.5;bench.rotation.y=amount*.33;
+          dust.visible=shift<1;dust.position.set(bench.position.x-.12*shift,.21*shift,prop.z);
+          dust.material.opacity=.52*Math.sin(shift*Math.PI);dust.scale.z=1+shift;
+        }
         if (change === 'notice' && !noticed) { noticed = true; onNotice(); }
       }
       for (const ring of ripples) {
@@ -162,23 +221,23 @@ export function addAtriumGarden(THREE, scene, renderer, building, { reduced, get
         ring.age += dt;
         const t = ring.age / 1.8;
         ring.mesh.scale.setScalar((.07 + t * .8) * (ring.small ? .45 : 1));
-        ring.mesh.material.opacity = (1 - t) * (ring.small ? .12 : .23);
+        ring.mesh.material.uniforms.fade.value = Math.max(0, 1 - t) ** 1.25 * (ring.small ? .17 : .33);
         ring.mesh.visible = t < 1;
       }
     },
     snapshot: () => ({ pool: { ...POOL }, prop: { ...prop, x: bench.position.x, yaw: bench.rotation.y }, chimeSwing: swing, ripples: ripples.filter(r => r.mesh.visible).length }),
-    dispose() { water.getRenderTarget().dispose(); },
+    dispose() { water.dispose(); },
   };
 }
 
 export function addStacksGarden(THREE, scene, building, reduced) {
   const { box, metal, plaster } = building;
   const ribbons = [];
-  const shade = new THREE.MeshStandardMaterial({ color: 0x65746c, transparent: true, opacity: .48, side: THREE.DoubleSide, roughness: 1 });
-  for (let i = 0; i < 15; i++) {
-    const pivot = new THREE.Group(); pivot.position.set(-10.6 + i * 1.5, 6.5 + i % 3 * .04, -15.25);
+  const shade = new THREE.MeshStandardMaterial({ color: 0x46688a, transparent: true, opacity: .66, side: THREE.DoubleSide, roughness: 1 });
+  for (let i = 0; i < 11; i++) {
+    const pivot = new THREE.Group(); pivot.position.set(-10 + i * 2, 6.42 + i % 3 * .04, -15.65);
     const len = 1.5 + (i * 7 % 5) * .65;
-    const strip = new THREE.Mesh(new THREE.PlaneGeometry(.035 + i % 3 * .016, len, 1, 6), shade);
+    const strip = new THREE.Mesh(new THREE.PlaneGeometry(.13 + i % 3 * .047, len, 2, 9), shade);
     const pos = strip.geometry.attributes.position;
     for (let v = 0; v < pos.count; v++) pos.setX(v, pos.getX(v) + Math.sin(pos.getY(v) * 1.6 + i) * .1);
     strip.position.y = -len / 2; pivot.add(strip); scene.add(pivot); ribbons.push(pivot);
@@ -187,10 +246,10 @@ export function addStacksGarden(THREE, scene, building, reduced) {
   const glass = new THREE.MeshStandardMaterial({ color: 0xc2d1cd, transparent: true, opacity: .12, roughness: .2, metalness: .05, depthWrite: false });
   for (const [i, x] of [-7.2, -4.6, 7.2].entries()) {
     const z = 8.3;
-    box(1.05, .72, .7, x, .36, z, plaster);
-    box(1.09, .05, .74, x, .745, z, metal);
+    building.slab(1.05, .72, .7, x, .36, z, plaster);
+    building.slab(1.09, .055, .74, x, .745, z, building.edge);
     for (const sx of [-.51, .51]) box(.018, .85, .018, x + sx, 1.19, z - .33, brass);
-    box(1.08, .018, .7, x, 1.61, z, brass);
+    building.slab(1.08, .021, .7, x, 1.61, z, brass);
     if (i === 0) {
       box(.3, .035, .24, x, .79, z, brass); box(.018, .38, .018, x, 1, z, brass);
       const cap = new THREE.Mesh(new THREE.SphereGeometry(.19, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), brass);
@@ -203,7 +262,7 @@ export function addStacksGarden(THREE, scene, building, reduced) {
       const plaque = box(.62, .055, .36, x, .91, z, brass); plaque.rotation.x = .24;
       for (const sx of [-.25, .25]) box(.023, .012, .023, x + sx, .949, z + .12, metal);
     }
-    box(1.04, .83, .68, x, 1.18, z, glass);
+    building.slab(1.04, .83, .68, x, 1.18, z, glass);
   }
   let time = 0;
   return { update(dt) { time += dt; if (!reduced()) ribbons.forEach((r, i) => { r.rotation.z = Math.sin(time * .24 + i * .6) * .025; r.rotation.y = Math.sin(time * .18 + i) * .1; }); } };

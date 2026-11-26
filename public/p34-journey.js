@@ -1,18 +1,25 @@
 export const JOURNEY_COOKIE = 'p34_journey_v2';
-export const PHASES = ['arrive', 'shared', 'stacks', 'loft', 'after'];
+export const PHASES = ['arrive', 'shared', 'poolrooms', 'stacks', 'drafts', 'closed', 'loft', 'after'];
 const LEGACY_PHASES = ['tuned', 'guided', 'choice', 'closed', 'found', 'making'];
-export const LAYERS = ['atrium', 'stacks', 'loft'];
+export const LAYERS = ['atrium', 'poolrooms', 'stacks', 'drafts', 'loft'];
+export const TRACES = ['atrium', 'poolrooms', 'drafts'];
+export const RESPONSES = ['affirm', 'critique', 'reserve'];
 export const GARDEN_SKIES = ['morning', 'afternoon', 'dusk', 'midnight'];
 export const LAYER_LABELS = {
-  atrium: '第一层 · 阈值中庭',
-  stacks: '第二层 · 垂蔓深渊书库',
-  loft: '第三层 · 雨夜观景阁楼',
+  atrium: '第一层 · 无尽回廊',
+  poolrooms: '第二层 · 浸水泳池厅',
+  stacks: '第三层 · 悬渊书库',
+  drafts: '第四层 · 废弃草稿区',
+  loft: '第五层 · 穹顶观测阁楼',
 };
 export const NOTES = ['rain-folder', 'long-way', 'landing-notes', 'tomorrow-again', 'pulling-light'];
-export const CLUES = ['atrium-survey', 'retired-relic', 'slot-34-log', 'dual-handwriting', 'rain-origin-trace'];
+export const CLUES = ['atrium-survey', 'retired-relic', 'slot-34-log', 'dual-handwriting', 'rain-origin-trace', 'pool-echo', 'pool-study', 'draft-note'];
 export const IDENTITY_CLUES = ['slot-34-log', 'dual-handwriting', 'rain-origin-trace'];
 
 export const CLUE_INFO = {
+  'pool-echo': { title: '水面的第二道拱', layer: 'poolrooms', summary: '站到水下最低一级，拱顶会和倒影合成一圈。最初的图上只有半圈。' },
+  'pool-study': { title: '两条水位线', layer: 'poolrooms', summary: '旧水线旁注着「坐着也看得见天」。新水线抬高两砖，补完了倒影，低处的座沿却没进水里。' },
+  'draft-note': { title: '桥脚的铅笔印', layer: 'drafts', summary: '纸背记了七个尺寸。她把第六个圈起来，又在圈外写：「从上面好看。自己走过去试过没有？」' },
   'atrium-survey': {
     title: '测绘纸',
     layer: 'atrium',
@@ -147,10 +154,15 @@ export function newJourney() {
     clues: [],
     leftLetter: false,
     garden: { sky: null, chime: null },
+    response: null,
+    traces: [],
+    sculpture: null,
+    legacyLoft: false,
   };
 }
 
-function normalizePhase(rawPhase, layers, clues) {
+function normalizePhase(rawPhase, layers, oldArc) {
+  if (rawPhase === 'closed' && oldArc) return layers?.includes('loft') ? 'loft' : layers?.includes('stacks') ? 'stacks' : 'shared';
   if (PHASES.includes(rawPhase)) return rawPhase;
   if (LEGACY_PHASES.includes(rawPhase)) {
     if (rawPhase === 'after') return 'after';
@@ -159,6 +171,23 @@ function normalizePhase(rawPhase, layers, clues) {
     return 'shared';
   }
   return null;
+}
+
+const validSculpture = value => value && ['height', 'span', 'tone'].every(key => integer(value[key], 2));
+export function startingSculpture(state) {
+  return state.sculpture || { height: 1, span: state.response === 'critique' ? 2 : 1, tone: state.garden.chime ?? 0 };
+}
+export function canEnterLayer(state, layer) {
+  if (!LAYERS.includes(layer)) return false;
+  if (layer === 'loft' && state.phase === 'closed' && state.response) return state.traces?.length === TRACES.length;
+  if (state.phase === 'after' || state.layers?.includes(layer)) return true;
+  if (layer === 'poolrooms') return Boolean(state.bridgeSolid || state.stacksUnlocked || state.layers?.includes('stacks'));
+  if (layer === 'drafts') return Boolean(state.stacksUnlocked);
+  if (layer === 'loft') return Boolean(state.legacyLoft || state.traces?.length === TRACES.length);
+  return true; // The original stacks URL and the blog return door are public entrances.
+}
+export function isSilenced(state, layer) {
+  return state.phase === 'closed' || (state.phase === 'loft' && Boolean(state.response) && layer !== 'loft');
 }
 
 export function readJourney(raw) {
@@ -184,7 +213,8 @@ export function readJourney(raw) {
       return { state, error: '', migrated: true };
     }
     require(s?.v === 2, '存档版本不兼容');
-    const mappedPhase = normalizePhase(s.phase, s.layers, s.clues);
+    const oldArc = !Object.hasOwn(s, 'traces');
+    const mappedPhase = normalizePhase(s.phase, s.layers, oldArc);
     require(mappedPhase !== null, '进度格式有误');
     require(typeof s.touched === 'boolean' && typeof s.leftLetter === 'boolean', '经历格式有误');
     require(typeof (s.diagram ?? false) === 'boolean', '图纸记录有误');
@@ -260,10 +290,18 @@ export function readJourney(raw) {
       clues: [...clues],
       leftLetter: s.leftLetter,
       garden: { sky: garden.sky, chime: garden.chime },
+      response: s.response ?? null,
+      traces: s.traces === undefined ? [] : s.traces,
+      sculpture: s.sculpture ?? null,
+      legacyLoft: s.legacyLoft ?? (oldArc && stacksUnlocked),
     };
-
+    require(typeof normalized.legacyLoft === 'boolean' && (normalized.response === null || RESPONSES.includes(normalized.response)), '共游记录有误');
+    require(Array.isArray(normalized.traces) && normalized.traces.length <= TRACES.length &&
+      normalized.traces.every(id => TRACES.includes(id)) && new Set(normalized.traces).size === normalized.traces.length, '回声记录有误');
+    require(normalized.sculpture === null || validSculpture(normalized.sculpture), '共创模型有误');
+    require(normalized.phase !== 'closed' || normalized.response !== null, '封闭记录有误');
     require(encodeURIComponent(JSON.stringify(normalized)).length <= 3800, '存档超出浏览器容量');
-    return { state: normalized, error: '', migrated: LEGACY_PHASES.includes(s.phase) };
+    return { state: normalized, error: '', migrated: oldArc && LEGACY_PHASES.includes(s.phase) };
   } catch (e) {
     return {
       state: newJourney(),
@@ -289,6 +327,9 @@ export function cookieJourney(cookies = '') {
 
 export function journeyEvent(state, event, value) {
   const s = structuredClone(state);
+  if (isSilenced(s, s.currentLayer)) {
+    require(['enter-layer', 'memory-trace', 'reunion'].includes(event), '只留下了回声');
+  }
   switch (event) {
     case 'garden-sky':
       require(GARDEN_SKIES.includes(value), 'Unknown garden sky');
@@ -320,13 +361,11 @@ export function journeyEvent(state, event, value) {
       break;
     case 'enter-layer': {
       require(LAYERS.includes(value), `Unknown layer: ${value}`);
-      if (value === 'loft') {
-        require(s.stacksUnlocked || s.layers.includes('loft'), '需要先解开书库北门的空间基准柱');
-      }
+      require(canEnterLayer(s, value), value === 'loft' ? '阁楼的拱里还缺回声' : value === 'drafts' ? '高架桥还等着三座基准柱' : '北面的桥还没有接上');
       if (!s.layers.includes(value)) s.layers.push(value);
       s.currentLayer = value;
-      if (value === 'stacks' && ['arrive', 'shared'].includes(s.phase)) s.phase = 'stacks';
-      if (value === 'loft' && ['arrive', 'shared', 'stacks'].includes(s.phase)) s.phase = 'loft';
+      if (['poolrooms','stacks','drafts'].includes(value) && PHASES.indexOf(s.phase) < PHASES.indexOf(value)) s.phase = value;
+      if (value === 'loft' && !['closed','after'].includes(s.phase)) s.phase = 'loft';
       break;
     }
     case 'shelf-moved':
@@ -363,8 +402,26 @@ export function journeyEvent(state, event, value) {
       if (!s.clues.includes(value)) s.clues.push(value);
       if (s.phase === 'arrive') s.phase = 'shared';
       break;
+    case 'disagreement':
+      require(s.currentLayer === 'drafts' && (s.phase === 'drafts' || s.legacyLoft && s.phase === 'loft') && RESPONSES.includes(value), '原型还没有展开');
+      s.response = value;
+      s.phase = 'closed';
+      break;
+    case 'memory-trace':
+      require(s.phase === 'closed' && s.currentLayer === value && TRACES.includes(value), '回声不在这里');
+      if (!s.traces.includes(value)) s.traces.push(value);
+      break;
+    case 'reunion':
+      require(s.currentLayer === 'loft' && canEnterLayer(s, 'loft') && (s.phase !== 'closed' || s.traces.length === TRACES.length), '回声还没有接起来');
+      if (s.phase !== 'after') s.phase = 'loft';
+      break;
     case 'complete-loft':
-      require(s.layers.includes('loft') && identityClueCount(s) >= 2, '需要先在阁楼发现至少两处身份线索');
+      require(s.currentLayer === 'loft' && ['loft','after'].includes(s.phase) && validSculpture(value), '先和她一起调一座拱');
+      s.sculpture = { height: value.height, span: value.span, tone: value.tone };
+      s.phase = 'after';
+      break;
+    case 'finish-legacy-loft':
+      require(s.legacyLoft && !s.response && s.currentLayer === 'loft' && identityClueCount(s) >= 2, '旧旅程的阁楼线索尚未集齐');
       s.phase = 'after';
       break;
     case 'letter':

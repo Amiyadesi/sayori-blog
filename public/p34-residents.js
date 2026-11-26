@@ -1,17 +1,17 @@
 import { TextGeometry } from './third-party/three/TextGeometry.js';
-import { POOL, inPool } from './p34-garden.js?v=20261119-garden';
+import { POOL, inPool } from './p34-garden.js?v=20261126-playable';
 
-export function stepWaterSkimmer(skimmer, dt, player, reduced) {
+export function stepWaterSkimmer(skimmer, dt, player, reduced, water = POOL, floorY = 0) {
   const dx = skimmer.x - player.x, dz = skimmer.z - player.z;
   const dist = Math.hypot(dx, dz);
-  skimmer.fleeing = dist < 1.9 && Math.abs(player.y) < .1;
+  skimmer.fleeing = dist < 1.9 && Math.abs(player.y - floorY) < .2;
   if (reduced) return;
   skimmer.phase += dt * .4;
   const speed = skimmer.fleeing ? 1.1 : .12;
   const vx = skimmer.fleeing ? dx / Math.max(.01, dist) : Math.cos(skimmer.phase);
   const vz = skimmer.fleeing ? dz / Math.max(.01, dist) : Math.sin(skimmer.phase);
-  skimmer.x = Math.max(POOL.minX + .3, Math.min(POOL.maxX - .3, skimmer.x + vx * speed * dt));
-  skimmer.z = Math.max(POOL.minZ + .3, Math.min(POOL.maxZ - .3, skimmer.z + vz * speed * dt));
+  skimmer.x = Math.max(water.minX + .3, Math.min(water.maxX - .3, skimmer.x + vx * speed * dt));
+  skimmer.z = Math.max(water.minZ + .3, Math.min(water.maxZ - .3, skimmer.z + vz * speed * dt));
 }
 
 export const WALKER_ROUTE = [[-21.8, 3.2], [-22, 0], [-22, -6.4], [-15.4, -6.4], [-15.4, -3.2], [-21.8, -3.2]];
@@ -79,29 +79,6 @@ function makeWingTexture(THREE) {
   return tex;
 }
 
-function makeSoftSilhouetteTexture(THREE) {
-  if (typeof document === 'undefined') return null;
-  const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 256;
-  const c = canvas.getContext('2d');
-  const g = c.createRadialGradient(64, 128, 10, 64, 128, 96);
-  g.addColorStop(0, 'rgba(195,212,224,0.5)');
-  g.addColorStop(0.55, 'rgba(155,178,192,0.22)');
-  g.addColorStop(1, 'rgba(155,178,192,0)');
-  c.fillStyle = g;
-  // Soft human-like head + sloping shoulder cloak silhouette (never a sharp pill)
-  c.beginPath();
-  c.ellipse(64, 52, 15, 19, 0, 0, Math.PI * 2);
-  c.moveTo(46, 76);
-  c.quadraticCurveTo(64, 68, 82, 76);
-  c.lineTo(104, 240);
-  c.lineTo(24, 240);
-  c.closePath();
-  c.filter = 'blur(7px)'; c.fill();
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
-}
-
 // These inhabitants are neither enemies nor quest gates; they belong to the space she rules.
 export function addResidents(THREE, scene, config, getPlayer, reduced, opts = {}) {
   const layerId = opts.layerId || config.id || 'atrium';
@@ -141,7 +118,8 @@ export function addResidents(THREE, scene, config, getPlayer, reduced, opts = {}
   let arrivalApi = null;
   if (layerId === 'atrium' && opts.showArrival) {
     const group = new THREE.Group();
-    group.position.set(0, 1.85, 5.2);
+    group.position.set(2.1, 1.58, 5.2);
+    group.scale.setScalar(.62);
     scene.add(group);
 
     const core = new THREE.Mesh(
@@ -154,7 +132,7 @@ export function addResidents(THREE, scene, config, getPlayer, reduced, opts = {}
     const veils = [];
     for (let i = 0; i < 4; i++) {
       const plane = new THREE.Mesh(
-        new THREE.PlaneGeometry(.58, 1.85),
+        new THREE.PlaneGeometry(.35, 1.22),
         new THREE.MeshBasicMaterial({ color: i % 2 ? 0xcfd6c6 : 0x262e29, transparent: true, opacity: .44, side: THREE.DoubleSide, depthWrite: false })
       );
       plane.rotation.y = (i / 4) * Math.PI;
@@ -191,14 +169,14 @@ export function addResidents(THREE, scene, config, getPlayer, reduced, opts = {}
       if (o.isMesh) { o.userData.manifestOpacity = o.material.opacity; o.material.opacity = 0; }
     });
     const glyphBanner = new THREE.Group();
-    glyphBanner.position.set(0, 2.1, 5.2);
+    glyphBanner.position.set(2.1, 2.1, 5.2);
     scene.add(glyphBanner);
 
     const mote = new THREE.Mesh(
       new THREE.OctahedronGeometry(.11, 0),
       new THREE.MeshBasicMaterial({ color: 0xf1eee0, transparent: true, opacity: 0 })
     );
-    mote.position.set(0, 1.55, 5.2);
+    mote.position.set(2.1, 1.55, 5.2);
     scene.add(mote);
 
     let age = 0;
@@ -258,7 +236,7 @@ export function addResidents(THREE, scene, config, getPlayer, reduced, opts = {}
               s.rotation.y = a;
             });
           }
-          if (age > 3.2 || Math.hypot(p.x, p.z - 5.2) < 2.4) triggerDissolve(false);
+          if (age > 3.2 || Math.hypot(p.x-2.1, p.z - 5.2) < 2.4) triggerDissolve(false);
         } else if (stateMode === 'dissolving') {
           if (!revealed) { revealed = true; onArrivalReveal(); }
           dissolveT += dt;
@@ -318,7 +296,9 @@ export function addResidents(THREE, scene, config, getPlayer, reduced, opts = {}
 
   if (layerId === 'atrium') {
     const resident = { distance: 2, phase: 0, mode: 'roaming' };
-    const walker = new THREE.Group(); scene.add(walker);
+    const walker = new THREE.Group();walker.userData.movingSolid=true;walker.userData.solidId='resident';scene.add(walker);
+    const body=new THREE.Mesh(new THREE.CylinderGeometry(.13,.31,1.57,10),dark);
+    body.position.y=1.69;body.userData.solid=true;walker.add(body);
     const cloth = new THREE.BufferGeometry(), vertices = [], uvs = [], indices = [];
     const rows = 18, columns = 36;
     for (let row = 0; row <= rows; row++) for (let col = 0; col <= columns; col++) {
@@ -376,11 +356,14 @@ export function addResidents(THREE, scene, config, getPlayer, reduced, opts = {}
     g.addColorStop(0, 'rgba(0,0,0,.32)'); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.fillRect(0, 0, 64, 64);
     const shadow = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.5), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(shadowCanvas), transparent: true, depthWrite: false }));
     shadow.rotation.x = -Math.PI / 2; shadow.position.y = .02; walker.add(shadow);
-    const collider = { id: 'resident', minX: 0, maxX: 0, minZ: 0, maxZ: 0, minY: 0, maxY: 2.5, enabled: true };
-    config.colliders.push(collider);
-
-    function visibleFromPlayer(p, x, z) {
-      return !config.colliders.some(b => b !== collider && b.enabled && b.minY < p.y + 1.5 && b.maxY > p.y + 1.5 && segmentHitsBox(p.x, p.z, x, z, b));
+    function visibleFromPlayer(p,x,z){
+      const distance=Math.hypot(x-p.x,z-p.z);
+      if(distance>9)return false;
+      for(let d=.32;d<distance-.5;d+=.32){
+        const t=d/distance;
+        if(config.physics.blocked(p.x+(x-p.x)*t,z*t+p.z*(1-t),1.5+p.y*(1-t),.03,.045))return false;
+      }
+      return true;
     }
     let yaw = 0;
     function updateWalker(dt) {
@@ -401,7 +384,6 @@ export function addResidents(THREE, scene, config, getPlayer, reduced, opts = {}
         legs[i].lower.place(knee, foot);
         legs[i].joint.position.set(knee[0], knee[1], knee[2]);
       }
-      Object.assign(collider, { minX: pos.x - .42, maxX: pos.x + .42, minZ: pos.z - .42, maxZ: pos.z + .42 });
     }
     walkerApi = {
       update: updateWalker,
@@ -490,7 +472,6 @@ export function addResidents(THREE, scene, config, getPlayer, reduced, opts = {}
 
   // --- Layer 3: Loft Tiny Glowing Desk Motes + Soft Misty Street Silhouette ---
   const deskMotelings = [];
-  let glassSilhouette = null;
   if (layerId === 'loft') {
     for (let i = 0; i < 4; i++) {
       const m = new THREE.Group();
@@ -502,29 +483,51 @@ export function addResidents(THREE, scene, config, getPlayer, reduced, opts = {}
       scene.add(m);
       deskMotelings.push({ group: m, left: wingL, right: wingR, angle: i * 1.57, radius: .28 + (i % 2) * .12, yBase: 1.5 + (i % 2) * .12 });
     }
-    const silMap = makeSoftSilhouetteTexture(THREE);
-    glassSilhouette = new THREE.Mesh(
-      new THREE.PlaneGeometry(1.15, 2.45),
-      new THREE.MeshBasicMaterial({ map: silMap, transparent: true, opacity: .18, depthWrite: false })
-    );
-    glassSilhouette.position.set(1.5, 1.55, -11.4);
-    glassSilhouette.userData.noShadow = true;
-    scene.add(glassSilhouette);
   }
-
+  const posts = {
+    atrium: [[-34,3.49,-16],[24,2.01,-34]], stacks: [[-26.7,3.63,-11.6],[26.7,-4.37,-50.4]],
+    poolrooms: [[-20,-.12,-22],[15,2.8,-80]], drafts: [[-12,2.4,-7],[8,0,9]],
+    library: [[-6.2,1.71,-35]], loft: [[17,-4.4,-44]],
+  };
+  const watchers = [];
+  const shell = new THREE.ConeGeometry(.38,1.45,3), shoulder = new THREE.OctahedronGeometry(.38,0);
+  for(const [x,y,z] of posts[layerId]){
+    const g = new THREE.Group(); g.position.set(x,y,z);scene.add(g);
+    // Three spindly feet and a surveyor's prism: no face, no human figure.
+    for(let i=0;i<3;i++){
+      const a=i*Math.PI*2/3;
+      rod(g,.037,.022,dark).place([Math.sin(a)*.15,1.07,Math.cos(a)*.15],[Math.sin(a)*.46,.02,Math.cos(a)*.46]);
+    }
+    const cloak=new THREE.Mesh(shell,dark);cloak.position.y=1.73;cloak.scale.z=.57;g.add(cloak);
+    const crest=new THREE.Mesh(shoulder,bone);crest.scale.set(.85,.84,.5);crest.position.set(.12,2.29,0);g.add(crest);
+    watchers.push({g,x,z,phase:0,watched:false});
+  }
+  const fliers=[];
+  if(layerId==='stacks' || layerId==='drafts'){
+    const shape = new THREE.BufferGeometry();
+    shape.setAttribute('position',new THREE.Float32BufferAttribute([0,.16,-1.1,-1.26,.04,.78,-.17,0,.23, 0,.16,-1.1,-.17,0,.23,0,-.29,.68,
+      0,.16,-1.1,0,-.29,.68,.16,0,.23, 0,.16,-1.1,.16,0,.23,1.17,.16,.65],3));shape.computeVertexNormals();
+    for(let i=0;i<4;i++){
+      const mesh=new THREE.Mesh(shape,paperEntityMat);mesh.scale.setScalar(.44+i*.085);scene.add(mesh);
+      fliers.push(mesh);
+    }
+  }
   const waterSkimmers = [];
-  if (layerId === 'atrium') for (let i = 0; i < 4; i++) {
+  if (layerId === 'atrium' || layerId === 'poolrooms') for (let i = 0; i < (layerId==='atrium'?4:8); i++) {
     const group = new THREE.Group();
-    const glint = new THREE.MeshBasicMaterial({ color: 0xbcd6cb, transparent: true, opacity: .63 });
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(.011, .007, .14, 6), glint);
+    const glint = new THREE.MeshStandardMaterial({ color: 0x91c8b4, roughness:.38, metalness:.34 });
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(.016, .009, .16, 6), glint);
     body.rotation.x = Math.PI / 2; group.add(body);
+    const legMesh=new THREE.CylinderGeometry(.004,.0025,.2,4);
     for (let side of [-1, 1]) for (let leg = 0; leg < 3; leg++) {
-      const limb = new THREE.Mesh(new THREE.CylinderGeometry(.0025, .0025, .2, 4), glint);
+      const limb = new THREE.Mesh(legMesh, glint);
       limb.rotation.set(Math.PI / 2, 0, side * (.65 + leg * .5));
       limb.position.set(side * .055, 0, -.06 + leg * .06); group.add(limb);
     }
     scene.add(group);
-    waterSkimmers.push({ group, x: -1.7 + i * 1.05, z: -3.9 + i % 2 * 1.3, phase: i * 1.6, fleeing: false, wake: 0 });
+    const inBath=layerId==='poolrooms', inner=inBath && i>=4;
+    const water=inBath ? {minX:-7,maxX:5,minZ:inner?-67:-5.5,maxZ:inner?-62.2:2.5}:POOL;
+    waterSkimmers.push({group, water, inner, x:-1.7+(i%4)*.95,z:inner?-65+i%2:-3.9+i%2*1.3,phase:i*1.6,fleeing:false,wake:0});
   }
   const shelfBookmarks = [];
   if (layerId === 'stacks') for (let i = 0; i < 4; i++) {
@@ -563,11 +566,13 @@ export function addResidents(THREE, scene, config, getPlayer, reduced, opts = {}
     arrivalApi?.update(dt);
     updateEcho();
     for (const skimmer of waterSkimmers) {
-      stepWaterSkimmer(skimmer, dt, p, reduced());
-      skimmer.group.position.set(skimmer.x, .044, skimmer.z);
+      skimmer.group.visible = layerId !== 'poolrooms' || skimmer.inner === (p.z < -36);
+      if(!skimmer.group.visible) continue;
+      stepWaterSkimmer(skimmer, dt, p, reduced(), skimmer.water, layerId==='poolrooms'?-.8:0);
+      skimmer.group.position.set(skimmer.x, layerId==='poolrooms'?-.403:.052, skimmer.z);
       skimmer.group.rotation.y = skimmer.phase;
       skimmer.wake -= dt;
-      if (!reduced() && skimmer.wake <= 0 && inPool(skimmer.x, skimmer.z)) {
+      if (!reduced() && skimmer.wake <= 0 && (layerId==='poolrooms' || inPool(skimmer.x, skimmer.z))) {
         opts.onRipple?.(skimmer.x, skimmer.z, true); skimmer.wake = skimmer.fleeing ? .35 : 2.8;
       }
     }
@@ -634,11 +639,20 @@ export function addResidents(THREE, scene, config, getPlayer, reduced, opts = {}
       m.right.rotation.y = -flap;
     }
 
-    if (glassSilhouette) {
-      const d = Math.hypot(p.x, p.z + 7.2);
-      const targetOp = sovHold ? 0.22 : d < 3.4 ? 0.05 : 0.16;
-      glassSilhouette.material.opacity += (targetOp - glassSilhouette.material.opacity) * Math.min(1, dt * 2);
-      if (!reduced()) glassSilhouette.position.x = 1.5 + Math.sin(sharedTime * .35) * .08;
+    for(const w of watchers){
+      const {g}=w;
+      g.visible=layerId!=='poolrooms' || (w.z<-36)===(p.z<-36);
+      if(!g.visible)continue;
+      const dx=g.position.x-p.x,dy=g.position.y+1.5-p.y-1.65,dz=g.position.z-p.z;
+      const gaze=(-Math.sin(p.yaw)*Math.cos(p.pitch)*dx+Math.sin(p.pitch)*dy-Math.cos(p.yaw)*Math.cos(p.pitch)*dz)/Math.max(1,Math.hypot(dx,dy,dz));
+      w.watched=gaze>.975;
+      if(!w.watched && !reduced() && !sovHold)w.phase+=dt*.31;
+      g.position.x=w.x+Math.sin(w.phase)*.52;g.rotation.y=.37+w.phase*.14;
+    }
+    for(let i=0;i<fliers.length;i++){
+      const t=(reduced()?0:sharedTime*.14)+i*1.8;
+      fliers[i].position.set(Math.sin(t)*(6+i*1.5),4.8+i*1.3+Math.sin(t*1.22)*.74,-15+Math.cos(t)*(4+i*.8));
+      fliers[i].rotation.set(Math.sin(t)*.09,-t-Math.PI/2,Math.sin(t*.61)*.27);
     }
   }
 
@@ -667,19 +681,12 @@ export function addResidents(THREE, scene, config, getPlayer, reduced, opts = {}
       ...(arrivalApi ? { arrival: arrivalApi.snapshot() } : {}),
       ...(walkerApi ? { walker: walkerApi.snapshot() } : {}),
       ...(mothApi ? { moth: mothApi.snapshot() } : {}),
+      watchers: watchers.map(w=>({x:w.g.position.x,y:w.g.position.y,z:w.z,watched:w.watched})),
+      kites:fliers.length,
       waterSkimmers: waterSkimmers.map(s => ({ x: s.x, z: s.z, fleeing: s.fleeing })),
       shelfBookmarks: shelfBookmarks.map(b => ({ x: b.group.position.x, tuck: b.tuck, watched: b.watched })),
       sovereignEcho: echo.visible,
       layer: layerId,
     }),
   };
-}
-
-function segmentHitsBox(x, z, tx, tz, box) {
-  let low = 0, high = 1;
-  for (const [a, d, min, max] of [[x, tx - x, box.minX, box.maxX], [z, tz - z, box.minZ, box.maxZ]]) {
-    if (Math.abs(d) < 1e-6) { if (a < min || a > max) return false; }
-    else { const t1 = (min - a) / d, t2 = (max - a) / d; low = Math.max(low, Math.min(t1, t2)); high = Math.min(high, Math.max(t1, t2)); if (low > high) return false; }
-  }
-  return true;
 }

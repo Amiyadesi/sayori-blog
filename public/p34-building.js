@@ -1,241 +1,273 @@
-// Architectural material & modular room primitives for P34 liminal spaces.
-export function createBuilding(THREE, scene, renderer, { tone = 'atrium' } = {}) {
-  let seed = 340617;
-  const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+import { createArchitectureIndex, solid } from './p34-architecture.js?v=20261126-playable';
 
-  const PALETTES = {
-    atrium: { plaster: 0xe4e0d4, floor: 0xb0ada0, ceiling: 0xc9c8bf, wood: 0x746754, paint: 0x939c90, metal: 0x62685e, diffuser: 0xf1f2e6, emissive: 0xe9e7d9 },
-    stacks: { plaster: 0xa6afb0, floor: 0x5d676a, ceiling: 0x9aa2a4, wood: 0x5a4f45, paint: 0x515f63, metal: 0x454d52, diffuser: 0xe4ecea, emissive: 0xc3dad5 },
-    loft: { plaster: 0xc9c0ae, floor: 0x6e5947, ceiling: 0xb0a594, wood: 0x5f4e3d, paint: 0x676459, metal: 0x4a4845, diffuser: 0xf6e9cf, emissive: 0xeac98e },
-    library: { plaster: 0xd2cfc0, floor: 0x7d8a82, ceiling: 0xc5c4b7, wood: 0x586357, paint: 0x78877c, metal: 0x555c56, diffuser: 0xf0f1e5, emissive: 0xe0e8c8 },
-  };
-  const pal = PALETTES[tone] || PALETTES.atrium;
-
-  function texture(kind) {
-    const canvas = document.createElement('canvas'); canvas.width = canvas.height = 512;
-    const c = canvas.getContext('2d');
-
-    if (kind === 'floor' && tone === 'loft') {
-      // Brushed aged oak floorboards with natural grain streaks & clean plank seams
-      c.fillStyle = '#ad967d'; c.fillRect(0, 0, 512, 512);
-      for (let row = 0; row < 8; row++) {
-        const y = row * 64;
-        const tint = ((row * 37) % 14) - 7;
-        c.fillStyle = `rgb(${170 + tint}, ${146 + tint}, ${121 + tint})`;
-        c.fillRect(0, y, 512, 64);
-        // Subtle horizontal grain lines
-        for (let g = 0; g < 18; g++) {
-          c.fillStyle = g % 2 ? 'rgba(68,48,30,.055)' : 'rgba(246,232,212,.045)';
-          c.fillRect(0, y + 3 + random() * 58, 512, 1 + (g % 2));
-        }
-        c.fillStyle = 'rgba(38,26,16,.38)';
-        c.fillRect(0, y, 512, 2);
-        const joint = ((row * 193) % 380) + 64;
-        c.fillRect(joint, y, 2, 64);
-      }
-    } else if (kind === 'floor') {
-      // Honed travertine / architectural stone slabs (zero noisy confetti specks)
-      c.fillStyle = '#c4c9be'; c.fillRect(0, 0, 512, 512);
-      for (let ty = 0; ty < 4; ty++) for (let tx = 0; tx < 4; tx++) {
-        const shade = (random() - 0.5) * 10;
-        const base = Math.round(196 + shade);
-        c.fillStyle = `rgb(${base - 3}, ${base + 2}, ${base - 8})`;
-        c.fillRect(tx * 128 + 2, ty * 128 + 2, 124, 124);
-        const rg = c.createRadialGradient(
-          tx * 128 + 40 + random() * 48, ty * 128 + 40 + random() * 48, 8,
-          tx * 128 + 64, ty * 128 + 64, 96
-        );
-        rg.addColorStop(0, 'rgba(255,254,246,.08)');
-        rg.addColorStop(1, 'rgba(72,80,72,.06)');
-        c.fillStyle = rg;
-        c.fillRect(tx * 128 + 2, ty * 128 + 2, 124, 124);
-      }
-      // Crisp grout lines & subtle highlight lip
-      c.fillStyle = 'rgba(60, 68, 60, .16)';
-      for (let i = 0; i < 4; i++) {
-        c.fillRect(0, i * 128, 512, 1);
-        c.fillRect(i * 128, 0, 1, 512);
-      }
-    } else if (kind === 'ceiling') {
-      // Clean acoustic coffered tiles
-      c.fillStyle = '#d7d6cb'; c.fillRect(0, 0, 512, 512);
-      for (let ty = 0; ty < 4; ty++) for (let tx = 0; tx < 4; tx++) {
-        c.strokeStyle = 'rgba(82, 86, 76, .16)';
-        c.lineWidth = 2;
-        c.strokeRect(tx * 128 + 2, ty * 128 + 2, 124, 124);
-        c.strokeStyle = 'rgba(255, 255, 248, .25)';
-        c.lineWidth = 1;
-        c.strokeRect(tx * 128 + 5, ty * 128 + 5, 118, 118);
-      }
-    } else if (kind === 'wood') {
-      c.fillStyle = '#aa9d84'; c.fillRect(0, 0, 512, 512);
-      for (let i = 0; i < 90; i++) {
-        c.fillStyle = i % 2 ? 'rgba(54,42,28,.065)' : 'rgba(244,236,220,.05)';
-        c.fillRect(random() * 512, 0, 1 + random() * 3, 512);
-      }
-    } else {
-      // Smooth gallery limewash plaster (broad soft tonal clouds, no harsh static dots)
-      c.fillStyle = '#e1dfd3'; c.fillRect(0, 0, 512, 512);
-      for (let i = 0; i < 24; i++) {
-        const cx = random() * 512, cy = random() * 512, r = 48 + random() * 96;
-        const g = c.createRadialGradient(cx, cy, 4, cx, cy, r);
-        g.addColorStop(0, i % 2 ? 'rgba(255,254,246,.018)' : 'rgba(84,88,74,.012)');
-        g.addColorStop(1, 'rgba(225,223,211,0)');
-        c.fillStyle = g;
-        c.fillRect(0, 0, 512, 512);
-      }
-      // Faint architectural plaster panel seam
-      c.fillStyle = 'rgba(92,96,82,.045)';
-      c.fillRect(255, 0, 1, 512);
-      c.fillRect(0, 255, 512, 1);
+// Broad matte surfaces do not need a per-pixel BRDF. Keep the actual scene lights
+// (including the player's sky and the restored glow) and sample the real sun shadow.
+function vertexLitStone(shader) {
+  const varyings = 'varying vec3 masonryFill; varying vec3 masonrySun;';
+  shader.vertexShader = shader.vertexShader.replace('#include <common>',
+    '#include <common>\n#include <lights_pars_begin>\n' + varyings).replace('#include <project_vertex>', `#include <project_vertex>
+    vec3 n = normalize(transformedNormal);
+    masonryFill = vec3(.17) + ambientLightColor * RECIPROCAL_PI;
+    masonrySun = vec3(0.);
+    #if NUM_HEMI_LIGHTS > 0
+    for (int i = 0; i < NUM_HEMI_LIGHTS; i++)
+      masonryFill += getHemisphereLightIrradiance(hemisphereLights[i], n) * RECIPROCAL_PI;
+    #endif
+    #if NUM_DIR_LIGHTS > 0
+    for (int i = 0; i < NUM_DIR_LIGHTS; i++)
+      masonrySun += directionalLights[i].color * max(dot(n,directionalLights[i].direction),0.) * RECIPROCAL_PI;
+    #endif
+    #if NUM_POINT_LIGHTS > 0 && !defined(P34_DISTANT_STONE)
+    for (int i = 0; i < NUM_POINT_LIGHTS; i++) {
+      vec3 d = pointLights[i].position - mvPosition.xyz;
+      float d2 = max(dot(d,d),.1);
+      masonryFill += pointLights[i].color * max(dot(n,d*inversesqrt(d2)),0.) / (1.+d2) * RECIPROCAL_PI;
     }
+    #endif`);
+  shader.fragmentShader = shader.fragmentShader.replace('#include <shadowmap_pars_fragment>',
+    '#include <shadowmap_pars_fragment>\n#include <shadowmask_pars_fragment>\n' + varyings)
+    .replace(/#include <lights_lambert_fragment>[\s\S]*?vec3 outgoingLight = [^;]+;/,
+      'vec3 outgoingLight = diffuseColor.rgb * (masonryFill + masonrySun * getShadowMask()) + totalEmissiveRadiance;');
+}
 
+// Shared stone profiles, furniture and low-frequency lighting.
+export function createBuilding(THREE, scene, renderer, { tone = 'atrium', software = false } = {}) {
+  const physics = createArchitectureIndex();
+  const palettes = {
+    atrium: [0xf6dfc8, 0xc5aba7, 0xe7c9b0, 0x795246, 0xbc827f, 0x725650],
+    poolrooms: [0xe1ebe1,0xb2d5c9,0xd9e3d5,0x6f8a81,0x8fb7b0,0x6a817e],
+    drafts: [0xc9b5a6,0xa59d91,0xc7bbb4,0x775f51,0x998278,0x645f63],
+    stacks: [0x8fabbf, 0x5a7588, 0x587488, 0x5e545b, 0x4e687b, 0x455565],
+    loft: [0xf1cfad, 0xa17459, 0xd4ad8c, 0x744c3e, 0xc28b76, 0x524349],
+    library: [0xe4d5ba, 0x9eaaa0, 0xcac8ad, 0x6f6151, 0x758f8b, 0x64726e],
+  };
+  const [stoneColor, floorColor, ceilingColor, walnutColor, trimColor, metalColor] = palettes[tone];
+  function texture(kind) {
+    const canvas = document.createElement('canvas'); canvas.width = canvas.height = 256;
+    const c = canvas.getContext('2d');
+    if (kind === 'stone') {
+      const grad = c.createLinearGradient(0, 0, 0, 256);
+      for (const [at, shade] of [[0, '#ded4d5'], [.21, '#fff9f2'], [.62, '#f1e4e4'], [.89, '#ddcdd2'], [1, '#bfaeb8']]) grad.addColorStop(at, shade);
+      c.fillStyle = grad; c.fillRect(0, 0, 256, 256);
+    } else {
+      const woodgrain = kind === 'wood' || tone === 'loft';
+      for (let i = 0; i < 4; i++) {
+        const y = i * 64;
+        c.fillStyle = ['#f3e7e2', '#ecdfdf', '#f1e7e4', '#e8dadb'][i];
+        c.fillRect(0, y, 256, 64);
+        c.fillStyle = woodgrain ? '#957d76' : '#cbbdc0';
+        c.fillRect(0, y, 256, 1); c.fillRect(41 + i * 59, y, 1, 64);
+      }
+      if (woodgrain) for (let i = 0; i < 52; i++) {
+        c.fillStyle = i % 2 ? '#70515111' : '#fff1dc3b';
+        c.fillRect((i * 127) % 95, (i * 173) % 256, 145 + i % 17, 1);
+      }
+    }
     const map = new THREE.CanvasTexture(canvas);
     map.colorSpace = THREE.SRGBColorSpace;
-    map.wrapS = map.wrapT = THREE.RepeatWrapping;
-    map.anisotropy = Math.min(4, renderer?.capabilities.getMaxAnisotropy() || 1);
+    if (kind !== 'stone') map.wrapS = map.wrapT = THREE.RepeatWrapping;
+    map.anisotropy = software ? 1 : Math.min(8, renderer?.capabilities.getMaxAnisotropy() || 1);
     return map;
   }
+  const stoneMap = texture('stone');
+  const surface = (color, map, roughness = .76) => {
+    if (!software) return new THREE.MeshStandardMaterial({ color, map, roughness });
+    const stone = new THREE.MeshLambertMaterial({ color, map });
+    stone.onBeforeCompile = vertexLitStone;
+    return stone;
+  };
+  const plaster = surface(stoneColor, stoneMap);
+  const floor = surface(floorColor, texture('floor'), .58);
+  const ceiling = surface(ceilingColor, stoneMap);
+  const wood = surface(walnutColor, texture('wood'), .58);
+  const paint = surface(trimColor, stoneMap);
+  const metal = software ? surface(metalColor, null) : new THREE.MeshStandardMaterial({ color: metalColor, roughness: .47, metalness: .42 });
+  const edge = surface(new THREE.Color(stoneColor).lerp(new THREE.Color(0xfffaeb), .52), null, .48);
+  const materials = [plaster, floor, ceiling, wood, paint, metal, edge];
 
-  const plasterMap = texture('plaster'), floorMap = texture('floor'), ceilingMap = texture('ceiling'), woodMap = texture('wood');
-  const surface = (color, map, bumpScale = 0) => new THREE.MeshStandardMaterial({
-    color, map, ...(bumpScale ? { bumpMap: map, bumpScale } : {}), roughness: .9,
-  });
-  const plaster = surface(pal.plaster, plasterMap, 0);
-  const floor = surface(pal.floor, floorMap, .009);
-  const ceiling = surface(pal.ceiling, ceilingMap, 0);
-  const wood = surface(pal.wood, woodMap, .005);
-  const paint = surface(pal.paint, plasterMap, 0);
-  const metal = new THREE.MeshStandardMaterial({ color: pal.metal, roughness: .68, metalness: .28 });
-  const materials = [plaster, floor, ceiling, wood, paint, metal];
+  function mesh(geometry, x, y, z, mat, parent) {
+    const item = new THREE.Mesh(geometry, mat);
+    item.position.set(x, y, z); parent.add(item);
+    item.userData.masonry = parent === scene;
+    solid(item, { material: mat === wood ? 'wood' : undefined });
+    item.receiveShadow = mat !== ceiling;
+    return item;
+  }
 
   function box(w, h, d, x, y, z, mat = plaster, parent = scene) {
     const geometry = new THREE.BoxGeometry(w, h, d);
-    const uv = geometry.attributes.uv, p = geometry.attributes.position, n = geometry.attributes.normal;
-    for (let i = 0; i < uv.count; i++) {
-      const horizontal = Math.abs(n.getY(i)) > .5;
-      const side = Math.abs(n.getX(i)) > .5;
-      uv.setXY(i, (side ? p.getZ(i) + z : p.getX(i) + x) / 2.4, (horizontal ? p.getZ(i) + z : p.getY(i) + y) / 2.4);
+    const { uv, position: p, normal: n } = geometry.attributes;
+    if (mat === floor || mat === wood) for (let i = 0; i < uv.count; i++) {
+      const horizontal = Math.abs(n.getY(i)) > .5, side = Math.abs(n.getX(i)) > .5;
+      uv.setXY(i, (side ? p.getZ(i) + z : p.getX(i) + x) / 4, (horizontal ? p.getZ(i) + z : p.getY(i) + y) / 4);
     }
-    const mesh = new THREE.Mesh(geometry, mat); mesh.position.set(x, y, z);
-    mesh.castShadow = mat !== ceiling; mesh.receiveShadow = mat !== ceiling;
-    // Sub-pixel joinery aliases in the room-wide shadow map; keep only its physical shading.
-    if (Math.min(w, h, d) <= .22) { mesh.castShadow = false; mesh.userData.noShadow = true; }
-    parent.add(mesh); return mesh;
+    const item = mesh(geometry, x, y, z, mat, parent);
+    item.userData.noShadow = Math.min(w, h, d) <= .22;
+    item.castShadow = mat !== ceiling && !item.userData.noShadow;
+    return item;
   }
 
   function wall(w, h, d, x, y, z) {
-    box(w, h, d, x, y + h / 2, z);
-    if (y === 0) {
-      box(w + .016, 1.08, d + .016, x, .54, z, paint);
-      const rail = box(w + .034, .055, d + .034, x, 1.105, z, wood);
-      rail.userData.noShadow = true;
-      const base = box(w + .03, .13, d + .03, x, .065, z, metal);
-      base.userData.noShadow = true;
-    }
+    const panel = box(w, h, d, x, y + h / 2, z);
+    if (y === 0) box(w + .026, .13, d + .026, x, .065, z, paint);
+    return panel;
+  }
+
+  function lathe(profile, x, y, z, mat = plaster, parent = scene) {
+    const geometry = new THREE.LatheGeometry(profile.map(([r, h]) => new THREE.Vector2(r, h)), software ? 16 : 48);
+    const item = mesh(geometry, x, y, z, mat, parent);
+    item.castShadow = true;
+    return item;
   }
 
   function column(w, h, d, x, y, z) {
-    wall(w, h, d, x, y, z);
-    const plinth = box(w + .08, .16, d + .08, x, y + .08, z, paint);
-    plinth.userData.noShadow = true;
-    const cap = box(w + .08, .16, d + .08, x, y + h - .08, z, plaster);
-    cap.userData.noShadow = true;
+    const r = Math.min(w, d) * .5;
+    const group = new THREE.Group(); group.position.set(x, y, z); scene.add(group);
+    lathe([[0, 0], [r, 0], [r, .07], [r * .96, .13], [r * .84, .17], [r * .82, .28],
+      [r * .79, h * .29], [r * .73, h - .4], [r * .78, h - .24], [r * .94, h - .16], [r, h - .08], [r, h], [0, h]],
+    0, 0, 0, plaster, group);
+    for (const at of [.15, h - .12]) lathe([[r * .87, at - .029], [r * .95, at], [r * .87, at + .029]], 0, 0, 0, edge, group);
+    const flute = new THREE.CylinderGeometry(.015, .023, h - .62, 6);
+    const ribs = new THREE.InstancedMesh(flute, edge, 16), pose = new THREE.Object3D();
+    for (let i = 0; i < 16; i++) {
+      const a = i * Math.PI / 8;
+      pose.position.set(Math.cos(a) * .77 * r, h / 2, Math.sin(a) * .77 * r);
+      pose.rotation.set(-.035 * Math.sin(a), 0, .035 * Math.cos(a)); pose.updateMatrix();
+      ribs.setMatrixAt(i, pose.matrix);
+    }
+    ribs.userData.noShadow = true; group.add(ribs);
+    return group;
+  }
+
+  // Continuous masonry with an open passage and real beveled edges.
+  function arch(x, y, z, span, spring, band, depth, yaw = 0, mat = plaster, parent = scene) {
+    const r = span / 2, outer = r + band;
+    const shape = new THREE.Shape();
+    shape.moveTo(-outer, 0); shape.lineTo(-outer, spring);
+    shape.absarc(0, spring, outer, Math.PI, 0, true);
+    shape.lineTo(outer, 0); shape.lineTo(r, 0); shape.lineTo(r, spring);
+    shape.absarc(0, spring, r, 0, Math.PI, false);
+    shape.lineTo(-r, 0); shape.closePath();
+    const bevel = Math.min(.045, band * .18, depth * .24);
+    const g = new THREE.ExtrudeGeometry(shape, { depth, curveSegments: software ? 12 : 24, bevelSize: bevel, bevelThickness: bevel, bevelEnabled: !software, bevelSegments: 2 });
+    const { uv, position } = g.attributes;
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, .5, THREE.MathUtils.clamp(position.getY(i) / (spring + outer), 0, 1));
+    const item = mesh(g, x - Math.sin(yaw) * depth / 2, y, z - Math.cos(yaw) * depth / 2, mat, parent);
+    g.userData.pierced=true;
+    item.rotation.y = yaw;
+    item.castShadow = depth >= .25;
+    item.userData.noShadow = !item.castShadow;
+    return item;
+  }
+
+  function archedWindow(w, h, span, sill, spring, x, z) {
+    const front = new THREE.Shape();
+    front.moveTo(-w / 2, 0); front.lineTo(w / 2, 0); front.lineTo(w / 2, h); front.lineTo(-w / 2, h); front.closePath();
+    const r = span / 2, hole = new THREE.Path();
+    hole.moveTo(-r, sill); hole.lineTo(-r, spring); hole.absarc(0, spring, r, Math.PI, 0, true); hole.lineTo(r, sill); hole.closePath();
+    front.holes.push(hole);
+    const g = new THREE.ExtrudeGeometry(front, { depth: .35, curveSegments: 32, bevelEnabled: false });
+    const { uv, position } = g.attributes;
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, .5, position.getY(i) / h);
+    g.userData.pierced=true;
+    return mesh(g, x, 0, z, plaster, scene);
+  }
+
+  function slab(w, h, d, x, y, z, mat = plaster, parent = scene) {
+    const a = w / 2, b = d / 2, r = Math.min(w, d) * .14;
+    const s = new THREE.Shape();
+    s.moveTo(-a + r, -b); s.lineTo(a - r, -b); s.quadraticCurveTo(a, -b, a, -b + r);
+    s.lineTo(a, b - r); s.quadraticCurveTo(a, b, a - r, b);
+    s.lineTo(-a + r, b); s.quadraticCurveTo(-a, b, -a, b - r);
+    s.lineTo(-a, -b + r); s.quadraticCurveTo(-a, -b, -a + r, -b);
+    const bevel = Math.min(h * .24, .055);
+    const g = new THREE.ExtrudeGeometry(s, { depth: software ? h : h - bevel * 2, curveSegments: software ? 2 : 5, bevelSize: bevel, bevelThickness: bevel, bevelEnabled: !software, bevelSegments: 2 });
+    g.translate(0, 0, (software ? 0 : bevel) - h / 2); g.rotateX(-Math.PI / 2);
+    return mesh(g, x, y, z, mat, parent);
   }
 
   function fixture(x, y, z, rotate = false) {
-    const housing = box(rotate ? 1.25 : .26, .08, rotate ? .26 : 1.25, x, y, z, metal);
-    housing.userData.noShadow = true;
-    const diffuser = new THREE.MeshStandardMaterial({ color: pal.diffuser, emissive: pal.emissive, emissiveIntensity: 1.9, roughness: .5 });
-    materials.push(diffuser);
-    const tube = box(rotate ? 1.12 : .19, .035, rotate ? .19 : 1.12, x, y - .05, z, diffuser);
-    tube.castShadow = false;
-    tube.userData.noShadow = true;
-    return tube;
+    slab(rotate ? 1.25 : .26, .08, rotate ? .26 : 1.25, x, y, z, metal).userData.noShadow = true;
+    const lit = new THREE.MeshStandardMaterial({ color: 0xffe3be, emissive: 0xffdcba, emissiveIntensity: .9, roughness: .5 });
+    const diffuser = slab(rotate ? 1.12 : .19, .035, rotate ? .19 : 1.12, x, y - .05, z, lit);
+    diffuser.userData.noShadow = true;
+    return diffuser;
   }
 
   function vent(x, y, z, side = 1) {
-    const frame = box(.04, .42, .78, x, y, z, metal);
-    frame.userData.noShadow = true;
-    for (let i = 0; i < 6; i++) {
-      const slat = box(.05, .024, .7, x - side * .025, y - .15 + i * .06, z, plaster);
-      slat.userData.noShadow = true;
-    }
+    box(.04, .42, .78, x, y, z, metal);
+    for (let i = 0; i < 6; i++) box(.05, .024, .7, x - side * .025, y - .15 + i * .06, z, plaster);
   }
 
-  function desk(x, y, z, w, d, h = 1.0, topMat = wood, legMat = metal) {
-    box(w, .08, d, x, y + h - .04, z, topMat);
-    const apron = box(w - .14, .06, d - .14, x, y + h - .1, z, legMat);
-    apron.userData.noShadow = true;
-    const lx = w / 2 - .12, lz = d / 2 - .12;
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-      box(.065, h - .08, .065, x + sx * lx, y + (h - .08) / 2, z + sz * lz, legMat);
-    }
+  function desk(x, y, z, w, d, h = 1, topMat = wood, legMat = metal) {
+    slab(w, .12, d, x, y + h - .06, z, topMat);
+    for (const side of [-1, 1]) slab(.17, h - .12, d * .73, x + side * w * .33, y + (h - .12) / 2, z, legMat);
   }
 
-  // Non-Euclidean recessed doorway corridor: continuous telescoping tunnel sleeves fading into mist.
   function deepPortal(x, y, z, w, h, yaw = 0, depthSteps = 5, voidColor = 0x1a201e) {
     const group = new THREE.Group();
-    group.position.set(x, y, z);
-    group.rotation.y = yaw;
-    const wallBase = new THREE.Color(pal.plaster).multiplyScalar(0.55);
-    const floorBase = new THREE.Color(pal.floor).multiplyScalar(0.6);
-    const ceilBase = new THREE.Color(pal.ceiling).multiplyScalar(0.42);
-    const voidC = new THREE.Color(voidColor);
-    const stripBase = new THREE.Color(pal.diffuser);
-    const stepLen = 0.85;
-
-    for (let i = 0; i < depthSteps; i++) {
-      const t0 = i / depthSteps;
-      const scale = Math.pow(0.87, i);
-      const pw = w * scale, ph = h * scale;
-      const zCenter = -0.38 - i * stepLen;
-      const sleeve = new THREE.Group();
-      sleeve.position.set(0, 0, zCenter);
-      sleeve.rotation.z = i * 0.016 * (i % 2 ? 1 : -1);
-
-      const fade = 0.2 + t0 * 0.72;
-      const wMat = new THREE.MeshBasicMaterial({ color: wallBase.clone().lerp(voidC, fade) });
-      const fMat = new THREE.MeshBasicMaterial({ color: floorBase.clone().lerp(voidC, fade) });
-      const cMat = new THREE.MeshBasicMaterial({ color: ceilBase.clone().lerp(voidC, fade) });
-      const bMat = new THREE.MeshBasicMaterial({ color: voidC });
-      const sMat = new THREE.MeshBasicMaterial({ color: stripBase.clone().lerp(voidC, Math.min(.92, 0.32 + t0 * 0.6)) });
-      materials.push(wMat, fMat, cMat, bMat, sMat);
-
-      const wallThick = .12;
-      const addPart = (bw, bh, bd, px, py, pz, mat) => {
-        const m = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), mat);
-        m.position.set(px, py, pz);
-        m.castShadow = false;
-        m.receiveShadow = false;
-        m.userData.noShadow = true;
-        m.userData.noReceiveShadow = true;
-        sleeve.add(m);
-      };
-
-      addPart(wallThick, ph + .12, stepLen + .04, -pw / 2 - wallThick / 2, ph / 2, 0, wMat);
-      addPart(wallThick, ph + .12, stepLen + .04, pw / 2 + wallThick / 2, ph / 2, 0, wMat);
-      addPart(pw + wallThick * 2, .12, stepLen + .04, 0, ph + .06, 0, cMat);
-      addPart(pw + wallThick * 2, .1, stepLen + .04, 0, -.05, 0, fMat);
-      // Interior doorway bezel ring + faint receding ceiling tube
-      addPart(.07, ph, .07, -pw / 2 + .035, ph / 2, stepLen * .46, bMat);
-      addPart(.07, ph, .07, pw / 2 - .035, ph / 2, stepLen * .46, bMat);
-      addPart(pw, .07, .07, 0, ph - .035, stepLen * .46, bMat);
-      if (i % 2 === 0) addPart(pw * .52, .022, .14, 0, ph - .015, 0, sMat);
-
-      group.add(sleeve);
+    group.position.set(x, y, z); group.rotation.y = yaw;
+    const far = new THREE.Color(voidColor), near = new THREE.Color(stoneColor);
+    mesh(new THREE.PlaneGeometry(w * 1.65, h * 1.4), 0, h * .56, -depthSteps * .62 - .4, new THREE.MeshBasicMaterial({ color: far }), group);
+    for (let i = depthSteps - 1; i >= 0; i--) {
+      const scale = .83 ** i;
+      const mat = i === 0 ? plaster : new THREE.MeshBasicMaterial({ color: near.clone().lerp(far, .37 + .57 * i / depthSteps) });
+      arch(0, 0, -i * .62, w * scale, (h - w / 2) * scale, .2 + i * .018, .34, 0, mat, group);
     }
-
-    const backMat = new THREE.MeshBasicMaterial({ color: voidC });
-    materials.push(backMat);
-    const back = new THREE.Mesh(new THREE.PlaneGeometry(w * .75, h * .75), backMat);
-    back.position.set(0, h * .38, -0.38 - depthSteps * stepLen);
-    back.userData.noShadow = true;
-    back.userData.noReceiveShadow = true;
-    group.add(back);
+    arch(0, 0, .24, w - .1, h - w / 2, .065, .08, 0, edge, group);
     scene.add(group);
     return group;
   }
 
-  return { box, wall, column, fixture, vent, desk, deepPortal, plaster, floor, ceiling, wood, paint, metal, materials };
+  // A named rigid assembly can be batched in its own coordinates and still move as one.
+  function bakeMasonry(parent = scene) {
+    if (parent === scene) physics.add(scene);
+    const buckets = new Map();
+    for (const item of parent.children) {
+      if ((parent === scene && !item.userData.masonry) || !item.isMesh || item.children.length || item.material.transparent) continue;
+      const key = item.material.uuid + Number(item.castShadow) + Number(item.receiveShadow);
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key).push(item);
+    }
+    for (const parts of buckets.values()) {
+      if (parts.length < 3) continue;
+      const count = parts.reduce((n,p) => n + (p.geometry.index?.count ?? p.geometry.attributes.position.count),0);
+      const positions = new Float32Array(count*3), normals = new Float32Array(count*3), uv = new Float32Array(count*2);
+      let i=0;
+      for (const p of parts) {
+        p.updateMatrix(); const g=p.geometry;g.applyMatrix4(p.matrix);
+        const attrs=g.attributes, n=g.index?.count ?? attrs.position.count;
+        for(let j=0;j<n;j++,i++){
+          const k=g.index ? g.index.getX(j) : j;
+          for(const [buffer,attr] of [[positions,attrs.position],[normals,attrs.normal]]) {
+            buffer[i*3]=attr.getX(k); buffer[i*3+1]=attr.getY(k); buffer[i*3+2]=attr.getZ(k);
+          }
+          uv[i*2]=attrs.uv.getX(k);uv[i*2+1]=attrs.uv.getY(k);
+        }
+        parent.remove(p);g.dispose();
+      }
+      const g=new THREE.BufferGeometry();
+      g.setAttribute('position',new THREE.BufferAttribute(positions,3));g.setAttribute('normal',new THREE.BufferAttribute(normals,3));g.setAttribute('uv',new THREE.BufferAttribute(uv,2));
+      const mesh=new THREE.Mesh(g,parts[0].material);mesh.castShadow=parts[0].castShadow;mesh.receiveShadow=parts[0].receiveShadow; parent.add(mesh);
+    }
+  }
+  return { physics, solid, bakeMasonry, box, wall, column, arch, archedWindow, slab, lathe, fixture, vent, desk, deepPortal, plaster, floor, ceiling, wood, paint, metal, edge, materials };
+}
+
+export function galleryEnvironment(THREE, renderer) {
+  const width = 256, height = 128;
+  const pixels = new Float32Array(width * height * 4);
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    const elevation = Math.cos(Math.PI * (y + .5) / height), angle = x / width * Math.PI * 2;
+    const sun = Math.max(0, Math.cos(angle - 1.2) * .78 + elevation * .22) ** 14;
+    const fill = Math.max(0, Math.cos(angle - 4.05) * .77 + elevation * .23) ** 8;
+    const ambient = .16 + .34 * Math.max(0, elevation);
+    pixels.set([ambient + sun * 3 + fill * .27, ambient * .91 + sun * 1.75 + fill * .5, ambient + sun * 1.15 + fill * .86, 1], (y * width + x) * 4);
+  }
+  const sky = new THREE.DataTexture(pixels, width, height, THREE.RGBAFormat, THREE.FloatType);
+  sky.needsUpdate = true;
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const environment = pmrem.fromEquirectangular(sky);
+  sky.dispose(); pmrem.dispose();
+  return environment;
 }

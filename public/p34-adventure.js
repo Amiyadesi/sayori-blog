@@ -1,22 +1,20 @@
-import { LINES, CHOICES } from './p34-script.js?v=20261113-library';
-import { mountGuestbook } from './p34-guestbook.js?v=20261113-library';
+import { LINES, CHOICES } from './p34-script.js?v=20261126-playable';
+import { mountGuestbook } from './p34-guestbook.js?v=20261126-playable';
 import {
   JOURNEY_COOKIE,
   LAYERS,
   LAYER_LABELS,
   NOTES,
-  CLUES,
   CLUE_INFO,
-  PILLAR_OPTIONS,
-  TARGET_PILLARS,
+  TRACES, RESPONSES, canEnterLayer, isSilenced, startingSculpture,
   cookieJourney,
   readJourney,
   journeyEvent,
   blueprintSketch,
   identityClueCount,
-} from './p34-journey.js?v=20261113-library';
-import { mountWorld3D } from './p34-world3d.js?v=20261113-library';
-import { isPoolEntry } from './p34-garden.js?v=20261119-garden';
+} from './p34-journey.js?v=20261126-playable';
+import { mountWorld3D } from './p34-world3d.js?v=20261126-playable';
+import { isPoolEntry } from './p34-garden.js?v=20261126-playable';
 
 export function reboundSketch(offset) {
   const sketch = blueprintSketch(offset);
@@ -52,14 +50,19 @@ export function mountAdventure({
   getRoom,
   getSketches,
   getLightNodes,
+  mountFoldDesk,
   leave,
   cookie,
   signal,
 }) {
   const loaded = cookieJourney(document.cookie);
   let state = loaded.state;
-  let poolArrival = site === 'home' && isPoolEntry(location.href);
-  if (poolArrival) state.currentLayer = 'atrium';
+  const resumeLayer = isPoolEntry(location.href) ? 'atrium' : state.currentLayer;
+  let viewLayer = layerFromURL(location.href, resumeLayer);
+  if (!canEnterLayer(state, viewLayer)) viewLayer = state.currentLayer;
+  const visited = new Set(state.layers);
+  if (site === 'home') visited.add(viewLayer);
+  let shelfMoved = state.shelfMoved;
   let storageError = loaded.error;
   let world3d = null;
   let worldMounting = null;
@@ -70,7 +73,7 @@ export function mountAdventure({
   const listen = (el, type, fn, options = {}) => el.addEventListener(type, fn, { signal, ...options });
   const say = (text, options = {}) => speak(text, { note: '', ...options });
   const homeURL = 'https://sayori.org/?paper=0617';
-  const blogURL = 'https://blog.sayori.org/notes/long-way/?paper=0617';
+  const blogURL = 'https://blog.sayori.org/?paper=0617&from=stacks';
   const memorySketch = () => state.lightSketch || getSketches().at(-1)?.nodes || null;
 
   const notice = document.createElement('p');
@@ -87,9 +90,11 @@ export function mountAdventure({
 
   function atmosphere() {
     shell.dataset.journey = state.phase;
-    shell.dataset.layer = state.currentLayer || 'atrium';
-    shell.dataset.silence = 'false';
-    shell.dataset.reunion = 'false';
+    shell.dataset.layer = site === 'blog' ? 'library' : viewLayer;
+    shell.dataset.silence = String(isSilenced(state, shell.dataset.layer));
+    shell.dataset.reunion = String(state.phase === 'after');
+    const silent = shell.dataset.silence === 'true';
+    shell.querySelectorAll('.space-lab :is(button,input), .space-guestbook form').forEach(el => { el.inert = silent; });
   }
 
   function current() {
@@ -100,14 +105,17 @@ export function mountAdventure({
         error(storageError);
       } else {
         state = latest.state;
-        if (poolArrival) state.currentLayer = 'atrium';
       }
     }
+    state = { ...state, layers: [...new Set([...state.layers, ...visited])], currentLayer: viewLayer, shelfMoved: state.shelfMoved || shelfMoved };
     return state;
   }
 
   function record(type, value) {
-    state = journeyEvent(current(), type, value);
+    const snapshot = current();
+    // Walking changes only this tab. Commit its chapter and location with the next intentional action.
+    const atLayer = site === 'home' && viewLayer !== 'loft' ? journeyEvent(snapshot, 'enter-layer', viewLayer) : snapshot;
+    state = journeyEvent(atLayer, type, value);
     if (!storageError) {
       const raw = JSON.stringify(state);
       try {
@@ -160,7 +168,7 @@ export function mountAdventure({
           CHOICES.thatCurve,
           () =>
             dialogue(LINES.chat.curve, [
-              [CHOICES.pullLight, () => (site === 'home' ? go('lab') : location.assign(homeURL + '&room=lab'))],
+              [CHOICES.pullLight, () => (site === 'home' && getRoom() === 'home' ? openFoldDesk() : site === 'home' ? go('lab') : location.assign(homeURL + '&room=lab'))],
               [CHOICES.leaveLight, quiet],
             ]),
         ],
@@ -188,7 +196,7 @@ export function mountAdventure({
     if (canStacks) {
       items.push([CHOICES.goStacks, () => { quiet(); enterLayer('stacks'); }]);
     }
-    items.push([CHOICES.openLab, () => { quiet(); go('lab'); }]);
+    items.push([CHOICES.openLab, openFoldDesk]);
     for (const [question, answer] of [[CHOICES.askWhere, LINES.atrium.answerPlace], [CHOICES.askSafe, LINES.atrium.answerSafe], [CHOICES.askSelf, LINES.atrium.answerSelf]]) {
       items.push([question, () => dialogue(answer, [[CHOICES.next, talkInAtrium], [CHOICES.wander, quiet]])]);
     }
@@ -204,9 +212,9 @@ export function mountAdventure({
         ? LINES.stacks.diagramReady
         : LINES.stacks.locked;
     const items = [];
-    if (state.stacksUnlocked) {
+    if (state.layers.includes('loft') || state.legacyLoft || state.phase === 'after') {
       items.push([CHOICES.goLoft, () => { quiet(); enterLayer('loft'); }]);
-    } else if (state.diagram) {
+    } else if (state.diagram && !state.stacksUnlocked) {
       items.push([
         CHOICES.syncPillars,
         () => {
@@ -224,27 +232,22 @@ export function mountAdventure({
   }
 
   function talkInLoft() {
+    if (state.phase === 'closed' && state.traces.length === TRACES.length) {
+      record('reunion');
+      world3d.refresh();
+      dialogue(LINES.loft.reunion, [[CHOICES.next, quiet]]);
+      return;
+    }
     const foundCount = identityClueCount(state);
     if (foundCount >= 2) {
+      const finishIdentityTalk = () => {
+        quiet();
+        if (state.legacyLoft && !state.response && state.phase !== 'after') { record('finish-legacy-loft'); world3d.refresh(); }
+        say(LINES.loft.working);
+      };
       dialogue(LINES.loft.askIdentity, [
-        [
-          CHOICES.askWho,
-          () =>
-            lines(LINES.loft.answerWho, () => {
-              if (state.phase !== 'after') record('complete-loft');
-              quiet();
-              say(LINES.after.visit, { mood: 'bright' });
-            }),
-        ],
-        [
-          CHOICES.askAuthor,
-          () =>
-            lines(LINES.loft.answerAuthor, () => {
-              if (state.phase !== 'after') record('complete-loft');
-              quiet();
-              say(LINES.after.visit, { mood: 'thought' });
-            }),
-        ],
+        [CHOICES.askWho, () => lines(LINES.loft.answerWho, finishIdentityTalk)],
+        [CHOICES.askAuthor, () => lines(LINES.loft.answerAuthor, finishIdentityTalk)],
         [CHOICES.openArchive, () => { quiet(); go('archive'); }],
         [CHOICES.wander, quiet],
       ]);
@@ -259,6 +262,12 @@ export function mountAdventure({
 
   function talk() {
     current();
+    if (isSilenced(state, site === 'blog' ? 'library' : viewLayer)) {
+      if (site !== 'blog' && viewLayer === 'loft' && state.traces.length === TRACES.length) talkInLoft();
+      else say(echoHint(), { mood: 'thought' });
+      return true;
+    }
+    if (site === 'blog') { freeTime(); return true; }
     if (state.phase === 'arrive') {
       record('hello');
       lines(LINES.arrival, () => talkInAtrium());
@@ -281,41 +290,110 @@ export function mountAdventure({
       talkInStacks();
       return true;
     }
+    if (viewLayer === 'poolrooms' || viewLayer === 'drafts') {
+      dialogue(LINES[viewLayer].enter, [[CHOICES.wander, quiet]]);
+      return true;
+    }
     talkInAtrium();
     return true;
   }
 
-  function enterLayer(layerId, { push = true } = {}) {
-    poolArrival = false;
+  function enterLayer(layerId, { push = true, fromWorld = false } = {}) {
     current();
     if (site !== 'home') {
       location.assign(`${homeURL}&layer=${layerId}`);
       return false;
     }
-    try {
-      record('enter-layer', layerId);
-    } catch (e) {
-      say(e.message, { mood: 'thought' });
-      return false;
-    }
+    if (!canEnterLayer(state, layerId)) return false;
+    viewLayer = layerId;
+    visited.add(layerId);
+    current(); atmosphere(); renderAtlas();
     if (push) {
       const url = new URL(location.href);
       url.searchParams.set('paper', '0617');
       url.searchParams.delete('room');
       url.searchParams.delete('spot');
-      if (layerId === 'atrium') url.searchParams.delete('layer');
-      else url.searchParams.set('layer', layerId);
+      url.searchParams.delete('from');
+      url.searchParams.set('layer', layerId);
       history.pushState({ ...history.state, p34Space: true, p34Room: 'home', p34Layer: layerId }, '', url.pathname + url.search);
     }
     if (getRoom() !== 'home') {
       go('home');
-    } else {
+    } else if (!fromWorld) {
       world3d?.refresh();
     }
-    if (layerId === 'atrium') say(LINES.spatial.atriumEnter);
+    if (isSilenced(state, layerId)) say(echoHint(), { mood: 'thought' });
+    else if (layerId === 'atrium') say(LINES.spatial.atriumEnter);
+    else if (layerId === 'poolrooms' || layerId === 'drafts') say(LINES[layerId].enter);
     else if (layerId === 'stacks') say(LINES.spatial.stacksEnter, { mood: 'thought' });
     else if (layerId === 'loft') say(LINES.spatial.loftEnter, { mood: 'bright' });
     return true;
+  }
+
+  function openFoldDesk() {
+    if (isSilenced(current(), viewLayer)) return;
+    quiet();
+    if (getRoom() !== 'home') { go('lab'); return; }
+    void ensureWorld3D().then(world => world?.openFoldDesk());
+  }
+
+  function echoHint() {
+    const missing = TRACES.find(id => !state.traces.includes(id));
+    return LINES.echoes[{ atrium: 'findAtrium', poolrooms: 'findPool', drafts: 'findDraft' }[missing] || 'complete'];
+  }
+
+  function inspectPrototype() {
+    if (state.phase === 'after') { say(LINES.after.visit); return; }
+    dialogue(LINES.drafts.prototype, RESPONSES.map(choice => [CHOICES.disagreement[choice], () => {
+      // Her frustration is independent of which answer the player gives.
+      dialogue(LINES.drafts.heard[choice], [[CHOICES.next, () => dialogue(LINES.drafts.retreat, [
+        [CHOICES.leaveRuler, () => {
+          quiet(); record('disagreement', choice); world3d.refresh(); say(echoHint(), { mood: 'thought' });
+        }],
+      ])]]);
+    }]));
+  }
+
+  function mountCreationDesk(body, preview, close) {
+    if (state.phase !== 'after') record('reunion');
+    const original = startingSculpture(state), shape = { ...original };
+    const memory = state.response === 'critique' ? 'rememberFlaw' : state.garden.chime !== null ? 'rememberChime'
+      : state.clues.includes('pool-echo') ? 'rememberWater' : 'working';
+    body.innerHTML = `<p class="creation-remark" role="status"></p>
+      ${[['height','拱顶'],['span','跨度'],['tone','音管']].map(([id,title]) =>
+        `<label class="creation-control"><span>${title}</span><input data-sculpture="${id}" type="range" min="0" max="2" step="1" value="${shape[id]}"><output></output></label>`).join('')}
+      <div class="creation-actions"><button type="button" data-partner>换你调</button><button type="button" data-finish-sculpture disabled>留在这里</button></div>`;
+    const remark = body.querySelector('.creation-remark'), finish = body.querySelector('[data-finish-sculpture]');
+    const names = { height: ['低','中','高'], span: ['收','平','展'], tone: ['铜管','玻璃','低铜片'] };
+    let participated = false, saved = false;
+    const render = () => {
+      for (const input of body.querySelectorAll('[data-sculpture]')) {
+        const key = input.dataset.sculpture;
+        input.value = shape[key];
+        const name = names[key][shape[key]];
+        input.setAttribute('aria-valuetext', name);
+        input.nextElementSibling.textContent = name;
+      }
+      preview(shape);
+    };
+    remark.textContent = LINES.loft[memory]; render();
+    body.querySelectorAll('input').forEach(input => input.addEventListener('input', () => {
+      const key = input.dataset.sculpture;
+      shape[key] = Number(input.value);
+      participated = true; finish.disabled = false;
+      remark.textContent = LINES.loft.shaping[key][shape[key]]; render();
+    }));
+    body.querySelector('[data-partner]').addEventListener('click', () => {
+      const open = shape.span < 2;
+      shape.span += open ? 1 : -1;
+      remark.textContent = open ? LINES.loft.partner : LINES.loft.partnerNarrow; render();
+    });
+    finish.addEventListener('click', () => {
+      if (!participated) return;
+      record('complete-loft', shape); saved = true;
+      close(()=>{world3d.refresh();dialogue(LINES.loft.finished, [[CHOICES.keepBusy, quiet]]);});
+    });
+    return () => { if (!saved) preview(original); };
   }
 
   function ensureWorld3D() {
@@ -338,19 +416,20 @@ export function mountAdventure({
         } : null,
         onShelfMoved() {
           if (!state.shelfMoved) {
-            record('shelf-moved');
-            say(LINES.spatial.shelfMoved, { mood: 'bright' });
+            shelfMoved = true;
+            if (!isSilenced(state, viewLayer)) say(LINES.spatial.shelfMoved, { mood: 'bright' });
           }
         },
         onGardenComment(text) {
-          if (shell.dataset.talking !== 'true') say(text, { mood: 'thought' });
+          if (!isSilenced(state, viewLayer) && shell.dataset.talking !== 'true') say(text, { mood: 'thought' });
         },
+        mountFoldDesk, mountCreationDesk,
         onLayerChange(nextLayer, { push = true } = {}) {
-          enterLayer(nextLayer, { push });
+          enterLayer(nextLayer, { push, fromWorld: true });
         },
         onOpenRoom(roomName) {
           if (site === 'blog') {
-            location.assign(homeURL + (state.layers.includes('stacks') ? '&layer=stacks' : ''));
+            location.assign(homeURL + '&layer=stacks&from=blog');
           } else if (roomName === 'blog') {
             location.assign(blogURL);
           } else {
@@ -366,7 +445,17 @@ export function mountAdventure({
           }
         },
         onInteract(kind, payload) {
-          if (kind === 'garden-sky') {
+          if (kind === 'memory-trace') {
+            if (state.traces.includes(payload)) { say(echoHint()); return; }
+            record(kind, payload);
+            world3d.refresh();
+            say(LINES.echoes[payload] + '\n' + echoHint(), { mood: 'thought' });
+          } else if (kind === 'prototype') {
+            inspectPrototype();
+          } else if (['pool-echo', 'pool-study', 'draft-note'].includes(kind)) {
+            record('clue', kind);
+            if(kind==='pool-echo')dialogue(LINES.poolrooms.echo, [[CHOICES.wander, quiet]]);
+          } else if (kind === 'garden-sky') {
             record(kind, payload);
             say(LINES.garden.skies[payload], { mood: 'bright' });
           } else if (kind === 'garden-chime') {
@@ -390,7 +479,9 @@ export function mountAdventure({
           } else if (kind === 'terminal') {
             say(LINES.spatial.terminalOpen);
           } else if (kind === 'portal-locked-loft') {
-            say(LINES.spatial.pillarTurned, { mood: 'thought' });
+            const hint = isSilenced(state, viewLayer) ? echoHint() : payload?.targetLayer === 'loft'
+              ? LINES.drafts.enter : payload?.targetLayer === 'poolrooms' ? LINES.spatial.bridgeHint : LINES.stacks.locked;
+            say(hint, { mood: 'thought' });
           } else if (kind === 'sync-pillars') {
             record('sync-pillars');
             say(LINES.spatial.stacksUnlocked, { mood: 'bright' });
@@ -435,6 +526,8 @@ export function mountAdventure({
   function heading(name) {
     if (name === 'home') {
       if (state.phase === 'after') return LINES.home.after;
+      if (isSilenced(state, viewLayer)) return LINES.home.closed;
+      if (['poolrooms', 'drafts'].includes(viewLayer)) return LINES.layers[viewLayer];
       if (state.currentLayer === 'loft') return LINES.home.loft;
       if (state.currentLayer === 'stacks') return LINES.home.stacks;
       return state.phase === 'arrive' ? LINES.home.arrive : LINES.home.shared;
@@ -454,7 +547,7 @@ export function mountAdventure({
       atlas.dataset.layerAtlas = '';
       panel.append(atlas);
     }
-    atlas.innerHTML = `<h2>去过的地方</h2><div class="layer-atlas-cards">${state.layers.map(id => `
+    atlas.innerHTML = `<h2>去过的地方</h2><div class="layer-atlas-cards">${(state.phase === 'after' ? LAYERS : state.layers).map(id => `
       <button type="button" data-enter-layer="${id}">${LAYER_LABELS[id].replace(/^第.层 · /, '')}</button>
     `).join('')}</div><button type="button" data-goto-room="archive">档案</button>`;
   }
@@ -478,27 +571,29 @@ export function mountAdventure({
 
   function room(name, announce = true) {
     current();
-    const urlLayer = layerFromURL(location.href, state.currentLayer);
-    if (site === 'home' && name === 'home' && urlLayer && urlLayer !== state.currentLayer) {
-      try {
-        record('enter-layer', urlLayer);
-      } catch {
-        // Keep current unlocked layer if URL points to a locked layer
-      }
+    const urlLayer = layerFromURL(location.href, history.state?.p34Layer || resumeLayer);
+    if (site === 'home' && name === 'home' && canEnterLayer(state, urlLayer)) {
+      viewLayer = urlLayer;
+      visited.add(urlLayer);
+      current();
     }
     atmosphere();
-    if (name === 'guestbook') void guestbook?.open();
+    if (name === 'guestbook' && !isSilenced(state, viewLayer)) void guestbook?.open();
     if (!storageError) notice.hidden = true;
     renderAtlas();
     renderClueArchive();
     if (announce && name !== 'home' && site !== 'blog') say(heading(name));
+    if (isSilenced(state, site === 'blog' ? 'library' : viewLayer) && (site === 'blog' || !['home', 'archive'].includes(name))) {
+      say(echoHint(), { mood: 'thought' });
+    }
     shell.querySelector('[data-talk]').hidden = false;
     shell.querySelector('[data-return]').hidden = false;
     saves.hidden = name !== 'archive' && site !== 'blog';
 
     if (site === 'blog' || name === 'home') {
+      const reentering = Boolean(world3d);
       void ensureWorld3D().then(() => {
-        world3d?.refresh();
+        if (reentering) world3d.refresh();
         world3d?.setActive(getRoom() === (site === 'blog' ? 'blog' : 'home'));
       }).catch(() => {}); // The visible notice above retains the exit path.
     }
@@ -506,6 +601,7 @@ export function mountAdventure({
 
   function canRead(slug) {
     current();
+    if (isSilenced(state, 'library')) return false;
     if (slug === 'landing-notes') {
       return state.layers.includes('stacks') || state.westAligned || state.bridgeSolid || state.phase === 'after';
     }
@@ -515,10 +611,10 @@ export function mountAdventure({
     return true;
   }
 
-  function opened(slug) {
+  function opened(slug, intentional) {
     stopDiagram?.();
     stopDiagram = null;
-    if (NOTES.includes(slug)) record('opened', slug);
+    if (intentional && NOTES.includes(slug) && !state.opened.includes(slug)) record('opened', slug);
     const diagram = shell.querySelector('[data-return-diagram]');
     if (!diagram) return;
 
@@ -535,7 +631,7 @@ export function mountAdventure({
       diagram.append(noteBox);
     }
 
-    const update = () => {
+    const update = event => {
       const trace = reboundSketch(Number(input.value) / 100);
       if (ink) ink.setAttribute('d', trace.path);
       if (pad) {
@@ -543,10 +639,13 @@ export function mountAdventure({
         pad.setAttribute('width', String(trace.paddleWidth));
       }
       if (trace.exit) {
-        if (!state.diagram) record('diagram');
+        if (event && !state.diagram) {
+          if (!state.opened.includes(slug)) record('opened', slug);
+          record('diagram');
+        }
         if (link) {
           link.hidden = false;
-          link.href = 'https://sayori.org/?paper=0617&layer=stacks';
+          link.href = 'https://sayori.org/?paper=0617&layer=stacks&from=blog';
           link.textContent = '回到书库';
         }
         if (edge) edge.style.opacity = '1';
@@ -593,8 +692,9 @@ export function mountAdventure({
   shell.append(saves);
 
   listen(saves.querySelector('[data-export]'), 'click', () => {
-    if (current().light === 2 && !state.lightSketch && memorySketch()) record('light-saved', memorySketch());
-    const url = URL.createObjectURL(new Blob([JSON.stringify(current(), null, 2)], { type: 'application/json' }));
+    const snapshot = current();
+    if (snapshot.light === 2 && !snapshot.lightSketch) snapshot.lightSketch = memorySketch();
+    const url = URL.createObjectURL(new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' }));
     const a = document.createElement('a');
     a.href = url;
     a.download = 'project-34-journey.json';
@@ -630,6 +730,12 @@ export function mountAdventure({
       return;
     }
     state = parsed.state;
+    viewLayer = state.currentLayer; visited.clear(); state.layers.forEach(id => visited.add(id)); shelfMoved = state.shelfMoved;
+    const url = new URL(location.href);
+    if (site === 'home') {
+      url.searchParams.set('layer', viewLayer);
+      history.replaceState({ ...history.state, p34Layer: viewLayer }, '', url);
+    }
     storageError = '';
     notice.hidden = true;
     world3d?.refresh();
@@ -656,9 +762,11 @@ export function mountAdventure({
     heading,
     opened,
     canRead,
+    getLayer: () => viewLayer,
     record: (type, value) => {
       const next = record(type, value);
-      world3d?.refresh();
+      if (type === 'light-saved') world3d?.refreshBridge();
+      else if (type !== 'light-moved') world3d?.refresh();
       return next;
     },
     getWorld3D: () => world3d,

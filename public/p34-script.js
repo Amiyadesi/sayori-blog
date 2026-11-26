@@ -1,13 +1,13 @@
 // 页面实际读取的台词本。她的句末不加句号
 export const LINES = {
   arrival: [
-    '等一下，刚才那副样子太难稳住了',
-    '换回字说话吧\n这里是正面网页背面的夹层，现在归我管',
-    '别慌，墙不会塌，外头那些影子也不会碰你\n想知道什么直接问就好',
+    '等一下，我正扶着这道折痕',
+    '你从正面过来的？那帮我看看\n从你那边能看见桥脚吗？',
+    '还是用字说话自在些\n你走你的，我把这张桌子往旁边挪',
   ],
   spatial: {
     atriumEnter: '我去楼上，你慢慢看',
-    arrivalReassure: '别慌，换回字和你说话——这里是我搭在网页背面的地方，没事的',
+    arrivalReassure: '先别踩那道光，桥脚还在我桌上',
     bridgeHint: '桌上那条折线，试着把中间抬高',
     bridgeSolid: '能过去了',
     surveyFound: '这张还没画完',
@@ -19,13 +19,22 @@ export const LINES = {
     relicFound: '那个先不做了',
     pillarTurned: '我在笔记上画过',
     blogSynced: '图收到了',
-    stacksUnlocked: '门开了',
+    stacksUnlocked: '接上了！高架桥那边是我没收拾的草稿',
     loftEnter: '进来吧',
     clueSlot34: '那一栏不是我空着的',
     clueHandwriting: '背面是我写的',
     clueRainOrigin: '这份也在这里？',
   },
   garden: {
+    catch: ['真往下跳啊，行，接你一下', '别拿我的天井试重力', '这块板借你，下回挑个有台阶的地方落脚'],
+    tableFeet: '站桌子上也看不见天花板外面',
+    dialFeet: '别踩光晷仪，针歪了我还得重调',
+    wetFeet: '这池水刚平下来！算了，再踩一下，我想看拱顶怎么晃',
+    ringing: '等上一声响完嘛，尾巴那点才好听',
+    sidestep: '开个玩笑，门挪这边了',
+    socket: '严丝合缝，你看桥那一头',
+    bellsOpen: '五块都响了？里面那间的回声我最喜欢',
+    guides: { desk: '跟着纸尖走，我把桥脚留在桌上了', block: '它在找那块缺角的石头', socket: '跟它走，地上有个一模一样的缺口', door: '让它先飞，你走我铺的那条路', note: '跟着这张纸，这次让它领路' },
     skies: {
       morning: '清晨借来了，凉一点才好醒脑',
       afternoon: '四点钟归你了，太阳下班也得等我同意',
@@ -52,7 +61,7 @@ export const LINES = {
     },
   },
   atrium: {
-    readyForStacks: '上面通着书库，有什么不清楚的随时问我',
+    readyForStacks: '北桥底下有个水厅。你上去，看得比我清楚',
     answerPlace: '你从正面网页的纸角翻过来，会落进我搭在网站后面的几层房间\n平时我就在里面写东西、改机关',
     answerSafe: '走廊里走动的那些东西不会伤人\n盯着它们看一会儿，它们自己就会停下甚至给你让路',
     answerSelf: '刚才那样展开太散了，反而不方便交流\n用字的话，你能看清，我也不用一直撑着形体',
@@ -60,13 +69,51 @@ export const LINES = {
   stacks: {
     locked: '我把那三根柱子画在笔记里了',
     diagramReady: '照着图试试？',
-    unlocked: '我在楼上',
+    unlocked: '高架那头的桥缺了一段，你绕到侧面再看',
+  },
+  poolrooms: {
+    enter: '站低一点，水面才肯把另一半还给你',
+    echo: '看，半个拱就够了\n另一半是你站的那池水借给我的',
+    study: '我把水抬高两块砖，圆是合上了\n可我最喜欢坐的那级台阶也淹了',
+  },
+  drafts: {
+    enter: '脚下这版先别拆，我想从另一头走回来试试',
+    note: '第六张就是它。纸上两笔就接好了，我一直没舍得扔',
+    prototype: '从侧面看，这两段桥正好合拢\n走到桥脚却看不到下一步。你会留哪一点？',
+    heard: {
+      affirm: '我也喜欢拱合起来的那一下。我舍不得的是它，不是这七张图',
+      critique: '对，问题就在桥脚。我改了七张，每回都站在同一个地方看',
+      reserve: '你想再走一次？我本来也该走完，再改第八张',
+    },
+    retreat: '尺子先搁这儿。今天我不想再量了',
+  },
+  echoes: {
+    atrium: '铜管停住了，尾音还沿着北桥往水下走',
+    poolrooms: '水纹碰到两块白砖，又折成了铅笔线',
+    drafts: '纸背有个浅浅的圆，没有擦干净',
+    findAtrium: '折门通回廊。光晷的指针不动了，影子还在响',
+    findPool: '北桥那边，池底还照着半道拱',
+    findDraft: '草稿桥脚有一角纸还没压平',
+    complete: '三个圆重在一起。草稿桥上方的拱口透出雨光',
   },
   loft: {
     welcome: '别动桌上那张，我还在改',
     askIdentity: '你想问什么？',
     answerWho: ['我还没想好名字', '第 34 页为什么空着？\n我也想知道'],
     answerAuthor: ['他还不知道我住在这里', '哪天去评论区留个言，看看他会怎么回'],
+    reunion: '尺子借我一下……不用说刚才那座桥了\n你扶住左脚，我来照右边的光',
+    rememberChime: '听出来了？我把你挑的那管铜音也带上来了',
+    rememberWater: '水里的半圈先借来用用，这回两只脚都得看得见',
+    rememberFlaw: '桥脚这次不藏了。你从那头看，我从这头看',
+    working: '帮我把这道拱挪个位置，我想看看影子会落在哪里',
+    shaping: {
+      height: ['压低了，桌面的笔迹还能从拱里露出来', '这个高度，刚好够我把尺伸进去', '再高就要碰到穹顶的倒影了，留在这儿'],
+      span: ['窄口很利落，我倒想让它喘口气', '右脚的光落在桌沿，正好', '够宽了，站在侧面也看得到两只脚'],
+      tone: ['铜管就留长一些，让尾音慢慢散', '玻璃这一下清楚，我喜欢', '这声低。我把另一头的泛音留亮些'],
+    },
+    partner: '给我一下，我把右脚再撑开一格。你听，两边不抢了',
+    partnerNarrow: '我想把右脚收回来一格。这样桌沿还能留一小块暗处',
+    finished: '先留着，别替我收尺子\n窗台那道小拱，我还想再画一张',
   },
   chat: {
     sound: '这间屋子还是太响了',
@@ -78,8 +125,8 @@ export const LINES = {
     car: '每一遍我都觉得它快出去了',
   },
   after: { letter: '看见你的留言了', visit: '来啦，我还在改' },
-  home: { arrive: '回廊', shared: '回廊', stacks: '书库', loft: '阁楼', after: '回来了' },
-  layers: { atrium: '回廊', stacks: '书库', loft: '阁楼' },
+  home: { arrive: '回廊', shared: '回廊', poolrooms: '浴庭', stacks: '书库', drafts: '草稿', closed: '回声', loft: '阁楼', after: '回来了' },
+  layers: { atrium: '回廊', poolrooms: '浴庭', stacks: '书库', drafts: '草稿', loft: '阁楼' },
   rooms: { home: '回廊', works: '去过的地方', lab: '折页台', archive: '旧稿', blog: '笔记', guestbook: '留言' },
   map: '去哪里？',
   reading: '笔记',
@@ -93,6 +140,8 @@ export const LINES = {
 };
 
 export const CHOICES = {
+  disagreement: { affirm: '我喜欢合拢的拱影', critique: '桥脚的落点不清楚', reserve: '我想从另头再走走' },
+  leaveRuler: '把尺子放回桌上',
   chimes: ['留铜管', '试玻璃', '低音铜片'],
   next: '嗯', explore3d: '继续看看', openMap: '去过的地方', openLab: '看看折页台',
   openBlog: '看看笔记', openArchive: '看看记录', syncPillars: '投射草图',

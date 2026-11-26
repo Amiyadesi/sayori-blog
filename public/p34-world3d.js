@@ -1,109 +1,81 @@
 import {
   LAYERS,
-  LAYER_LABELS,
+  LAYER_LABELS, canEnterLayer, isSilenced,
   TARGET_PILLARS,
   CLUE_INFO,
   GARDEN_SKIES,
-} from './p34-journey.js?v=20261113-library';
-import { createBuilding } from './p34-building.js?v=20261113-residents';
-import { addResidents } from './p34-residents.js?v=20261113-residents';
-import { createWorldAudio } from './p34-audio.js?v=20261114-surreal';
-import { SUNDIAL, CHIMES, GARDEN_LIGHT, skyFromHour, entrySpawn, inPool, dailyNote, addAtriumGarden, addStacksGarden, addLoftGarden } from './p34-garden.js?v=20261119-garden';
-import { LINES } from './p34-script.js?v=20261119-garden';
+} from './p34-journey.js?v=20261126-playable';
+import { createBuilding, galleryEnvironment } from './p34-building.js?v=20261126-playable';
+import { addResidents } from './p34-residents.js?v=20261126-playable';
+import { createWorldAudio } from './p34-audio.js?v=20261126-playable';
+import { SUNDIAL, CHIMES, GARDEN_LIGHT, skyFromHour, entrySpawn, inPool, dailyNote, addAtriumGarden, addStacksGarden, addLoftGarden } from './p34-garden.js?v=20261126-playable';
+import { lightPoint } from './p34-light.js?v=20261126-playable';
+import { createPresentation, makeBook, bookPose } from './p34-presentation.js?v=20261126-playable';
+import { LINES } from './p34-script.js?v=20261126-playable';
+import { createBody, queueJump, advanceBody, TICK } from './p34-kinematics.js?v=20261126-playable';
+import { createPlayroom } from './p34-play.js?v=20261126-playable';
 
-const PLAYER_RADIUS = 0.42;
+import { deepConfig, deepCrossing, populateDeep } from './p34-deep.js?v=20261126-playable';
+import { atriumVista, stacksVista, libraryVista, loftVista, skyDome } from './p34-vistas.js?v=20261126-playable';
+
 const EYE_HEIGHT = 1.65;
+const FOLD_DESK = { x: -5.65, z: .2 };
+function portal(from, targetLayer, x, z, direction, floorY = 0, axis = 'z') {
+  return { id: `portal-${from}-${targetLayer}`, kind: 'portal', targetLayer,
+    label: LAYER_LABELS[targetLayer] || '阅览室', prompt: '走入', x, y: floorY + 1.45, z, floorY,
+    crossing: { [axis]: axis === 'x' ? x : z, halfWidth: 1.35, direction } };
+}
 
-// Architecture and collision use the same dimensions; side rooms are not quest gates.
-const ATRIUM_WALLS = [
-  ...[-1, 1].flatMap(side => [-8, 1, 10].filter(z => side !== 1 || z !== 10).map(z => ({ x: side * 13.5, z, w: .45, d: 5.4, h: 7.2 }))),
-  { x: 13.5, z: 10, w: .45, d: 5.4, h: 2.7 },
-  { x: 13.5, z: 10, w: .45, d: 5.4, h: 2.3, y: 4.9 },
-  { x: 13.5, z: 7.5, w: .45, d: .4, h: 7.2 },
-  { x: 13.5, z: 12.5, w: .45, d: .4, h: 7.2 },
-  { x: -24, z: 5.5, w: .45, d: 29, h: 4.8 },
-  { x: 24, z: 5.5, w: .45, d: 29, h: 4.8 },
-  { x: -18.75, z: -9, w: 10.5, d: .45, h: 4.8 },
-  { x: 18.75, z: -9, w: 10.5, d: .45, h: 4.8 },
-  { x: 0, z: 20, w: 48, d: .45, h: 3.4 },
-  { x: -8.5, z: 12.5, w: 10, d: .45, h: 6.5 },
-  { x: 8.5, z: 12.5, w: 10, d: .45, h: 6.5 },
-  { x: 4.2, z: 5.7, w: 5.4, d: .45, h: 3.4 },
-  { x: 18.2, z: -1, w: .45, d: 10, h: 4.8 },
-  { x: -21, z: 6, w: 6, d: .45, h: 4.8 },
-  { x: -16.75, z: -2, w: 6.5, d: .45, h: 4.8 },
-  { x: -6, z: 15.4, w: .45, d: 3.8, h: 3.4 },
-  { x: 7, z: 17.8, w: .45, d: 4, h: 3.4 },
-  { x: 0, z: -19.2, w: 27, d: .45, h: 8 },
-  ...[-1, 1].map(side => ({ x: side * 3.5, z: -9.55, w: 4, d: .3, h: 4, y: 3.2 })),
-  { x: 0, z: -9.55, w: 3, d: .3, h: 1, y: 6.2 },
-];
+const landingDistance = 1.65;
+export function layerEntrySpawn(config, source) {
+  const from = source === 'library-exit' ? 'library' : source?.split('-')[1];
+  const door = from && config.interactables.find(i => i.crossing && (i.targetLayer === from || (i.kind === 'library-exit' && from === 'stacks')));
+  if (!door) return { ...config.spawn };
+  const plane = door.crossing, dx = 'x' in plane ? -plane.direction : 0, dz = dx ? 0 : -plane.direction;
+  const x = (plane.x ?? door.x) + dx * landingDistance, z = (plane.z ?? door.z) + dz * landingDistance;
+  return { x, y: door.floorY ?? 0, z, yaw: Math.atan2(-dx, -dz) || 0, pitch: 0 };
+}
+
+const flat = (id, minX, maxX, minZ, maxZ, yStart = 0, yEnd = yStart, axis = 'flat') =>
+  ({ id, minX, maxX, minZ, maxZ, yStart, yEnd, axis, enabled: true });
+
+// The east wing wraps by four identical bays; the junction stays behind the turn.
+export function wrapWing(before, after, config) {
+  if (config.id !== 'atrium' || config.wingReleased || after.y>2.2 || after.x < 18.5 || after.x > 23.5) return null;
+  if (before.z > -48 && after.z <= -48) return { ...after, z: after.z + 24 };
+  return null;
+}
 
 export function getLibraryConfig(posts) {
   const positions = [[-5.6, 5], [5.6, 1], [-5.6, -5], [5.6, -10], [-5.6, -15]];
   return {
     id: 'library', title: '阅览室',
     spawn: { x: 0, y: 0, z: 9, yaw: 0, pitch: 0 },
-    bounds: { minX: -10.8, maxX: 10.8, minZ: -19.5, maxZ: 11.5 },
-    surfaces: [{ minX: -11.5, maxX: 11.5, minZ: -20, maxZ: 12, yStart: 0, yEnd: 0, axis: 'flat', enabled: true }],
-    colliders: [
-      ...[-1, 1].flatMap(side => [-14, -4, 6].map(z => ({
-        minX: side * 8.4 - .9, maxX: side * 8.4 + .9, minZ: z - 3, maxZ: z + 3, minY: 0, maxY: 6.8, enabled: true,
-      }))),
-      ...posts.map((post, i) => ({ bookSlug: post.slug, minX: positions[i][0] - .8, maxX: positions[i][0] + .8, minZ: positions[i][1] - .5, maxZ: positions[i][1] + .5, minY: 0, maxY: 1.1, enabled: true })),
-      ...[-1, 1].flatMap(side => [-9, 1].map(z => ({ minX: side * 3.2 - .4, maxX: side * 3.2 + .4, minZ: z - .4, maxZ: z + .4, minY: 0, maxY: 8, enabled: true }))),
-    ],
     interactables: [
-      { id: 'library-exit', label: '书库', prompt: '走入', kind: 'library-exit', x: 0, y: 1.5, z: 11.2, crossing: { z: 10.7, direction: 1, halfWidth: 1.35 } },
+      { id: 'library-exit', label: '书库', prompt: '走入', kind: 'library-exit', targetLayer: 'stacks', x: 0, y: 1.5, z: 11.2, crossing: { z: 10.7, direction: 1, halfWidth: 1.35 } },
       ...posts.map((post, i) => ({ id: `book-${post.slug}`, label: post.title, prompt: 'E · 翻开', kind: 'book', slug: post.slug, x: positions[i][0], y: 1.2, z: positions[i][1] })),
     ],
   };
 }
 
 export function getLayerConfig(layer, state = {}) {
+  const room = authoredConfig(layer, state);
+  if (isSilenced(state, layer)) {
+    room.interactables = room.interactables.filter(i => i.crossing || i.kind === 'memory-trace' ||
+      (layer === 'loft' && ['talk-bench','cocreate'].includes(i.kind)));
+  }
+  return room;
+}
+
+function authoredConfig(layer, state) {
+  if (layer === 'poolrooms' || layer === 'drafts') return deepConfig(layer, state);
   if (layer === 'atrium') {
-    const bridgeSolid = Boolean(state.bridgeSolid);
     return {
       id: 'atrium',
       title: LAYER_LABELS.atrium,
+      wingReleased: isSilenced(state,layer) && state.traces?.includes('atrium'),
       spawn: { x: 0, y: 0, z: 8.8, yaw: 0, pitch: 0 },
-      bounds: { minX: -24, maxX: 24, minZ: -18.8, maxZ: 20 },
-      walls: ATRIUM_WALLS,
-      surfaces: [
-        // Main floor
-        { id: 'main-floor', minX: -13.5, maxX: 13.5, minZ: -12.5, maxZ: 12.5, yStart: 0, yEnd: 0, axis: 'flat', enabled: true },
-        { id: 'west-rooms', minX: -24, maxX: -13, minZ: -9, maxZ: 20, yStart: 0, yEnd: 0, axis: 'flat', enabled: true },
-        { id: 'east-rooms', minX: 13, maxX: 24, minZ: -9, maxZ: 20, yStart: 0, yEnd: 0, axis: 'flat', enabled: true },
-        { id: 'rear-passage', minX: -24, maxX: 24, minZ: 12, maxZ: 20, yStart: 0, yEnd: 0, axis: 'flat', enabled: true },
-        { id: 'window-stairs', minX: 20, maxX: 22.6, minZ: 14, maxZ: 18, yStart: 0, yEnd: 2.2, axis: '-z', enabled: true },
-        { id: 'window-mezzanine', minX: 18.8, maxX: 23.5, minZ: 8, maxZ: 14, yStart: 2.2, yEnd: 2.2, axis: 'flat', enabled: true },
-        // West staircase (Z: -2.0 -> -6.8 rises Y: 0 -> 3.2)
-        { id: 'west-stairs', minX: -11.4, maxX: -7.4, minZ: -6.8, maxZ: -1.8, yStart: 0, yEnd: 3.2, axis: '-z', enabled: true },
-        // Upper mezzanine balcony (Z: -10.5 -> -6.6 at Y = 3.2)
-        { id: 'mezzanine', minX: -11.4, maxX: 7.5, minZ: -10.6, maxZ: -6.6, yStart: 3.2, yEnd: 3.2, axis: 'flat', enabled: true },
-        // Dynamic 3D Light Bridge (Z: -10.2 -> -14.2 rises Y: 3.2 -> 3.6)
-        { id: 'light-bridge', minX: -2.4, maxX: 2.4, minZ: -14.4, maxZ: -10.0, yStart: 3.2, yEnd: 3.6, axis: '-z', enabled: bridgeSolid },
-        // High Observation Platform (Z: -18.2 -> -14.0 at Y = 3.6)
-        { id: 'high-platform', minX: -4.6, maxX: 4.6, minZ: -18.2, maxZ: -14.0, yStart: 3.6, yEnd: 3.6, axis: 'flat', enabled: bridgeSolid },
-      ],
-      colliders: [
-        ...ATRIUM_WALLS.map(wall => ({ minX: wall.x - wall.w / 2, maxX: wall.x + wall.w / 2, minZ: wall.z - wall.d / 2, maxZ: wall.z + wall.d / 2, minY: wall.y || 0, maxY: (wall.y || 0) + wall.h, enabled: true })),
-        { id: 'window-rail', minX: 18.8, maxX: 23.5, minZ: 7.9, maxZ: 8.1, minY: 2.2, maxY: 3.1, enabled: true },
-        { id: 'east-window-seat', minX: 22.1, maxX: 23.3, minZ: -7.3, maxZ: -3.7, minY: 0, maxY: .6, enabled: true },
-        { id: 'west-window-seat', minX: -23.45, maxX: -22.35, minZ: 10, maxZ: 14, minY: 0, maxY: .6, enabled: true },
-        // Central courtyard pillars
-        { id: 'col-nw', minX: -4.6, maxX: -3.4, minZ: -4.6, maxZ: -3.4, minY: 0, maxY: 6, enabled: true },
-        { id: 'col-ne', minX: 3.4, maxX: 4.6, minZ: -4.6, maxZ: -3.4, minY: 0, maxY: 6, enabled: true },
-        { id: 'col-sw', minX: -4.6, maxX: -3.4, minZ: 3.4, maxZ: 4.6, minY: 0, maxY: 6, enabled: true },
-        { id: 'col-se', minX: 3.4, maxX: 4.6, minZ: 3.4, maxZ: 4.6, minY: 0, maxY: 6, enabled: true },
-        // West gallery divider wall
-        { id: 'west-divider', minX: -7.4, maxX: -6.6, minZ: -6.2, maxZ: -0.5, minY: 0, maxY: 4.5, enabled: true },
-        { id: 'fold-desk', minX: -0.7, maxX: 0.7, minZ: 0.6, maxZ: 1.8, minY: 0, maxY: 1.2, enabled: true },
-        // East alcove pedestal table
-        { id: 'east-table', minX: 8.6, maxX: 10.2, minZ: -2.8, maxZ: 2.8, minY: 0, maxY: 1.5, enabled: true },
-        // North chasm blocker when light bridge is not solid (blocks walking north past Z = -10.4)
-        { id: 'chasm-guard', minX: -13.5, maxX: 13.5, minZ: -18.5, maxZ: -10.4, minY: 0, maxY: 5.0, enabled: !bridgeSolid },
-      ],
+
       interactables: [
         { id: 'garden-sundial', label: '光晷仪', prompt: 'E · 转动', kind: 'garden-sundial', ...SUNDIAL },
         { id: 'corridor-chimes', label: '铜风铃', prompt: 'E · 轻拨', kind: 'corridor-chimes', ...CHIMES },
@@ -118,7 +90,7 @@ export function getLayerConfig(layer, state = {}) {
           id: 'light-sculpture-rig',
           label: '折页台',
           prompt: 'E · 打开',
-          x: 0, y: 1.4, z: 1.2,
+          ...FOLD_DESK, y: 1.15,
           kind: 'lab-link',
         },
         {
@@ -142,20 +114,15 @@ export function getLayerConfig(layer, state = {}) {
           x: 11.2, y: 1.5, z: 0,
           kind: 'terminal',
         },
-        {
-          id: 'portal-to-stacks',
-          label: '书库',
-          prompt: 'E · 穿过',
-          x: 0, y: 4.6, z: -9.6, floorY: 3.2,
-          kind: 'portal',
-          targetLayer: 'stacks',
-          crossing: { z: -9.9, direction: -1, halfWidth: 1.3 },
-        },
+        portal('atrium', 'poolrooms', 0, -17.45, -1, 3.6),
+        ...((state.phase === 'closed' || state.phase === 'loft' || state.phase === 'after' || state.layers?.includes('drafts')) ? [portal('atrium','drafts',-15,17.8,1)] : []),
+        ...((state.legacyLoft || state.layers?.includes('loft') || state.phase === 'after') ? [portal('atrium','loft',8.3,17.8,1)] : []),
+        ...(isSilenced(state, layer) && !state.traces?.includes('atrium') ? [{ id: 'trace-atrium', kind:'memory-trace', ...SUNDIAL, label:'静下来的晷针', prompt:'E · 听'}] : []),
         {
           id: 'high-platform-survey',
           label: '测绘纸',
           prompt: 'E · 阅读',
-          x: 0, y: 4.9, z: -16.2, floorY: 3.6,
+          x: -2.6, y: 4.9, z: -16.2, floorY: 3.6,
           kind: 'clue',
           clueId: 'atrium-survey',
         },
@@ -163,7 +130,7 @@ export function getLayerConfig(layer, state = {}) {
           id: 'arrival-echo',
           label: '她',
           prompt: 'E · 问问她',
-          x: 0, y: 1.55, z: 5.2,
+          x: 2.1, y: 1.55, z: 5.2,
           kind: 'talk-arrival',
         }] : []),
       ],
@@ -171,33 +138,22 @@ export function getLayerConfig(layer, state = {}) {
   }
 
   if (layer === 'stacks') {
-    const unlocked = Boolean(state.stacksUnlocked);
+    const unlocked = Boolean(state.stacksUnlocked || state.phase === 'after');
     return {
       id: 'stacks',
       title: LAYER_LABELS.stacks,
-      spawn: { x: 0, y: 0, z: 8.8, yaw: 0, pitch: 0 },
-      bounds: { minX: -11.5, maxX: 11.5, minZ: -13.5, maxZ: 11.5 },
+      spawn: { x: 0, y: 3.55, z: 15.4, yaw: 0, pitch: -.08 },
       surfaces: [
-        { id: 'stacks-floor', minX: -12.0, maxX: 12.0, minZ: -7.5, maxZ: 12.0, yStart: 0, yEnd: 0, axis: 'flat', enabled: true },
-        { id: 'north-bridge', minX: -2.5, maxX: 2.5, minZ: -13.8, maxZ: -7.2, yStart: 0, yEnd: 0.6, axis: '-z', enabled: unlocked },
-      ],
-      colliders: [
-        { id: 'sliding-shelf', minX: state.shelfMoved ? -6.8 : -2.8, maxX: state.shelfMoved ? -3.6 : 0.4, minZ: 3.8, maxZ: 4.6, minY: 0, maxY: 4.2, enabled: true },
-        { id: 'north-void-guard', minX: -12.0, maxX: 12.0, minZ: -14.0, maxZ: -7.4, minY: 0, maxY: 5.0, enabled: !unlocked },
-        { id: 'west-stack-wall', minX: -10.8, maxX: -9.2, minZ: -6.0, maxZ: 6.0, minY: 0, maxY: 8.0, enabled: true },
-        { id: 'east-stack-wall', minX: 9.2, maxX: 10.8, minZ: -6.0, maxZ: 6.0, minY: 0, maxY: 8.0, enabled: true },
+        flat('index-front', -12,12,-7.5,2.2), flat('index-rear', -12,12,7.2,10.4),
+        flat('index-spine', -1.55,1.55,2.2,7.2), flat('west-gallery',-12,-6.1,2.2,7.2), flat('east-gallery',6.1,12,2.2,7.2),
+        flat('stack-entry-stairs',-8.9,8.9,10.3,15.4,3.55,0,'-z'), flat('stack-entry-loggia',-8.9,8.9,15.4,18.4,3.55),
+        { id: 'north-bridge', minX: -2.5, maxX: 2.5, minZ: -18, maxZ: -7.2, yStart: 0, yEnd: 4.5, axis: '-z', enabled: unlocked },
+        { ...flat('north-loggia', -6, 6, -25.5, -18, 4.5), enabled: unlocked },
       ],
       interactables: [
         ...['lamp', 'folio', 'blank'].map((specimen, i) => ({ id: `specimen-${specimen}`, label: ['桌灯标本', '笔记折页', '第 34 号空白铭牌'][i], prompt: 'E · 近看', kind: 'garden-specimen', specimen, x: [-7.2, -4.6, 7.2][i], y: 1.15, z: 8.3 })),
-        {
-          id: 'portal-back-atrium',
-          label: '回廊',
-          prompt: 'E · 返回',
-          x: 0, y: 1.6, z: 10.8,
-          kind: 'portal',
-          targetLayer: 'atrium',
-          crossing: { z: 10.3, direction: 1, halfWidth: 1.3 },
-        },
+        portal('stacks', 'poolrooms', 0, 17.45, 1, 3.55),
+        { ...portal('stacks', 'library', -11.35, .8, -1, 0, 'x'), kind:'gallery-door' },
         {
           id: 'blog-reading-desk',
           label: '摊开的笔记',
@@ -244,15 +200,7 @@ export function getLayerConfig(layer, state = {}) {
           kind: 'pillar',
           pillar: 'east',
         },
-        {
-          id: 'portal-to-loft',
-          label: '阁楼',
-          prompt: 'E · 穿过',
-          x: 0, y: 2.1, z: -11.6,
-          kind: 'portal',
-          targetLayer: 'loft',
-          crossing: { z: -11.3, direction: -1, halfWidth: 1.3 },
-        },
+        portal('stacks','drafts',0,-24.3,-1,4.5),
       ],
     };
   }
@@ -262,29 +210,16 @@ export function getLayerConfig(layer, state = {}) {
     id: 'loft',
     title: LAYER_LABELS.loft,
     spawn: { x: 0, y: 0, z: 6.2, yaw: 0, pitch: 0 },
-    bounds: { minX: -7.8, maxX: 7.8, minZ: -7.8, maxZ: 7.8 },
-    surfaces: [
-      { id: 'loft-floor', minX: -8.2, maxX: 8.2, minZ: -8.2, maxZ: 8.2, yStart: 0, yEnd: 0, axis: 'flat', enabled: true },
-    ],
-    colliders: [
-      { id: 'workbench-col', minX: -1.6, maxX: 1.6, minZ: -2.2, maxZ: -0.6, minY: 0, maxY: 1.6, enabled: true },
-    ],
     interactables: [
       { id: 'loft-daily-note', label: '桌边短笺', prompt: 'E · 翻看', kind: 'loft-daily-note', x: -3.1, y: 1.05, z: 2.3 },
-      {
-        id: 'portal-back-stacks',
-          label: '书库',
-          prompt: 'E · 返回',
-        x: 0, y: 1.6, z: 7.4,
-        kind: 'portal',
-        targetLayer: 'stacks',
-        crossing: { z: 7.0, direction: 1, halfWidth: 1.3 },
-      },
+      portal('loft','drafts',0,7.9,1),
+      ...((state.legacyLoft || state.layers?.includes('loft') || state.phase === 'after') ? [portal('loft','atrium',5.3,7.9,1)] : []),
+      { id:'cocreate', kind:'cocreate', label:'共创台', prompt:'E · 调整', x:0, y:1.48, z:-.79 },
       {
         id: 'her-workbench',
           label: '工作台',
           prompt: 'E · 聊聊',
-        x: 0, y: 1.4, z: -1.4,
+        x: 1.42, y: 1.4, z: -1.6,
         kind: 'talk-bench',
       },
       {
@@ -307,7 +242,7 @@ export function getLayerConfig(layer, state = {}) {
         id: 'clue-rain-window',
           label: '窗边的记录',
           prompt: 'E · 查看',
-        x: 0, y: 1.6, z: -6.8,
+        x: 3.4, y: 1.6, z: -6.8,
         kind: 'clue',
         clueId: 'rain-origin-trace',
       },
@@ -322,74 +257,13 @@ export function getLayerConfig(layer, state = {}) {
   };
 }
 
-export function computeFloorElevation(x, z, currentY, surfaces = []) {
-  let bestY = null;
-  for (const s of surfaces) {
-    if (!s.enabled) continue;
-    if (x >= s.minX && x <= s.maxX && z >= s.minZ && z <= s.maxZ) {
-      let y = s.yStart;
-      if (s.axis === '-z') {
-        const t = Math.max(0, Math.min(1, (s.maxZ - z) / (s.maxZ - s.minZ || 1)));
-        y = s.yStart + t * (s.yEnd - s.yStart);
-      } else if (s.axis === '+z') {
-        const t = Math.max(0, Math.min(1, (z - s.minZ) / (s.maxZ - s.minZ || 1)));
-        y = s.yStart + t * (s.yEnd - s.yStart);
-      }
-      if (y <= currentY + 1.35) {
-        if (bestY === null || y > bestY) bestY = y;
-      }
-    }
-  }
-  return bestY ?? 0;
-}
-
-function hitsCollider(x, z, y, colliders, radius = PLAYER_RADIUS) {
-  for (const c of colliders) {
-    if (!c.enabled) continue;
-    if (y + EYE_HEIGHT < (c.minY ?? 0) || y > (c.maxY ?? 10)) continue;
-    const closestX = Math.max(c.minX, Math.min(x, c.maxX));
-    const closestZ = Math.max(c.minZ, Math.min(z, c.maxZ));
-    const dx = x - closestX;
-    const dz = z - closestZ;
-    if (dx * dx + dz * dz < radius * radius) return true;
-  }
-  return false;
-}
-
-export function resolvePlayerMovement(pos, nextX, nextZ, config) {
-  const { bounds, colliders, surfaces } = config;
-  const clampX = x => Math.max(bounds.minX + PLAYER_RADIUS, Math.min(bounds.maxX - PLAYER_RADIUS, x));
-  const clampZ = z => Math.max(bounds.minZ + PLAYER_RADIUS, Math.min(bounds.maxZ - PLAYER_RADIUS, z));
-
-  let x = pos.x;
-  let z = pos.z;
-  let y = pos.y || 0;
-
-  const onFloor = (x, z) => surfaces.some(s => s.enabled && Math.min(s.yStart, s.yEnd) <= y + 1.35 && x >= s.minX && x <= s.maxX && z >= s.minZ && z <= s.maxZ);
-  const candX = clampX(nextX);
-  const candZ = clampZ(nextZ);
-
-  // Try X movement
-  const yAtX = computeFloorElevation(candX, z, y, surfaces);
-  if (onFloor(candX, z) && !hitsCollider(candX, z, yAtX, colliders)) {
-    x = candX;
-    y = yAtX;
-  }
-  // Try Z movement
-  const yAtZ = computeFloorElevation(x, candZ, y, surfaces);
-  if (onFloor(x, candZ) && !hitsCollider(x, candZ, yAtZ, colliders)) {
-    z = candZ;
-    y = yAtZ;
-  }
-
-  return { x, y, z };
-}
-
 export function crossedDoor(before, after, interactables) {
   return interactables.find(door => {
     const threshold = door.crossing;
-    if (!threshold || Math.abs(after.x - door.x) > threshold.halfWidth || Math.abs(after.y - (door.floorY || 0)) > .9) return false;
-    return (before.z - threshold.z) * threshold.direction < 0 && (after.z - threshold.z) * threshold.direction >= 0;
+    if (!threshold || Math.abs(after.y - (door.floorY || 0)) > .9) return false;
+    const axis = 'x' in threshold ? 'x' : 'z', side = axis === 'x' ? 'z' : 'x';
+    return Math.abs(after[side] - door[side]) <= threshold.halfWidth &&
+      (before[axis] - threshold[axis]) * threshold.direction < 0 && (after[axis] - threshold[axis]) * threshold.direction >= 0;
   });
 }
 
@@ -433,24 +307,27 @@ export async function mountWorld3D(container, {
   onShelfMoved,
   onGardenComment,
   onOpenRoom,
+  mountFoldDesk, mountCreationDesk,
   onLeaveSite,
   library = null,
   signal,
 }) {
   const THREE = await import('./third-party/three/three.module.min.js');
   const { GLTFLoader } = await import('./third-party/three/GLTFLoader.js');
-  const css3d = library ? await import('./third-party/three/CSS3DRenderer.js') : null;
+  const css3d = await import('./third-party/three/CSS3DRenderer.js');
   if (signal?.aborted) return null;
 
   const root = document.createElement('div');
   root.className = 'world3d-stage';
   root.innerHTML = `
-    <div class="world3d-viewport" data-viewport tabindex="0" role="application" aria-label="三维页背探索空间，使用 WASD 移动，鼠标或方向键转动视角，E 或点击交互"></div>
+    <div class="world3d-viewport" data-viewport tabindex="0" role="application" aria-label="三维页背探索空间，WASD 移动，拖动环视，空格跳跃，E 互动，G 寻路"></div>
     <div class="world3d-reticle" data-reticle aria-hidden="true"><span></span></div>
     <header class="world3d-hud-top">
+      <button type="button" data-guide class="world3d-chip" aria-label="纸飞机寻路" title="纸飞机寻路 · G"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 18-6-6 16-4-7-8-3Zm8 3L21 4"/></svg></button>
       <button type="button" data-inspector-btn class="world3d-chip" aria-label="暂停" title="暂停 · Esc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6v12M15 6v12"/></svg></button>
     </header>
-    <p class="world3d-help" data-help>WASD 移动 · 拖动环视 · E 互动 · Esc 暂停</p>
+    <p class="world3d-help" data-help>WASD 移动 · 空格跳跃 · E 互动 · G 寻路</p>
+    <p class="world3d-aside" data-aside role="status"></p>
     <div class="world3d-prompt" data-prompt hidden aria-live="polite">
       <span class="world3d-prompt-title" data-prompt-title></span>
       <button type="button" class="world3d-prompt-action" data-prompt-btn></button>
@@ -466,6 +343,7 @@ export async function mountWorld3D(container, {
         <button type="button" data-step="back" aria-label="后退">▼</button>
       </div>
       <div class="world3d-touch-pad world3d-touch-look" data-touch-look role="group" aria-label="右下视角控制">
+        <button type="button" data-jump aria-label="跳跃">跳跃</button>
         <div class="world3d-touch-row">
           <button type="button" data-turn="left" aria-label="向左看">↶</button>
           <button type="button" data-turn="right" aria-label="向右看">↷</button>
@@ -504,6 +382,7 @@ export async function mountWorld3D(container, {
 
   let renderer = null;
   let webglAvailable = true;
+  let software = false;
   try {
     let isSoftwareGL = false;
     try {
@@ -512,11 +391,10 @@ export async function mountWorld3D(container, {
       const glName = dbg ? probe.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : '';
       isSoftwareGL = /SwiftShader|llvmpipe|Software/i.test(glName);
     } catch {}
+    software = isSoftwareGL;
     renderer = new THREE.WebGLRenderer({ antialias: !isSoftwareGL, powerPreference: 'high-performance' });
-    // Software rasterizers are fill-rate bound; preserve lighting rather than strip the room's shadows.
-    renderer.setPixelRatio(isSoftwareGL ? .75 : Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = isSoftwareGL ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.12;
     viewport.append(renderer.domElement);
@@ -530,15 +408,23 @@ export async function mountWorld3D(container, {
   }
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(68, 16 / 9, 0.1, 90);
+  scene.userData.software = software;
+  const environment = renderer && galleryEnvironment(THREE, renderer);
+  if (environment) scene.environment = environment.texture;
+  const camera = new THREE.PerspectiveCamera(68, 16 / 9, 0.08, 260);
   camera.rotation.order = 'YXZ';
   const pages = new THREE.Scene();
-  const pageRenderer = css3d ? new css3d.CSS3DRenderer() : null;
-  if (pageRenderer) {
-    pageRenderer.domElement.className = 'world3d-pages';
-    root.append(pageRenderer.domElement);
+  const pageRenderer = new css3d.CSS3DRenderer();
+  pageRenderer.domElement.className = 'world3d-pages';
+  root.append(pageRenderer.domElement);
+  const presentation=createPresentation(THREE,camera,motion.reduced);
+  const bookRigs=new Map();
+  let reading = null, readingObject = null;
+  const veil=document.createElement('div');veil.className='world3d-threshold-veil';veil.inert=true;root.append(veil);
+  function travel(arrive){
+    keys.clear();resetTouchStick();draggingLook=false;lookPointerId=null;
+    presentation.travel(arrive,a=>{veil.style.opacity=a;});
   }
-  let reading = null, readingObject = null, beforeReading = null;
   let typography = null, typographyMount = null, conversation = null;
   const shell = root.closest('#p34-space');
 
@@ -556,7 +442,7 @@ export async function mountWorld3D(container, {
     keys.clear(); draggingLook = false; lookPointerId = null; resetTouchStick();
     if (document.pointerLockElement === viewport) document.exitPointerLock?.();
     try {
-      typographyMount ||= import('./p34-typography.js?v=20261113-library').then(m => m.createSpatialDialogue({ signal, reduced: motion.reduced }));
+      typographyMount ||= import('./p34-typography.js?v=20261126-playable').then(m => m.createSpatialDialogue({ signal, reduced: motion.reduced }));
       typography = await typographyMount;
       if (disposed) { typography.dispose(); return; }
       if (conversation !== request) return;
@@ -574,7 +460,6 @@ export async function mountWorld3D(container, {
     if (!library) return getLayerConfig(currentLayerId, state);
     const room = getLibraryConfig(library.posts);
     room.interactables = room.interactables.filter(i => i.kind !== 'book' || library.canRead(i.slug));
-    room.colliders = room.colliders.filter(i => !i.bookSlug || library.canRead(i.bookSlug));
     return room;
   }
 
@@ -602,7 +487,16 @@ export async function mountWorld3D(container, {
   let state = getState();
   let currentLayerId = library ? 'library' : LAYERS.includes(state.currentLayer) ? state.currentLayer : 'atrium';
   let config = worldConfig();
-  let player = !library && currentLayerId === 'atrium' ? entrySpawn(config.spawn, location.href) : { ...config.spawn };
+  const from = new URL(location.href).searchParams.get('from');
+  let player = createBody(currentLayerId === 'atrium'
+    ? entrySpawn(config.spawn, location.href)
+    : layerEntrySpawn(config, from === 'blog' ? 'library-exit' : from === 'stacks' ? 'portal-stacks-library' : null));
+  const playMemory = {}, aside = root.querySelector('[data-aside]');
+  let play, asideTime=0, accumulator=0, nudgeTime=0, nudgeCode;
+  function remark(text) {
+    if(isSilenced(state,currentLayerId) || !text) return;
+    aside.textContent=text; aside.dataset.visible='true'; asideTime=3.1;
+  }
   let bobPhase = 0;
   let stepDistance = 0;
   let lampColorIdx = 0;
@@ -624,11 +518,15 @@ export async function mountWorld3D(container, {
   }
   let activeTarget = null;
   let animatedObjects = [];
-  let dynamicNorthBridgeGroup = null;
+  let atriumBridge = null;
+  let updateBridge = null, stacksViaduct = null;
   let dynamicSlidingShelf = null;
   let lampLightRef = null;
   let residents = null;
   let building = null;
+  let foldModel, foldKnobs, foldProfile, foldPoints;
+  let deepRoom, wingIndex, dome, sculpture, sculptureTone;
+  let wingLoops = 0, echoHeard = false;
   let garden = null, gardenLighting = null, appliedSky = '', appliedChime = null;
   let preferenceTimer = 0;
   const gardenEchoes = new Set();
@@ -644,53 +542,75 @@ export async function mountWorld3D(container, {
     const h = Math.max(240, rect.height || window.innerHeight);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
-    if (renderer) renderer.setSize(w, h, false);
-    pageRenderer?.setSize(w, h);
+    // Software rasterization is fill-rate limited. Keep real shadows and the complete horizon;
+    // cap the framebuffer instead. CSS controls and reading pages stay at native resolution.
+    const softwareWidth = currentLayerId === 'stacks' && !library ? 480 : 608;
+    renderer?.setDrawingBufferSize(w, h, software ? Math.min(.75, softwareWidth / w) : Math.min(window.devicePixelRatio || 1, 1.75));
+    pageRenderer.setSize(w, h);
     typography?.resize(w, h);
-    if (reading) frameReading();
+    if (readingObject && presentation.mode!=='return') frameReading();
   }
 
   function frameReading() {
-    // Keep real DOM type readable on a phone; the room remains visible around the page.
-    const width = Math.min(720, Math.max(340, viewport.clientWidth * .84));
-    const height = Math.min(820, Math.max(420, viewport.clientHeight * .8));
-    const element = readingObject.element;
-    element.style.width = `${width}px`; element.style.height = `${height}px`;
-    const distance = Math.max(height, width / camera.aspect) * .0038 / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))) / .86;
-    camera.position.set(readingObject.position.x, readingObject.position.y, readingObject.position.z + distance);
-    camera.rotation.set(0, 0, 0);
-    pageRenderer.render(pages, camera);
-    renderer?.render(scene, camera);
+    const rig=bookRigs.get(readingObject.name), p=rig.root.position, portrait=camera.aspect<.85;
+    const width=Math.min(445,Math.max(270,viewport.clientHeight*.51),viewport.clientWidth*.79);
+    const scale=.607/width;
+    Object.assign(readingObject.element.style,{width:width+'px',height:(.797/scale)+'px'});
+    readingObject.scale.setScalar(scale);
+    readingObject.rotation.x=-Math.PI/2;
+    readingObject.position.set(p.x+.335,rig.baseY+.146,p.z);
+    // Portrait favors the text leaf; landscape keeps the illustration and exposed boards in frame.
+    const aim=new THREE.Vector3(p.x+(portrait ? .31 : -.022),rig.baseY+(portrait ? .147 : .194),p.z-.005);
+    const dist=Math.max(1.13,(portrait ? .82 : 1.62)/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2))*camera.aspect));
+    presentation.focus('book',aim.clone().add(new THREE.Vector3(0,dist*.942,dist*.336)),aim,rig);
   }
 
+  function mountSpread(target,element) {
+    readingObject=new css3d.CSS3DObject(element);
+    readingObject.name=target.id;element.style.opacity='0';element.inert=true;
+    pages.add(readingObject);frameReading();pageRenderer.render(pages,camera);
+    audio.playInteraction('book');
+  }
+  function putBack(done) {
+    const article=readingObject;
+    presentation.close(()=>{
+      pages.remove(article);readingObject=null;reading=null;
+      root.dataset.reading='false';done?.();updateTargetPrompt();viewport.focus({preventScroll:true});
+    });
+    audio.playInteraction('flip');
+  }
+  function updatePresentation(dt){
+    presentation.tick(dt);updateBridge?.(dt);
+    if(readingObject){
+      const ink=bookPose(presentation.amount).ink, el=readingObject.element;
+      el.style.opacity=ink;el.inert=ink<.55 || presentation.mode==='return';
+      if(!el.inert && !el.contains(document.activeElement) && el.dataset.focusPage==='true'){
+        delete el.dataset.focusPage;el.querySelector('[data-index],[data-modal-close]')?.focus({preventScroll:true});
+      }
+      pageRenderer.render(pages,camera);
+    }
+  }
   function readBook(post, element) {
     keys.clear(); draggingLook = false; lookPointerId = null; resetTouchStick();
-    if (readingObject) pages.remove(readingObject);
-    readingObject = null;
-    reading = post;
-    root.dataset.reading = String(Boolean(post));
     if (!post) {
-      if (beforeReading) player = beforeReading;
-      beforeReading = null;
-      syncCamera(); updateTargetPrompt();
-      viewport.focus({ preventScroll: true });
+      if(reading)putBack();
       return;
     }
-    beforeReading ||= { ...player };
+    if(readingObject)pages.remove(readingObject);
+    reading=post;root.dataset.reading='true';
     modal.hidden = true;
     if (document.pointerLockElement === viewport) document.exitPointerLock?.();
     const target = config.interactables.find(i => i.slug === post.slug);
-    readingObject = new css3d.CSS3DObject(element);
-    readingObject.position.set(target.x, 2.35, target.z);
-    readingObject.rotation.set(-.025, -.06, 0);
-    readingObject.scale.setScalar(.0038);
-    pages.add(readingObject);
-    frameReading();
-    element.querySelector('[data-index]').focus({ preventScroll: true });
+    element.dataset.focusPage='true';mountSpread(target,element);updateTargetPrompt();
   }
 
   function clearScene() {
     buildId++;
+    asideTime=0;delete aside.dataset.visible;
+    bookRigs.clear();updateBridge=null;stacksViaduct=null;
+    foldModel = foldKnobs = foldProfile = foldPoints = null;
+    echoHeard = false;
+    deepRoom?.dispose(); deepRoom = wingIndex = dome = sculpture = null; sculptureTone = undefined;
     garden?.dispose?.(); garden = null; gardenLighting = null; appliedSky = ''; appliedChime = null;
     const freed = new Set();
     for (const material of building?.materials || []) {
@@ -708,7 +628,7 @@ export async function mountWorld3D(container, {
       }
     });
     animatedObjects = [];
-    dynamicNorthBridgeGroup = null;
+    atriumBridge = null;
     dynamicSlidingShelf = null;
     lampLightRef = null;
     residents = null;
@@ -728,9 +648,10 @@ export async function mountWorld3D(container, {
     const dir = new THREE.DirectionalLight(0xf1ece0, 1.15);
     dir.position.set(18, 12, 4);
     dir.castShadow = true;
-    dir.shadow.mapSize.set(2048, 2048);
+    dir.shadow.mapSize.setScalar(software ? 768 : 2048);
     Object.assign(dir.shadow.camera, { left: -24, right: 24, top: 24, bottom: -24, near: .5, far: 65 });
-    dir.shadow.normalBias = .16;
+    dir.shadow.normalBias = .036;
+    dir.shadow.radius = 3;
     dir.shadow.bias = -.00025;
     dir.shadow.autoUpdate = false; dir.shadow.needsUpdate = true;
     scene.add(dir);
@@ -748,161 +669,114 @@ export async function mountWorld3D(container, {
     scene.add(eastLight);
     lampLightRef = eastLight;
 
-    building = createBuilding(THREE, scene, renderer);
+    building = createBuilding(THREE, scene, renderer, { software });
     const { box, floor: floorMat, ceiling: ceilingMat, wood: timber, metal } = building;
     box(27, .2, 25, 0, -.1, 0, floorMat);
-    for (const wall of config.walls) {
-      if (Math.abs(wall.x) === 24) {
-        const east = wall.x > 0, z = east ? -5.5 : 12, width = east ? 3.8 : 5.9;
-        const bottom = east ? 1.08 : 2.02, top = east ? 3.92 : 2.98;
-        const start = wall.z - wall.d / 2, end = wall.z + wall.d / 2;
-        building.wall(wall.w, wall.h, z - width / 2 - start, wall.x, 0, (start + z - width / 2) / 2);
-        building.wall(wall.w, wall.h, end - z - width / 2, wall.x, 0, (end + z + width / 2) / 2);
-        building.wall(wall.w, bottom, width, wall.x, 0, z);
-        building.wall(wall.w, wall.h - top, width, wall.x, top, z);
-      } else if (wall.z === 20) {
-        for (const x of [-12.8, 12.8]) building.wall(22.4, wall.h, wall.d, x, 0, wall.z);
-        building.wall(3.2, .4, wall.d, 0, 3, wall.z);
-      } else building.wall(wall.w, wall.h, wall.d, wall.x, wall.y || 0, wall.z);
+    for (const side of [-1, 1]) box(10.5,.3,29,side*18.75,-.15,5.5,floorMat);
+    box(27,.3,7.5,0,-.15,16.25,floorMat);
+    // The eaves belong to the side cloisters; the central court is open to the sky.
+    for(const x of [-18.5,18.5]){
+      box(9.2,.42,28,x,6.22,5.4,ceilingMat);
+      for (const z of [-8.6,.7,10,19.3]) {
+        for (const sx of [-4.2,4.2]) building.column(.72,6.01,.72,x+sx,0,z);
+        building.arch(x,2.05,z,7.56,.14,.51,.74);
+      }
+      for(const z of [-4,5.3,14.6]) for(const sx of [-4.2,4.2]) building.arch(x+sx,1.48,z,8.6,.18,.53,.64,Math.PI/2);
     }
-    building.wall(.8, 4.5, 5.7, -7, 0, -3.35);
+    for(const x of [-20,20]) {box(7.8,.7,.46,x,.35,19.6,building.plaster); box(8,.09,.58,x,.73,19.6,building.edge);}
+    for (const [x,z] of [[22.7,-5.5],[-22.9,12]]) {building.slab(1.12,.16,3.6,x,.52,z,timber);box(.46,.48,3.2,x,.24,z,timber);}
+    box(4.7,.18,6,21.15,2.11,11,floorMat);
+    box(4.7,.12,.12,21.15,3.05,8,timber);
+    for(const x of [18.8,20.35,21.9,23.5])box(.06,.85,.06,x,2.63,8,timber);
+    for(let i=0;i<10;i++)box(2.6,.22,.4,21.3,.11+i*.22,17.8-i*.4,floorMat);
+    // A summerhouse frame over the fold-desk, rather than a wall across the axis.
+    building.wall(.8,2.8,5.7,-7,0,-3.35);
+    const seamMat = new THREE.MeshStandardMaterial({color:0xafaa94,roughness:.3,metalness:.33});
+    building.arch(0,0,12.1,3.3,1.7,.28,.35,0,seamMat);
+    const invChair = new THREE.Group();invChair.position.set(-14.5,6.02,16.4);invChair.rotation.set(Math.PI,.38,0);
+    box(.48,.05,.48,0,.48,0,timber,invChair);box(.48,.5,.05,0,.75,-.21,timber,invChair);
+    for(const x of [-.2,.2])for(const z of [-.2,.2])box(.045,.48,.045,x,.24,z,timber,invChair);scene.add(invChair);
+    wingIndex = atriumVista(THREE,scene,building); wingIndex.rotation.y=wingLoops*Math.PI/2;
+    gardenLighting = { hemi, dir, centerLight };
+    for(const door of config.interactables.filter(i=>i.kind==='portal')){
+      building.arch(door.x,door.floorY,door.z,3.4,2.18,.48,.71,0,building.paint);
+      building.arch(door.x,door.floorY,door.z+.38,3.62,2.16,.14,.13,0,building.edge);
+    }
+    // Four open arches join at the stone capitals around the skylight.
+    for (const cx of [-4, 4]) for (const cz of [-4, 4]) building.column(1.2, 3.2, 1.2, cx, 0, cz).userData.solidId='courtyard-column';
+    for (const side of [-4, 4]) for (const [x, z, yaw] of [[0, side, 0], [side, 0, Math.PI / 2]]) {
+      building.arch(x, 3.15, z, 7.12, .03, .73, .72, yaw);
+      building.arch(x + .41 * Math.sin(yaw), 3.17, z + .41 * Math.cos(yaw), 7.28, .03, .15, .11, yaw, building.edge);
+    }
     for (const side of [-1, 1]) {
-      box(10.5, .2, 29, side * 18.75, -.1, 5.5, floorMat);
-      box(10.5, .2, 29, side * 18.75, 4.9, 5.5, ceilingMat);
-    }
-    box(27, .2, 7.5, 0, -.1, 16.25, floorMat);
-    box(48, .2, 7.5, 0, 3.5, 16.25, ceilingMat);
-    box(27, .25, 6.5, 0, 3.5, 9, ceilingMat);
-    // A real open light well, not a glowing rectangle pasted on the ceiling.
-    for (const x of [-8.35, 8.35]) box(10.3, .25, 18, x, 7.5, -3.5, ceilingMat);
-    box(6.4, .25, 7.5, 0, 7.5, -8.75, ceilingMat);
-    box(6.4, .25, 4, 0, 7.5, 3.5, ceilingMat);
-    for (const x of [-3.2, 3.2]) box(.18, 1.5, 6.5, x, 8.15, -1.75, building.plaster);
-    for (const z of [-5, 1.5]) box(6.4, 1.5, .18, 0, 8.15, z, building.plaster);
-    const skylight = box(6.4, .06, 6.5, 0, 8.9, -1.75, new THREE.MeshBasicMaterial({ color: 0xe5e5d9 }));
-    gardenLighting = { hemi, dir, centerLight, skylight };
-    for (const [x, y, z] of [[-2, 3.3, 9], [2, 3.3, 9], [-6, 7.3, -1], [6, 7.3, -1], [-9.3, 7.3, -7], [-20.5, 4.7, -5.5], [-16, 4.7, 3.5], [-20.5, 4.7, 11], [21, 4.7, -5.5], [16, 4.7, 5.5], [21, 4.7, 11], [9, 3.3, 16]]) building.fixture(x, y, z, true);
-    const flickerTube = building.fixture(-10, 3.3, 17, true);
-    animatedObjects.push(() => {
-      if (motion?.reduced?.()) return;
-      const t = performance.now() * 0.001;
-      const dip = Math.sin(t * 7.3) * Math.sin(t * 19.1) > 0.72 ? 0.42 : 1.0;
-      flickerTube.material.emissiveIntensity = 1.8 * dip;
-    });
-    const southLight = new THREE.PointLight(0xe6e5cb, 24, 17);
-    southLight.position.set(2.5, 3.0, 12.5);
-    scene.add(southLight);
-    building.vent(-23.72, 3.7, 1, -1); building.vent(23.72, 3.7, 7);
-
-    // Quiet rooms look out onto impossible liminal courtyards rather than flat white planes.
-    const glassMat = new THREE.MeshStandardMaterial({ color: 0xbac7ba, transparent: true, opacity: .24, roughness: .18, metalness: .1 });
-    const fogCourtMat = new THREE.MeshBasicMaterial({ color: 0x9aa69a });
-    const ghostArchMat = new THREE.MeshBasicMaterial({ color: 0x7a857c });
-    const eastGlass = box(.04, 2.8, 3.5, 23.74, 2.5, -5.5, glassMat); eastGlass.userData.noShadow = true; eastGlass.userData.noReceiveShadow = true;
-    // Impossible East Courtyard diorama beyond glass (X: 24..34)
-    box(.1, 7, 11, 34, 3, -5.5, fogCourtMat).userData.noShadow = true;
-    box(10, .1, 11, 29, 6.5, -5.5, fogCourtMat).userData.noShadow = true;
-    box(10, .1, 11, 29, -.5, -5.5, fogCourtMat).userData.noShadow = true;
-    for (let s = 0; s < 6; s++) box(1.8, .22, .48, 28.5, .4 + s * .42, -3.2 - s * .72, ghostArchMat).userData.noShadow = true;
-    const tiltedFrame = new THREE.Group();
-    tiltedFrame.position.set(30.8, 3.2, -7.2); tiltedFrame.rotation.x = .14;
-    for (const z of [-1.05, 1.05]) box(.22, 3.1, .14, 0, 0, z, ghostArchMat, tiltedFrame);
-    for (const y of [-1.55, 1.55]) box(.22, .14, 2.1, 0, y, 0, ghostArchMat, tiltedFrame);
-    scene.add(tiltedFrame);
-
-    for (const z of [-6.65, -5.5, -4.35]) box(.12, 2.8, .045, 23.65, 2.5, z, timber);
-    for (const y of [1.08, 2.35, 3.92]) box(.2, .09, 3.8, 23.6, y, -5.5, metal);
-    box(.35, .12, 3.9, 23.5, 1.04, -5.5, building.plaster);
-    box(1.15, .16, 3.6, 22.7, .5, -5.5, timber);
-    box(.15, .5, 3.4, 22.7, .25, -5.5, timber);
-    box(.04, .9, 5.8, -23.74, 2.5, 12, glassMat).castShadow = false;
-    // Inverted corridor vista beyond West Clerestory (X: -32..-24)
-    box(.1, 5, 9, -32, 2.5, 12, fogCourtMat).castShadow = false;
-    box(7, .12, 6, -28, .2, 12, new THREE.MeshBasicMaterial({ color: 0xc2cbc0 })).castShadow = false;
-    building.deepPortal(-25.1, 0, 12, 2.9, 4.3, Math.PI / 2, 7, 0x68736b);
-    for (const z of [9.1, 10.55, 12, 13.45, 14.9]) box(.1, 1, .05, -23.62, 2.5, z, metal);
-    for (const y of [2.02, 2.98]) box(.2, .08, 5.9, -23.6, y, 12, metal);
-    box(1.1, .18, 4, -22.9, .5, 12, timber);
-    box(.16, .5, 3.8, -22.9, .25, 12, timber);
-    box(4.7, .18, 6, 21.15, 2.11, 11, floorMat);
-    box(4.7, .12, .12, 21.15, 3.05, 8, timber);
-    for (const x of [18.8, 20.35, 21.9, 23.5]) box(.05, .85, .05, x, 2.63, 8, timber);
-    for (let i = 0; i < 10; i++) box(2.6, .22, .4, 21.3, .11 + i * .22, 17.8 - i * .4, floorMat);
-    for (const z of [8.2, 10, 11.8]) box(.12, 2.2, .06, 13.5, 3.8, z, timber);
-
-    // Inverted chair mounted quietly on the rear ceiling (subtle non-Euclidean cue)
-    const invChair = new THREE.Group();
-    invChair.position.set(-14.5, 3.4, 16.4);
-    invChair.rotation.set(Math.PI, .38, 0);
-    box(.48, .05, .48, 0, .48, 0, timber, invChair);
-    box(.48, .5, .05, 0, .75, -.21, timber, invChair);
-    for (const lx of [-.2, .2]) for (const lz of [-.2, .2]) box(.045, .48, .045, lx, .24, lz, timber, invChair);
-    invChair.traverse(o => { if (o.isMesh) o.userData.noShadow = true; });
-    scene.add(invChair);
-
-    // Recessed page-seam veil + infinite south rear portal
-    const seamMat = new THREE.MeshBasicMaterial({ color: 0x565950, transparent: true, opacity: .62, side: THREE.DoubleSide });
-    const seamMesh = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 3.2), seamMat);
-    seamMesh.position.set(0, 1.6, 12.1);
-    scene.add(seamMesh);
-    building.deepPortal(0, 0, 19.78, 3.2, 3.0, Math.PI, 4, 0x242a26);
-
-    // Four central chamfered monolith columns
-    for (const [cx, cz] of [[-4, -4], [4, -4], [-4, 4], [4, 4]]) {
-      building.column(1.1, 7.4, 1.1, cx, 0, cz);
+      for (const z of [-5.35, 4.35]) building.arch(side * 13.33, 0, z, 2.95, 2.22, .31, .5, Math.PI / 2);
+      building.arch(side * 8.3, 0, -8.7, 5.1, 2.46, .42, .55, 0, building.paint);
     }
 
     // The west stairs are ordinary architecture, not an invisible sightline lock.
-    const stepCount = 10;
-    for (let i = 0; i < stepCount; i++) {
-      const t = i / (stepCount - 1);
-      box(3.4, .24, .48, -9.4, .2 + t * 3, -2 - t * 4.6, floorMat);
-      box(3.4, .03, .045, -9.4, .33 + t * 3, -1.78 - t * 4.6, metal);
+    for (let i = 0; i < 13; i++) {
+      const z = -2 - i * .375, y = .12 + i * .245;
+      building.slab(3.85, .19, .48, -9.4, y - .095, z, building.plaster);
+      box(3.6, .023, .048, -9.4, y - .025, z + .247, building.edge);
     }
 
     // Upper Mezzanine Balcony (Y = 3.2m, Z = -8.6)
-    const mezzDeck = new THREE.Mesh(
-      new THREE.BoxGeometry(19.0, 0.3, 3.8),
-      new THREE.MeshStandardMaterial({ color: 0x888a7d, roughness: 1 })
-    );
-    mezzDeck.position.set(-2.0, 3.05, -8.6);
-    scene.add(mezzDeck);
+    building.slab(19, .34, 3.98, -1.95, 3.03, -8.59, building.plaster);
+    building.slab(19.06, .08, 3.96, -1.95, 3.17, -8.59, building.edge);
+    for (const x of [-5.6, 5.25]) building.arch(x, .02, -8.65, 3.35, 1.25, .27, .46);
 
-    // The opening belongs to the upper wall, receding into a non-Euclidean threshold corridor.
-    for (const x of [-1.5, 1.5]) {
-      box(.1, 3, .56, x, 4.7, -9.6, metal);
-    }
-    box(3.1, .1, .56, 0, 6.2, -9.6, metal);
-    building.deepPortal(0, 3.2, -9.68, 2.9, 2.96, 0, 5, 0x1b211f);
-
+    // Low bridge buttresses leave the doorway and sky legible from ground level.
+    for (const x of [-2.15,2.15]) box(.42,.8,2,x,3.6,-9.4,building.paint);
     // North High Observation Platform (Y = 3.6m, Z = -16.2)
-    const highDeck = new THREE.Mesh(
-      new THREE.BoxGeometry(8.4, 0.35, 4.2),
-      new THREE.MeshStandardMaterial({ color: 0x888a7d, roughness: 1 })
-    );
-    highDeck.position.set(0, 3.42, -16.1);
+    building.slab(8.4, .35, 4.2, 0, 3.42, -16.1, building.plaster);
+    building.slab(8.1, .12, 4.1, 0, 3.2, -16.1, building.paint);
     const surveyMonolith = new THREE.Mesh(
       new THREE.CylinderGeometry(0.45, 0.55, 1.5, 6),
       new THREE.MeshStandardMaterial({ color: 0xb6ac8e, roughness: 1 })
     );
-    surveyMonolith.position.set(0, 4.35, -16.2);
-    scene.add(highDeck, surveyMonolith);
+    surveyMonolith.position.set(-2.6, 4.35, -16.2);
+    scene.add(building.solid(surveyMonolith));
 
-    box(1.4, .1, 1.2, 0, .9, 1.2, timber);
-    for (const x of [-.57, .57]) for (const z of [.75, 1.65]) box(.055, .85, .055, x, .425, z, metal);
-    box(1.2, .12, .04, 0, .68, 1.65, metal);
-    const foldedPaper = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.03, 0.7), new THREE.MeshStandardMaterial({ color: 0xd4d2c6, roughness: 1 }));
-    foldedPaper.position.set(0, 0.96, 1.2);
-    foldedPaper.rotation.z = 0.15;
-    scene.add(foldedPaper);
-
-    // Saved sketch produces a usable bridge, not a decorative ribbon.
-    if (state.bridgeSolid) {
-      const bridge = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.12, 4.4), new THREE.MeshStandardMaterial({ color: 0xb9c8d0, roughness: 0.8 }));
-      bridge.position.set(0, 3.34, -12.2);
-      bridge.rotation.x = Math.atan2(0.4, 4.4);
-      scene.add(bridge);
+    const { x: foldX, z: foldZ } = FOLD_DESK;
+    building.lathe([[0, 0], [.47, 0], [.47, .08], [.37, .17], [.26, .29], [.25, .67], [.43, .87], [.43, .92], [0, .92]], foldX, 0, foldZ, building.paint);
+    building.slab(1.08, .14, .92, foldX, .92, foldZ, building.edge).userData.solidId='fold-desk';
+    const folio = new THREE.Group(); folio.position.set(foldX, 1.04, foldZ); folio.rotation.y = -.18; scene.add(folio);
+    const paper = new THREE.MeshStandardMaterial({ color: 0xffebcf, roughness: .8 });
+    for (const side of [-1, 1]) {
+      const leaf = building.slab(.35, .023, .44, side * .17, 0, 0, paper, folio);
+      leaf.rotation.z = side * -.20;
     }
+
+    // The drafting controls bend this translucent standing study above the physical folio.
+    foldModel=new THREE.Group();foldModel.position.set(foldX,1.13,foldZ);foldModel.visible=false;scene.add(foldModel);
+    const vellum=new THREE.Mesh(new THREE.PlaneGeometry(2.7,1.26),new THREE.MeshStandardMaterial({color:0xe6efdc,emissive:0x779d93,emissiveIntensity:.2,transparent:true,opacity:.25,side:THREE.DoubleSide,depthWrite:false}));
+    vellum.position.y=.65;foldModel.add(vellum);
+    const pins=new THREE.MeshStandardMaterial({color:0xfff2bc,emissive:0xbf8656,emissiveIntensity:.8,roughness:.38});
+    foldKnobs=Array.from({length:4},()=>{const pin=new THREE.Mesh(new THREE.SphereGeometry(.045,10,6),pins);foldModel.add(pin);return pin;});
+    foldProfile=new THREE.Mesh(new THREE.BufferGeometry(),pins);foldModel.add(foldProfile);
+    // Saved sketch produces a usable bridge, not a decorative ribbon.
+    atriumBridge = new THREE.Group();scene.add(atriumBridge);
+    const bridgeMat = new THREE.MeshStandardMaterial({ color: 0xc1f0e8, emissive: 0x4c8494, emissiveIntensity: .78, roughness: .34 });
+    const parts=Array.from({length:9},(_,i)=>{
+      const g=new THREE.Group();atriumBridge.add(g);g.userData.movingSolid=true;g.userData.solidId='light-bridge';g.userData.stepMaterial='glass';
+      const z=-10.19-(i+.5)*.46, top=3.2+(i+.5)*.045;
+      g.position.set(0,top-.075,z);g.rotation.x=.097;
+      building.slab(4.8,.15,.464,0,0,0,bridgeMat,g);
+      for(const x of [-2.32,2.32]) building.slab(.07,.026,.46,x,.084,0,building.edge,g);
+      return {g,base:g.position.y};
+    });
+    let wave=state.bridgeSolid || state.phase==='after' ? 1.4 : 0, sounded=-1;
+    atriumBridge.visible=wave>0;
+    updateBridge=dt=>{
+      if(!state.bridgeSolid && state.phase!=='after'){wave=0;atriumBridge.visible=false;sounded=-1;return;}
+      if(wave>=1.4)return;
+      atriumBridge.visible=true;wave=Math.min(1.4,wave+(motion.reduced()?1.4:dt));
+      parts.forEach(({g,base},i)=>{
+        const t=Math.max(0,Math.min(1,(wave-i*.09)/.48)),ease=t*t*(3-2*t);
+        g.visible=t>0;g.position.y=base-(1-ease)*1.7;g.rotation.z=(1-ease)*.075*(i%2?1:-1);
+        if(t>0 && i%3===0 && i>sounded){sounded=i;audio.playInteraction('harmonic',i/3);}
+      });
+    };
 
     // East Wing: Pedestals + GLB models + Backstage Webpage Terminal
     const pedGeom = new THREE.CylinderGeometry(0.55, 0.65, 1.0, 16);
@@ -911,19 +785,23 @@ export async function mountWorld3D(container, {
     ped1.position.set(8.8, 0.5, -1.8);
     const ped2 = new THREE.Mesh(pedGeom, pedMat);
     ped2.position.set(8.8, 0.5, 1.8);
-    scene.add(ped1, ped2);
+    scene.add(building.solid(ped1), building.solid(ped2));
 
     void loadGLB('/assets/p34/models/paper-prism-lamp.glb').then(model => {
       if (disposed || version !== buildId || currentLayerId !== 'atrium') return;
       model.position.set(8.8, 1.05, -1.8);
-      scene.add(model);
+      model.userData.movingSolid=true;
+      model.traverse(part=>{if(part.isMesh)building.solid(part);});
+      scene.add(model);building.physics.add(model);
       animatedObjects.push(dt => { model.rotation.y += dt * 0.85; });
     });
 
     void loadGLB('/assets/p34/models/spatial-tuning-fork.glb').then(model => {
       if (disposed || version !== buildId || currentLayerId !== 'atrium') return;
       model.position.set(8.8, 1.05, 1.8);
-      scene.add(model);
+      model.userData.movingSolid=true;
+      model.traverse(part=>{if(part.isMesh)building.solid(part);});
+      scene.add(model);building.physics.add(model);
       animatedObjects.push(dt => { model.rotation.y -= dt * 0.6; });
     });
 
@@ -932,8 +810,8 @@ export async function mountWorld3D(container, {
     const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.0), new THREE.MeshBasicMaterial({ color: 0x9eabb2 }));
     screen.rotation.y = -Math.PI / 2;
     screen.position.set(11.2, 1.5, 0);
-    scene.add(terminal, screen);
-    garden = addAtriumGarden(THREE, scene, renderer, building, { reduced: motion.reduced, getPlayer: () => player, onNotice: () => onGardenComment?.(LINES.garden.moved[0]) });
+    scene.add(building.solid(terminal), screen);
+    garden = addAtriumGarden(THREE, scene, renderer, building, { reduced: motion.reduced, software, getPlayer: () => player, onShift:()=>audio.playInteraction('shelf'), onNotice: () => { if (!isSilenced(state,currentLayerId)) onGardenComment?.(LINES.garden.moved[0]); } });
     animatedObjects.push(dt => garden.update(dt));
     residents = addResidents(THREE, scene, config, () => player, motion.reduced, {
       layerId: 'atrium',
@@ -954,9 +832,10 @@ export async function mountWorld3D(container, {
       }).catch(error => { if (!signal?.aborted) console.error('Arrival lettering failed to load', error); });
     }
     scene.traverse(object => {
-      if (object.isMesh) {
-        object.receiveShadow = !object.userData.noReceiveShadow && object.material.isMeshStandardMaterial && object.material !== ceilingMat;
-        object.castShadow = !object.userData.noShadow && object.material.isMeshStandardMaterial && !object.material.transparent && object.material !== ceilingMat;
+      if (object.isMesh && !object.isInstancedMesh) {
+        const lit = (object.material.isMeshStandardMaterial || object.material.isMeshLambertMaterial) && object.material !== ceilingMat;
+        object.receiveShadow = !object.userData.noReceiveShadow && lit;
+        object.castShadow = !object.userData.noShadow && lit && !object.material.transparent;
       }
     });
   }
@@ -978,54 +857,38 @@ export async function mountWorld3D(container, {
     projLight.position.set(0, 3.8, -3.5);
     scene.add(westPool, eastPool, projLight);
 
-    building = createBuilding(THREE, scene, renderer, { tone: 'stacks' });
+    building = createBuilding(THREE, scene, renderer, { tone: 'stacks', software });
     const { box, floor: floorMat, wood: timber, metal, plaster } = building;
-    box(24, .3, 19.6, 0, -.15, 2.2, floorMat);
-
-    // Enclosing concrete archive walls & high suspended ceiling coffers
-    for (const side of [-1, 1]) {
-      building.wall(.45, 13, 25.5, side * 11.75, 0, -1.0);
+    for(const s of config.surfaces.filter(s=>s.id.startsWith('index-')||s.id.endsWith('-gallery')||s.id==='stack-entry-loggia')){
+      box(s.maxX-s.minX,.46,s.maxZ-s.minZ,(s.maxX+s.minX)/2,s.yStart-.23,(s.maxZ+s.minZ)/2,floorMat);
     }
-    building.wall(10.1, 7.5, .45, -6.7, 0, 11.6);
-    building.wall(10.1, 7.5, .45, 6.7, 0, 11.6);
-    box(3.8, 3.7, .45, 0, 5.65, 11.6, plaster);
-    box(24, .25, 25.5, 0, 12.8, -1.0, building.ceiling);
-    for (const z of [-9, -3, 3, 9]) box(23.5, .45, .42, 0, 12.2, z, metal);
-    for (const x of [-6.5, 6.5]) for (const z of [-4, 4]) {
-      box(.03, 5.4, .03, x, 10.1, z, metal);
-      building.fixture(x, 7.4, z, true);
+    for(let j=0;j<18;j++){
+      const tread=5.1/18;
+      box(17.8,.23,tread,0,(j+.5)*3.55/18-.115,10.3+(j+.5)*tread,plaster);
     }
-    building.vent(-11.45, 4.2, 6.5, -1);
-    building.vent(11.45, 4.2, 6.5, 1);
-
-    // Abyssal shaft beyond north ledge (Y < 0 descending into mist)
-    const abyssMat = new THREE.MeshStandardMaterial({ color: 0x2c3336, roughness: 1 });
-    for (const side of [-1, 1]) box(.4, 14, 7.5, side * 11.75, -7, -11.2, abyssMat);
-    box(24, 14, .4, 0, -7, -14.2, abyssMat);
-    for (let depth = 1; depth <= 3; depth++) {
-      box(4.4, .18, 1.4, 0, -depth * 3.2, -10.8, abyssMat);
-    }
-    // Buttresses, remote stacks and a high gallery give the northern void a human scale.
-    box(26, 29, .5, 0, 1, -22, abyssMat);
-    for (const x of [-10.5, -7, -3.5, 3.5, 7, 10.5]) {
-      building.column(.7, 25, 1.1, x, -12, -18.8);
-      box(2.5, .22, 2.5, x, 7, -19.6, metal);
-      for (const y of [7.8, 9.2, 10.6]) {
-        box(2.3, .12, .85, x, y, -20.2, timber);
-        for (let b = 0; b < 6; b++) box(.19, .55 + (b % 3) * .09, .48, x - .9 + b * .35, y + .36, -20.2, metal);
+    for(const x of [-4.15,4.15]){
+      building.arch(x,-14,6.85,3.38,11.6,.37,.51,0,building.paint);
+      for (const y of [-4,-8,-12]) {
+        box(4.05,.24,1,x,y,4.2,building.paint);
+        box(.18,4,.3,x-1.78,y-2,4.2,metal);
       }
     }
-    box(23, .4, 2.2, 0, 6.4, -16.4, metal);
-    box(23, .08, .08, 0, 7.65, -15.35, metal);
-    for (let x = -11; x <= 11; x += 1.1) box(.045, 1, .045, x, 7.1, -15.35, metal);
-    building.deepPortal(0, 6.6, -21.7, 1.6, 3.2, 0, 5, 0x111a1e);
-    box(.045, 2.6, .04, .58, 8, -21.45, new THREE.MeshBasicMaterial({ color: 0x9baea5 }));
 
+    stacksVista(THREE,scene,building);
+    // The reading floor is an island over the shaft, with a deep visible cut below its lip.
+
+    for(const side of [-1,1]){
+      box(8.7,.56,.52,side*7.45,.28,-7.35,plaster);
+      box(8.9,.11,.68,side*7.45,.61,-7.35,building.edge);
+      building.column(.82,5.1,.82,side*8.7,0,10.3);
+    }
+    building.arch(-11.35,0,.8,3.3,2.2,.41,.6,Math.PI/2,building.paint);
     // Towering Archive Bookstacks + Instanced Books ascending into upper mist
     const spineMat = new THREE.MeshStandardMaterial({ color: 0xa6a394, roughness: .95 });
     for (let i = 0; i < 6; i++) {
       const z = -6.0 + i * 2.8;
       for (const side of [-1, 1]) {
+        if (side < 0 && Math.abs(z-.8)<2) continue;
         box(1.5, 12.5, 1.85, side * 10.0, 6.25, z, metal);
         box(1.56, .28, 1.5, side * 10.0, 2.2 + (i % 3) * 1.4, z, spineMat);
         for (let row = 0; row < 6; row++) {
@@ -1038,6 +901,7 @@ export async function mountWorld3D(container, {
     let bIdx = 0;
     for (const side of [-1, 1]) for (let i = 0; i < 6; i++) {
       const z = -6.0 + i * 2.8;
+      if (side < 0 && Math.abs(z-.8)<2) continue;
       for (let row = 0; row < 6; row++) for (let k = 0; k < 7; k++) {
         if ((i + k + row) % 5 === 0) continue;
         const h = .38 + ((k * 5 + row) % 7) * .025;
@@ -1049,13 +913,14 @@ export async function mountWorld3D(container, {
         stackBooks.setColorAt(bIdx++, new THREE.Color(bColors[(i + k + row) % bColors.length]));
       }
     }
+    building.solid(stackBooks);
     stackBooks.count = bIdx;
     scene.add(stackBooks);
 
     // Sovereign Girl's sliding bookshelf (full framed rack with books)
     const shelfGroup = new THREE.Group();
-    shelfGroup.position.set(state.shelfMoved ? -5.2 : -1.2, 0, 4.2);
-    box(3.2, 4.1, .16, 0, 2.05, -.32, metal, shelfGroup);
+    shelfGroup.rotation.y=Math.PI/2; shelfGroup.position.set(-6.72,0,state.shelfMoved ? 3.7 : 6.85);
+    for (const y of [.12, 4.0]) building.slab(3.2, .24, .82, 0, y, 0, building.paint, shelfGroup);
     for (const sx of [-1.54, 1.54]) box(.12, 4.1, .8, sx, 2.05, 0, metal, shelfGroup);
     for (let row = 0; row < 5; row++) {
       box(3.05, .08, .76, 0, .42 + row * .86, 0, timber, shelfGroup);
@@ -1065,6 +930,7 @@ export async function mountWorld3D(container, {
       }
     }
     dynamicSlidingShelf = shelfGroup;
+    shelfGroup.userData.movingSolid=true;shelfGroup.userData.solidId='sliding-shelf';
     scene.add(dynamicSlidingShelf);
     if (!state.shelfMoved) {
       let elapsed = 0;
@@ -1072,11 +938,11 @@ export async function mountWorld3D(container, {
       animatedObjects.push(dt => {
         if (!playedSlideAudio) { playedSlideAudio = true; audio.playInteraction('shelf'); }
         elapsed += dt;
-        dynamicSlidingShelf.position.x = -1.2 - 4 * Math.min(1, elapsed / 1.6);
+        const p=Math.min(1,elapsed/1.6);
+        dynamicSlidingShelf.position.z = 6.85 - 3.15*p*p*(3-2*p);
         if (elapsed >= 1.6 && !state.shelfMoved) {
           onShelfMoved?.();
           state = getState();
-          config = getLayerConfig(currentLayerId, state);
         }
       });
     }
@@ -1084,18 +950,12 @@ export async function mountWorld3D(container, {
     // West Blog Desk & East Relic Desk with legs, open books, and bound folios
     building.desk(-7.2, 0, 0.8, 2.0, 1.3, 1.1, timber, metal);
     building.desk(7.2, 0, 0.8, 2.0, 1.3, 1.1, timber, metal);
-    const paperMat = new THREE.MeshStandardMaterial({ color: 0xcbc6b4, roughness: .95, side: THREE.DoubleSide });
-    const leftPage = box(.34, .03, .48, -7.38, 1.12, 0.8, paperMat); leftPage.rotation.z = .08;
-    const rightPage = box(.34, .03, .48, -7.02, 1.12, 0.8, paperMat); rightPage.rotation.z = -.08;
-    box(.62, .16, .48, 7.2, 1.18, 0.8, paperMat).rotation.y = .18;
-    box(.56, .1, .44, 7.24, 1.31, 0.82, spineMat).rotation.y = -.1;
 
     // Optical Brass Overhead Projector on pedestal
-    building.desk(0, 0, -0.8, 1.0, 1.0, 0.72, metal, metal);
+    building.lathe([[0, 0], [.49, 0], [.49, .09], [.36, .18], [.26, .5], [.36, .69], [.42, .76], [0, .76]], 0, 0, -.8, plaster);
     const brassMat = new THREE.MeshStandardMaterial({ color: 0x9d8a5e, roughness: .42, metalness: .62 });
-    box(.56, .25, .64, 0, .88, -.8, brassMat);
-    box(.05, .65, .05, .24, 1.25, -1.03, brassMat);
-    box(.42, .05, .05, .05, 1.58, -1.03, brassMat);
+    building.slab(.59, .22, .65, 0, .88, -.8, brassMat);
+    building.arch(0, .96, -1.03, .46, .4, .049, .096, 0, brassMat);
     const lensGlow = new THREE.MeshStandardMaterial({ color: 0xc1d9d0, emissive: 0x789d8c, emissiveIntensity: .7, roughness: .18, metalness: .2 });
     box(.42, .018, .45, 0, 1.02, -.8, lensGlow);
     const optic = new THREE.Mesh(new THREE.TorusGeometry(.13, .024, 10, 40), brassMat);
@@ -1110,7 +970,7 @@ export async function mountWorld3D(container, {
     }
     for (const x of [-7.8, 7.8]) {
       box(.32, .035, .26, x, 1.12, .6, brassMat);
-      box(.035, .6, .035, x, 1.42, .6, brassMat);
+      building.arch(x + .14, 1.13, .6, .45, .34, .025, .035, 0, brassMat);
       const shade = new THREE.Mesh(new THREE.SphereGeometry(.24, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), brassMat);
       shade.position.set(x, 1.73, .6); scene.add(shade);
       box(.38, .025, .26, x, 1.71, .6, new THREE.MeshBasicMaterial({ color: 0xf1cf8c }));
@@ -1131,31 +991,35 @@ export async function mountWorld3D(container, {
     for (const spec of pillarSpecs) {
       const group = new THREE.Group();
       group.position.set(spec.x, 0, spec.z);
-      const col = new THREE.Mesh(new THREE.CylinderGeometry(.42, .48, 2.35, 64), plaster);
-      col.position.y = 1.18;
-      const cap = new THREE.Mesh(new THREE.CylinderGeometry(.54, .48, .16, 12), metal);
-      cap.position.y = 2.38;
+      building.column(1.08, 2.46, 1.08, spec.x, 0, spec.z);
       const ringMat = new THREE.MeshStandardMaterial({
         color: spec.match ? 0xcfd6be : 0x9c8b61,
         emissive: spec.match ? 0x455948 : 0x1e1910,
         roughness: .4, metalness: .65,
       });
-      for (let f = 0; f < 24; f++) {
-        const a = f / 24 * Math.PI * 2;
-        box(.013, 2.05, .013, Math.sin(a) * .45, 1.15, Math.cos(a) * .45, metal, group);
-      }
+
       const base = new THREE.Mesh(new THREE.CylinderGeometry(.58, .6, .14, 48), metal);
       base.position.y = .07; group.add(base);
-      const outerRing = new THREE.Mesh(new THREE.TorusGeometry(.56, .022, 10, 64), ringMat);
+      const outerRing = new THREE.Mesh(new THREE.TorusGeometry(.56, .022, software ? 5 : 10, software ? 32 : 64), ringMat);
       outerRing.position.y = 2.95;
       outerRing.rotation.y = angleFor(spec.key, spec.val);
-      const innerRing = new THREE.Mesh(new THREE.TorusGeometry(.46, .016, 10, 64), ringMat);
+      const innerRing = new THREE.Mesh(new THREE.TorusGeometry(.46, .016, software ? 5 : 10, software ? 32 : 64), ringMat);
       innerRing.position.y = 2.95; innerRing.rotation.set(.48, angleFor(spec.key, spec.val) + .72, 0);
       const needle = new THREE.Mesh(new THREE.ConeGeometry(.055, .82, 4), ringMat);
       needle.position.y = 2.95;
       needle.rotation.y = angleFor(spec.key, spec.val);
       needle.rotation.z = -.55;
-      group.add(col, cap, outerRing, innerRing, needle);
+      group.add(outerRing, innerRing, needle);
+      let angle=angleFor(spec.key,spec.val), velocity=0;
+      animatedObjects.push(dt=>{
+        const value=state.pillars[spec.key], goal=angleFor(spec.key,value),error=goal-angle;
+        if(Math.abs(error)+Math.abs(velocity)<.001)return;
+        // Critical damping preserves angular velocity through repeated turns.
+        const fade=Math.exp(-7*dt),travel=(velocity-7*error)*dt;
+        angle=goal+(-error+travel)*fade;velocity=(velocity-7*travel)*fade;
+        outerRing.rotation.y=needle.rotation.y=angle;innerRing.rotation.y=angle+.72;
+        ringMat.emissive.setHex(value===TARGET_PILLARS[spec.key]?0x455948:0x1e1910);
+      });
       scene.add(group);
       const scaleRing = new THREE.Mesh(new THREE.RingGeometry(.72, .735, 72), brassMat);
       scaleRing.rotation.x = -Math.PI / 2; scaleRing.position.set(spec.x, .012, spec.z); scene.add(scaleRing);
@@ -1168,32 +1032,22 @@ export async function mountWorld3D(container, {
       lead.rotation.y = Math.atan2(-spec.x, -7.3 - spec.z);
     }
 
-    // North Frosted-Slate Suspension Bridge & Infinite Threshold Portal to Loft
-    dynamicNorthBridgeGroup = new THREE.Group();
-    const bridgeMat = new THREE.MeshStandardMaterial({
-      color: state.stacksUnlocked ? 0xaab5ad : 0x5c686b,
-      emissive: state.stacksUnlocked ? 0x26332d : 0x111719,
-      roughness: .72, transparent: !state.stacksUnlocked, opacity: state.stacksUnlocked ? .96 : .28,
-    });
-    const slab = new THREE.Mesh(new THREE.BoxGeometry(3.6, .22, 6.2), bridgeMat);
-    slab.position.set(0, .19, -10.4);
-    slab.rotation.x = Math.atan2(.6, 6.6);
-    dynamicNorthBridgeGroup.add(slab);
-    if (state.stacksUnlocked) {
-      for (const side of [-1.72, 1.72]) {
-        for (const z of [-7.6, -10.3, -13.2]) box(.045, .9, .045, side, .45 + (-7.2 - z) / 6.6 * .6, z, metal, dynamicNorthBridgeGroup);
-        const rail = box(.06, .06, 6.2, side, 1.2, -10.4, timber, dynamicNorthBridgeGroup);
-        rail.rotation.x = slab.rotation.x;
-      }
+    const viaduct = new THREE.Group();scene.add(viaduct);
+    const rise=4.5,length=10.8,angle=Math.atan2(rise,length);
+    const ramp=box(4.95,.29,Math.hypot(length,rise),0,rise/2-.15,-12.6,building.paint,viaduct);ramp.rotation.x=angle;
+    for(const side of [-1,1]){
+      const rail=box(.12,.12,Math.hypot(length,rise),side*2.37,rise/2+.85,-12.6,building.edge,viaduct);rail.rotation.x=angle;
+      for(let i=0;i<=8;i++){const f=i/8;box(.095,.85,.095,side*2.37,.425+rise*f,-7.2-length*f,metal,viaduct);}
     }
-    scene.add(dynamicNorthBridgeGroup);
-
-    for (const z of [-12.2, 10.8]) {
-      for (const x of [-1.7, 1.7]) box(.32, 3.8, .42, x, 1.9, z, plaster);
-      box(3.7, .32, .42, 0, 3.8, z, plaster);
-    }
-    building.deepPortal(0, .35, -12.35, 3.1, 3.5, 0, 5, 0x23201b);
-    building.deepPortal(0, 0, 10.95, 3.1, 3.5, Math.PI, 4, 0x1b211f);
+    stacksViaduct=viaduct;viaduct.userData.movingSolid=true;viaduct.userData.solidId='north-bridge';
+    viaduct.visible=state.stacksUnlocked || state.phase==='after';
+    box(12,.64,7.5,0,4.18,-21.75,plaster);
+    // Side rails hang below, rather than blocking the visual line across the abyss.
+    for(const x of [-5.65,5.65]) building.arch(x,-6,-21.75,6.7,7.2,.62,.75,Math.PI/2);
+    building.arch(0,4.5,-24.3,3.5,2.6,.47,.8);
+    building.arch(0,3.55,17.45,3.45,2.3,.47,.72);
+    box(23,.26,1.5,0,6.45,-16.4,building.paint);
+    for(const x of [-10.4,10.4])building.arch(x,-7,-16.4,2.7,12,.32,.65,Math.PI/2);
 
     garden = addStacksGarden(THREE, scene, building, motion.reduced);
     animatedObjects.push(dt => garden.update(dt));
@@ -1206,21 +1060,17 @@ export async function mountWorld3D(container, {
   }
 
   function populateLibrary() {
-    scene.background = new THREE.Color(0x65746c);
-    scene.fog = new THREE.Fog(0x65746c, 20, 55);
+    scene.background = new THREE.Color(0x788f99);
+    scene.fog = new THREE.Fog(0x9fbbb7, 23, 160);
     scene.add(new THREE.HemisphereLight(0xe4e7df, 0x575b59, 1.25));
     const daylight = new THREE.DirectionalLight(0xe4e8e0, 1.1);
     daylight.position.set(9, 10, -8); scene.add(daylight);
-    building = createBuilding(THREE, scene, renderer);
+    building = createBuilding(THREE, scene, renderer, { tone: 'library', software });
     const { box, plaster, wood: timber } = building;
-    timber.color.setHex(0x5d685c);
-    const paper = new THREE.MeshStandardMaterial({ color: 0xc6c3ae, roughness: 1 });
-    box(23, .25, 32, 0, -.125, -4, building.floor);
-    box(23, .25, 32, 0, 8, -4, building.ceiling);
-    box(23, 8, .4, 0, 4, -20, plaster);
+    box(23,.25,28,0,-.125,-2,building.floor);
+    for(let j=0;j<12;j++)box(6,.15,.5,0,j*.15+.075,-16.25-j*.5,building.floor);
+    libraryVista(THREE,scene,building);
     for (const side of [-1, 1]) {
-      box(.4, 8, 32, side * 11.5, 4, -4, plaster);
-      box(9.8, 8, .4, side * 6.6, 4, 12, plaster);
       for (const z of [-14, -4, 6]) {
         box(1.8, .12, 6, side * 8.4, .1, z, timber);
         box(.14, 6.8, 6, side * 8.4, 3.4, z, timber);
@@ -1230,10 +1080,15 @@ export async function mountWorld3D(container, {
         }
       }
       for (const z of [-9, 1]) {
-        box(.8, 8, .8, side * 3.2, 4, z, plaster);
-        box(6.6, .45, .8, side * 6.5, 7.6, z, plaster);
+        building.column(.8, 3.62, .8, side * 3.2, 0, z);
+        building.arch(side * 6.46, 3.57, z, 5.85, .03, .48, .54);
       }
     }
+    for (const z of [1, -9]) {
+      building.arch(0, 3.57, z, 5.62, .03, .56, .67);
+      building.arch(0, 3.6, z + .36, 5.73, .03, .12, .1, 0, building.edge);
+    }
+
     const books = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ roughness: 1 }), 6 * 7 * 18);
     const pose = new THREE.Object3D(), colors = [0x9c9a80, 0x5f7063, 0x908575, 0x6f7975, 0x727063, 0xafad94];
     let bookIndex = 0;
@@ -1244,28 +1099,23 @@ export async function mountWorld3D(container, {
       pose.scale.set(.6, h, .13 + (i % 3) * .035); pose.rotation.x = i % 9 === 4 ? .12 : 0; pose.updateMatrix();
       books.setMatrixAt(bookIndex, pose.matrix); books.setColorAt(bookIndex++, new THREE.Color(colors[(i + row) % colors.length]));
     }
+    building.solid(books);
     books.count = bookIndex; scene.add(books);
-    for (const z of [-14, -4, 6]) {
-      for (const x of [-4.7, 4.7]) building.fixture(x, 7.75, z, true);
-      const pool = new THREE.PointLight(0xe6e4c9, 28, 12); pool.position.set(0, 7, z); scene.add(pool);
+    for(const z of [-9,1]){
+      const pool=new THREE.PointLight(0xffe2bc,14,11);pool.position.set(0,4.5,z);scene.add(pool);
     }
-    const windowMat = new THREE.MeshBasicMaterial({ color: 0xbfcfc9 });
-    box(.05, 3.2, 6, 11.24, 3.8, -9, windowMat);
-    for (const z of [-12, -10.5, -9, -7.5, -6]) box(.15, 3.3, .055, 11.15, 3.8, z, building.metal);
-    for (const y of [2.15, 3.8, 5.45]) box(.2, .08, 6.1, 11.12, y, -9, building.metal);
-    box(3, 4.6, .08, 0, 2.3, 11.8, new THREE.MeshBasicMaterial({ color: 0x454f50 }));
+    building.arch(0,0,10.7,3.3,2.9,.37,.52);
+    residents=addResidents(THREE,scene,config,()=>player,motion.reduced,{layerId:'library'});
+    animatedObjects.push(dt=>residents.update(dt));
     for (const target of config.interactables.filter(i => i.kind === 'book')) {
-      box(1.6, .12, 1, target.x, 1.02, target.z, timber);
-      for (const dx of [-.62, .62]) box(.1, 1, .8, target.x + dx, .5, target.z, timber);
-      const cover = box(.65, .07, .85, target.x, 1.14, target.z, paper);
-      cover.rotation.y = -.15;
+      building.desk(target.x, 0, target.z, 1.6, 1.02, 1.08, building.edge, timber);
     }
   }
 
   function populateLoft() {
     const version = buildId;
     scene.background = new THREE.Color(0x2a292b);
-    scene.fog = new THREE.Fog(0x2a292b, 10, 34);
+    scene.fog = new THREE.Fog(0x8397aa, 28, 185);
 
     const hemi = new THREE.HemisphereLight(0xe6dccb, 0x615950, 1.4);
     scene.add(hemi);
@@ -1276,9 +1126,15 @@ export async function mountWorld3D(container, {
     windowLight.position.set(0, 2.8, -6.2);
     scene.add(warmLamp, windowLight);
 
-    building = createBuilding(THREE, scene, renderer, { tone: 'loft' });
+    building = createBuilding(THREE, scene, renderer, { tone: 'loft', software });
     const { box, floor: floorMat, wood: timber, metal, plaster } = building;
-    box(16.4, .3, 16.4, 0, -.15, 0, floorMat);
+    box(16.4,.35,17.4,0,-.175,.5,floorMat);
+    for(const x of [-9.75,9.75])box(3.5,.45,10.2,x,-.225,0,floorMat);
+    for(let i=0;i<10;i++)box(5.6,.15,.45,0,.075+i*.15,-5.625-i*.45,building.plaster);
+    box(13.6,.35,2,0,1.325,-10.9,floorMat);
+    for(const x of [-5.25,5.25])box(3.2,.48,.28,x,1.74,-11.68,building.paint);
+    loftVista(THREE,scene,building);
+    const moon = new THREE.DirectionalLight(0xb7cced,1.1);moon.position.set(-15,14,-8);scene.add(moon);
     const brass = new THREE.MeshStandardMaterial({ color: 0xa58a58, roughness: .48, metalness: .55 });
     const linen = new THREE.MeshStandardMaterial({ color: 0xaaa48e, roughness: 1 });
     const rugCanvas = document.createElement('canvas'); rugCanvas.width = rugCanvas.height = 512;
@@ -1293,16 +1149,17 @@ export async function mountWorld3D(container, {
     const rug = new THREE.Mesh(new THREE.PlaneGeometry(5.4, 4.1), new THREE.MeshStandardMaterial({ map: rugMap, roughness: 1 }));
     rug.rotation.x = -Math.PI / 2; rug.position.set(0, .018, -1); scene.add(rug);
     // Low furnishings stay against the walls, outside the bench, easels and arrival route.
-    box(1.15, .18, 3.1, -7.1, .18, 1.1, timber);
-    box(1.12, .3, 3, -7.1, .42, 1.1, linen);
-    box(.24, .65, 3, -7.56, .65, 1.1, linen);
+    building.slab(1.15, .18, 3.18, -7.1, .18, 1.1, timber);
+    building.slab(1.12, .27, 3, -7.1, .38, 1.1, linen);
+    building.slab(.24, .58, 3, -7.56, .64, 1.1, linen);
     for (const z of [-.3, 2.5]) box(1.12, .38, .18, -7.1, .61, z, linen);
-    const pillow = box(.5, .13, .55, -7.1, .65, .2, linen); pillow.rotation.y = .2;
-    box(.4, .05, .4, -6.9, .04, -1.25, brass);
-    box(.035, 2.2, .035, -6.9, 1.1, -1.25, brass);
+    const pillow = building.slab(.5, .13, .55, -7.1, .553, .2, linen); pillow.rotation.y = .2;
+    building.slab(.44, .07, .44, -7.18, .035, -1.25, brass);
+    const lampArm = new THREE.CatmullRomCurve3([[-7.18,.06,-1.25],[-7.18,1.5,-1.25],[-7.13,2.26,-1.25],[-6.9,2.46,-1.25],[-6.62,2.32,-1.25]].map(p => new THREE.Vector3(...p)));
+    scene.add(new THREE.Mesh(new THREE.TubeGeometry(lampArm, 30, .025, 10), brass));
     const readingShade = new THREE.Mesh(new THREE.ConeGeometry(.32, .35, 40, 1, true), linen);
-    readingShade.position.set(-6.9, 2.23, -1.25); scene.add(readingShade);
-    const readingLight = new THREE.PointLight(0xf4d3a1, 7, 5.5); readingLight.position.set(-6.9, 2.06, -1.25); scene.add(readingLight);
+    readingShade.position.set(-6.62, 2.24, -1.25); scene.add(readingShade);
+    const readingLight = new THREE.PointLight(0xf4d3a1, 7, 5.5); readingLight.position.set(-6.62, 2.06, -1.25); scene.add(readingLight);
     for (const x of [-5.3, 5.3]) {
       box(3.1, .75, .08, x, .42, -7.65, timber);
       for (const sx of [-1.5, 1.5]) box(.08, .8, .56, x + sx, .42, -7.4, timber);
@@ -1316,25 +1173,10 @@ export async function mountWorld3D(container, {
       box(.74, .05, .69, x, y + .25, -5.7, linen);
       box(.17, .035, .015, x, y + .08, -5.36, metal);
     }
-    box(.028, 2.1, .028, 0, 4.5, -1.4, brass);
-    const pendant = new THREE.Mesh(new THREE.ConeGeometry(.55, .3, 48, 1, true), brass);
-    pendant.position.set(0, 3.35, -1.4); scene.add(pendant);
-    const pendantGlow = new THREE.Mesh(new THREE.CircleGeometry(.49, 48), new THREE.MeshBasicMaterial({ color: 0xf5dfb4, side: THREE.DoubleSide }));
-    pendantGlow.rotation.x = Math.PI / 2; pendantGlow.position.set(0, 3.23, -1.4); scene.add(pendantGlow);
-
-    // Plastered walls with wainscoting & exposed timber attic rafters
-    building.wall(.35, 5.8, 16.4, -8.0, 0, 0);
-    building.wall(.35, 5.8, 16.4, 8.0, 0, 0);
-    building.wall(5.8, 5.8, .35, -5.1, 0, -8.0);
-    building.wall(5.8, 5.8, .35, 5.1, 0, -8.0);
-    box(4.6, 1.9, .35, 0, 4.85, -8.0, plaster);
-    box(4.6, 1.1, .35, 0, .55, -8.0, building.paint);
-    building.wall(6.4, 5.8, .35, -4.8, 0, 8.0);
-    building.wall(6.4, 5.8, .35, 4.8, 0, 8.0);
-    box(3.4, 1.8, .35, 0, 4.9, 8.0, plaster);
-    box(16.4, .25, 16.4, 0, 5.8, 0, building.ceiling);
-    for (const z of [-6, -2, 2, 6]) box(15.8, .28, .22, 0, 5.56, z, timber);
-
+    // The pendant hangs from an actual radial support, not an invisible ceiling.
+    box(.65,.035,.045,1.05,2.12,-1.8,brass);
+    box(.045,1.18,.045,1.35,1.55,-1.8,brass);
+    building.lathe([[.18,0],[.19,.035],[.15,.08],[.03,.14],[0,.14]],.76,1.99,-1.8,brass);
     // Her Draftsman Workbench + Floating Sovereign Architectural Maquette
     building.desk(0, 0, -1.4, 2.8, 1.4, 0.96, timber, metal);
     building.desk(4.2, 0, 3.4, 1.5, 1.0, 0.9, timber, metal);
@@ -1344,40 +1186,20 @@ export async function mountWorld3D(container, {
       slip.rotation.y = rot;
     }
 
-    // Living miniature maquette of the threshold rooms (visualizes her dominion)
-    const maquette = new THREE.Group();
-    maquette.position.set(0, 1.24, -1.4);
-    const wireMat = new THREE.MeshStandardMaterial({ color: 0xd9d2be, emissive: 0x3b3526, roughness: .5 });
-    const brassMat = new THREE.MeshStandardMaterial({ color: 0xb19763, roughness: .35, metalness: .65 });
-    const mqBase = new THREE.Mesh(new THREE.CylinderGeometry(.38, .42, .05, 16), metal);
-    mqBase.position.y = -.22;
-    const mqRing = new THREE.Mesh(new THREE.TorusGeometry(.32, .012, 8, 28), brassMat);
-    mqRing.rotation.x = Math.PI / 2;
-    maquette.add(mqBase, mqRing);
-    for (const [px, pz] of [[-.11, -.11], [.11, -.11], [-.11, .11], [.11, .11]]) {
-      const tinyCol = new THREE.Mesh(new THREE.BoxGeometry(.045, .22, .045), wireMat);
-      tinyCol.position.set(px, 0, pz);
-      maquette.add(tinyCol);
-    }
-    const tinyBridge = new THREE.Mesh(new THREE.BoxGeometry(.08, .018, .22), brassMat);
-    tinyBridge.position.set(0, .06, -.16);
-    maquette.add(tinyBridge);
-    scene.add(maquette);
-    animatedObjects.push(dt => {
-      if (!motion?.reduced?.()) {
-        const t = performance.now() * 0.001;
-        maquette.rotation.y += dt * (conversation ? .65 : .22);
-        maquette.position.y = 1.24 + Math.sin(t * 1.4) * .025;
-        mqRing.rotation.z += dt * .4;
-        warmLamp.intensity += ((conversation ? 31 : 27) - warmLamp.intensity) * Math.min(1, dt * 2);
-      }
-    });
-
+    // The shared study always stands on the bench, including after a return visit.
+    const wire = new THREE.MeshStandardMaterial({color:0xffe8b4,emissive:0xdd9859,emissiveIntensity:.48,metalness:.28,roughness:.36});
+    sculpture = new THREE.Group(); sculpture.position.set(0,.995,-1.37);scene.add(sculpture);
+    building.slab(1.32,.057,.68,0,.002,0,brass,sculpture);
+    for(const z of [-.21,.21]) building.arch(0,.03,z,.96,.52,.09,.1,0,wire,sculpture);
+    for(const x of [-.53,.53])building.slab(.19,.1,.63,x,.055,0,metal,sculpture);
+    previewSculpture(state.sculpture ?? {height:1,span:1,tone:1},false);
     void loadGLB('/assets/p34/models/paper-prism-lamp.glb').then(model => {
       if (disposed || version !== buildId || currentLayerId !== 'loft') return;
       model.position.set(0.95, 0.98, -1.4);
       model.scale.setScalar(0.75);
-      scene.add(model);
+      model.userData.movingSolid=true;
+      model.traverse(part=>{if(part.isMesh)building.solid(part);});
+      scene.add(model);building.physics.add(model);
     });
 
     // Drafting easels / lecterns holding layered parchment clues
@@ -1417,80 +1239,21 @@ export async function mountWorld3D(container, {
       backSheet.rotation.set(-.14, 0, -.05);
       scene.add(easel);
       if (x < 0) {
-        const spare = new THREE.Group(); spare.position.set(-7.55, .75, -3.8); spare.rotation.set(-.1, 1.3, 0);
+        const spare = new THREE.Group(); spare.position.set(-7.4, .7, -2.97); spare.rotation.set(0, .28, 0);
         box(1.1, 1.4, .06, 0, 0, 0, timber, spare);
         const spareDrawing = new THREE.Mesh(new THREE.PlaneGeometry(.98, 1.28), sketchMat); spareDrawing.position.z = .035;
         spare.add(spareDrawing); scene.add(spare);
+        box(.86,.86,.46,-7.5,.43,-3.27,timber);
       }
     }
 
-    // Real Rainy Night Window + Forever-Reversing Car in Distant Fog
-    for (const fx of [-2.15, 0, 2.15]) box(.12, 3.3, .22, fx, 2.25, -7.85, timber);
-    for (const fy of [1.05, 2.25, 3.85]) box(4.45, .1, .22, 0, fy, -7.85, timber);
-    const rainCanvas = document.createElement('canvas'); rainCanvas.width = rainCanvas.height = 1024;
-    const rc = rainCanvas.getContext('2d');
-    for (let i = 0; i < 650; i++) {
-      const rx = (i * 173.31) % 1024, ry = (i * 293.77) % 1024, rlen = 4 + (i % 19);
-      rc.strokeStyle = `rgba(182,212,226,${.05 + (i % 5) * .025})`; rc.lineWidth = .45 + (i % 3) * .15;
-      rc.beginPath(); rc.moveTo(rx, ry); rc.lineTo(rx - .7, ry + rlen); rc.stroke();
-    }
-    const rainTex = new THREE.CanvasTexture(rainCanvas);
-    rainTex.colorSpace = THREE.SRGBColorSpace;
-    rainTex.wrapS = rainTex.wrapT = THREE.RepeatWrapping;
-    const glassPane = new THREE.Mesh(
-      new THREE.PlaneGeometry(4.2, 2.75),
-      new THREE.MeshBasicMaterial({ map: rainTex, transparent: true, opacity: .65, depthWrite: false })
-    );
-    glassPane.position.set(0, 2.42, -7.82);
-    scene.add(glassPane);
-    const mistCanvas = document.createElement('canvas'); mistCanvas.width = mistCanvas.height = 512;
-    const mc = mistCanvas.getContext('2d'), mist = mc.createRadialGradient(256, 240, 80, 256, 256, 340);
-    mist.addColorStop(0, 'rgba(102,127,140,.01)'); mist.addColorStop(.65, 'rgba(84,105,115,.035)'); mist.addColorStop(1, 'rgba(76,96,106,.2)');
-    mc.fillStyle = mist; mc.fillRect(0, 0, 512, 512);
-    const mistMap = new THREE.CanvasTexture(mistCanvas); mistMap.colorSpace = THREE.SRGBColorSpace;
-    const mistPane = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 2.75), new THREE.MeshBasicMaterial({ map: mistMap, transparent: true, depthWrite: false }));
-    mistPane.position.set(0, 2.42, -7.81); scene.add(mistPane);
-
-    // Exterior rainy night abyss (-8.2..-20.6) with twin faint taillights reversing endlessly
-    const nightMat = new THREE.MeshBasicMaterial({ color: 0x182026 });
-    box(.1, 8, 12.4, -6, 2.5, -14.4, nightMat).castShadow = false;
-    box(.1, 8, 12.4, 6, 2.5, -14.4, nightMat).castShadow = false;
-    box(12, 8, .1, 0, 2.5, -20.5, nightMat).castShadow = false;
-    box(12, .1, 12.4, 0, -.5, -14.4, new THREE.MeshBasicMaterial({ color: 0x1e2529 })).castShadow = false;
-    box(.055, 3.8, .055, -2.3, 1.4, -15.8, metal);
-    box(.65, .055, .055, -2, 3.3, -15.8, metal);
-    box(.33, .07, .24, -1.8, 3.28, -15.8, new THREE.MeshBasicMaterial({ color: 0xe0b57a }));
-    const reflectionCanvas = document.createElement('canvas'); reflectionCanvas.width = 128; reflectionCanvas.height = 512;
-    const refl = reflectionCanvas.getContext('2d'), glow = refl.createRadialGradient(64, 256, 5, 64, 256, 240);
-    glow.addColorStop(0, 'rgba(222,169,92,.23)'); glow.addColorStop(1, 'rgba(222,169,92,0)');
-    refl.fillStyle = glow; refl.fillRect(0, 0, 128, 512);
-    const reflection = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 7), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(reflectionCanvas), transparent: true, depthWrite: false }));
-    reflection.rotation.x = -Math.PI / 2; reflection.position.set(-1.8, -.44, -14); scene.add(reflection);
-    const carTailGroup = new THREE.Group();
-    const tailMat = new THREE.MeshBasicMaterial({ color: 0xd9564e, transparent: true, opacity: .75 });
-    for (const tx of [-.45, .45]) {
-      const lamp = new THREE.Mesh(new THREE.SphereGeometry(.09, 8, 8), tailMat);
-      lamp.position.x = tx;
-      carTailGroup.add(lamp);
-    }
-    carTailGroup.position.set(-.6, 1.35, -12.8);
-    scene.add(carTailGroup);
-    let rainPhase = 0;
-    animatedObjects.push(dt => {
-      if (motion?.reduced?.()) return;
-      rainPhase += dt;
-      rainTex.offset.y += dt * .07;
-      // Car slowly reverses farther into mist, stalls, and starts again
-      const cycle = (rainPhase % 12) / 12;
-      carTailGroup.position.z = -11.5 - cycle * 5.8;
-      tailMat.opacity = cycle > .8 ? (1 - cycle) * 3.5 : .7;
-    });
-
-    // Return doorway vestibule to Stacks
-    for (const x of [-1.7, 1.7]) box(.3, 4.0, .4, x, 2, 7.7, plaster);
-    box(3.7, .3, .4, 0, 4, 7.7, plaster);
-    building.deepPortal(0, 0, 7.75, 3.1, 3.5, Math.PI, 4, 0x1e2423);
-
+    // A single pane retains the rainy recording; the rest of the dome is open.
+    building.arch(3.4,0,-7.25,2.35,1.3,.16,.22,0,building.paint);
+    box(.08,2.28,.08,3.4,1.14,-7.25,brass);
+    for(const y of [.6,1.35])box(2.32,.055,.09,3.4,y,-7.25,brass);
+    const pane = new THREE.Mesh(new THREE.PlaneGeometry(2.32,2.05),new THREE.MeshStandardMaterial({color:0xb9cfce,roughness:.22,metalness:.18,transparent:true,opacity:.17,depthWrite:false}));
+    pane.position.set(3.4,1.04,-7.26);scene.add(pane);
+    for(const door of config.interactables.filter(i=>i.crossing))building.arch(door.x,0,door.z,3.1,2.4,.41,.49,0,building.paint);
     garden = addLoftGarden(THREE, scene, building);
     residents = addResidents(THREE, scene, config, () => player, motion.reduced, {
       layerId: 'loft',
@@ -1499,18 +1262,74 @@ export async function mountWorld3D(container, {
     animatedObjects.push(dt => residents.update(dt));
   }
 
+  function previewSculpture(shape, sound = true) {
+    sculpture.scale.set(.72+shape.span*.29,.76+shape.height*.42,1);
+    const light = sculpture.children[1].material;
+    light.color.setHex([0xe8bc80,0xc9e6d9,0xce9f78][shape.tone]);
+    if (sound && sculptureTone !== undefined && sculptureTone !== shape.tone) audio.playInteraction('harmonic',shape.tone);
+    sculptureTone=shape.tone;
+  }
+
   function rebuildLayerScene() {
     clearScene();
     state = getState();
     config = worldConfig();
+    scene.environmentIntensity = .68;
+    if (renderer) renderer.toneMappingExposure = 1.05;
     if (library) populateLibrary();
     else if (currentLayerId === 'atrium') populateAtrium();
     else if (currentLayerId === 'stacks') populateStacks();
-    else populateLoft();
-    audio.setLayer(library ? 'library' : currentLayerId);
+    else if (currentLayerId === 'loft') populateLoft();
+    else {
+      building=createBuilding(THREE,scene,renderer,{tone:currentLayerId,software});
+      deepRoom=populateDeep({ THREE,scene,renderer,software,layer:currentLayerId,state,config,building,reduced:motion.reduced });
+      residents=addResidents(THREE,scene,config,()=>player,motion.reduced,{layerId:currentLayerId,isDialogueOpen:()=>Boolean(conversation)});
+      deepRoom.update(0,player);
+      animatedObjects.push(dt=>{ deepRoom.update(dt,player); residents.update(dt); });
+    }
+    // Resting books belong to their desks, not the camera or an overlay.
+    for(const target of config.interactables){
+      const catalogue=target.kind==='garden-specimen' && target.specimen==='folio';
+      if(!catalogue && !['book','blog-desk','clue','pool-study','draft-note','loft-daily-note'].includes(target.kind))continue;
+      let {x,z}=target,y;
+      if(catalogue)y=1.622;
+      else if(target.kind==='book')y=1.081;
+      else if(target.kind==='blog-desk' || target.clueId==='retired-relic')y=1.101;
+      else if(target.kind==='pool-study')y=2.8;
+      else if(target.kind==='draft-note')y=.985;
+      else if(target.kind==='loft-daily-note')y=.913;
+      else if(target.clueId==='atrium-survey')y=5.101;
+      else{
+        z+=.56;y=1.055;
+        building.desk(x,0,z,1.46,.96,y,building.wood,building.metal);
+      }
+      const rig=makeBook(THREE,x-.12,y,z,target.label,bookRigs.size);
+      scene.add(rig.root);bookRigs.set(target.id,rig);
+    }
+    const silent = isSilenced(state,currentLayerId);
+    audio.setLayer(silent ? 'closed' : currentLayerId);
     applyGardenPreferences();
-    if (reading) frameReading();
-    else syncCamera();
+    if (state.phase==='after') {
+      const glow=new THREE.HemisphereLight(0xffd8a5,0xb88977,.81);scene.add(glow);
+      scene.fog.color.lerp(new THREE.Color(0xffdbb9),.22);
+    }
+    if (silent) {
+      scene.fog.color.lerp(new THREE.Color(0x76848c),.78);
+      if(scene.fog.isFogExp2)scene.fog.density*=1.13;
+      const trace=config.interactables.find(i=>i.kind==='memory-trace' && !state.traces.includes(currentLayerId));
+      if(trace){
+        const ring=new THREE.Mesh(new THREE.TorusGeometry(.43,.027,8,52),new THREE.MeshStandardMaterial({color:0xf1e8d0,emissive:0xe8e8e0,emissiveIntensity:.9}));
+        ring.rotation.x=Math.PI/2;ring.position.set(trace.x, trace.y+.04, trace.z);scene.add(ring);
+        animatedObjects.push(()=>{const near=Math.hypot(player.x-trace.x,player.z-trace.z)<7;if(near&&!echoHeard){echoHeard=true;audio.playInteraction('harmonic',state.garden.chime ?? 0);}});
+      }
+    }
+    if (!deepRoom) dome=skyDome(THREE,scene,silent?0x4f5960:({library:0x687f94,loft:0x1c2948,atrium:GARDEN_LIGHT[appliedSky || 'morning'].sky,stacks:0x253952}[currentLayerId]));
+    scene.background.copy(scene.fog.color);
+    play=createPlayroom({THREE,scene,camera,config,state,readState:()=>state,building,audio,say:remark,memory:playMemory,reduced:motion.reduced});
+    config.physics=building.physics;
+    building.bakeMasonry();
+    updateSize();
+    if (!reading) syncCamera();
     updateTargetPrompt();
   }
 
@@ -1522,17 +1341,21 @@ export async function mountWorld3D(container, {
       appliedSky = sky;
       const mood = GARDEN_LIGHT[sky];
       if (gardenLighting) {
-        const { hemi, dir, centerLight, skylight } = gardenLighting;
+        const { hemi, dir, centerLight } = gardenLighting;
         hemi.color.setHex(mood.sky); hemi.groundColor.setHex(mood.ground);
         hemi.intensity = mood.hemi * (currentLayerId === 'stacks' ? .95 : 1);
         dir.color.setHex(mood.sun); dir.position.set(...mood.position);
         dir.intensity = mood.direct * (currentLayerId === 'stacks' ? .3 : 1);
         if (dir.castShadow) dir.shadow.needsUpdate = true;
         scene.fog.color.setHex(mood.fog);
-        if (currentLayerId === 'stacks') scene.fog.color.multiplyScalar(.3);
-        else { scene.fog.near = sky === 'midnight' ? 20 : 27; scene.fog.far = sky === 'midnight' ? 48 : 65; }
+        if (currentLayerId === 'stacks') scene.fog.color.lerp(new THREE.Color(0x34495e), .79);
+        scene.fog.near = currentLayerId === 'stacks' ? 21 : 27; scene.fog.far = 161;
         scene.background.copy(scene.fog.color);
-        if (centerLight) { centerLight.color.setHex(mood.glow); centerLight.intensity = mood.pool; skylight.material.color.setHex(mood.glow); }
+        if(dome) dome.uniforms.zenith.value.setHex(currentLayerId==='stacks' ? 0x253952 : mood.sky);
+        if (centerLight) { centerLight.color.setHex(mood.glow); centerLight.intensity = mood.pool; }
+        scene.environmentIntensity = sky === 'midnight' ? .18 : .72;
+        if (renderer) renderer.toneMappingExposure = sky === 'midnight' ? .82 : sky === 'dusk' ? .94 : 1.08;
+        hemi.intensity = sky === 'midnight' ? .76 : mood.hemi;
       }
       garden?.setSky?.(sky); audio.setGardenSky(sky);
     }
@@ -1545,26 +1368,26 @@ export async function mountWorld3D(container, {
   }
 
   function syncCamera() {
-    const moving = keys.has('KeyW') || keys.has('KeyS') || keys.has('KeyA') || keys.has('KeyD') || (touchStick.analog && Math.hypot(touchStick.dx, touchStick.dy) > .12);
-    const bob = !motion?.reduced?.() && moving ? Math.sin(bobPhase) * 0.045 : 0;
-    camera.position.set(player.x, (player.y || 0) + EYE_HEIGHT + bob, player.z);
+    if(presentation.active) return;
+    const bob = player.grounded ? Math.sin(bobPhase)*.028*Math.min(1,Math.hypot(player.vx,player.vz)/4) : 0;
+    camera.position.set(player.x, player.y + EYE_HEIGHT + (motion.reduced()?0:bob-player.dip+player.stairOffset), player.z);
     camera.rotation.y = player.yaw;
     camera.rotation.x = player.pitch;
   }
 
   function updateTargetPrompt() {
-    if (reading) {
+    if (reading || !modal.hidden || conversation) {
       promptBox.hidden = true;
       activeTarget = null;
       if (touchInteractBtn) { touchInteractBtn.dataset.active = 'false'; touchInteractBtn.textContent = '环视'; }
       return;
     }
-    activeTarget = findInteractiveTarget(player, player.yaw, player.pitch, config.interactables);
+    activeTarget = play?.target(player) || findInteractiveTarget(player, player.yaw, player.pitch, config.interactables);
     reticle.dataset.active = String(Boolean(activeTarget));
     if (activeTarget) {
       promptBox.hidden = false;
       promptTitle.textContent = activeTarget.label;
-      promptBtn.textContent = activeTarget.prompt;
+      promptBtn.textContent = matchMedia('(pointer: coarse)').matches ? activeTarget.prompt.replace(/^E\s*·\s*/, '') : activeTarget.prompt;
       promptBtn.hidden = Boolean(activeTarget.crossing);
       if (touchInteractBtn) {
         touchInteractBtn.dataset.active = activeTarget.crossing ? 'false' : 'true';
@@ -1579,7 +1402,28 @@ export async function mountWorld3D(container, {
     }
   }
 
-  function openInspectorModal(title, renderContent, kind = '') {
+  let restoreModalContent;
+  function projectFold() {
+    const nodes=getLightNodes();
+    if (nodes === foldPoints && foldPoints.every((n,i)=>foldKnobs[i].position.x===(n[0]-.5)*2.7 && foldKnobs[i].position.y===(1-n[1])*1.25+.03)) return;
+    foldPoints=nodes;
+    const local=([x,y])=>new THREE.Vector3((x-.5)*2.7,(1-y)*1.25+.03,.027);
+    nodes.forEach((n,i)=>foldKnobs[i].position.copy(local(n)));
+    const curve=new THREE.CatmullRomCurve3(Array.from({length:19},(_,i)=>local(lightPoint(nodes,i/18))));
+    foldProfile.geometry.dispose();foldProfile.geometry=new THREE.TubeGeometry(curve,36,.016,6,false);
+  }
+
+  function openFoldDesk() {
+    if(isSilenced(getState(),currentLayerId)) return;
+    openInspectorModal('折页台', body=>{
+      const restore=mountFoldDesk(body);
+      foldModel.visible=true; projectFold();
+      return ()=>{foldModel.visible=false;restore();};
+    }, 'fold');
+    presentation.focus('fold',new THREE.Vector3(FOLD_DESK.x+.65,2.07,FOLD_DESK.z+3.3),new THREE.Vector3(FOLD_DESK.x,1.57,FOLD_DESK.z-.25));
+  }
+
+  function openInspectorModal(title, renderContent, kind = '',target=null) {
     keys.clear(); draggingLook = false; lookPointerId = null;
     resetTouchStick();
     modal.hidden = false;
@@ -1588,15 +1432,30 @@ export async function mountWorld3D(container, {
     else delete modalCard.dataset.modalKind;
     modalTitle.textContent = title;
     modalBody.replaceChildren();
-    renderContent(modalBody);
+    restoreModalContent = renderContent(modalBody);
     modal.hidden = false;
-    modalClose.focus({ preventScroll: true });
+    updateTargetPrompt();
+    if(target && bookRigs.has(target.id)){
+      modal.classList.add('world3d-bound-sheet');modal.dataset.focusPage='true';
+      mountSpread(target,modal);
+    }else modalClose.focus({ preventScroll: true });
   }
 
-  function closeModal() {
+  function closeModal(after) {
     if (modal.hidden) return false;
-    modal.hidden = true;
-    viewport.focus({ preventScroll: true });
+    const finish=()=>{
+      if(modal.classList.contains('world3d-bound-sheet')){
+        modal.classList.remove('world3d-bound-sheet');root.append(modal);
+        modal.removeAttribute('style');modal.inert=false;
+      }
+      restoreModalContent?.();restoreModalContent=null;modal.hidden=true;
+      updateTargetPrompt();viewport.focus({preventScroll:true});
+      if(typeof after==='function')after();
+    };
+    if(presentation.mode==='return')return true;
+    if(readingObject?.element===modal)putBack(finish);
+    else if(['fold','cocreate'].includes(presentation.mode)){modal.dataset.returning='true';presentation.close(()=>{delete modal.dataset.returning;finish();});}
+    else finish();
     return true;
   }
 
@@ -1629,9 +1488,29 @@ export async function mountWorld3D(container, {
   }
 
   function triggerInteraction(target = activeTarget) {
+    if(presentation.active || player.rescue) return false;
+    if(play?.interact(target,player)){help.dataset.dismissed='true'; updateTargetPrompt();return true;}
     if (!target) return false;
+    help.dataset.dismissed='true';
     state = getState();
 
+    if (target.kind === 'cocreate') {
+      openInspectorModal('共创台',body=>mountCreationDesk(body,previewSculpture,closeModal),'cocreate');
+      presentation.focus('cocreate',new THREE.Vector3(.18,1.81,1.03),new THREE.Vector3(.26,1.49,-1.35));
+      return true;
+    }
+    if (target.kind==='draft-note' || target.kind==='pool-study'){
+      onInteract(target.kind,target);
+      openInspectorModal(target.label,body=>{
+        const p=document.createElement('p');p.textContent=target.kind==='draft-note'?LINES.drafts.note:LINES.poolrooms.study;body.append(p);
+      },'clue',target);
+      return true;
+    }
+    if (['pool-echo','prototype','memory-trace'].includes(target.kind)){
+      audio.playInteraction(target.kind==='memory-trace'?'harmonic':'paper',1);
+      onInteract(target.kind,target.kind==='memory-trace' ? currentLayerId : target);
+      return true;
+    }
     if (target.kind === 'garden-sundial') {
       const sky = GARDEN_SKIES[(GARDEN_SKIES.indexOf(appliedSky) + 1) % GARDEN_SKIES.length];
       onInteract?.('garden-sky', sky); state = getState(); applyGardenPreferences();
@@ -1658,7 +1537,7 @@ export async function mountWorld3D(container, {
         const actions = document.createElement('div'); actions.className = 'world3d-modal-actions';
         const back = document.createElement('button'); back.type = 'button'; back.textContent = '放回'; back.addEventListener('click', closeModal); actions.append(back);
         body.append(sheet, actions);
-      }, 'clue');
+      }, 'clue',target);
       return true;
     }
 
@@ -1669,8 +1548,8 @@ export async function mountWorld3D(container, {
       return true;
     }
 
-    if (target.kind === 'book') { audio.playInteraction('book'); library.onRead(target.slug); return true; }
-    if (target.kind === 'library-exit') { audio.playInteraction('portal'); onOpenRoom('home'); return true; }
+    if (target.kind === 'book') { library.onRead(target.slug); return true; }
+    if (target.kind === 'library-exit') { audio.playInteraction('portal'); travel(()=>onOpenRoom('home')); return true; }
 
     if (target.kind === 'seam') {
       audio.playInteraction('portal');
@@ -1681,7 +1560,7 @@ export async function mountWorld3D(container, {
     if (target.kind === 'lab-link') {
       audio.playInteraction('paper');
       onInteract?.('lab-link', target);
-      onOpenRoom?.('lab');
+      openFoldDesk();
       return true;
     }
 
@@ -1721,7 +1600,7 @@ export async function mountWorld3D(container, {
           b.addEventListener('click', () => { closeModal(); fn(); });
           links.append(b);
         };
-        mk('去折页台', () => onOpenRoom?.('lab'));
+        mk('去折页台', openFoldDesk);
         mk('去笔记', () => onOpenRoom?.('blog'));
         mk('离开终端', () => viewport.focus({ preventScroll: true }));
         body.append(pre, links);
@@ -1730,8 +1609,17 @@ export async function mountWorld3D(container, {
     }
 
     if (target.kind === 'blog-desk') {
-      audio.playInteraction('paper');
-      onOpenRoom?.('blog');
+      openInspectorModal('这个弯留着',body=>{
+        for(const text of ['中间两点抬起来，桥面就有地方落了','试过拉平','看着不舒服，又撤回去了','这个弯先留着']){
+          const p=document.createElement('p');p.textContent=text;body.append(p);
+        }
+        const next=document.createElement('button');next.type='button';next.dataset.libraryContinue='';
+        next.textContent='去阅览室';next.addEventListener('click',()=>closeModal(()=>travel(()=>onOpenRoom('blog'))));body.append(next);
+      },'clue',target);
+      return true;
+    }
+    if (target.kind === 'gallery-door') {
+      audio.playInteraction('portal');travel(()=>onOpenRoom('blog'));
       return true;
     }
 
@@ -1740,8 +1628,7 @@ export async function mountWorld3D(container, {
         audio.playInteraction('unlock');
         onInteract?.('sync-pillars', target);
         state = getState();
-        config = getLayerConfig(currentLayerId, state);
-        rebuildLayerScene();
+        stacksViaduct.visible=state.stacksUnlocked || state.phase==='after';
       } else {
         audio.playInteraction('terminal');
         onInteract?.('projector-hint', target);
@@ -1753,21 +1640,21 @@ export async function mountWorld3D(container, {
       const wasUnlocked = state.stacksUnlocked;
       onInteract?.('rotate-pillar', { pillar: target.pillar });
       state = getState();
-      audio.playInteraction(!wasUnlocked && state.stacksUnlocked ? 'unlock' : 'pillar');
-      config = getLayerConfig(currentLayerId, state);
-      rebuildLayerScene();
+      audio.playInteraction('armillary');
+      if(!wasUnlocked && state.stacksUnlocked)audio.playInteraction('unlock');
+      stacksViaduct.visible=state.stacksUnlocked || state.phase==='after';
       return true;
     }
 
     if (target.kind === 'portal') {
       const dest = target.targetLayer;
-      if (dest === 'loft' && !state.stacksUnlocked && !state.layers.includes('loft')) {
+      if (!canEnterLayer(state,dest)) {
         audio.playInteraction('pillar');
         onInteract?.('portal-locked-loft', target);
         return false;
       }
       audio.playInteraction('portal');
-      switchLayer(dest);
+      switchLayer(dest, { source: target.id });
       return true;
     }
 
@@ -1806,7 +1693,7 @@ export async function mountWorld3D(container, {
             onOpenRoom?.('archive');
           });
           body.append(sheet, links);
-        }, 'clue');
+        }, 'clue',target);
       }
       return true;
     }
@@ -1826,99 +1713,88 @@ export async function mountWorld3D(container, {
     return false;
   }
 
-  function switchLayer(nextLayer, { push = true } = {}) {
+  function switchLayer(nextLayer, { push = true, source } = {}) {
     if (!LAYERS.includes(nextLayer)) return false;
     state = getState();
-    if (nextLayer === 'loft' && !state.stacksUnlocked && !state.layers.includes('loft')) {
+    if (!canEnterLayer(state,nextLayer)) {
       onInteract?.('portal-locked-loft');
       return false;
     }
-    currentLayerId = nextLayer;
-    onLayerChange?.(nextLayer, { push });
-    state = getState();
-    config = getLayerConfig(currentLayerId, state);
-    player = { ...config.spawn };
-    rebuildLayerScene();
+    closeModal();
+    travel(()=>{
+      currentLayerId = nextLayer;
+      onLayerChange?.(nextLayer, { push });
+      state = getState();
+      config = getLayerConfig(currentLayerId, state);
+      player = createBody(layerEntrySpawn(config, source));
+      rebuildLayerScene();
+    });
     return true;
   }
 
   function stepSurfaceKind(x, z, y) {
+    if (currentLayerId === 'poolrooms' && y < -.55) return 'water';
     if (currentLayerId === 'atrium' && inPool(x, z, y)) return 'water';
     if ((currentLayerId === 'atrium' && z < -10.0 && y > 3.1) || (currentLayerId === 'stacks' && z < -7.4)) return 'bridge';
     if (library || currentLayerId === 'loft' || (currentLayerId === 'atrium' && x > 18 && y > 1.8)) return 'wood';
     return 'tile';
   }
 
-  function stepMovement(dt, turnDt = dt) {
-    if (keys.size || touchStick.analog) help.hidden = true;
-    let forward = (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0);
-    let strafe = (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0);
-    if (touchStick.analog) {
-      forward += -touchStick.dy;
-      strafe += touchStick.dx;
+  function crossArchitecture(before,next) {
+    const wing=wrapWing(before,next,config);
+    if (wing) {
+      wingLoops++; wingIndex.rotation.y=wingLoops*Math.PI/2;
+      if(isSilenced(state,currentLayerId))audio.playInteraction('harmonic',0);
+      return wing;
     }
-    const turn = (keys.has('ArrowLeft') || keys.has('KeyQ') ? 1 : 0) - (keys.has('ArrowRight') || keys.has('KeyR') ? 1 : 0);
+    return deepCrossing(currentLayerId,before,next) || next;
+  }
 
-    if (turn !== 0) {
-      player.yaw += turn * turnDt * 1.12;
+  function stepMovement(dt) {
+    if (keys.size || touchStick.analog) help.dataset.dismissed='true';
+    let forward=Number(keys.has('KeyW') || keys.has('ArrowUp'))-Number(keys.has('KeyS') || keys.has('ArrowDown'));
+    let strafe=Number(keys.has('KeyD'))-Number(keys.has('KeyA'));
+    if(touchStick.analog){ forward-=touchStick.dy; strafe+=touchStick.dx; }
+    player.yaw+=((keys.has('ArrowLeft')||keys.has('KeyQ')?1:0)-(keys.has('ArrowRight')||keys.has('KeyR')?1:0))*dt*1.12;
+    const sprinting=keys.has('ShiftLeft') || keys.has('ShiftRight') || (touchStick.analog && Math.hypot(forward,strafe)>.85);
+    const v=(sprinting?6.8:4.9)/Math.max(1,Math.hypot(forward,strafe));
+    const sin=Math.sin(player.yaw),cos=Math.cos(player.yaw),before={x:player.x,y:player.y,z:player.z};
+    const e=advanceBody(player,building.physics,(-sin*forward+cos*strafe)*v,(-cos*forward-sin*strafe)*v,dt);
+    if(e.catch)play.catchStart(player);
+    if(e.rescued)play.catchEnd();
+    const region=stepSurfaceKind(player.x,player.z,player.y), surface=player.footing?.material;
+    const material=surface==='glass'||surface==='wood'?surface:region;
+    if(e.landed) play.land(player,material,e.landed);
+    if(player.grounded){
+      const moved=Math.hypot(player.x-before.x,player.z-before.z);
+      bobPhase+=moved*3.6;stepDistance+=moved;
+      if(stepDistance>=1.72){stepDistance%=1.72;play.step(player,material,sprinting);if(currentLayerId==='atrium')garden.ripple(player.x,player.z);}
     }
-
-    const mag = Math.hypot(forward, strafe);
-    if (mag > 0.08) {
-      const clampMag = Math.min(1, mag);
-      const nf = forward / mag;
-      const ns = strafe / mag;
-      const sprinting = keys.has('ShiftLeft') || keys.has('ShiftRight') || (touchStick.analog && mag > 0.85);
-      const speed = (sprinting ? 6.8 : 4.9) * (touchStick.analog ? clampMag : 1);
-      const sin = Math.sin(player.yaw);
-      const cos = Math.cos(player.yaw);
-      const dx = (-sin * nf + cos * ns) * speed * dt;
-      const dz = (-cos * nf - sin * ns) * speed * dt;
-      const before = { ...player };
-      const next = resolvePlayerMovement(player, player.x + dx, player.z + dz, config);
-      const moved = Math.hypot(next.x - player.x, next.z - player.z);
-      player.x = next.x;
-      player.y = next.y;
-      player.z = next.z;
-      const door = crossedDoor(before, player, config.interactables);
-      if (door) { keys.clear(); resetTouchStick(); triggerInteraction(door); return true; }
-      if (moved > 0.001) {
-        bobPhase += moved * 3.6;
-        stepDistance += moved;
-        if (stepDistance >= 2.05) {
-          stepDistance = 0;
-          audio.playFootstep(stepSurfaceKind(player.x, player.z, player.y), sprinting);
-          if (currentLayerId === 'atrium') garden.ripple(player.x, player.z);
-        }
-      }
+    if(!player.rescue){
+      const pose=crossArchitecture(before,player);
+      if(pose!==player){ const dz=pose.z-player.z;player.z=pose.z;player.safe.z+=dz; }
+      const door=crossedDoor(before,player,config.interactables);
+      if(door){keys.clear();resetTouchStick();triggerInteraction(door);return true;}
     }
-    syncCamera();
-    updateTargetPrompt();
+    if(nudgeTime>0 && (nudgeTime-=dt)<=0)keys.delete(nudgeCode);
     return false;
   }
 
-  function nudgeMove(dir) {
-    const step = 0.45;
-    const sin = Math.sin(player.yaw);
-    const cos = Math.cos(player.yaw);
-    let dx = 0, dz = 0;
-    if (dir === 'forward') { dx = -sin * step; dz = -cos * step; }
-    else if (dir === 'back') { dx = sin * step; dz = cos * step; }
-    else if (dir === 'left') { dx = -cos * step; dz = sin * step; }
-    else if (dir === 'right') { dx = cos * step; dz = -sin * step; }
-    const before = { ...player };
-    const next = resolvePlayerMovement(player, player.x + dx, player.z + dz, config);
-    player.x = next.x; player.y = next.y; player.z = next.z;
-    const door = crossedDoor(before, player, config.interactables);
-    if (door) { triggerInteraction(door); return; }
-    syncCamera();
-    updateTargetPrompt();
+  function canRoam(){return active && modal.hidden && !reading && !presentation.active && !shellBlocked();}
+  function jump(){if(canRoam() && !player.rescue){queueJump(player);help.dataset.dismissed='true';}}
+  function guide(){if(canRoam()){play.guide(player);help.dataset.dismissed='true';}}
+  function nudgeMove(dir){
+    if(!canRoam())return;
+    nudgeCode={forward:'KeyW',back:'KeyS',left:'KeyA',right:'KeyD'}[dir];
+    keys.add(nudgeCode);nudgeTime=.1;
   }
 
   // Event Listeners
   const listen = (el, type, fn, opts) => el.addEventListener(type, fn, { signal, ...opts });
 
   listen(window, 'resize', updateSize);
+  listen(root.querySelector('[data-guide]'),'click',guide);
+  listen(root.querySelector('[data-jump]'),'click',jump);
   function requestLook() {
     if (!viewport.requestPointerLock) return;
     Promise.resolve(viewport.requestPointerLock()).catch(() => {
@@ -1938,7 +1814,7 @@ export async function mountWorld3D(container, {
   listen(viewport, 'click', () => viewport.focus({ preventScroll: true }));
   listen(viewport, 'dblclick', requestLook);
 
-  listen(inspectorBtn, 'click', () => openSpatialOverviewModal());
+  listen(inspectorBtn, 'click', () => { if (modal.hidden) openSpatialOverviewModal(); });
   listen(modalClose, 'click', closeModal);
   listen(promptBox, 'click', e => {
     e.stopPropagation();
@@ -1946,7 +1822,7 @@ export async function mountWorld3D(container, {
   });
 
   listen(viewport, 'pointerdown', e => {
-    if (reading || !modal.hidden || pointerLocked || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    if (presentation.active || reading || !modal.hidden || pointerLocked || (e.pointerType === 'mouse' && e.button !== 0)) return;
     if (lookPointerId !== null) return;
     lookPointerId = e.pointerId;
     lookPointerType = e.pointerType || 'mouse';
@@ -1967,6 +1843,7 @@ export async function mountWorld3D(container, {
     if (e.pointerId === lookPointerId) { draggingLook = false; lookPointerId = null; }
   });
   listen(window, 'pointermove', e => {
+    if(presentation.active) return;
     if (pointerLocked) {
       player.yaw -= (e.movementX || 0) * 0.0024;
       player.pitch = Math.max(-1.35, Math.min(1.35, player.pitch - (e.movementY || 0) * 0.0022));
@@ -2010,12 +1887,15 @@ export async function mountWorld3D(container, {
       }
       return;
     }
+    if (e.repeat || presentation.active) return;
+    if(e.code==='Space' && !e.target.closest?.('button,a[href]')){e.preventDefault();jump();return;}
+    if(e.code==='KeyG'){e.preventDefault();guide();return;}
     if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight', 'KeyQ', 'KeyR'].includes(e.code)) {
       keys.add(e.code);
       if (e.code.startsWith('Arrow')) e.preventDefault();
     } else if (e.code === 'KeyE') {
       e.preventDefault();
-      triggerInteraction(activeTarget);
+      if (!activeTarget?.crossing) triggerInteraction(activeTarget);
     } else if (e.code === 'KeyM' || e.code === 'Tab') {
       if (e.code === 'KeyM') {
         e.preventDefault();
@@ -2094,18 +1974,18 @@ export async function mountWorld3D(container, {
     preferenceTimer += rawDt;
     if (preferenceTimer > 1) { preferenceTimer = 0; state = getState(); applyGardenPreferences(); }
     residents?.updateEcho();
-    if (!reading && modal.hidden && !shellBlocked()) {
-      const steps = rawDt > 0.045 ? 2 : 1;
-      const subDt = rawDt / steps;
-      const turnStep = Math.min(0.048, rawDt) / steps;
-      for (let i = 0; i < steps; i++) {
-        if (stepMovement(subDt, turnStep)) break;
-        for (const fn of animatedObjects) fn(subDt);
-      }
-      audio.updateSpatial(player, library ? 'library' : currentLayerId, residents?.snapshot(), rawDt);
-    }
+    if (canRoam()) {
+      for(const fn of animatedObjects)fn(rawDt);
+      building.physics.update();
+      accumulator+=rawDt;
+      while(accumulator>=TICK){accumulator-=TICK;if(stepMovement(TICK)){accumulator=0;break;}}
+      syncCamera();play.update(rawDt,player);updateTargetPrompt();
+      audio.updateSpatial(player, isSilenced(state,currentLayerId) ? 'closed' : currentLayerId, residents?.snapshot(), rawDt);
+    } else accumulator=0;
+    updatePresentation(rawDt);
+    if(asideTime>0 && (asideTime-=rawDt)<=0)delete aside.dataset.visible;
+    if(foldModel?.visible)projectFold();
     if (renderer) renderer.render(scene, camera);
-    if (reading) pageRenderer.render(pages, camera);
     if (renderer && typography) {
       renderer.clearDepth(); renderer.autoClear = false;
       typography.render(renderer, rawDt);
@@ -2114,7 +1994,6 @@ export async function mountWorld3D(container, {
     rafId = requestAnimationFrame(animate);
   }
 
-  updateSize();
   rebuildLayerScene();
   rafId = requestAnimationFrame(animate);
 
@@ -2128,22 +2007,38 @@ export async function mountWorld3D(container, {
 
   const api = {
     setActive,
+    openFoldDesk,
+    refreshBridge() {
+      state = getState();
+      if (currentLayerId !== 'atrium') return;
+      updateBridge(0);
+      if ((state.bridgeSolid || state.phase==='after') && foldModel?.visible) {
+        presentation.focus('fold',new THREE.Vector3(FOLD_DESK.x+.9,2.18,FOLD_DESK.z+3.4),new THREE.Vector3(-1.8,2.93,-11.6));
+      }
+      updateTargetPrompt();
+    },
     readBook,
     setDialogue,
     getLayer: () => currentLayerId,
+    getPresentation:()=>({mode:presentation.mode,moving:presentation.moving,book:readingObject?.name ?? null,
+      openness:presentation.amount,cover:presentation.book?.coverPivot.rotation.z ?? 0,
+      ink:readingObject?Number(readingObject.element.style.opacity):0,eye:camera.position.toArray(),veil:Number(veil.style.opacity)}),
+    hasSolidBridge: () => Boolean(atriumBridge?.visible),
     getPlayer: () => ({ ...player }),
     getResidents: () => residents?.snapshot() || null,
+    getArchitecture: () => ({ play:play.snapshot(), wingLoops, wingReleased:Boolean(config.wingReleased), ...deepRoom?.snapshot(), calls: renderer?.info.render.calls, triangles:renderer?.info.render.triangles }),
     getGarden: () => ({ sky: appliedSky, chime: appliedChime, ...(garden?.snapshot?.() || {}) }),
     ringChime(tone) { garden.pluck(); audio.playInteraction('chime', tone); state = getState(); applyGardenPreferences(); },
     getActiveTarget: () => activeTarget,
     getInteractables: () => config.interactables.map(i => ({ ...i })),
     switchLayer: (l, opts) => switchLayer(l, opts),
-    teleport(x, z, yaw = player.yaw, pitch = player.pitch) {
-      player.x = x;
-      player.z = z;
-      player.yaw = yaw;
-      player.pitch = pitch;
-      player.y = computeFloorElevation(player.x, player.z, player.y || 0, config.surfaces);
+    inspectGround(x,z,limit) {
+      const floor=building.physics.support(x,z,limit,.34);
+      return floor && {...floor,clear:!building.physics.blocked(x,z,floor.y+.012,1.72,.34)};
+    },
+    teleport(x, z, yaw = player.yaw, pitch = player.pitch, elevation = player.y) {
+      const floor=building.physics.support(x,z,elevation+.48,0);
+      player=createBody({x,y:floor?.y ?? elevation,z,yaw,pitch});
       syncCamera();
       updateTargetPrompt();
       return { ...player };
@@ -2157,7 +2052,7 @@ export async function mountWorld3D(container, {
       if (!library && state.currentLayer && state.currentLayer !== currentLayerId && LAYERS.includes(state.currentLayer)) {
         currentLayerId = state.currentLayer;
         config = getLayerConfig(currentLayerId, state);
-        player = { ...config.spawn };
+        player = createBody(config.spawn);
       }
       rebuildLayerScene();
     },
@@ -2168,7 +2063,8 @@ export async function mountWorld3D(container, {
       clearScene();
       if (readingObject) pages.remove(readingObject);
       typography?.dispose();
-      renderer?.dispose?.();
+      environment?.dispose();
+      renderer?.dispose();
       root.remove();
     },
   };

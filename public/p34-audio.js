@@ -20,6 +20,7 @@ export function createWorldAudio({ motion, signal } = {}) {
   let lastMothY = null;
   let mothFlutterCooldown = 0;
   let gardenSky = 'afternoon';
+  let galleryDelay, galleryFeedback, galleryWet, ambientBeat = 2.1;
 
   function ensureContext() {
     if (disposed || typeof AudioContext === 'undefined' && typeof webkitAudioContext === 'undefined') return null;
@@ -42,6 +43,7 @@ export function createWorldAudio({ motion, signal } = {}) {
       const wet = ctx.createGain();
       wet.gain.value = 0.28;
 
+      galleryDelay = delayB.delayTime; galleryFeedback = fb.gain; galleryWet = wet.gain;
       roomSend = ctx.createGain();
       roomSend.gain.value = 1;
       roomSend.connect(delayA);
@@ -126,8 +128,22 @@ export function createWorldAudio({ motion, signal } = {}) {
       return { osc, gain };
     };
 
-    if (layerId === 'atrium') {
-      // Fluorescent ballast hum + distant HVAC corridor draft
+    const tail = {poolrooms:[.217,.48,.46],stacks:[.282,.38,.36],drafts:[.084,.12,.18],closed:[.319,.38,.28]}[layerId] || [.089,.24,.28];
+    galleryDelay.setTargetAtTime(tail[0],now,.13);
+    galleryFeedback.setTargetAtTime(tail[1],now,.13);
+    galleryWet.setTargetAtTime(tail[2],now,.13);
+    if (layerId === 'closed') {
+      addNoise('bandpass',1250,.61,.013,-.14);
+      addHum(73.42,.005);
+    } else if (layerId === 'poolrooms') {
+      addHum(82.4,.007);
+      addNoise('bandpass',430,1.12,.037,-.28);
+      addNoise('lowpass',137,.7,.024,.24);
+    } else if (layerId === 'drafts') {
+      addNoise('bandpass',370,1.65,.045,.25);
+      addNoise('bandpass',715,3.1,.017,-.46);
+    } else if (layerId === 'atrium') {
+      // Open court: air in the bays, with a very quiet ballast below it.
       addHum(60, 0.012, 'sine');
       addHum(120, 0.006, 'triangle');
       addNoise('bandpass', 260, 0.9, 0.045, -0.1);
@@ -168,6 +184,7 @@ export function createWorldAudio({ motion, signal } = {}) {
   function setLayer(layerId) {
     if (currentLayer === layerId) return;
     currentLayer = layerId;
+    ambientBeat = 2.1;
     lastWalkerPos = null;
     lastMothY = null;
     if (active) buildAmbient(layerId);
@@ -257,10 +274,12 @@ export function createWorldAudio({ motion, signal } = {}) {
     if (!active || docHidden()) return;
     const jitter = 0.92 + Math.random() * 0.16;
     const amp = sprinting ? 1.25 : 0.9;
-    if (surfaceKind === 'water') {
+    if (currentLayer === 'closed') {
+      playNoiseBurst({freq:267*jitter,freqEnd:145,q:1,duration:.08,gain:.013*amp,wet:.67});
+    } else if (surfaceKind === 'water') {
       playNoiseBurst({ freq: 2100 * jitter, freqEnd: 680, q: .6, duration: .15, gain: .026 * amp, wet: .45 });
       playTone({ freq: 780 * jitter, freqEnd: 390, duration: .14, gain: .017 * amp, attack: .003, wet: .55 });
-    } else if (surfaceKind === 'bridge') {
+    } else if (surfaceKind === 'bridge' || surfaceKind === 'glass') {
       playTone({ freq: 520 * jitter, freqEnd: 460 * jitter, type: 'sine', duration: 0.16, gain: 0.022 * amp, wet: 0.7 });
       playNoiseBurst({ freq: 1450 * jitter, q: 2.2, duration: 0.045, gain: 0.025 * amp, wet: 0.6 });
     } else if (surfaceKind === 'wood') {
@@ -273,9 +292,27 @@ export function createWorldAudio({ motion, signal } = {}) {
     }
   }
 
+  function playLanding(surface, speed) {
+    playFootstep(surface, true);
+    const weight = Math.min(1, Math.abs(speed) / 9);
+    playNoiseBurst({freq:surface==='water'?1080:250,freqEnd:surface==='water'?450:108,q:.85,
+      duration:.09+.13*weight,gain:.012+.036*weight,wet:.52});
+  }
+
   function playInteraction(kind, variant = 0) {
     if (!active || docHidden()) return;
-    if (kind === 'chime') {
+    if(kind === 'water-bell' || kind === 'bridge-segment'){
+      const f=[293.66,329.63,392,440,523.25][variant%5];
+      playTone({freq:f,duration:1.4,gain:.028,wet:.68});
+      playTone({freq:f*2.01,duration:.57,gain:.011,attack:.015,wet:.63});
+    } else if(kind === 'catch'){
+      playTone({freq:392,freqEnd:440,duration:.7,gain:.033,attack:.04,wet:.67});
+      playTone({freq:659.25,duration:1.2,gain:.019,attack:.13,wet:.7});
+    } else if(kind === 'harmonic'){
+      const fundamental = [196,246.94,293.66][variant];
+      playTone({freq:fundamental,duration:1.7,gain:.044,wet:.52});
+      playTone({freq:fundamental*1.5,duration:1.16,gain:.025,attack:.02,wet:.57});
+    } else if (kind === 'chime') {
       const notes = [[523.25, 587.33, 659.25, 783.99, 880], [659.25, 739.99, 830.61, 987.77, 1108.73], [261.63, 293.66, 329.63, 392, 440]][variant];
       notes.forEach((freq, i) => { setTimeout(() => {
         playTone({ freq, duration: 1.8 + i * .1, gain: .023, attack: .003, wet: .65 });
@@ -296,6 +333,9 @@ export function createWorldAudio({ motion, signal } = {}) {
       setTimeout(() => playNoiseBurst({ freq: 1700, freqEnd: 900, q: 1.3, duration: 0.09, gain: 0.035, pan: 0.1, wet: 0.25 }), 70);
     } else if (kind === 'flip') {
       playNoiseBurst({ freq: 1850, freqEnd: 880, q: 1.3, duration: 0.11, gain: 0.05, wet: 0.2 });
+    } else if (kind === 'armillary') {
+      playNoiseBurst({freq:610,freqEnd:255,q:2.2,duration:.57,gain:.039,wet:.56});
+      playTone({freq:164.8,freqEnd:116.5,type:'triangle',duration:.59,gain:.029,attack:.09,wet:.54});
     } else if (kind === 'pillar') {
       playTone({ freq: 210, freqEnd: 112, type: 'triangle', duration: 0.24, gain: 0.055, attack: 0.005, wet: 0.6 });
       playNoiseBurst({ freq: 520, freqEnd: 280, q: 2.0, duration: 0.11, gain: 0.04, wet: 0.45 });
@@ -325,6 +365,24 @@ export function createWorldAudio({ motion, signal } = {}) {
     if (!active || docHidden() || !ctx || ctx.state === 'suspended') return;
     const now = ctx.currentTime;
 
+    ambientBeat -= dt;
+    if(ambientBeat <= 0){
+      const interval = {atrium:15,poolrooms:2.9,drafts:7.4,closed:10}[layerId] || 16;
+      ambientBeat = interval * (.64+Math.random()*.91);
+      if(layerId==='poolrooms'){
+        const well=spatialPanAndGain(player,player.z<-36?7:-4,player.z<-36?-68:-2,36);
+        playTone({freq:970+Math.random()*240,freqEnd:516,duration:.11,gain:.007+.019*well.gain,pan:well.pan,wet:.96});
+      }else if(layerId==='drafts'){
+        const wire=spatialPanAndGain(player,-4,3,33);
+        playNoiseBurst({freq:610,freqEnd:380,q:3.8,duration:.46,gain:.012+wire.gain*.019,pan:wire.pan,wet:.4});
+        playTone({freq:163,freqEnd:151,duration:.29,type:'triangle',gain:.007,pan:wire.pan,wet:.32});
+      }else if(layerId==='closed'){
+        playTone({freq:146.83,freqEnd:145.9,duration:2.3,gain:.008,attack:.39,pan:.39,wet:.88});
+      }else if(layerId==='atrium'){
+        const chime=spatialPanAndGain(player,-22.1,11.8,46);
+        if(chime.gain>.08)playTone({freq:659.25,duration:1.22,gain:.009*chime.gain,pan:chime.pan,wet:.55});
+      }
+    }
     if (layerId === 'loft') {
       const win = spatialPanAndGain(player, 0, -7.2, 18);
       if (rainPanner && rainGain) {
@@ -408,6 +466,7 @@ export function createWorldAudio({ motion, signal } = {}) {
     setEnabled,
     setLayer,
     playFootstep,
+    playLanding,
     playInteraction,
     updateSpatial,
   };

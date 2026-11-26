@@ -11,7 +11,7 @@ export function wrapSpatialText(text, columns) {
 }
 
 export async function createSpatialDialogue({ signal, reduced }) {
-  const response = await fetch('/assets/p34/dialogue.typeface.json?v=20261113-library', { signal });
+  const response = await fetch('/assets/p34/dialogue.typeface.json?v=20261126-playable', { signal });
   if (!response.ok) throw new Error(`Dialogue font: HTTP ${response.status}`);
   const font = new FontLoader().parse(await response.json());
   const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(68, 1, .1, 20);

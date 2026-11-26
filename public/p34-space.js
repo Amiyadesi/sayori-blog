@@ -1,9 +1,9 @@
-import { LINES } from './p34-script.js?v=20261113-library';
-import { createMotion } from './p34-motion.js?v=20261113-library';
-import { resolveCookieDomain } from './p34-journey.js?v=20261113-library';
-import { createLightSpace, INITIAL_LIGHT, readSketches } from './p34-light.js?v=20261113-library';
-import { capturePage, playPassage, cancelPassage } from './p34-passage.js?v=20261113-library';
-import { mountAdventure } from './p34-adventure.js?v=20261113-library';
+import { LINES } from './p34-script.js?v=20261126-playable';
+import { createMotion } from './p34-motion.js?v=20261126-playable';
+import { resolveCookieDomain } from './p34-journey.js?v=20261126-playable';
+import { createLightSpace, lightPoint, INITIAL_LIGHT, readSketches } from './p34-light.js?v=20261126-playable';
+import { capturePage, playPassage, cancelPassage } from './p34-passage.js?v=20261126-playable';
+import { mountAdventure } from './p34-adventure.js?v=20261126-playable';
 
 export const SKETCH_KEY = 'p34-light-sketches-v1';
 export const ROOMS = ['home', 'works', 'lab', 'blog', 'archive', 'guestbook'];
@@ -56,7 +56,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
       style.addEventListener('error', () => reject(new Error('Space stylesheet failed to load')), { once: true });
       if (ownedStyle) {
         style.rel = 'stylesheet';
-        style.href = site === 'blog' ? '/p34-reading.css?v=20261113-library' : '/p34-luminous.css?v=20261113-library';
+        style.href = site === 'blog' ? '/p34-reading.css?v=20261126-playable' : '/p34-luminous.css?v=20261126-playable';
         style.dataset.p34SpaceStyle = '';
         document.head.append(style);
       }
@@ -170,28 +170,55 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
     shell.querySelector('[data-map]').hidden = true;
   }
 
+  const labPanel = panels.get('lab');
   const nodeElements = [...shell.querySelectorAll('[data-node]')];
+  let inlineInk = null;
+  function mountFoldDesk(body) {
+    const [rig, actions] = labPanel.children;
+    const ink = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    ink.setAttribute('viewBox', '0 0 1000 1000');
+    ink.setAttribute('preserveAspectRatio', 'none');
+    ink.setAttribute('aria-hidden', 'true');
+    inlineInk = document.createElementNS(ink.namespaceURI, 'path');
+    inlineInk.setAttribute('vector-effect', 'non-scaling-stroke');
+    ink.append(inlineInk);
+    rig.prepend(ink);
+    body.append(rig, actions);
+    updateRig();
+    return () => {
+      inlineInk = null;
+      ink.remove();
+      if (drag) delete drag.el.dataset.dragging;
+      drag = null;
+      labPanel.append(rig, actions);
+    };
+  }
   let labRect = null;
   function placeNode(index, rect) {
     nodeElements[index].style.transform = `translate3d(${nodes[index][0] * rect.width}px, ${nodes[index][1] * rect.height}px, 0)`;
   }
+  function drawLight(rect) {
+    if (!inlineInk) { light.shape(nodes, rect); return; }
+    const points = Array.from({ length: 81 }, (_, i) => lightPoint(nodes, i / 80).map(n => (n * 1000).toFixed(2)).join(' '));
+    inlineInk.setAttribute('d', 'M' + points.join(' L'));
+  }
   function updateNodes() {
-    if (room !== 'lab') return;
+    if (room !== 'lab' && !inlineInk) return;
     nodeElements.forEach((_, i) => placeNode(i, labRect));
-    light.shape(nodes, labRect);
+    drawLight(labRect);
   }
   function updateRig() {
     if (disposed) return;
-    const element = room === 'lab' ? shell.querySelector('.space-rig') : room === 'archive' ? shell.querySelector('.space-history') : null;
+    const element = room === 'lab' || inlineInk ? shell.querySelector('.space-rig') : room === 'archive' ? shell.querySelector('.space-history') : null;
     if (element) {
       const r = element.getBoundingClientRect();
       const rect = { x: r.x, y: r.y, width: r.width, height: r.height };
-      if (room === 'lab') {
+      if (room === 'lab' || inlineInk) {
         labRect = rect;
         nodeElements.forEach((_, i) => placeNode(i, rect));
       }
       if (room === 'archive' && sketches[revisionIndex]) light.preview(sketches[revisionIndex].nodes, rect);
-      else light.shape(nodes, rect);
+      else drawLight(rect);
     }
   }
   function updateNav() {
@@ -249,7 +276,12 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
     if (!panels.has(next)) throw new Error(`No ${site} panel: ${next}`);
     adventure.closeScene(); closeConversation(); menu = false; drag = null;
     shell.querySelector('[data-map]').setAttribute('aria-expanded', 'false');
-    if (push) history.pushState({ ...history.state, p34Room: next }, '', roomHref(next));
+    if (push) {
+      const url = new URL(roomHref(next), location.href);
+      const layer = adventure.getLayer();
+      if (next === 'home' && layer !== 'atrium') url.searchParams.set('layer', layer);
+      history.pushState({ ...history.state, p34Room: next, p34Layer: layer }, '', url);
+    }
     room = next;
     content.inert = false;
     motion.layout([voicePlace, ...nav.children], () => {
@@ -308,7 +340,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
     catch { return; } // Initialization reports a visible retry/exit notice.
     if (disposed || leaving || request !== articleRequest) return;
     document.title = post ? `${post.title} · 她写的` : '阅览室 · 她写的';
-    adventure.opened(post?.slug);
+    adventure.opened(post?.slug, push);
     setStatus(''); under.textContent = '';
     if (push) history.pushState({ ...history.state, p34Post: post?.slug || null }, '', post ? post.href : '/?paper=0617');
   }
@@ -382,7 +414,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
     }
   });
   listen(shell, 'pointerdown', event => {
-    const el = event.target.closest('.space-node'); if (drag || !el || room !== 'lab' || event.button !== 0) return;
+    const el = event.target.closest('.space-node'); if (drag || !el || (room !== 'lab' && !inlineInk) || event.button !== 0) return;
     const rect = shell.querySelector('.space-rig').getBoundingClientRect();
     drag = { index: Number(el.dataset.node), id: event.pointerId, el, rect, moved: false };
     el.setPointerCapture(event.pointerId); el.dataset.dragging = 'true';
@@ -400,7 +432,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
       if (event.pointerId !== drag.id) return;
       nodes[drag.index] = [Math.max(.04, Math.min(.96, (event.clientX - drag.rect.x) / drag.rect.width)), Math.max(.04, Math.min(.96, (event.clientY - drag.rect.y) / drag.rect.height))];
       drag.moved = true;
-      placeNode(drag.index, drag.rect); light.shape(nodes, drag.rect);
+      placeNode(drag.index, drag.rect); drawLight(drag.rect);
     }
   }, { passive: true });
   listen(shell, 'keydown', event => {
@@ -435,7 +467,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
     speak(LINES.leave, { note: '' });
     await playPassage(shell, normalPage, motion, false);
     if (disposed) return;
-    const url = new URL(originalURL); url.searchParams.delete('paper'); url.searchParams.delete('room'); url.searchParams.delete('layer'); url.searchParams.delete('spot');
+    const url = new URL(originalURL); url.searchParams.delete('paper'); url.searchParams.delete('room'); url.searchParams.delete('layer'); url.searchParams.delete('spot'); url.searchParams.delete('from');
     const ownNote = site === 'blog' && url.pathname.startsWith('/notes/');
     if (ownNote) { cleanup(); location.assign('/'); return; }
     history.replaceState(normalState, '', url.pathname + url.search + url.hash);
@@ -457,7 +489,7 @@ export async function mountSpace({ site = 'home', posts = [], isCurrent = () => 
   const adventure = mountAdventure({
     shell, site, posts, openPost, motion, speak, dialogue, quiet: closeConversation,
     go: next => selectRoom(next, { push: true }), getRoom: () => room, getSketches: () => sketches,
-    getLightNodes: () => nodes, leave: sendBack, cookie: writeCookie, signal,
+    getLightNodes: () => nodes, mountFoldDesk, leave: sendBack, cookie: writeCookie, signal,
   });
   selectRoom(room, { announce: false }); updateNodes();
   if (site === 'blog') fromLocation();
