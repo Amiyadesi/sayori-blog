@@ -56,6 +56,13 @@ function readDistFile(relativePath) {
 	return fs.readFileSync(fullPath, "utf8");
 }
 
+const homeHead = parse(readDistFile("index.html")).querySelector("head");
+const p34Entry = homeHead?.querySelector("script[data-p34-entry]");
+if (homeHead?.querySelector('script[src^="/p34-entry.js"]') ||
+	p34Entry?.innerHTML.trim() !== fs.readFileSync("public/p34-entry.js", "utf8").trim()) {
+	fail("Project 34 must keep its first-paint guard without a blocking request on ordinary pages");
+}
+
 function readTextIfExists(filePath) {
 	if (!fs.existsSync(filePath)) {
 		return "";

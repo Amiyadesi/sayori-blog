@@ -1,4 +1,5 @@
 ---
+import { readFileSync } from "node:fs";
 import CopyFeedback from "@components/misc/CopyFeedback.astro";
 import { ClientRouter } from "astro:transitions";
 import OptionalFeatures from "@components/features/settings/OptionalFeatures.astro";
@@ -18,6 +19,7 @@ interface Props {
 }
 const { title, description, setOGTypeArticle, postSlug, coverImage, ogImageAlt,
 	publishedTime, modifiedTime, tags, noindex, alternateUrls } = Astro.props;
+const p34Entry = readFileSync("public/p34-entry.js", "utf8");
 const publicPage = !noindex && !/^\/(?:admin(?:\/|$)|404\/?$)/.test(stripLocalePrefix(Astro.url.pathname));
 
 const blogTitle = isExtraLocale ? readingCopy.siteTitle : siteConfig.title;
@@ -31,7 +33,7 @@ const ogImageUrl = new URL(siteConfig.generateOgImages && postSlug
 <html transition:animate="none" data-pagefind-ignore={noindex ? "all" : undefined} lang={SITE_LOCALE} data-pagefind-filter={"locale:" + SITE_LOCALE}>
 	<head>
 		<meta charset="UTF-8" />
-		<script is:inline src="/p34-entry.js?v=20261126-playable"></script>
+		<script is:inline data-p34-entry set:html={p34Entry}></script>
         <script is:inline data-astro-rerun>
           if (!window.__p34OwnPopstateGate) {
             window.__p34OwnPopstateGate = true;
