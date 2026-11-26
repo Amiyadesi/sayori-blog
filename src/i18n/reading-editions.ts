@@ -35,14 +35,14 @@ const [notice, privacy, privacySummary, translation, original, analytics, home, 
 
 export const readingCopy = { notice, privacy, privacySummary, translation, original, analytics, home, archive, essays, search, menu, siteTitle, siteDescription, gotIt, close, coverage };
 
-export const [readingShortcuts, returnHome, backToTop] = {
-	"zh-CN": ["阅读快捷入口", "返回首页", "回到顶部"],
-	"zh-Hant": ["閱讀捷徑", "返回首頁", "回到頂部"],
-	en: ["Reading shortcuts", "Home", "Back to top"],
-	ja: ["記事内のショートカット", "ホームに戻る", "ページの先頭へ"],
-	fr: ["Raccourcis de lecture", "Retour à l’accueil", "Haut de page"],
-	ko: ["읽기 바로가기", "홈으로", "맨 위로"],
-	es: ["Atajos de lectura", "Volver al inicio", "Volver arriba"],
-	de: ["Lese-Navigation", "Zur Startseite", "Nach oben"],
-	"pt-BR": ["Atalhos de leitura", "Voltar ao início", "Voltar ao topo"],
+export const [readingShortcuts, returnHome, backToTop, skipToContent, jumpToComments] = {
+	"zh-CN": ["阅读快捷入口", "返回首页", "回到顶部", "跳到主要内容", "前往评论"],
+	"zh-Hant": ["閱讀捷徑", "返回首頁", "回到頂部", "跳至主要內容", "前往留言區"],
+	en: ["Reading shortcuts", "Home", "Back to top", "Skip to main content", "Jump to comments"],
+	ja: ["記事内のショートカット", "ホームに戻る", "ページの先頭へ", "本文へ移動", "コメント欄へ"],
+	fr: ["Raccourcis de lecture", "Retour à l’accueil", "Haut de page", "Aller au contenu principal", "Aller aux commentaires"],
+	ko: ["읽기 바로가기", "홈으로", "맨 위로", "본문으로 건너뛰기", "댓글로 이동"],
+	es: ["Atajos de lectura", "Volver al inicio", "Volver arriba", "Saltar al contenido principal", "Ir a los comentarios"],
+	de: ["Lese-Navigation", "Zur Startseite", "Nach oben", "Zum Hauptinhalt springen", "Zu den Kommentaren"],
+	"pt-BR": ["Atalhos de leitura", "Voltar ao início", "Voltar ao topo", "Ir para o conteúdo principal", "Ir para os comentários"],
 }[SITE_LOCALE];

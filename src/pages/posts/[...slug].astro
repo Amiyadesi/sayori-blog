@@ -22,7 +22,7 @@ import {
 import { resolveLocalImage } from "@utils/local-image";
 import { getPostPublicDescription } from "@utils/post-card-content";
 import { getPostTranslationEntries } from "@utils/post-translations";
-import { readingCopy } from "../../i18n/reading-editions";
+import { jumpToComments, readingCopy } from "../../i18n/reading-editions";
 import { buildPostPaths } from "@utils/post-url";
 import {
 	getFileDirFromPath,
@@ -302,7 +302,7 @@ const jsonLd = {
 			</div>
 
 			<h1 id="post-title" data-pagefind-body data-pagefind-weight="10" data-pagefind-meta="title" class="mb-5">{entry.data.title}</h1>
-			<a class="text-sm" href="#twikoo-container">{siteConfig.lang.startsWith("en") ? "Jump to comments ↓" : "前往评论 ↓"}</a>
+			<a class="text-sm" href="#twikoo-container">{jumpToComments} ↓</a>
 
 			<!-- metadata -->
 			<div class="onload-animation">

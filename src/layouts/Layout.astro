@@ -5,7 +5,7 @@ import { ClientRouter } from "astro:transitions";
 import OptionalFeatures from "@components/features/settings/OptionalFeatures.astro";
 import { siteConfig } from "@/config";
 import { isExtraLocale, SITE_LOCALE, stripLocalePrefix, type HreflangMap } from "@utils/site-locale";
-import { readingCopy } from "@i18n/reading-editions";
+import { readingCopy, skipToContent } from "@i18n/reading-editions";
 import "../styles/variables.styl";
 import "../styles/main.css";
 import AnalyticsScripts from "./partials/AnalyticsScripts.astro";
@@ -67,7 +67,7 @@ const ogImageUrl = new URL(siteConfig.generateOgImages && postSlug
 		<slot name="head" />
 	</head>
 	<body class="desk-lite">
-		<a class="skip-link" href="#swup-container">{SITE_LOCALE === "en" ? "Skip to main content" : "跳到主要内容"}</a>
+		<a class="skip-link" href="#swup-container">{skipToContent}</a>
 		<CopyFeedback />
 		<slot />
 		<OptionalFeatures />
