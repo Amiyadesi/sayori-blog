@@ -40,6 +40,14 @@ const postsCollection = defineCollection({
 		/* Custom permalink - 自定义固定链接，优先级高于 alias */
 		permalink: z.string().optional(),
 
+		/* Digital Garden fields - 数字花园双视图字段（可选，缺省时按主题规则自动归类） */
+		type: z.enum(["blog", "garden", "archive"]).optional(),
+		stage: z.enum(["seedling", "budding", "evergreen"]).optional(),
+		topic: z.string().trim().optional().default(""),
+		related_posts: z.array(z.string()).optional().default([]),
+		archived: z.boolean().optional().default(false),
+		archivedReason: z.string().optional().default(""),
+
 		/* For internal use */
 		prevTitle: z.string().default(""),
 		prevSlug: z.string().default(""),

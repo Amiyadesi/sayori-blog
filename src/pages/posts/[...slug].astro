@@ -5,6 +5,8 @@ import PostEngagement from "@components/features/posts/PostEngagement.astro";
 import PostMeta from "@components/features/posts/PostMeta.astro";
 import PostNavigation from "@components/features/posts/PostNavigation.astro";
 import RandomPosts from "@components/features/posts/RandomPosts.astro";
+import GardenConnections from "@components/features/garden/GardenConnections.astro";
+import GardenNodeBadge from "@components/features/garden/GardenNodeBadge.astro";
 import ReadingTime from "@components/features/posts/atoms/ReadingTime.astro";
 import WordCount from "@components/features/posts/atoms/WordCount.astro";
 import License from "@components/misc/License.astro";
@@ -22,6 +24,12 @@ import {
 import { resolveLocalImage } from "@utils/local-image";
 import { getPostPublicDescription } from "@utils/post-card-content";
 import { getPostTranslationEntries } from "@utils/post-translations";
+import {
+	buildGardenCatalog,
+	getTopicCopy,
+	toCanonicalGardenSlug,
+} from "@utils/garden-utils";
+import "@/styles/garden.css";
 import { jumpToComments, readingCopy } from "../../i18n/reading-editions";
 import { buildPostPaths } from "@utils/post-url";
 import {
@@ -98,6 +106,44 @@ const { remarkPluginFrontmatter } = await render(entry);
 
 const showRandomPosts = randomPostsConfig.enable;
 const footerSuggestionCount = Number(showRandomPosts);
+
+// Digital garden node for this article (topic greenhouse, growth stage, neighbours).
+const gardenCandidates = await getCollection(
+	"posts",
+	(post) =>
+		post.data.draft !== true &&
+		post.data.encrypted !== true &&
+		!post.id.startsWith("sayori-diary/"),
+);
+const gardenCatalog = buildGardenCatalog(gardenCandidates);
+const gardenNode = gardenCatalog.nodeBySlug.get(toCanonicalGardenSlug(entry.id));
+const gardenTopic = gardenNode
+	? gardenCatalog.topics.find((topic) => topic.id === gardenNode.topicId)
+	: undefined;
+const gardenSiblings = gardenTopic?.nodes ?? [];
+const previewSlugs = new Set<string>();
+if (gardenNode) {
+	for (const item of gardenNode.outbound) previewSlugs.add(item.slug);
+	for (const item of gardenNode.backlinks) previewSlugs.add(item.slug);
+	for (const item of gardenSiblings) previewSlugs.add(item.slug);
+	previewSlugs.delete(gardenNode.slug);
+}
+const gardenPreviewData = [...previewSlugs]
+	.map((slug) => gardenCatalog.nodeBySlug.get(slug))
+	.filter((node): node is NonNullable<typeof node> => Boolean(node))
+	.map((node) => {
+		const topic = gardenCatalog.topics.find((item) => item.id === node.topicId);
+		return {
+			slug: node.slug,
+			title: node.title,
+			description: node.description,
+			stage: node.stage,
+			topicTitle: topic ? getTopicCopy(topic).title : "",
+			topicIcon: topic?.icon ?? "",
+			lastTended: formatDateToYYYYMMDD(node.lastTended),
+			updateCount: node.updateCount,
+		};
+	});
 
 // Process cover image, for both OG and SharePoster
 let ogCoverUrl: string | undefined;
@@ -334,6 +380,8 @@ const jsonLd = {
 				}
 			</div>
 
+			{gardenNode && !isEncrypted && <GardenNodeBadge node={gardenNode} />}
+
 			{translatedPost && !isEncrypted && <aside class="mb-5 rounded-lg border border-[var(--line-divider)] p-3 text-sm text-[var(--text-70)]" data-translation-notice>
 				<p>{readingCopy.translation}</p>
 				<a class="link text-[var(--primary)]" href={localizedPath(getPostUrl(entry), "zh-CN")} hreflang="zh-Hans">{readingCopy.original}</a>
@@ -375,6 +423,19 @@ const jsonLd = {
 					</Markdown>
 				)
 			}
+
+			{gardenNode && !isEncrypted && (
+				<GardenConnections node={gardenNode} siblings={gardenSiblings} />
+			)}
+
+			{!isEncrypted && gardenPreviewData.length > 0 && (
+				<script
+					is:inline
+					type="application/json"
+					id="garden-preview-data"
+					set:html={JSON.stringify(gardenPreviewData)}
+				/>
+			)}
 
 			<PostEngagement
 				class:list={[{ "encrypted-hidden": isEncrypted }]}
@@ -457,3 +518,7 @@ const jsonLd = {
 
 	</MainGridLayout>
 )}
+
+<script>
+	import "@/scripts/garden-popover";
+</script>

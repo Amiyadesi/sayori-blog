@@ -1,0 +1,208 @@
+---
+import { Icon } from "astro-icon/components";
+
+import MainGridLayout from "@layouts/MainGridLayout.astro";
+import { readingCopy } from "@i18n/reading-editions";
+import {
+	buildGardenCatalog,
+	GARDEN_TOPICS,
+	getStageLabel,
+	getTopicCopy,
+} from "@utils/garden-utils";
+import { getSortedPosts } from "@utils/content-utils";
+import { formatDateToYYYYMMDD } from "@utils/date-utils";
+import { isEnglishSite, isExtraLocale, isTraditionalSite } from "@utils/site-locale";
+import "@/styles/garden.css";
+
+const posts = await getSortedPosts();
+const catalog = buildGardenCatalog(posts);
+
+const totalLinks = catalog.allNodes.reduce(
+	(total, node) => total + node.outbound.length,
+	0,
+);
+const evergreenCount = catalog.allNodes.filter((node) => node.stage === "evergreen").length;
+const seedlingCount = catalog.allNodes.filter((node) => node.stage === "seedling").length;
+const buddingCount = catalog.allNodes.filter((node) => node.stage === "budding").length;
+
+const copy = isEnglishSite || isExtraLocale
+	? {
+			title: "Garden",
+			subtitle:
+				"Every note is also a node. The timeline keeps them in order; the garden sorts them by topic, growth stage, and the links between them.",
+			graphHeading: "The whole garden at a glance",
+			graphHint: "Drag a node to pin it, scroll to zoom, click to open the note.",
+			graphReset: "Reset view",
+			statsNodes: "notes",
+			statsLinks: "links",
+			statsTopics: "greenhouses",
+			filterAll: "All",
+			greenhouses: "Greenhouses by topic",
+			openNote: "Open",
+			tended: "tended",
+		}
+	: isTraditionalSite
+		? {
+				title: "花園",
+				subtitle:
+					"每篇筆記同時也是一個節點。時間軸負責保留先後順序，花園則按主題、生長階段與彼此之間的連結重新排列。",
+				graphHeading: "整座花園一眼看全",
+				graphHint: "拖動節點可以固定它，滾輪縮放，點擊節點打開對應筆記。",
+				graphReset: "重置視圖",
+				statsNodes: "篇筆記",
+				statsLinks: "條連結",
+				statsTopics: "間溫室",
+				filterAll: "全部",
+				greenhouses: "按主題劃分的溫室",
+				openNote: "打開",
+				tended: "修剪於",
+			}
+		: {
+				title: "花园",
+				subtitle:
+					"每篇笔记同时也是一个节点。时间线负责保留先后顺序，花园则按主题、生长阶段与彼此之间的链接重新排列。",
+				graphHeading: "整座花园一眼看全",
+				graphHint: "拖动节点可以固定它，滚轮缩放，点击节点打开对应笔记。",
+				graphReset: "重置视图",
+				statsNodes: "篇笔记",
+				statsLinks: "条链接",
+				statsTopics: "间温室",
+				filterAll: "全部",
+				greenhouses: "按主题划分的温室",
+				openNote: "打开",
+				tended: "修剪于",
+			};
+
+const graphPayload = {
+	nodes: catalog.allNodes.map((node) => {
+		const topic = GARDEN_TOPICS.find((item) => item.id === node.topicId);
+		return {
+			slug: node.slug,
+			title: node.title,
+			url: node.url,
+			topicId: node.topicId,
+			stage: node.stage,
+			degree: node.degree,
+			topicTitle: topic ? getTopicCopy(topic).title : "",
+			topicIcon: topic?.icon ?? "",
+			accent: topic?.accent ?? "#506347",
+			lastTended: formatDateToYYYYMMDD(node.lastTended),
+		};
+	}),
+	edges: catalog.allNodes.flatMap((node) =>
+		node.outbound.map((item) => [node.slug, item.slug] as [string, string]),
+	),
+};
+
+const stages = [
+	{ id: "all", label: copy.filterAll, icon: "✳", count: catalog.allNodes.length },
+	{ id: "seedling", ...getStageLabel("seedling"), count: seedlingCount },
+	{ id: "budding", ...getStageLabel("budding"), count: buddingCount },
+	{ id: "evergreen", ...getStageLabel("evergreen"), count: evergreenCount },
+];
+---
+
+<MainGridLayout title={copy.title} description={copy.subtitle}>
+	<section class="garden-hero card-base paper-note paper-tape">
+		<p class="garden-hero__eyebrow">DIGITAL GARDEN</p>
+		<h1 class="garden-hero__title">{copy.title}</h1>
+		<p class="garden-hero__subtitle">{copy.subtitle}</p>
+		<ul class="garden-stats">
+			<li><strong>{catalog.allNodes.length}</strong><span>{copy.statsNodes}</span></li>
+			<li><strong>{totalLinks}</strong><span>{copy.statsLinks}</span></li>
+			<li><strong>{catalog.topics.length}</strong><span>{copy.statsTopics}</span></li>
+		</ul>
+	</section>
+
+	<section class="garden-graph-panel card-base">
+		<header class="garden-graph-panel__head">
+			<h2>{copy.graphHeading}</h2>
+			<button type="button" class="garden-graph-panel__reset" data-garden-graph-reset>
+				<Icon name="material-symbols:refresh-rounded" />
+				<span>{copy.graphReset}</span>
+			</button>
+		</header>
+		<div class="garden-stage-filter" role="group">
+			{stages.map((stage) => (
+				<button
+					type="button"
+					class="garden-stage-filter__button"
+					data-garden-stage={stage.id}
+					aria-pressed={stage.id === "all" ? "true" : "false"}
+				>
+					<span aria-hidden="true">{stage.icon}</span>
+					<span>{stage.label}</span>
+					<span class="garden-stage-filter__count">{stage.count}</span>
+				</button>
+			))}
+		</div>
+		<div class="garden-graph-wrap">
+			<canvas
+				class="garden-graph-canvas"
+				data-garden-graph
+				role="img"
+				aria-label={copy.graphHeading}
+			/>
+		</div>
+		<p class="garden-graph-panel__hint">{copy.graphHint}</p>
+		<ul class="garden-graph-legend">
+			{
+				catalog.topics.map((topic) => (
+					<li>
+						<a href={`#topic-${topic.id}`}>
+							<span class="garden-graph-legend__dot" style={`background: ${topic.accent};`} aria-hidden="true" />
+							<span aria-hidden="true">{topic.icon}</span>
+							<span>{topic.copy.title}</span>
+							<span class="garden-graph-legend__count">{topic.nodes.length}</span>
+						</a>
+					</li>
+				))
+			}
+		</ul>
+	</section>
+
+	<section class="garden-topics">
+		<h2 class="garden-section-title">{copy.greenhouses}</h2>
+		{
+			catalog.topics.map((topic) => (
+				<article class="garden-topic card-base" id={`topic-${topic.id}`}>
+					<header class="garden-topic__head" style={`--topic-accent: ${topic.accent};`}>
+						<span class="garden-topic__icon" aria-hidden="true">{topic.icon}</span>
+						<div class="garden-topic__copy">
+							<h3 class="garden-topic__title">{topic.copy.title}</h3>
+							<p class="garden-topic__subtitle">{topic.copy.subtitle}</p>
+						</div>
+						<span class="garden-topic__count">{topic.nodes.length}</span>
+					</header>
+					<ul class="garden-topic__list">
+						{topic.nodes.map((node) => {
+							const stage = getStageLabel(node.stage);
+							return (
+								<li class="garden-topic__item">
+									<a class="garden-topic__link" href={node.url}>
+										<span class="garden-topic__stage" title={stage.desc} aria-hidden="true">{stage.icon}</span>
+										<span class="garden-topic__node-title">{node.title}</span>
+										<span class="garden-topic__meta">
+											{node.degree > 0 && <span class="garden-topic__degree">↔ {node.degree}</span>}
+											<time datetime={formatDateToYYYYMMDD(node.lastTended)}>
+												{formatDateToYYYYMMDD(node.lastTended)}
+											</time>
+										</span>
+									</a>
+									{node.description && <p class="garden-topic__desc">{node.description}</p>}
+								</li>
+							);
+						})}
+					</ul>
+				</article>
+			))
+		}
+	</section>
+
+	<script is:inline type="application/json" id="garden-graph-data" set:html={JSON.stringify(graphPayload)} />
+	{isExtraLocale && <p class="garden-hero__note">{readingCopy.coverage}</p>}
+</MainGridLayout>
+
+<script>
+	import "@/scripts/garden-graph";
+</script>

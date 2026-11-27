@@ -49,6 +49,7 @@ const ANIME_PUBLIC_DEST = path.join(PUBLIC_ASSETS_DEST, "anime");
 const ANIME_DATA_DEST = path.join(blogRoot, "src", "data", "anime.ts");
 const GENERATED_CONFIG_DEST = path.join(blogRoot, "src", "generated", "obsidian-config.ts");
 const GENERATED_FRIENDS_DEST = path.join(blogRoot, "src", "generated", "friends.ts");
+const GENERATED_GARDEN_GRAPH_DEST = path.join(blogRoot, "src", "generated", "garden-graph.ts");
 const GENERATED_FRIEND_SCREENSHOTS_DEST = path.join(
 	blogRoot,
 	"functions",
@@ -121,6 +122,7 @@ const contentIndex = buildContentIndex([
 	{ dir: ESSAYS_SRC, urlPrefix: "/essays/#" },
 ]);
 const LOCAL_IMAGE_INDEX = buildLocalImageIndex(POSTS_SRC);
+const GARDEN_RAW_EDGES = [];
 
 // --- Sync global images ---
 const imagesSrc = path.join(articlesRoot, "images");
@@ -170,6 +172,7 @@ syncSiteAssets();
 syncAnimeData();
 syncSiteConfig();
 syncFriendsData();
+syncGardenGraph();
 
 if (warnings.length > 0) {
 	console.error("\n[sync-content] validation errors:");
@@ -367,7 +370,8 @@ function transformMarkdownBody(content, sourcePath, slug) {
 		result = convertPhotoGrids(result, sourcePath, slug);
 		result = convertSpoilers(result);
 		result = convertObsidianEmbeds(result, sourcePath, slug);
-		result = convertWikiLinks(result, sourcePath);
+		result = convertWikiLinks(result, sourcePath, slug);
+		result = collectStandardPostLinks(result, sourcePath, slug);
 		result = normalizeImageLinks(result, slug, sourcePath);
 		result = convertObsidianBlockIds(result);
 		result = convertObsidianHighlights(result);
@@ -654,7 +658,7 @@ function convertObsidianEmbeds(content, sourcePath, slug) {
 		}
 
 		// Note embeds keep the existing link presentation, including their fragment.
-		return convertWikiLinks(`[[${filename}|${display.altText}]]`, sourcePath);
+		return convertWikiLinks(`[[${filename}|${display.altText}]]`, sourcePath, slug);
 	});
 }
 
@@ -975,8 +979,8 @@ function normalizeImageAlign(value) {
 	return IMAGE_ALIGNMENTS.has(text) ? text : "";
 }
 
-function convertWikiLinks(content, sourcePath) {
-	return content.replace(/\[\[([^\]|#]+)?(?:#([^\]|]+))?(?:\|([^\]]+))?\]\]/g, (match, target = "", heading = "", alias = "") => {
+function convertWikiLinks(content, sourcePath, sourceSlug = null) {
+	return content.replace(/\[\[([^\]|#]+)?(?:#([^\]|]+))?(?:\|([^\]]+))?\]\]/g, (match, target = "", heading = "", alias = "", offset = 0) => {
 		const rawTarget = target.trim();
 		const label = (alias || heading || rawTarget).trim();
 
@@ -1000,12 +1004,31 @@ function convertWikiLinks(content, sourcePath) {
 			return label || rawTarget;
 		}
 
+		if (sourceSlug && resolved.slug && resolved.url.startsWith("/posts/")) {
+			recordGardenEdge(sourceSlug, resolved.slug, extractLinkContextSnippet(content, offset, label || rawTarget));
+		}
+
 		const anchor =
 			heading && resolved.url.startsWith("/posts/")
 				? `#${normalizeObsidianAnchor(heading)}`
 				: "";
 		return `[${label || rawTarget}](${SITE_BASE}${resolved.url}${anchor})`;
 	});
+}
+
+function collectStandardPostLinks(content, _sourcePath, sourceSlug = null) {
+	if (!sourceSlug) return content;
+	const linkPattern = /(?<!!)\[([^\]]+)\]\(([^)]+)\)/g;
+	let match;
+	while ((match = linkPattern.exec(content)) !== null) {
+		const label = match[1].trim();
+		const rawHref = match[2].trim();
+		const targetSlug = resolveInternalPostTargetSlug(rawHref);
+		if (targetSlug && targetSlug !== sourceSlug) {
+			recordGardenEdge(sourceSlug, targetSlug, extractLinkContextSnippet(content, match.index, label));
+		}
+	}
+	return content;
 }
 
 function normalizeImageLinks(content, slug, sourcePath) {
@@ -2461,3 +2484,98 @@ function readFrontmatterTitle(content) {
 	const frontmatter = parseFrontmatter(content);
 	return frontmatter.title ? String(frontmatter.title).trim() : "";
 }
+
+function recordGardenEdge(fromSlug, toSlug, snippet) {
+	const from = normalizePostSlugKey(fromSlug);
+	const to = normalizePostSlugKey(toSlug);
+	if (!from || !to || from === to) return;
+	if (from.startsWith("diary/") || from.startsWith("sayori-diary/")) return;
+	if (to.startsWith("diary/") || to.startsWith("sayori-diary/")) return;
+	GARDEN_RAW_EDGES.push({
+		from,
+		to,
+		snippet: String(snippet || "").trim().slice(0, 140),
+	});
+}
+
+function normalizePostSlugKey(value) {
+	const trimmed = String(value || "")
+		.trim()
+		.replace(/^\/+|\/+$/g, "")
+		.replace(/^posts\//i, "");
+	if (!trimmed) return "";
+	const resolved = contentIndex.get(normalizeLookupKey(trimmed));
+	return resolved?.slug || trimmed.toLowerCase();
+}
+
+function resolveInternalPostTargetSlug(rawHref) {
+	const href = String(rawHref || "").trim().split(/[?#]/)[0];
+	if (!href) return "";
+	let pathname = href;
+	if (/^https?:\/\//i.test(href)) {
+		try {
+			const parsed = new URL(href);
+			if (parsed.hostname !== "blog.sayori.org") return "";
+			pathname = parsed.pathname;
+		} catch {
+			return "";
+		}
+	}
+	const directMatch = pathname.match(/^(?:\/(?:en|zh-hant|ja|fr|ko|es|de|pt-br))?\/posts\/([^?#]+?)\/?$/i);
+	if (directMatch) {
+		return normalizePostSlugKey(directMatch[1]);
+	}
+	const relMatch = pathname.match(/^\.\.\/([^/?#]+)(?:\/([^/?#]+))?\/?$/);
+	if (relMatch) {
+		const candidate = relMatch[2] ? `${relMatch[1]}/${relMatch[2]}` : relMatch[1];
+		const entry = contentIndex.get(normalizeLookupKey(candidate)) || contentIndex.get(normalizeLookupKey(relMatch[1]));
+		return entry?.url?.startsWith("/posts/") ? entry.slug : "";
+	}
+	return "";
+}
+
+function extractLinkContextSnippet(content, offset, fallbackLabel) {
+	const lineStart = content.lastIndexOf("\n", Math.max(0, offset - 1)) + 1;
+	const nextNewline = content.indexOf("\n", offset);
+	const lineEnd = nextNewline < 0 ? content.length : nextNewline;
+	const rawLine = content.slice(lineStart, lineEnd);
+	const cleaned = rawLine
+		.replace(/\[\[([^\]|#]+)?(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]/g, (_m, target = "", alias = "") => alias || target)
+		.replace(/!\[[^\]]*\]\([^)]+\)/g, "")
+		.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+		.replace(/^[>\s#*+-]+/, "")
+		.replace(/[`*_~]/g, "")
+		.replace(/\s+/g, " ")
+		.trim();
+	return cleaned || String(fallbackLabel || "").trim();
+}
+
+function syncGardenGraph() {
+	fs.mkdirSync(path.dirname(GENERATED_GARDEN_GRAPH_DEST), { recursive: true });
+	const deduped = [];
+	const seen = new Set();
+	for (const edge of GARDEN_RAW_EDGES) {
+		const key = `${edge.from}:::${edge.to}`;
+		if (seen.has(key)) continue;
+		seen.add(key);
+		deduped.push(edge);
+	}
+	deduped.sort((a, b) => a.from.localeCompare(b.from) || a.to.localeCompare(b.to));
+
+	const generated = [
+		"// This file is generated by blog/scripts/sync-content.js.",
+		"// It stores all build-time bidirectional WikiLink and internal post references.",
+		"export interface GardenLinkEdge {",
+		"\tfrom: string;",
+		"\tto: string;",
+		"\tsnippet: string;",
+		"}",
+		"",
+		`export const gardenLinkEdges: GardenLinkEdge[] = ${toTsObject(deduped)};`,
+		"",
+	].join("\n");
+
+	fs.writeFileSync(GENERATED_GARDEN_GRAPH_DEST, generated);
+	console.log(`[sync-content] garden graph: ${deduped.length} edges -> blog/src/generated/garden-graph.ts`);
+}
+

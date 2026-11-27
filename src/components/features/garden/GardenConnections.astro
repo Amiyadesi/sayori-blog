@@ -1,0 +1,174 @@
+---
+import {
+	GARDEN_TOPICS,
+	getGardenUrl,
+	getStageLabel,
+	getTopicCopy,
+	type GardenNodeMeta,
+} from "@utils/garden-utils";
+import { isEnglishSite, isTraditionalSite } from "@utils/site-locale";
+import { formatDateToYYYYMMDD } from "@utils/date-utils";
+
+interface Props {
+	node: GardenNodeMeta;
+	siblings?: GardenNodeMeta[];
+	class?: string;
+}
+
+const { node, siblings = [], class: className = "" } = Astro.props;
+
+const topic = GARDEN_TOPICS.find((item) => item.id === node.topicId);
+const topicCopy = topic ? getTopicCopy(topic) : null;
+const relatedSiblings = siblings
+	.filter((item) => item.slug !== node.slug)
+	.slice(0, 5);
+
+const VISIBLE_LIMIT = 6;
+const hiddenCount = (total: number) => Math.max(0, total - VISIBLE_LIMIT);
+
+const hasConnections =
+	node.outbound.length > 0 || node.backlinks.length > 0 || relatedSiblings.length > 0;
+
+const copy = isEnglishSite
+	? {
+			heading: "Network",
+			outbound: "Links from this note",
+			backlinks: "Notes that mention this one",
+			siblings: "More from the same greenhouse",
+			empty: "This note has no links yet. It lives alone in the garden for now.",
+			visit: "Open",
+			more: (count: number) => `${count} more`,
+			topicAll: (name: string) => `See everything in ${name}`,
+		}
+	: isTraditionalSite
+		? {
+				heading: "關聯網路",
+				outbound: "這篇筆記指向",
+				backlinks: "提到這篇的筆記",
+				siblings: "同一溫室的其他筆記",
+				empty: "這篇筆記暫時還沒有任何連結，先獨自在花園裡生長。",
+				visit: "打開",
+				more: (count: number) => `另有 ${count} 篇`,
+				topicAll: (name: string) => `查看 ${name} 的全部筆記`,
+			}
+		: {
+				heading: "关联网络",
+				outbound: "这篇笔记指向",
+				backlinks: "提到这篇的笔记",
+				siblings: "同一温室的其他笔记",
+				empty: "这篇笔记暂时还没有任何链接，先独自在花园里生长。",
+				visit: "打开",
+				more: (count: number) => `另有 ${count} 篇`,
+				topicAll: (name: string) => `查看 ${name} 的全部笔记`,
+			};
+---
+
+<section class:list={["garden-connections", className]} data-garden-connections data-pagefind-ignore>
+	<header class="garden-connections__head">
+		<h2 class="garden-connections__title">{copy.heading}</h2>
+		{topic && topicCopy && (
+			<a class="garden-connections__topic-link" href={getGardenUrl(`topic-${node.topicId}`)}>
+				{topic.icon} {copy.topicAll(topicCopy.title)}
+			</a>
+		)}
+	</header>
+
+	{!hasConnections && <p class="garden-connections__empty">{copy.empty}</p>}
+
+	{node.outbound.length > 0 && (
+		<div class="garden-connections__group">
+			<h3 class="garden-connections__group-title">{copy.outbound}</h3>
+			<ul class="garden-connections__list">
+				{node.outbound.slice(0, VISIBLE_LIMIT).map((item) => {
+					const stage = getStageLabel(item.stage);
+					return (
+						<li>
+							<a class="garden-connections__item" href={item.url}>
+								<span class="garden-connections__item-stage" title={stage.desc} aria-hidden="true">{stage.icon}</span>
+								<span class="garden-connections__item-title">{item.title}</span>
+							</a>
+						</li>
+					);
+				})}
+			</ul>
+			{hiddenCount(node.outbound.length) > 0 && (
+				<details class="garden-connections__more">
+					<summary>{copy.more(hiddenCount(node.outbound.length))}</summary>
+					<ul class="garden-connections__list">
+						{node.outbound.slice(VISIBLE_LIMIT).map((item) => {
+							const stage = getStageLabel(item.stage);
+							return (
+								<li>
+									<a class="garden-connections__item" href={item.url}>
+										<span class="garden-connections__item-stage" title={stage.desc} aria-hidden="true">{stage.icon}</span>
+										<span class="garden-connections__item-title">{item.title}</span>
+									</a>
+								</li>
+							);
+						})}
+					</ul>
+				</details>
+			)}
+		</div>
+	)}
+
+	{node.backlinks.length > 0 && (
+		<div class="garden-connections__group">
+			<h3 class="garden-connections__group-title">
+				{copy.backlinks}
+				<span class="garden-connections__count">{node.backlinks.length}</span>
+			</h3>
+			{(() => {
+				const renderBacklink = (item: (typeof node.backlinks)[number]) => {
+					const stage = getStageLabel(item.stage);
+					return (
+						<li class="garden-connections__backlink">
+							<a class="garden-connections__item" href={item.url}>
+								<span class="garden-connections__item-stage" title={stage.desc} aria-hidden="true">{stage.icon}</span>
+								<span class="garden-connections__item-title">{item.title}</span>
+							</a>
+							{item.snippet && <p class="garden-connections__snippet">“{item.snippet}”</p>}
+						</li>
+					);
+				};
+				return (
+					<>
+						<ul class="garden-connections__list">
+							{node.backlinks.slice(0, VISIBLE_LIMIT).map(renderBacklink)}
+						</ul>
+						{hiddenCount(node.backlinks.length) > 0 && (
+							<details class="garden-connections__more">
+								<summary>{copy.more(hiddenCount(node.backlinks.length))}</summary>
+								<ul class="garden-connections__list">
+									{node.backlinks.slice(VISIBLE_LIMIT).map(renderBacklink)}
+								</ul>
+							</details>
+						)}
+					</>
+				);
+			})()}
+		</div>
+	)}
+
+	{relatedSiblings.length > 0 && (
+		<div class="garden-connections__group">
+			<h3 class="garden-connections__group-title">{copy.siblings}</h3>
+			<ul class="garden-connections__list">
+				{relatedSiblings.map((item) => {
+					const stage = getStageLabel(item.stage);
+					return (
+						<li>
+							<a class="garden-connections__item" href={item.url}>
+								<span class="garden-connections__item-stage" title={stage.desc} aria-hidden="true">{stage.icon}</span>
+								<span class="garden-connections__item-title">{item.title}</span>
+								<time class="garden-connections__item-date" datetime={formatDateToYYYYMMDD(item.lastTended)}>
+									{formatDateToYYYYMMDD(item.lastTended)}
+								</time>
+							</a>
+						</li>
+					);
+				})}
+			</ul>
+		</div>
+	)}
+</section>

@@ -1,0 +1,84 @@
+---
+import { Icon } from "astro-icon/components";
+
+import {
+	GARDEN_TOPICS,
+	getGardenUrl,
+	getStageLabel,
+	getTopicCopy,
+	type GardenNodeMeta,
+} from "@utils/garden-utils";
+import { isEnglishSite, isTraditionalSite } from "@utils/site-locale";
+import { formatDateToYYYYMMDD } from "@utils/date-utils";
+
+interface Props {
+	node: GardenNodeMeta;
+	class?: string;
+}
+
+const { node, class: className = "" } = Astro.props;
+
+const topic = GARDEN_TOPICS.find((item) => item.id === node.topicId);
+const topicCopy = topic ? getTopicCopy(topic) : null;
+const stage = getStageLabel(node.stage);
+
+const copy = isEnglishSite
+	? {
+			topicLabel: "Greenhouse",
+			stageLabel: "Stage",
+			tended: "Last tended",
+			revisions: (count: number) => (count === 1 ? "1 revision" : `${count} revisions`),
+			neverTended: "Still the first draft",
+			archived: "Time-sensitive note",
+		}
+	: isTraditionalSite
+		? {
+				topicLabel: "溫室",
+				stageLabel: "生長階段",
+				tended: "最近修剪",
+				revisions: (count: number) => `修剪 ${count} 次`,
+				neverTended: "仍是初次種下",
+				archived: "時效提示",
+			}
+		: {
+				topicLabel: "主题温室",
+				stageLabel: "生长阶段",
+				tended: "最近修剪",
+				revisions: (count: number) => `修剪 ${count} 次`,
+				neverTended: "仍是初次种下",
+				archived: "时效提示",
+			};
+
+const topicHref = getGardenUrl(`topic-${node.topicId}`);
+---
+
+<section class:list={["garden-node-badge", className]} aria-label={copy.stageLabel}>
+	<div class="garden-node-badge__row">
+		{topic && topicCopy && (
+			<a class="garden-node-badge__topic" href={topicHref}>
+				<span class="garden-node-badge__topic-icon" aria-hidden="true">{topic.icon}</span>
+				<span>{topicCopy.title}</span>
+			</a>
+		)}
+		<span class:list={["garden-stage-pill", `is-${node.stage}`]} title={stage.desc}>
+			<span aria-hidden="true">{stage.icon}</span>
+			<span>{stage.name}</span>
+		</span>
+		<span class="garden-node-badge__tended">
+			<Icon name="material-symbols:content-cut-rounded" class="garden-node-badge__icon" />
+			<span>{copy.tended} · {formatDateToYYYYMMDD(node.lastTended)}</span>
+		</span>
+		{node.updateCount > 0 ? (
+			<span class="garden-node-badge__tended">{copy.revisions(node.updateCount)}</span>
+		) : (
+			<span class="garden-node-badge__tended">{copy.neverTended}</span>
+		)}
+	</div>
+
+	{node.archived && (
+		<aside class="garden-archive-note" role="note">
+			<span class="garden-archive-note__label">{copy.archived}</span>
+			{node.archivedReason && <p>{node.archivedReason}</p>}
+		</aside>
+	)}
+</section>
