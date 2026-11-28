@@ -713,12 +713,12 @@ body:has(.garden-stage) main#swup-container {
   }
 
   .garden-hud--filters {
-    top: 0.6rem;
-    left: 0.6rem;
-    right: 0.6rem;
+    top: 0.55rem;
+    left: 0.55rem;
+    right: 0.55rem;
     width: auto;
-    max-height: 34%;
-    padding: 0.7rem 0.8rem 0.75rem;
+    max-height: 46%;
+    padding: 0.6rem 0.7rem 0.7rem;
   }
 
   .garden-hud__head {
@@ -726,41 +726,71 @@ body:has(.garden-stage) main#swup-container {
   }
 
   .garden-hud__group + .garden-hud__group {
-    margin-top: 0.55rem;
+    margin-top: 0.5rem;
+  }
+
+  .garden-hud__label {
+    margin-bottom: 0.3rem;
+    font-size: 0.62rem;
   }
 
   .garden-chips {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    padding-bottom: 0.15rem;
-    scrollbar-width: none;
+    gap: 0.25rem;
   }
 
-  .garden-chips::-webkit-scrollbar {
-    display: none;
+  /* Every greenhouse stays visible: two columns when the phone is wide enough,
+     one full-width row otherwise. No hidden horizontal strip to discover. */
+  .garden-chips--topics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(12.5rem, 1fr));
+    gap: 0.22rem;
   }
 
   .garden-chip {
-    flex: none;
+    font-size: 0.72rem;
+    padding: 0.2rem 0.5rem;
+  }
+
+  .garden-chip--topic {
+    width: 100%;
+    min-width: 0;
+    justify-content: flex-start;
+    border-radius: 0.4rem;
+    text-align: start;
+  }
+
+  .garden-chip__label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .garden-chip--topic .garden-chip__count {
+    margin-left: auto;
   }
 
   .garden-hud--detail {
     top: auto;
-    right: 0.6rem;
-    left: 0.6rem;
-    bottom: 4.2rem;
+    right: 0.55rem;
+    left: 0.55rem;
+    bottom: 3.4rem;
     width: auto;
-    max-height: 46%;
+    max-height: 44%;
   }
 
+  /* The mascot owns the bottom-right corner, so the bar keeps to the left. */
   .garden-hud--bar {
+    left: 0.6rem;
+    right: auto;
     bottom: 0.6rem;
-    width: calc(100% - 1.2rem);
-    max-width: none;
+    width: auto;
+    max-width: calc(100% - 1.2rem);
+    transform: none;
+    padding: 0.3rem;
   }
 
   .garden-hud__hint {
-    white-space: normal;
-    font-size: 0.66rem;
+    display: none;
   }
 }
