@@ -2,7 +2,6 @@
 import { Icon } from "astro-icon/components";
 
 import MainGridLayout from "@layouts/MainGridLayout.astro";
-import { readingCopy } from "@i18n/reading-editions";
 import {
 	buildGardenCatalog,
 	GARDEN_TOPICS,
@@ -21,186 +20,235 @@ const totalLinks = catalog.allNodes.reduce(
 	(total, node) => total + node.outbound.length,
 	0,
 );
-const evergreenCount = catalog.allNodes.filter((node) => node.stage === "evergreen").length;
-const seedlingCount = catalog.allNodes.filter((node) => node.stage === "seedling").length;
-const buddingCount = catalog.allNodes.filter((node) => node.stage === "budding").length;
+const stageCounts = {
+	seedling: catalog.allNodes.filter((node) => node.stage === "seedling").length,
+	budding: catalog.allNodes.filter((node) => node.stage === "budding").length,
+	evergreen: catalog.allNodes.filter((node) => node.stage === "evergreen").length,
+};
 
 const copy = isEnglishSite || isExtraLocale
 	? {
 			title: "Garden",
-			subtitle:
-				"Every note is also a node. The timeline keeps them in order; the garden sorts them by topic, growth stage, and the links between them.",
-			graphHeading: "The whole garden at a glance",
-			graphHint: "Drag a node to pin it, scroll to zoom, click to open the note.",
-			graphReset: "Reset view",
-			statsNodes: "notes",
-			statsLinks: "links",
-			statsTopics: "greenhouses",
-			filterAll: "All",
-			greenhouses: "Greenhouses by topic",
-			openNote: "Open",
-			tended: "tended",
+			notes: "notes",
+			links: "links",
+			greenhouses: "greenhouses",
+			stageLabel: "Stage",
+			topicLabel: "Greenhouse",
+			all: "All",
+			reset: "Reset view",
+			hint: "Click a node to read it · double-click to open · drag empty space to pan · scroll to zoom",
+			open: "Open this note",
+			related: "Connected notes",
+			tended: "Tended",
+			revisions: "{count} revisions",
+			linksCount: "{count} links",
+			siblings: "This greenhouse holds {count} notes.",
 		}
 	: isTraditionalSite
 		? {
 				title: "花園",
-				subtitle:
-					"每篇筆記同時也是一個節點。時間軸負責保留先後順序，花園則按主題、生長階段與彼此之間的連結重新排列。",
-				graphHeading: "整座花園一眼看全",
-				graphHint: "拖動節點可以固定它，滾輪縮放，點擊節點打開對應筆記。",
-				graphReset: "重置視圖",
-				statsNodes: "篇筆記",
-				statsLinks: "條連結",
-				statsTopics: "間溫室",
-				filterAll: "全部",
-				greenhouses: "按主題劃分的溫室",
-				openNote: "打開",
+				notes: "篇筆記",
+				links: "條連結",
+				greenhouses: "間溫室",
+				stageLabel: "生長階段",
+				topicLabel: "溫室",
+				all: "全部",
+				reset: "重置視圖",
+				hint: "點擊節點查看 · 雙擊直接打開 · 拖動空白處平移 · 滾輪縮放",
+				open: "打開這篇筆記",
+				related: "關聯筆記",
 				tended: "修剪於",
+				revisions: "修剪 {count} 次",
+				linksCount: "{count} 條連結",
+				siblings: "這間溫室共 {count} 篇筆記。",
 			}
 		: {
 				title: "花园",
-				subtitle:
-					"每篇笔记同时也是一个节点。时间线负责保留先后顺序，花园则按主题、生长阶段与彼此之间的链接重新排列。",
-				graphHeading: "整座花园一眼看全",
-				graphHint: "拖动节点可以固定它，滚轮缩放，点击节点打开对应笔记。",
-				graphReset: "重置视图",
-				statsNodes: "篇笔记",
-				statsLinks: "条链接",
-				statsTopics: "间温室",
-				filterAll: "全部",
-				greenhouses: "按主题划分的温室",
-				openNote: "打开",
+				notes: "篇笔记",
+				links: "条链接",
+				greenhouses: "间温室",
+				stageLabel: "生长阶段",
+				topicLabel: "温室",
+				all: "全部",
+				reset: "重置视图",
+				hint: "点击节点查看 · 双击直接打开 · 拖动空白处平移 · 滚轮缩放",
+				open: "打开这篇笔记",
+				related: "关联笔记",
 				tended: "修剪于",
+				revisions: "修剪 {count} 次",
+				linksCount: "{count} 条链接",
+				siblings: "这间温室共 {count} 篇笔记。",
 			};
 
+const stages = [
+	{ id: "all", label: copy.all, icon: "✦", count: catalog.allNodes.length },
+	{ id: "seedling", ...getStageLabel("seedling"), count: stageCounts.seedling },
+	{ id: "budding", ...getStageLabel("budding"), count: stageCounts.budding },
+	{ id: "evergreen", ...getStageLabel("evergreen"), count: stageCounts.evergreen },
+];
+
+const labels = {
+	tended: copy.tended,
+	revisions: copy.revisions,
+	linksCount: copy.linksCount,
+	open: copy.open,
+	related: copy.related,
+	siblings: copy.siblings,
+	"stage.seedling": getStageLabel("seedling").name,
+	"stage.budding": getStageLabel("budding").name,
+	"stage.evergreen": getStageLabel("evergreen").name,
+};
+
 const graphPayload = {
+	labels,
 	nodes: catalog.allNodes.map((node) => {
 		const topic = GARDEN_TOPICS.find((item) => item.id === node.topicId);
+		const neighborMap = new Map<
+			string,
+			{ slug: string; title: string; url: string; outward: boolean }
+		>();
+		for (const item of node.outbound) {
+			neighborMap.set(item.slug, {
+				slug: item.slug,
+				title: item.title,
+				url: item.url,
+				outward: true,
+			});
+		}
+		for (const item of node.backlinks) {
+			if (neighborMap.has(item.slug)) continue;
+			neighborMap.set(item.slug, {
+				slug: item.slug,
+				title: item.title,
+				url: item.url,
+				outward: false,
+			});
+		}
+		const neighbors = [...neighborMap.values()];
 		return {
 			slug: node.slug,
 			title: node.title,
+			description: node.description,
 			url: node.url,
 			topicId: node.topicId,
-			stage: node.stage,
-			degree: node.degree,
 			topicTitle: topic ? getTopicCopy(topic).title : "",
 			topicIcon: topic?.icon ?? "",
 			accent: topic?.accent ?? "#506347",
+			stage: node.stage,
+			degree: node.degree,
 			lastTended: formatDateToYYYYMMDD(node.lastTended),
+			updateCount: node.updateCount,
+			neighbors,
 		};
 	}),
 	edges: catalog.allNodes.flatMap((node) =>
 		node.outbound.map((item) => [node.slug, item.slug] as [string, string]),
 	),
 };
-
-const stages = [
-	{ id: "all", label: copy.filterAll, icon: "✳", count: catalog.allNodes.length },
-	{ id: "seedling", ...getStageLabel("seedling"), count: seedlingCount },
-	{ id: "budding", ...getStageLabel("budding"), count: buddingCount },
-	{ id: "evergreen", ...getStageLabel("evergreen"), count: evergreenCount },
-];
 ---
 
-<MainGridLayout title={copy.title} description={copy.subtitle}>
-	<section class="garden-hero card-base paper-note paper-tape">
-		<p class="garden-hero__eyebrow">DIGITAL GARDEN</p>
-		<h1 class="garden-hero__title">{copy.title}</h1>
-		<p class="garden-hero__subtitle">{copy.subtitle}</p>
-		<ul class="garden-stats">
-			<li><strong>{catalog.allNodes.length}</strong><span>{copy.statsNodes}</span></li>
-			<li><strong>{totalLinks}</strong><span>{copy.statsLinks}</span></li>
-			<li><strong>{catalog.topics.length}</strong><span>{copy.statsTopics}</span></li>
-		</ul>
-	</section>
+<MainGridLayout title={copy.title}>
+	<div class="garden-stage" data-garden-stage>
+		<canvas
+			class="garden-canvas"
+			data-garden-graph
+			role="img"
+			aria-label={copy.title}
+		/>
 
-	<section class="garden-graph-panel card-base">
-		<header class="garden-graph-panel__head">
-			<h2>{copy.graphHeading}</h2>
-			<button type="button" class="garden-graph-panel__reset" data-garden-graph-reset>
-				<Icon name="material-symbols:refresh-rounded" />
-				<span>{copy.graphReset}</span>
+		<div class="garden-hud garden-hud--filters" data-garden-filters>
+			<header class="garden-hud__head">
+				<p class="garden-hud__eyebrow">DIGITAL GARDEN</p>
+				<h1 class="garden-hud__title">{copy.title}</h1>
+				<p class="garden-hud__stats">
+					<span>{catalog.allNodes.length} {copy.notes}</span>
+					<span aria-hidden="true">·</span>
+					<span>{totalLinks} {copy.links}</span>
+					<span aria-hidden="true">·</span>
+					<span>{catalog.topics.length} {copy.greenhouses}</span>
+				</p>
+			</header>
+
+			<section class="garden-hud__group">
+				<h2 class="garden-hud__label">{copy.stageLabel}</h2>
+				<div class="garden-chips">
+					{stages.map((stage) => (
+						<button
+							type="button"
+							class="garden-chip"
+							data-garden-stage={stage.id}
+							aria-pressed={stage.id === "all" ? "true" : "false"}
+						>
+							<span aria-hidden="true">{stage.icon}</span>
+							<span>{stage.label}</span>
+							<span class="garden-chip__count">{stage.count}</span>
+						</button>
+					))}
+				</div>
+			</section>
+
+			<section class="garden-hud__group">
+				<h2 class="garden-hud__label">{copy.topicLabel}</h2>
+				<div class="garden-chips garden-chips--topics">
+					{catalog.topics.map((topic) => (
+						<button
+							type="button"
+							class="garden-chip garden-chip--topic"
+							data-garden-topic={topic.id}
+							aria-pressed="false"
+							style={`--chip-accent: ${topic.accent};`}
+						>
+							<span class="garden-chip__dot" aria-hidden="true" />
+							<span>{topic.copy.title}</span>
+							<span class="garden-chip__count">{topic.nodes.length}</span>
+						</button>
+					))}
+				</div>
+			</section>
+		</div>
+
+		<aside class="garden-hud garden-hud--detail" data-garden-detail hidden>
+			<button
+				type="button"
+				class="garden-detail__close"
+				data-garden-detail-close
+				aria-label={isEnglishSite ? "Close" : "关闭"}
+			>
+				<Icon name="material-symbols:close-rounded" />
 			</button>
-		</header>
-		<div class="garden-stage-filter" role="group">
-			{stages.map((stage) => (
-				<button
-					type="button"
-					class="garden-stage-filter__button"
-					data-garden-stage={stage.id}
-					aria-pressed={stage.id === "all" ? "true" : "false"}
-				>
-					<span aria-hidden="true">{stage.icon}</span>
-					<span>{stage.label}</span>
-					<span class="garden-stage-filter__count">{stage.count}</span>
-				</button>
-			))}
+			<div class="garden-detail__inner" data-garden-detail-body />
+		</aside>
+
+		<div class="garden-hud garden-hud--bar" data-garden-bar>
+			<p class="garden-hud__hint">{copy.hint}</p>
+			<button type="button" class="garden-hud__reset" data-garden-graph-reset>
+				<Icon name="material-symbols:refresh-rounded" />
+				<span>{copy.reset}</span>
+			</button>
 		</div>
-		<div class="garden-graph-wrap">
-			<canvas
-				class="garden-graph-canvas"
-				data-garden-graph
-				role="img"
-				aria-label={copy.graphHeading}
-			/>
-		</div>
-		<p class="garden-graph-panel__hint">{copy.graphHint}</p>
-		<ul class="garden-graph-legend">
+	</div>
+
+	<noscript>
+		<div class="garden-fallback">
 			{
 				catalog.topics.map((topic) => (
-					<li>
-						<a href={`#topic-${topic.id}`}>
-							<span class="garden-graph-legend__dot" style={`background: ${topic.accent};`} aria-hidden="true" />
-							<span aria-hidden="true">{topic.icon}</span>
-							<span>{topic.copy.title}</span>
-							<span class="garden-graph-legend__count">{topic.nodes.length}</span>
-						</a>
-					</li>
+					<section id={`topic-${topic.id}`}>
+						<h2>{topic.icon} {topic.copy.title}</h2>
+						<ul>
+							{topic.nodes.map((node) => (
+								<li>
+									<a href={node.url}>{node.title}</a>
+									<span> · {formatDateToYYYYMMDD(node.lastTended)}</span>
+								</li>
+							))}
+						</ul>
+					</section>
 				))
 			}
-		</ul>
-	</section>
-
-	<section class="garden-topics">
-		<h2 class="garden-section-title">{copy.greenhouses}</h2>
-		{
-			catalog.topics.map((topic) => (
-				<article class="garden-topic card-base" id={`topic-${topic.id}`}>
-					<header class="garden-topic__head" style={`--topic-accent: ${topic.accent};`}>
-						<span class="garden-topic__icon" aria-hidden="true">{topic.icon}</span>
-						<div class="garden-topic__copy">
-							<h3 class="garden-topic__title">{topic.copy.title}</h3>
-							<p class="garden-topic__subtitle">{topic.copy.subtitle}</p>
-						</div>
-						<span class="garden-topic__count">{topic.nodes.length}</span>
-					</header>
-					<ul class="garden-topic__list">
-						{topic.nodes.map((node) => {
-							const stage = getStageLabel(node.stage);
-							return (
-								<li class="garden-topic__item">
-									<a class="garden-topic__link" href={node.url}>
-										<span class="garden-topic__stage" title={stage.desc} aria-hidden="true">{stage.icon}</span>
-										<span class="garden-topic__node-title">{node.title}</span>
-										<span class="garden-topic__meta">
-											{node.degree > 0 && <span class="garden-topic__degree">↔ {node.degree}</span>}
-											<time datetime={formatDateToYYYYMMDD(node.lastTended)}>
-												{formatDateToYYYYMMDD(node.lastTended)}
-											</time>
-										</span>
-									</a>
-									{node.description && <p class="garden-topic__desc">{node.description}</p>}
-								</li>
-							);
-						})}
-					</ul>
-				</article>
-			))
-		}
-	</section>
+		</div>
+	</noscript>
 
 	<script is:inline type="application/json" id="garden-graph-data" set:html={JSON.stringify(graphPayload)} />
-	{isExtraLocale && <p class="garden-hero__note">{readingCopy.coverage}</p>}
 </MainGridLayout>
 
 <script>

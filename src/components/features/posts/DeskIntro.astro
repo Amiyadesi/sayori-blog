@@ -4,6 +4,7 @@ import avatar from "../../../assets/images/avatar-sayori.png";
 import notebook from "../../../../public/assets/home/amiya-desk.webp";
 import { isEnglishSite, isExtraLocale } from "../../../utils/site-locale";
 import { readingCopy } from "../../../i18n/reading-editions";
+import { getGardenUrl } from "../../../utils/garden-utils";
 import { url } from "../../../utils/url-utils";
 ---
 <section class="desk-intro">
@@ -23,6 +24,7 @@ import { url } from "../../../utils/url-utils";
 	<div class="desk-note"><Image src={notebook} width={144} height={144} widths={[144, 256]} sizes="144px" format="webp" alt="" loading="lazy" /><span>one page at a time.</span></div>
 </section>
 {!isExtraLocale && <nav class="desk-quick-links" aria-label={isEnglishSite ? "Explore" : "从这里开始"}>
+	<a href={getGardenUrl()}>{isEnglishSite ? "Garden" : "花园"} <span aria-hidden="true">↗</span></a>
 	<a href={url("/essays/")}>{isEnglishSite ? "Short notes" : "随笔"} <span aria-hidden="true">↗</span></a>
 	<a href={url("/posts/resource-index/")}>{isEnglishSite ? "Resources" : "资源索引"} <span aria-hidden="true">↗</span></a>
 	<a href="https://amiya-desi.itch.io/" target="_blank" rel="noopener noreferrer">{isEnglishSite ? "My games" : "我的游戏"} <span aria-hidden="true">↗</span></a>
